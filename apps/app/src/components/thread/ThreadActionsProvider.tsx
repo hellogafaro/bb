@@ -172,13 +172,6 @@ export function ThreadActionsProvider({
     [openRenameDialog],
   );
 
-  const renameThread = useCallback(
-    (threadId: string, title: string) => {
-      updateMutate({ id: threadId, title });
-    },
-    [updateMutate],
-  );
-
   const renameThreadAsync = useCallback(
     async (threadId: string, title: string) => {
       await inlineRenameMutateAsync({ id: threadId, title });
