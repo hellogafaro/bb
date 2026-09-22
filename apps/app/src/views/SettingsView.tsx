@@ -89,6 +89,7 @@ import {
 } from "@/lib/favicon-color-preference";
 import { useOpenLinksInAppBrowserPreference } from "@/lib/in-app-browser-link-preference";
 import { useRewriteLocalhostLinksPreference } from "@/lib/localhost-link-rewrite-preference";
+import { localhostLinkRewriteDescription } from "@/lib/localhost-link-rewrite-description";
 import { useRichTextEditingPreference } from "@/lib/rich-text-editing-preference";
 import {
   SETTINGS_ROUTE_PATH,
@@ -964,6 +965,9 @@ export function GeneralSettingsSection({
   richTextEditing,
   steerActiveThreadOnEnter,
 }: GeneralSettingsSectionProps) {
+  const localhostRewriteDescription = localhostLinkRewriteDescription(
+    typeof window === "undefined" ? undefined : window.location.hostname,
+  );
   return (
     <>
       <SettingsSection title="Threads & editing">
@@ -1045,35 +1049,43 @@ export function GeneralSettingsSection({
           </SettingsWithControl>
         </div>
       </SettingsSection>
-      <SettingsSection title="Links">
-        <div className="space-y-5">
-          {desktopBrowserAvailable ? (
-            <SettingsWithControl
-              settingId="in-app-links"
-              label={IN_APP_BROWSER_LINK_SETTING_LABEL}
-              description="Open web links inside bb."
-            >
-              <Switch
-                checked={openLinksInAppBrowser}
-                onCheckedChange={onOpenLinksInAppBrowserChange}
-                aria-label={IN_APP_BROWSER_LINK_SETTING_LABEL}
-              />
-            </SettingsWithControl>
-          ) : null}
+      {desktopBrowserAvailable || localhostRewriteDescription !== null ? (
+        <SettingsSection title="Links">
+          <div className="space-y-5">
+            {desktopBrowserAvailable ? (
+              <SettingsWithControl
+                settingId="in-app-links"
+                label={IN_APP_BROWSER_LINK_SETTING_LABEL}
+                description="Open web links inside bb."
+              >
+                <Switch
+                  checked={openLinksInAppBrowser}
+                  onCheckedChange={onOpenLinksInAppBrowserChange}
+                  aria-label={IN_APP_BROWSER_LINK_SETTING_LABEL}
+                />
+              </SettingsWithControl>
+            ) : null}
 
-          <SettingsWithControl
-            settingId="localhost-links"
-            label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
-            description="Point localhost links at this host."
-          >
-            <Switch
-              checked={rewriteLocalhostLinks}
-              onCheckedChange={onRewriteLocalhostLinksChange}
-              aria-label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
-            />
-          </SettingsWithControl>
-        </div>
-      </SettingsSection>
+            {localhostRewriteDescription !== null ? (
+              <SettingsWithControl
+                settingId="localhost-links"
+                label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
+                description={
+                  <span className="break-words [overflow-wrap:anywhere]">
+                    {localhostRewriteDescription}
+                  </span>
+                }
+              >
+                <Switch
+                  checked={rewriteLocalhostLinks}
+                  onCheckedChange={onRewriteLocalhostLinksChange}
+                  aria-label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
+                />
+              </SettingsWithControl>
+            ) : null}
+          </div>
+        </SettingsSection>
+      ) : null}
       <SettingsSection title="Git">
         <div className="space-y-5">
           <ManagedBranchPrefixSetting
