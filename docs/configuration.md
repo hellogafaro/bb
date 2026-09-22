@@ -12,8 +12,9 @@ Use `bb-app config` for non-secret bb settings:
 
 ```bash
 npx bb-app config set BB_APP_URL https://<machine>.<tailnet>.ts.net
-npx bb-app config set BB_INFERENCE openai/gpt-5.4-mini
-npx bb-app config set BB_TRANSCRIPTION mistralai/voxtral-mini-transcribe
+npx bb-app config set BB_INFERENCE codex/gpt-5.6-luna
+npx bb-app config set BB_INFERENCE_FALLBACK codex/gpt-5.4-mini
+npx bb-app config set BB_TRANSCRIPTION codex/gpt-transcribe
 npx bb-app config list
 npx bb-app config unset BB_APP_URL
 npx bb-app config refresh
@@ -22,9 +23,9 @@ npx bb-app config refresh
 Use `bb-app env` for provider credentials and provider-specific environment:
 
 ```bash
-npx bb-app env set OPENROUTER_API_KEY <key>
+npx bb-app env set OPENAI_API_KEY <key>
 npx bb-app env list
-npx bb-app env unset OPENROUTER_API_KEY
+npx bb-app env unset OPENAI_API_KEY
 ```
 
 ## Repository worktree hooks
@@ -90,8 +91,8 @@ running, the new values apply on the next start. If you edit either file by
 hand, run `npx bb-app config refresh` to apply the files to a running server.
 
 The live reload applies config keys such as `BB_APP_URL`, `BB_INFERENCE`,
-and `BB_TRANSCRIPTION`, plus env values explicitly
-consumed at runtime such as `OPENROUTER_API_KEY`. If one of those config keys is
+`BB_INFERENCE_FALLBACK`, and `BB_TRANSCRIPTION`, plus env values explicitly
+consumed at runtime such as `OPENAI_API_KEY`. If one of those config keys is
 stored with `bb-app env` instead, it is startup-only; use `bb-app config` when
 you need a live change.
 
@@ -100,7 +101,8 @@ set of startup-only server or launcher env entries is:
 
 - `BB_APP_SURFACE`, `BB_APP_URL`, `BB_DATA_DIR`, `BB_DEV_APP_PORT`, and
   `BB_EXTERNAL_URL`
-- `BB_HOST_DAEMON_PORT`, `BB_INFERENCE`, and `BB_INHERITED_SKILLS_ROOTS`
+- `BB_HOST_DAEMON_PORT`, `BB_INFERENCE`,
+  `BB_INFERENCE_FALLBACK`, and `BB_INHERITED_SKILLS_ROOTS`
 - `BB_LOG_LEVEL`, `BB_MANAGED_DEV_BUILTIN_PLUGIN_HOT_RELOAD`,
   `BB_MARKETPLACE_URL`, `BB_POSTHOG_API_KEY`, and `BB_TELEMETRY`
 - `BB_SERVER_BIND_HOST`, `BB_SERVER_PORT`, `BB_TRANSCRIPTION`, and all
@@ -140,8 +142,9 @@ signal it, so a stale file left by a crash cannot stop an unrelated process.
 | Key                            | Command                                            | When to set             | Used for                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------------ | -------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BB_APP_URL`                   | `bb-app config`                                    | Optional for remote use | Human-facing app URL used for generated links and allowed browser origins. Leave empty for local-only use.                                                                                                                                                                                                                                                                                                     |
-| `BB_INFERENCE`                 | `bb-app config`                                    | Optional                | OpenRouter model id for server-side helper inference (thread titles, commit messages), without a service prefix, for example `openai/gpt-5.4-mini`. Requires `OPENROUTER_API_KEY`. Defaults to `openai/gpt-5.4-mini`.                                                                                                                                                                                              |
-| `BB_TRANSCRIPTION`             | `bb-app config`                                    | Optional                | OpenRouter speech-to-text model id for voice transcription, without a service prefix, for example `mistralai/voxtral-mini-transcribe` or `openai/gpt-4o-mini-transcribe` (the Models page lists them under the transcription output modality). Requires `OPENROUTER_API_KEY`; audio up to 25MB. Defaults to `mistralai/voxtral-mini-transcribe`.                                                            |
+| `BB_INFERENCE`                 | `bb-app config`                                    | Optional                | Primary server-side helper model in `<service>/<model>` format, where `<service>` is an AI service a loaded plugin registers (`bb settings ai-services` lists them; `codex` comes with the codex plugin and uses the codex CLI's credentials with no reasoning) or a pi-ai provider the server calls directly with its API key. Defaults to `codex/gpt-5.6-luna`.                                              |
+| `BB_INFERENCE_FALLBACK`        | `bb-app config`                                    | Optional                | Helper model used after a transient primary timeout, rate limit, or service-unavailable failure. Defaults to `codex/gpt-5.4-mini`.                                                                                                                                                                                                                                                                             |
+| `BB_TRANSCRIPTION`             | `bb-app config`                                    | Optional                | Voice transcription model in `<service>/<model>` format: a plugin-registered AI service (`codex` with the codex plugin; audio up to 5MB) or `openai/<model>` with `OPENAI_API_KEY`. Defaults to `codex/gpt-transcribe`.                                                                                                                                                                                        |
 | `BB_MARKETPLACE_URL`           | `bb-app env`, or environment                       | Startup-only testing    | Manifest URL of the reserved `bb-community` plugin marketplace. It defaults to `https://getbb.app/marketplace/v2/marketplace.json`. If the default v2 request returns 404, the server requests v1. Set another URL to test catalog refreshes. The server requests that URL without fallback. It changes only `bb-community`. Add other marketplaces with `bb marketplace add`. Restart the app after a change. |
 | `BB_SERVER_URL`                | `bb-app config`                                    | Remote CLI/host use     | Server URL for standalone `bb` CLI and `host-daemon` commands on the current machine. The CLI defaults to `http://127.0.0.1:38886` when unset.                                                                                                                                                                                                                                                                 |
 | `BB_SERVER_BIND_HOST`          | `bb-app env`, environment, or `--server-bind-host` | Startup-only            | Server listener host. Defaults to `127.0.0.1`; accepts only `127.0.0.1` or `0.0.0.0`. A full launcher or desktop app restart is required; until then, a previous `0.0.0.0` listener remains exposed. This is not a `bb-app config` key.                                                                                                                                                                        |
@@ -150,7 +153,7 @@ signal it, so a stale file left by a crash cannot stop an unrelated process.
 | `BB_LOG_LEVEL`                 | `bb-app config`                                    | Startup-only debugging  | Log level: `trace`, `debug`, `info`, `warn`, `error`, or `fatal`. A full launcher or desktop app restart is required.                                                                                                                                                                                                                                                                                          |
 | `BB_ACCOUNT_POOL_PARENT_URL`   | Set automatically by a parent bb server            | Nested bb servers       | Account Pooler hub of the bb server whose thread launched this one. When present the Account Pooler plugin is enabled on first run and defaults to proxying to that parent; `bb pool parent isolate` opts out. Not a `bb-app config` key.                                                                                                                                                                      |
 | `BB_ACCOUNT_POOL_PARENT_TOKEN` | Set automatically by a parent bb server            | Nested bb servers       | Machine token this nested server presents to the parent Account Pooler hub. Paired with `BB_ACCOUNT_POOL_PARENT_URL`; both must be well formed or proxying stays off. Not a `bb-app config` key.                                                                                                                                                                                                               |
-| `OPENROUTER_API_KEY`           | `bb-app env`                                       | Helper inference, voice | OpenRouter API key. Required for helper inference (`BB_INFERENCE`) and voice transcription (`BB_TRANSCRIPTION`); bb calls no other inference provider itself. Voice input is hidden in the app while it is unset.                                                                                                                                                                                              |
+| `OPENAI_API_KEY`               | `bb-app env`                                       | OpenAI opt-in routes    | Required only when selecting explicit OpenAI provider routes such as `openai/gpt-4o-mini` or `openai/gpt-transcribe`.                                                                                                                                                                                                                                                                                          |
 
 The `bb` CLI records each failed invocation on the machine that ran it, in
 `<data dir>/logs/cli-errors.jsonl`: the time, CLI version, command path, error
@@ -164,18 +167,13 @@ By default, helper inference and voice transcription use Codex credentials from
 the host daemon. Run `codex login` on the host for the default path. Set
 provider env keys only when opting into a non-Codex provider route.
 
-Voice transcription always goes through OpenRouter's
-`/api/v1/audio/transcriptions` endpoint with `OPENROUTER_API_KEY`; it does not
-use any agent provider's credentials. The server keeps its OpenRouter
-connections alive and the app warms one when recording starts
-(`POST /system/voice-transcription/warmup`, `sdk.system.warmVoiceTranscription()`),
-so the upload after you stop talking reuses an open socket. A request that has not answered after
-1.5 seconds is hedged with a second identical request and the first answer
-wins; a fast rate-limit or provider failure retries once; both attempts time
-out at 20 seconds, after which bb reports "Voice transcription is temporarily
-unavailable" or "Voice transcription timed out". Pick another model with
-`bb-app config set BB_TRANSCRIPTION <model>` if a provider stays slow; `usage`
-cost and seconds are logged at debug level per request.
+With a ChatGPT subscription login, `codex/` voice transcription posts to a
+`chatgpt.com` endpoint that sits behind Cloudflare bot protection. On some
+networks Cloudflare challenges that request; bb retries, then reports
+"Voice transcription is temporarily unavailable" and logs the Cloudflare
+challenge on the server. If that happens often, route transcription through an
+API key instead: `codex login --with-api-key`, or set `BB_TRANSCRIPTION` to
+`openai/gpt-transcribe` with `OPENAI_API_KEY`.
 
 The microphone picker in Settings → Voice Input is client-local. It stores the
 selected browser `MediaDevices` device id in localStorage as
@@ -329,18 +327,9 @@ Always end font stacks with a generic fallback such as `sans-serif` or
 `monospace`. The complete theme token reference is in the bb-cli skill's
 `references/theming.md`.
 
-The wallpaper behind the welcome and New thread screens lives at
-`<bb-data-dir>/appearance/wallpaper.<webp|png|jpg>`. Set it in Settings →
-Appearance → Wallpaper, with `bb theme wallpaper set <image>` (PNG, JPEG, or
-WebP up to 4 MB), or with SDK `theme.setWallpaper({ dataUrl })`; clear it with
-`bb theme wallpaper clear` or `theme.clearWallpaper()`. `system.config` reports
-`wallpaper` as `{ contentType, bytes, updatedAt }` or `null`. Without an image,
-bb draws an animated dithered pattern in the palette's primary color; both
-pause while the page is hidden and honor reduced motion.
-
 ## Keyboard Shortcuts
 
-`Mod+K` opens the quick palette: type to filter, then run a command with
+`Mod+Shift+P` opens the quick palette: type to filter, then run a command with
 Enter. It lists only commands that apply on the current surface, shows each
 one's shortcut, and offers recently run commands first. The numbered
 accelerator families and the relative cycle commands stay rebindable but
@@ -402,9 +391,9 @@ delayed shortcut badges without disabling any shortcuts.
 
 | Area      | Command                                   | Default                           | Availability             |
 | --------- | ----------------------------------------- | --------------------------------- | ------------------------ |
-| Palette   | Quick palette                             | `Mod+K`                           | All clients              |
+| Palette   | Quick palette                             | `Mod+Shift+P`                     | All clients              |
 | Threads   | New thread                                | `Mod+N` / `Mod+Shift+O`           | Desktop / web            |
-| Threads   | Search threads                            | `Mod+Shift+K`                     | All clients              |
+| Threads   | Search threads                            | `Mod+K`                           | All clients              |
 | Threads   | Rename focused thread                     | Unassigned                        | Thread view              |
 | Threads   | Archive focused thread                    | Unassigned                        | Thread view              |
 | Threads   | Previous / next thread                    | Surface defaults above            | Desktop / web            |
@@ -415,10 +404,10 @@ delayed shortcut badges without disabling any shortcuts.
 | Layout    | Close focused chat pane                   | `Mod+Shift+X`                     | While split              |
 | Window    | New window                                | `Mod+Shift+N`                     | Desktop                  |
 | Window    | Settings                                  | `Mod+,`                           | All clients              |
-| Layout    | Toggle sidebar                            | `Mod+B`                           | All clients              |
-| Panel     | New tab / close tab / toggle              | `Mod+T` / `Mod+W` / `Mod+Alt+B`   | All clients              |
+| Layout    | Toggle sidebar                            | `Mod+\`                           | All clients              |
+| Panel     | New tab / close tab / toggle              | `Mod+T` / `Mod+W` / `Mod+J`       | All clients              |
 | Workspace | Quick open file / toggle diff             | `Mod+P` / `Mod+D`                 | All clients              |
-| Workspace | Open terminal                             | `Mod+J` / `Mod+Shift+T`           | Web / desktop            |
+| Workspace | Open terminal                             | `Mod+Shift+Enter` / `Mod+Shift+T` | Web / desktop            |
 | Workspace | Open in preferred app                     | `Mod+O`                           | All clients              |
 | Composer  | Focus composer                            | `Mod+Shift+C`                     | All clients              |
 | Composer  | Toggle model picker                       | `Mod+Shift+M`                     | All clients              |
@@ -734,9 +723,8 @@ client wrote first, so a stale window cannot silently clobber a newer value.
 | `sidebar.sectionOrder`            | Section id list for **By project**                  |
 | `sidebar.manualSectionOrder`      | Section id list for **Manually**                    |
 | `sidebar.machineSectionOrder`     | Section id list for **By machine**                  |
-| `sidebar.hiddenGroups`            | Legacy project, custom section, and machine ids; unused by the built-in list |
+| `sidebar.hiddenGroups`            | Legacy project, custom section, and machine ids migrated once into the Thread list plugin |
 | `sidebar.collapsedSections`       | Collapsed built-in sections (`pinned`, `threads`)   |
-| `sidebar.collapsedStatusSections` | Collapsed status sections (`waiting`, `ready`, `working`, `done`, `snoozed`) |
 | `sidebar.collapsedProjects`       | Collapsed project ids                               |
 | `sidebar.collapsedThreads`        | Thread ids whose children are collapsed             |
 | `sidebar.collapsedEnvironments`   | Collapsed environment ids                           |
@@ -747,15 +735,14 @@ client wrote first, so a stale window cannot silently clobber a newer value.
 | `sidebar.pluginPanelOrder`        | Navigation entry order                              |
 | `sidebar.visiblePluginPanels`     | Navigation entries shown, or `null` for every entry |
 | `sidebar.navigationProvider`      | Plugin key, `__automatic__`, or `__builtin__`       |
-| `sidebar.threadListProvider`      | Upstream plugin selection; unused by the built-in list |
+| `sidebar.threadListProvider`      | Plugin key; defaults to `thread-list/thread-list` |
 
-The sidebar thread list is built in: Pinned, then Waiting, Ready, Working,
-Done, and Snoozed, each with a count and hidden while empty. A thread family
-(a root thread and its child threads) sits in exactly one section, chosen in
-that order of urgency. Collapsing a section writes
-`sidebar.collapsedStatusSections` (Pinned uses `sidebar.collapsedSections`), so
-every window agrees. A plugin that registers `app.slots.experimental_threadList`
-replaces the built-in list; `sidebar.threadListProvider` is not consulted.
+The sidebar thread list uses an explicit plugin selection and defaults to the bundled
+Thread list plugin (`thread-list/thread-list`). Existing `__automatic__` and
+`__builtin__` selections resolve to that default; other plugin selections are preserved.
+Use `bb settings ui reset sidebar.threadListProvider` to restore the default, or
+`bb settings ui set sidebar.threadListProvider <plugin-id>/<slot-id>` to select
+another plugin. The SDK exposes the same setting through `uiPreferences`.
 
 New installations default to Custom (`chronological`) for `sidebar.organizationMode`.
 Migrated installations with existing projects, threads, or UI preferences fall back
@@ -829,19 +816,33 @@ value. A change on one device reaches every other connected window through the
 Sidebar width and open state stay in the browser because they depend on the
 window size.
 
-### Snoozed threads
+### Thread-list visibility
 
-Snooze a root thread from its row (the clock button or the row menu) to move it
-and its child threads into **Snoozed** until a chosen time. The wake time is the
-thread's `snoozedUntil` (epoch ms or `null`), set with
-`bb thread snooze <id> <until>`, cleared with `bb thread unsnooze <id>`, and
-listed with `bb thread list --snoozed`. SDK callers use
-`sdk.threads.snooze({ threadId, until })` and `sdk.threads.unsnooze({ threadId })`;
-the route is `PUT /api/v1/threads/:id/snooze` with `{until: number | null}` and
-rejects past times. The server clears a snooze early when the thread or a child
-asks for input, finishes a turn, fails, or a queued message fails to send, and
-when the thread is archived. Working threads and threads with a pending question
-never sit in Snoozed.
+Choose **Hide from list** in Threads, a project, custom section, or machine's menu to
+move it into **More**. Its menu in More offers **Add to list** to restore it.
+**Customize list** manages visibility and order for the current
+organization. Hiding a group preserves its threads, saved order, and collapse
+state; pinned threads stay in Pinned. Hidden work remains reachable through More,
+search, and direct links. More shows activity without automatically restoring
+hidden groups.
+
+The Thread list plugin's `hiddenGroups` preference defaults to `[]` and accepts `threads`,
+`project:<projectId>`, `section:<sectionId>`, and `machine:<hostId>` keys
+(`machine:no-machine` for the unassigned machine group). Each organization uses
+only its matching keys; `threads` applies to every organization. Pinned cannot
+be hidden. Duplicate keys are deduplicated; unavailable IDs are retained
+without creating sidebar rows, and new groups default to visible.
+
+```sh
+bb thread-list prefs get hiddenGroups
+bb thread-list prefs set hiddenGroups '["threads","project:proj_example","section:sec_example"]'
+bb thread-list prefs reset hiddenGroups
+```
+
+`set` replaces the complete list across organizations, so include any existing
+keys you want to keep hidden. `reset` restores the default empty list and shows
+every group. The plugin's `setPreference` and `resetPreference` RPCs expose the
+same operations to its app client.
 
 ### Sidebar footer
 
@@ -1160,6 +1161,9 @@ Plugin state lives under the data dir:
 <dataDir>/marketplaces/staging/    Throwaway checkouts a git: marketplace
                                    refresh reads its manifest from, deleted
                                    as soon as the catalog is stored
+<dataDir>/skills-generated/        Server-generated skills (the
+                                   plugin-commands skill listing plugin CLI
+                                   commands, injected into agent threads)
 ```
 
 BB's official plugins (GitHub, Docs, Memory, and Tasks) ship bundled
@@ -1308,9 +1312,7 @@ if it moved. `--tag-prefix <prefix>` ranges over one plugin's tags in a
 multi-plugin repository. A bare range that is also a literal branch or tag
 name fails the install and asks for `@semver:` or `@ref:`. Local
 path installs register the directory in place and never delete it. Builtin
-plugins use `builtin:<name>` and ship with bb unless removed; `bb plugin
-remove <id>` removes a builtin for good, and `bb plugin install builtin:<name>`
-brings it back. Managed
+plugins use `builtin:<name>` and ship with bb unless removed. Managed
 (`git:`/`npm:`) installs
 refuse plugins whose optional `engines.bb` or `engines.bbPluginSdk` ranges
 do not match the running bb/SDK, or whose `dist/*.meta.json` plugin identity
@@ -1463,15 +1465,13 @@ For isolated development smoke tests only, `DEV_BROWSER_SMOKE_BINARY` selects th
 BB guide is installed and enabled by default. In Settings → Installed plugins
 → BB guide, `introduction` controls the BB introduction, `skills` controls all
 four bundled skills, and `bbCli`, `pluginAuthoring`, `skillCreator`, and `submitPlugin` control
-individual skills. All default to true except `pluginAuthoring` and
-`submitPlugin`, which default to false. Disabling BB guide removes its
+individual skills. All default to true. Disabling BB guide removes its
 introduction and skills; other plugins and independently installed skill
 copies retain their own configuration.
 
 Connect's `sendRemoteInstructions` setting ("Tell agents about remote access")
-defaults to true. While the server is paired it adds one fixed sentence to
-agent instructions telling agents to share servers through `bb connect expose`.
-When false it suppresses that sentence without disabling sharing.
+defaults to true. When false it suppresses Connect's active/recent remote-use
+message without disabling sharing.
 
 Use `bb plugin config <id> set <key> true|false` or the SDK's
 `plugins.updateSettings({ pluginId, values })`. These settings apply when
@@ -1635,3 +1635,16 @@ or with `bb settings general telemetryEnabled false`. The saved server-wide pref
 takes effect immediately and persists across restarts. SDK callers can use
 `system.updateGeneralSettings` with `telemetryEnabled`. `BB_TELEMETRY=false`
 always disables telemetry, even when the saved preference is enabled.
+
+## Desktop browser cookie discovery
+
+The desktop app combines known-browser definitions with schema-based discovery
+of Chromium and Firefox cookie stores matched to registered web browsers.
+Known-browser entries remain available without registration metadata.
+On Linux, an absolute `XDG_CONFIG_HOME`
+in the desktop process environment replaces `~/.config` for discovery and known
+Chromium profile locations; relative values are ignored. Flatpak and Snap data
+directories are also searched. On macOS, discovery searches Application Support.
+The desktop app's own profile is excluded. See `bb guide browser` for search
+bounds, encryption limitations, and the `import-sources` / `import-cookies`
+commands. No additional BB setting is required to enable discovery.
