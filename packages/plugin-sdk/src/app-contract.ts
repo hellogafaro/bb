@@ -1280,8 +1280,7 @@ export interface PluginSidebarThreadActions {
   experimental_generateTitle(threadId: string): Promise<void>;
   /** Shared pending state across sidebar and thread-page menus; rerenders when it changes. */
   experimental_isGeneratingTitle(threadId: string): boolean;
-  /** Archives the thread AND its children, closing any panes showing them. */
-  /** Opens bb's confirmation before archiving the thread and its children. */
+  /** Archives immediately, or confirms first if child threads will also be archived. */
   archive(threadId: string): void;
   /**
    * Opens bb's delete confirmation, which counts child threads first. Deletion
