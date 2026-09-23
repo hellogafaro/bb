@@ -64,6 +64,7 @@ import { searchPickerOptions } from "./picker-search";
 import { useResetPickerScroll } from "./useResetPickerScroll";
 import {
   formatModelLoadErrorText,
+  formatModelLoadErrorTitle,
   ModelLoadErrorMessage,
 } from "./model-load-error-message";
 import {
@@ -457,6 +458,13 @@ export function ModelReasoningPicker({
   const activeModelLoadErrorMessage =
     activeModelLoadErrorMatches && activeModelLoadError
       ? formatModelLoadErrorText({
+          error: activeModelLoadError,
+          providerLabel: activeProviderLabel,
+        })
+      : null;
+  const activeModelLoadErrorTitle =
+    activeModelLoadErrorMatches && activeModelLoadError
+      ? formatModelLoadErrorTitle({
           error: activeModelLoadError,
           providerLabel: activeProviderLabel,
         })
@@ -1194,7 +1202,7 @@ export function ModelReasoningPicker({
                     "px-2 text-xs leading-relaxed text-muted-foreground",
                     isCompactViewport ? "pb-3 pt-2" : "pb-2 pt-1.5",
                   )}
-                  title={activeModelLoadErrorMessage ?? undefined}
+                  title={activeModelLoadErrorTitle ?? undefined}
                 >
                   {activeModelLoadErrorMatches && activeModelLoadError ? (
                     <ModelLoadErrorMessage

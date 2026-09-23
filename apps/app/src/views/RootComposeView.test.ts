@@ -236,9 +236,10 @@ describe("resolveNewThreadSubmitDisabledReason", () => {
         modelLoadError: {
           providerId: "codex",
           code: "auth_required",
+          detail: null,
         },
       },
-      "Could not load models for Codex. Authentication is required.",
+      "Could not load models for Codex. Not signed in.",
     ],
     [
       "project-default failure",
@@ -289,7 +290,11 @@ describe("resolveNewThreadSubmitDisabledReason", () => {
     expect(
       resolveNewThreadSubmitDisabledReason({
         ...readyState,
-        modelLoadError: { providerId: "claude-code", code: "timeout" },
+        modelLoadError: {
+          providerId: "claude-code",
+          code: "timeout",
+          detail: null,
+        },
       }),
     ).toBeNull();
   });
