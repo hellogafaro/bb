@@ -40,6 +40,11 @@ import {
   ThreadDeleteDialog,
   type ThreadDeleteDialogTarget,
 } from "@/components/dialogs/ThreadDeleteDialog";
+import {
+  ThreadArchiveDialog,
+  type ThreadArchiveDialogTarget,
+} from "@/components/dialogs/ThreadArchiveDialog";
+import { ArchivedThreadToastDescription } from "@/components/thread/ArchivedThreadToastDescription";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
 import { getInboxRoutePath, getThreadRoutePath } from "@/lib/route-paths";
@@ -51,6 +56,7 @@ export interface ThreadActionsContextValue {
   generateTitle: (threadId: string) => Promise<void>;
   generatingTitleIds: ReadonlySet<string>;
   renameThread: (threadId: string, title: string) => void;
+  requestArchive: (thread: Thread) => void;
   renameThreadAsync: (threadId: string, title: string) => Promise<void>;
   requestRename: (thread: Thread) => void;
   requestDelete: (thread: Thread) => void;
@@ -75,6 +81,11 @@ export function useThreadActions(): ThreadActionsContextValue {
 
 interface ThreadActionsProviderProps {
   children: ReactNode;
+}
+
+interface ArchiveThreadActionRequest {
+  closeDialog: () => void;
+  thread: Thread;
 }
 
 interface DeleteThreadActionRequest {
@@ -129,9 +140,12 @@ export function ThreadActionsProvider({
 
   const renameDialog = useDialogState<ThreadRenameDialogTarget>();
   const deleteDialog = useDialogState<ThreadDeleteDialogTarget>();
+  const archiveDialog = useDialogState<ThreadArchiveDialogTarget>();
 
   const { onClose: closeRenameDialog, onOpen: openRenameDialog } = renameDialog;
   const { onClose: closeDeleteDialog, onOpen: openDeleteDialog } = deleteDialog;
+  const { onClose: closeArchiveDialog, onOpen: openArchiveDialog } =
+    archiveDialog;
 
   useEffect(() => {
     return () => {
@@ -305,10 +319,11 @@ export function ThreadActionsProvider({
     [unarchiveMutate],
   );
 
-  const archiveThreadAndChildrenAction = useCallback(
-    (thread: Thread) => {
+  const performArchive = useCallback(
+    ({ closeDialog, thread }: ArchiveThreadActionRequest) => {
       archiveThreadAndChildrenMutateAsync({ id: thread.id }).then(
         (response) => {
+          closeDialog();
           const viewedThreadId = viewedThreadIdRef.current;
           const archiveDisplacedThread = viewedThreadId === thread.id;
           const closeResult = closePanesForThreads(response.archivedThreadIds);
@@ -364,6 +379,7 @@ export function ThreadActionsProvider({
           );
         },
         (error: unknown) => {
+          closeDialog();
           showMutationErrorToast({
             error,
             fallbackMessage: "Failed to archive thread and children",
@@ -379,6 +395,33 @@ export function ThreadActionsProvider({
       syncNavigationAfterClose,
       unarchiveMutate,
     ],
+  );
+
+  const requestArchive = useCallback(
+    async (thread: Thread) => {
+      const controller = claimThreadActionContextAbortController();
+      const context = await loadThreadActionContext(thread, controller.signal);
+      if (context === null || controller.signal.aborted) return;
+      if (threadActionContextAbortRef.current === controller) {
+        threadActionContextAbortRef.current = null;
+      }
+      openArchiveDialog(buildDialogTargetFromContext({ thread }, context));
+    },
+    [
+      claimThreadActionContextAbortController,
+      loadThreadActionContext,
+      openArchiveDialog,
+    ],
+  );
+
+  const confirmArchive = useCallback(
+    (target: ThreadArchiveDialogTarget) => {
+      performArchive({
+        closeDialog: closeArchiveDialog,
+        thread: target.thread,
+      });
+    },
+    [closeArchiveDialog, performArchive],
   );
 
   const toggleRead = useCallback(
@@ -430,8 +473,8 @@ export function ThreadActionsProvider({
       renameThread,
       renameThreadAsync,
       requestRename,
+      requestArchive,
       requestDelete,
-      archiveThreadAndChildren: archiveThreadAndChildrenAction,
       unarchiveThread: unarchiveThreadAction,
       togglePin,
       toggleRead,
@@ -442,6 +485,7 @@ export function ThreadActionsProvider({
       generatingTitleIds,
       renameThread,
       renameThreadAsync,
+      requestArchive,
       requestRename,
       requestDelete,
       togglePin,
@@ -464,6 +508,12 @@ export function ThreadActionsProvider({
         pending={deleteThread.isPending}
         onOpenChange={deleteDialog.onOpenChange}
         onDelete={confirmDelete}
+      />
+      <ThreadArchiveDialog
+        target={archiveDialog.target}
+        pending={archiveThreadAndChildrenMutation.isPending}
+        onOpenChange={archiveDialog.onOpenChange}
+        onArchive={confirmArchive}
       />
     </ThreadActionsContext.Provider>
   );

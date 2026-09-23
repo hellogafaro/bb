@@ -26,7 +26,7 @@ import { useSidebarRename } from "../sidebar/SidebarInlineRename";
 const moveThreadToSection = vi.hoisted(() => vi.fn());
 const copyToClipboardWithToast = vi.hoisted(() => vi.fn());
 const threadActions = vi.hoisted(() => ({
-  archiveThreadAndChildren: vi.fn(),
+  requestArchive: vi.fn(),
   requestDelete: vi.fn(),
   generateTitle: vi.fn(),
   isGenerating: vi.fn(() => false),

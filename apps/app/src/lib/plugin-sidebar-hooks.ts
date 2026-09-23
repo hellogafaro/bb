@@ -338,7 +338,7 @@ export function useSidebarThreadActions(): PluginSidebarThreadActions {
         return hostActions.generatingTitleIds.has(threadId);
       },
       archive(threadId) {
-        hostActions.archiveThreadAndChildren(requireEntry(threadId));
+        hostActions.requestArchive(requireEntry(threadId));
       },
       requestDelete(threadId) {
         hostActions.requestDelete(requireEntry(threadId));

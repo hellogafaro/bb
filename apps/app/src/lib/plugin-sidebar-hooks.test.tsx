@@ -81,6 +81,7 @@ vi.mock("@/components/thread/ThreadActionsProvider", () => ({
     generateTitle: actions.generateTitle,
     generatingTitleIds: actions.generatingTitleIds,
     archiveThreadAndChildren: vi.fn(),
+    requestArchive: vi.fn(),
     requestDelete: vi.fn(),
     togglePin: vi.fn(),
     toggleRead: vi.fn(),
