@@ -355,6 +355,9 @@ type ExpectedProvidersKey = "list" | "models" | "guardStatus" | "guardFix";
 type ExpectedStatusKey = "get";
 
 type ExpectedSystemKey =
+  | "acknowledgeAppUpdate"
+  | "appUpdate"
+  | "applyAppUpdate"
   | "setMachineEnvironmentVariable"
   | "deleteMachineEnvironmentVariable"
   | "machineEnvironment"

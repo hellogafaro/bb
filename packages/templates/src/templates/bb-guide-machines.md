@@ -123,10 +123,24 @@ bb updates apply Run every available provider CLI
 install/update, one at a time
 --machine <id-or-name> Limit to one machine
 --json Print per-target results as JSON
+bb updates app [status] Show whether bb can update itself,
+the available version, and the last result
+--json Print the status as JSON
+bb updates app apply Download the update and restart bb into it
+--yes Interrupt running threads without asking
+--no-wait Return once the update starts
+--json Print the final status as JSON
+bb updates app dismiss Mark the last update result as seen
 
-`bb updates apply` covers provider CLIs only. Update bb-app itself with the
-printed upgrade command (`npx bb-app@latest`) or the desktop app's relaunch;
-connected daemons then follow the server version automatically.
+`bb updates apply` covers provider CLIs only. `bb updates app apply` updates
+bb itself when it was started with `--in-app-updates` from `npx bb-app` (or a
+global `bb-app`) or with `pnpm start` from a `main` checkout: it installs the new version next to the
+running one and restarts into it. It does not roll back if the new version
+fails to start. Source checkouts update only from a clean `main` that
+fast-forwards to `origin/main`.
+Desktop users update through the desktop app's relaunch; development servers
+and `bb-server` cannot update themselves. Connected daemons follow the server
+version automatically.
 
 Machine selectors accept either an exact machine ID or an unambiguous machine
 name. `--host` is an alias for `--machine`.

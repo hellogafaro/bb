@@ -27,6 +27,7 @@ import {
   projectSourceBranchesQueryKey,
   projectsQueryKey,
   serverMoveStatusQueryKey,
+  systemAppUpdateQueryKey,
   sidebarNavigationQueryKey,
   systemConfigQueryKey,
   systemExecutionOptionsQueryKey,
@@ -437,6 +438,21 @@ describe("createRealtimeCacheEffects", () => {
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
     }
     expect(queryClient.getQueryState(skillsKey)?.isInvalidated).toBe(false);
+  it("refreshes only the app update status when the launcher reports progress", () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext();
+    const statusKey = systemAppUpdateQueryKey();
+    const configKey = systemConfigQueryKey();
+    queryClient.setQueryData(statusKey, {});
+    queryClient.setQueryData(configKey, {});
+
+    effects.handleChanged({
+      type: "changed",
+      entity: "system",
+      changes: ["app-update-changed"],
+    });
+
+    expect(queryClient.getQueryState(statusKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(configKey)?.isInvalidated).toBe(false);
     effects.dispose();
   });
 
