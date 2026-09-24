@@ -3,11 +3,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  HostFilePreviewTabContent,
-  HostScopedFilePreviewTabContent,
+  HostFilePreview,
+  HostScopedFilePreview,
   ProjectFilePreviewTabContent,
-  ThreadStorageFilePreviewTabContent,
-  WorkspaceFilePreviewTabContent,
+  ThreadStorageFilePreview,
+  WorkspaceFilePreview,
 } from "./ThreadSecondaryPanelTabContent";
 import type { FilePreview } from "@bb/client-core";
 
@@ -74,7 +74,7 @@ function imageSrc(name: string): string | null {
 describe("secondary-panel Markdown image routing", () => {
   it("routes workspace images when the preview caller supplies no routing", () => {
     render(
-      <WorkspaceFilePreviewTabContent
+      <WorkspaceFilePreview
         activePath="docs/readme.md"
         environmentId="env_preview"
         isPanelOpen
@@ -118,7 +118,7 @@ describe("secondary-panel Markdown image routing", () => {
 
   it("routes thread host-file images through the host content endpoint", () => {
     render(
-      <HostFilePreviewTabContent
+      <HostFilePreview
         activePath="/workspace/docs/readme.md"
         copyPath="/workspace/docs/readme.md"
         environmentId="env_preview"
@@ -139,7 +139,7 @@ describe("secondary-panel Markdown image routing", () => {
 
   it("confines host-scoped relative images to the preview lease root", () => {
     render(
-      <HostScopedFilePreviewTabContent
+      <HostScopedFilePreview
         activePath="/workspace/docs/readme.md"
         hostId="host_preview"
         isPanelOpen
@@ -156,7 +156,7 @@ describe("secondary-panel Markdown image routing", () => {
 
   it("routes thread-storage images when the preview caller supplies no routing", () => {
     render(
-      <ThreadStorageFilePreviewTabContent
+      <ThreadStorageFilePreview
         activePath="docs/readme.md"
         isPanelOpen
         lineRange={null}

@@ -15,12 +15,14 @@ import {
 } from "@/lib/fixed-panel-tabs";
 import {
   createBrowserFixedPanelTab,
+  createFilesFixedPanelTab,
   createHostFilePreviewFixedPanelTab,
   createNewTabFixedPanelTab,
   createPluginPanelFixedPanelTab,
   createThreadStorageFilePreviewFixedPanelTab,
   createWorkspaceFilePreviewFixedPanelTab,
   type BrowserFixedPanelTab,
+  type FilesFixedPanelTab,
   type FixedPanelTab,
   type FixedPanelTabsState,
   type HostFilePreviewFixedPanelTab,
@@ -122,7 +124,8 @@ export type OpenSecondaryPanelTabRequest =
       threadId?: string;
     }
   | { kind: "browser"; url: string }
-  | { kind: "new-tab" };
+  | { kind: "new-tab" }
+  | { kind: "files" };
 
 interface CreateTabForOpenRequestArgs {
   projectId: string | null;
@@ -137,6 +140,7 @@ type SecondaryPanelTab =
   | ThreadStorageFilePreviewFixedPanelTab
   | BrowserFixedPanelTab
   | NewTabFixedPanelTab
+  | FilesFixedPanelTab
   | PluginPanelFixedPanelTab;
 
 type ReopenableSecondaryPanelTab = Exclude<
@@ -194,6 +198,7 @@ function isReopenableSecondaryPanelTab(
     case "host-file-preview":
     case "thread-storage-file-preview":
     case "browser":
+    case "files":
     case "plugin-panel":
       return true;
     case "thread-info":
@@ -259,6 +264,7 @@ function isReopenablePanelTabOwnedByContext({
       return tab.threadId === context.fileOwnerThreadId;
     case "browser":
       return tab.environmentId === context.environmentId;
+    case "files":
     case "plugin-panel":
       return true;
   }
@@ -371,6 +377,8 @@ function createTabForOpenRequest({
       });
     case "new-tab":
       return createNewTabFixedPanelTab();
+    case "files":
+      return createFilesFixedPanelTab();
   }
 }
 
@@ -697,7 +705,9 @@ export function useThreadFileTabs({
     ): SecondaryPanelTab | null => {
       return openResolvedTab(
         request,
-        request.kind === "browser" ? "replace-new-tab" : "open",
+        request.kind === "browser" || request.kind === "files"
+          ? "replace-new-tab"
+          : "open",
         options?.viewer,
       );
     },

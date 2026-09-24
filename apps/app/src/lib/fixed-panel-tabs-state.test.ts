@@ -6,6 +6,7 @@ import {
   buildFixedPanelTabId,
   createBrowserFixedPanelTab,
   createEmptyFixedPanelTabsState,
+  createFilesFixedPanelTab,
   createHostFilePreviewFixedPanelTab,
   createNewTabFixedPanelTab,
   createPluginPanelFixedPanelTab,
@@ -525,6 +526,31 @@ describe("plugin file opener owner state", () => {
         threadId: "thr_docs",
       },
     });
+  });
+});
+
+describe("files tab", () => {
+  it("persists as a single canonical tab through storage and the thread-tabs contract", () => {
+    const tab = createFilesFixedPanelTab();
+    const state = createEmptyFixedPanelTabsState({
+      secondary: {
+        activeTabId: "files:legacy",
+        isOpen: true,
+        tabs: [{ ...tab, id: "files:legacy" }, tab],
+      },
+      lastUsedAt: NOW,
+    });
+
+    const parsed = parseFixedPanelTabsState({
+      initialValue: EMPTY_FIXED_PANEL_TABS_STATE,
+      now: NOW,
+      storedValue: serializeFixedPanelTabsState({ state }),
+    });
+
+    expect(parsed.secondary.tabs).toEqual([tab]);
+    expect(parsed.secondary.activeTabId).toBe(tab.id);
+    expect(areFixedPanelTabsEquivalent(tab, { ...tab })).toBe(true);
+    expect(threadTabsSchema.parse([tab])).toEqual([tab]);
   });
 });
 

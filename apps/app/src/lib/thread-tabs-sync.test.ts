@@ -1,10 +1,14 @@
 import { openSecondaryPanelTabInState } from "@bb/client-core";
 import type { ThreadTab } from "@bb/server-contract";
 import { describe, expect, it } from "vitest";
+import { buildFileOpenerPanelTab } from "@/components/plugin/file-opener-tabs";
 import {
   createEmptyFixedPanelTabsState,
+  createFilesFixedPanelTab,
+  createPluginPanelFixedPanelTab,
   createTerminalFixedPanelTab,
   createThreadInfoFixedPanelTab,
+  createWorkspaceFilePreviewFixedPanelTab,
 } from "./fixed-panel-tabs-state";
 import { createPluginPageFixedPanelTab } from "./fixed-panel-tabs-state";
 import {
@@ -113,6 +117,70 @@ describe("thread tab synchronization", () => {
     ]);
 
     expect(reconciled.secondary.tabs).toEqual([browser]);
+  });
+
+  it("replaces tabs persisted by the retired Sidetree plugin with native tabs", () => {
+    const sidetreeFiles = createPluginPanelFixedPanelTab({
+      actionId: "files",
+      paramsJson: null,
+      pluginId: "sidetree",
+      title: "Files",
+    });
+    const sidetreeFile = buildFileOpenerPanelTab(
+      { id: "file", pluginId: "sidetree" },
+      {
+        path: "src/app.ts",
+        source: {
+          kind: "workspace",
+          threadId: "thr_1",
+          environmentId: "env_1",
+          projectId: null,
+        },
+      },
+      {
+        environmentId: "env_1",
+        kind: "workspace-file-preview",
+        projectId: null,
+        tab: {
+          lineRange: null,
+          path: "src/app.ts",
+          source: { kind: "working-tree" },
+          statusLabel: null,
+        },
+        threadId: "thr_1",
+      },
+    );
+    const nativeFile = createWorkspaceFilePreviewFixedPanelTab({
+      environmentId: "env_1",
+      projectId: null,
+      tab: {
+        lineRange: null,
+        path: "src/app.ts",
+        source: { kind: "working-tree" },
+        statusLabel: null,
+      },
+    });
+    const current = createEmptyFixedPanelTabsState({
+      secondary: { activeTabId: null, isOpen: true, tabs: [] },
+    });
+
+    const reconciled = reconcileFixedPanelTabsState(current, [
+      sidetreeFiles,
+      sidetreeFile,
+      { ...sidetreeFiles, id: `${sidetreeFiles.id}:duplicate` },
+    ]);
+
+    expect(reconciled.secondary.tabs).toEqual([
+      createFilesFixedPanelTab(),
+      nativeFile,
+    ]);
+    expect(
+      mergeThreadTabChanges(
+        [sidetreeFiles, sidetreeFile],
+        reconciled.secondary.tabs,
+        [createFilesFixedPanelTab()],
+      ),
+    ).toEqual([createFilesFixedPanelTab()]);
   });
 
   it("keeps plugin page fixed tabs out of thread synchronization", () => {

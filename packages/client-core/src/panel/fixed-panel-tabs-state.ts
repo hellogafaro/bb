@@ -30,6 +30,7 @@ const SECONDARY_PANEL_TAB_ID_ENVIRONMENT_NONE = "none";
 const THREAD_INFO_TAB_ID = "thread-info:thread-info:none";
 const GIT_DIFF_TAB_ID = "git-diff:git-diff:none";
 const NEW_TAB_TAB_ID = "new-tab:new-tab:none";
+export const FILES_TAB_ID = "files:files:none";
 
 const environmentFilePreviewSourceSchema: z.ZodType<EnvironmentFilePreviewSource> =
   z.discriminatedUnion("kind", [
@@ -134,6 +135,12 @@ const newTabFixedPanelTabSchema = z
     kind: z.literal("new-tab"),
   })
   .strict();
+const filesFixedPanelTabSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: z.literal("files"),
+  })
+  .strict();
 const terminalFixedPanelTabSchema = z
   .object({
     id: z.string().min(1),
@@ -163,6 +170,7 @@ const secondaryFixedPanelTabSchema = z.union([
   threadStorageFilePreviewFixedPanelTabSchema,
   browserFixedPanelTabSchema,
   newTabFixedPanelTabSchema,
+  filesFixedPanelTabSchema,
   terminalFixedPanelTabSchema,
 ]);
 const secondaryFixedPanelTabsSchema = z.preprocess(
@@ -272,6 +280,11 @@ export interface NewTabFixedPanelTab {
   kind: "new-tab";
 }
 
+export interface FilesFixedPanelTab {
+  id: string;
+  kind: "files";
+}
+
 export interface TerminalFixedPanelTab {
   id: string;
   kind: "terminal";
@@ -289,6 +302,7 @@ export type SecondaryFixedPanelTab =
   | ThreadStorageFilePreviewFixedPanelTab
   | BrowserFixedPanelTab
   | NewTabFixedPanelTab
+  | FilesFixedPanelTab
   | TerminalFixedPanelTab;
 
 export type SecondaryFileFixedPanelTab =
@@ -297,6 +311,7 @@ export type SecondaryFileFixedPanelTab =
   | ThreadStorageFilePreviewFixedPanelTab
   | BrowserFixedPanelTab
   | NewTabFixedPanelTab
+  | FilesFixedPanelTab
   | TerminalFixedPanelTab
   | PluginPanelFixedPanelTab;
 
@@ -624,6 +639,13 @@ export function createNewTabFixedPanelTab(): NewTabFixedPanelTab {
   };
 }
 
+export function createFilesFixedPanelTab(): FilesFixedPanelTab {
+  return {
+    id: FILES_TAB_ID,
+    kind: "files",
+  };
+}
+
 export function ensureOpenFixedPanelHasActiveTab(
   state: FixedPanelTabsState,
 ): FixedPanelTabsState {
@@ -675,7 +697,7 @@ export function createTerminalFixedPanelTab({
   };
 }
 
-function normalizeFixedPanelTabId(tab: FixedPanelTab): FixedPanelTab {
+export function normalizeFixedPanelTabId(tab: FixedPanelTab): FixedPanelTab {
   switch (tab.kind) {
     case "thread-info":
       return tab.id === THREAD_INFO_TAB_ID
@@ -744,6 +766,8 @@ function normalizeFixedPanelTabId(tab: FixedPanelTab): FixedPanelTab {
             ...tab,
             id: NEW_TAB_TAB_ID,
           };
+    case "files":
+      return tab.id === FILES_TAB_ID ? tab : { ...tab, id: FILES_TAB_ID };
     case "plugin-panel": {
       const id = createPluginPanelFixedPanelTab({
         actionId: tab.actionId,
@@ -825,6 +849,7 @@ function stripTransientFixedPanelTabForStorage(
     case "plugin-page-fixed":
     case "browser":
     case "new-tab":
+    case "files":
     case "terminal":
       return tab;
     case "plugin-panel":
@@ -1030,6 +1055,7 @@ export function areFixedPanelTabsEquivalent(
     case "thread-info":
     case "git-diff":
     case "new-tab":
+    case "files":
       return true;
     case "plugin-page-fixed":
       return (

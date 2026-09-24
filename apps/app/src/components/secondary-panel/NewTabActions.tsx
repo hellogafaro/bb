@@ -23,12 +23,14 @@ import {
   LauncherSectionHeader,
 } from "./launcherRow";
 import { newTabActionOrderAtom } from "./newTabActionsAtoms";
+import { FILES_PANEL_TITLE } from "@/components/files/files-title";
 
 export type OpenBrowserHandler = () => void;
 export type StartTerminalHandler = () => void;
 
 export interface NewTabActionsProps {
   onOpenBrowser?: OpenBrowserHandler;
+  onOpenFiles?: () => void;
   onStartTerminal?: StartTerminalHandler;
   startTerminalDisabled?: boolean;
   startTerminalTrailing?: ReactNode;
@@ -68,6 +70,7 @@ const ACTIONS_SECTION_LABEL = "Actions";
 const NEW_TAB_ACTION_DRAG_HANDLE_CLASS =
   "cursor-grab touch-none opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing group-hover:opacity-100 [@media(hover:none)]:opacity-100";
 const OPEN_BROWSER_ACTION_ID = "file-search-result-open-browser";
+const OPEN_FILES_ACTION_ID = "file-search-result-open-files";
 const START_TERMINAL_ACTION_ID = "file-search-result-start-terminal";
 
 function actionIcon(iconName: IconName): ReactNode {
@@ -82,6 +85,7 @@ function actionIcon(iconName: IconName): ReactNode {
 
 export function NewTabActions({
   onOpenBrowser,
+  onOpenFiles,
   onStartTerminal,
   pluginActions,
   startTerminalDisabled = false,
@@ -92,6 +96,17 @@ export function NewTabActions({
     onOpenBrowser !== undefined && isDesktopBrowserAvailable();
 
   const actions: NewTabAction[] = [];
+  if (onOpenFiles !== undefined) {
+    actions.push({
+      id: OPEN_FILES_ACTION_ID,
+      icon: actionIcon("FolderOpen"),
+      label: FILES_PANEL_TITLE,
+      disabled: false,
+      shortcut: null,
+      trailing: null,
+      onSelect: () => onOpenFiles(),
+    });
+  }
   if (showOpenBrowser) {
     actions.push({
       id: OPEN_BROWSER_ACTION_ID,

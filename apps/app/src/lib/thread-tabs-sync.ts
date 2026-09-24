@@ -1,4 +1,7 @@
-import { closeSecondaryPanelTabInState } from "@bb/client-core";
+import {
+  closeSecondaryPanelTabInState,
+  normalizeFixedPanelTabId,
+} from "@bb/client-core";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   threadTabsSchema,
@@ -11,9 +14,11 @@ import {
   invalidateCachedThreadTabs,
   setCachedThreadTabs,
 } from "@/hooks/cache-owners/thread-tabs-cache-owner";
+import { createFileOpenerOriginalTab } from "@/components/plugin/file-opener-tabs";
 import { BbHttpError, sdk } from "./sdk";
 import {
   areFixedPanelTabsEquivalent,
+  createFilesFixedPanelTab,
   type FixedPanelTab,
   type FixedPanelTabsState,
 } from "./fixed-panel-tabs-state";
@@ -65,14 +70,53 @@ export function areThreadTabListsEquivalent(
   );
 }
 
+const RETIRED_SIDETREE_PLUGIN_ID = "sidetree";
+
+function replaceRetiredSidetreeTab(
+  tab: PersistedThreadFixedPanelTab,
+): PersistedThreadFixedPanelTab {
+  if (
+    tab.kind !== "plugin-panel" ||
+    tab.pluginId !== RETIRED_SIDETREE_PLUGIN_ID
+  ) {
+    return tab;
+  }
+  if (tab.actionId === "files") return createFilesFixedPanelTab();
+  const original = createFileOpenerOriginalTab(tab);
+  return original === null
+    ? tab
+    : { ...original, id: normalizeFixedPanelTabId(original).id };
+}
+
+function replaceRetiredSidetreeTabs(
+  tabs: readonly PersistedThreadFixedPanelTab[],
+): readonly PersistedThreadFixedPanelTab[] {
+  if (
+    !tabs.some(
+      (tab) =>
+        tab.kind === "plugin-panel" &&
+        tab.pluginId === RETIRED_SIDETREE_PLUGIN_ID,
+    )
+  ) {
+    return tabs;
+  }
+  const seen = new Set<string>();
+  return tabs.flatMap((tab) => {
+    const next = replaceRetiredSidetreeTab(tab);
+    if (seen.has(next.id)) return [];
+    seen.add(next.id);
+    return [next];
+  });
+}
+
 export function reconcileFixedPanelTabsState(
   current: FixedPanelTabsState,
   serverTabs: readonly ThreadTab[],
 ): FixedPanelTabsState {
-  if (areThreadTabListsEquivalent(current.secondary.tabs, serverTabs)) {
+  const tabs = replaceRetiredSidetreeTabs(persistedThreadTabs(serverTabs));
+  if (areThreadTabListsEquivalent(current.secondary.tabs, tabs)) {
     return current;
   }
-  const tabs = persistedThreadTabs(serverTabs);
   const retainedIds = new Set(tabs.map((tab) => tab.id));
   let reconciled = current;
   for (const tab of current.secondary.tabs) {
@@ -156,7 +200,7 @@ export function mergeThreadTabChanges(
   const next = persistedThreadTabs(nextTabs);
   const previousById = new Map(previous.map((tab) => [tab.id, tab]));
   const nextById = new Map(next.map((tab) => [tab.id, tab]));
-  const merged = persistedThreadTabs(serverTabs)
+  const merged = replaceRetiredSidetreeTabs(persistedThreadTabs(serverTabs))
     .filter((tab) => !previousById.has(tab.id) || nextById.has(tab.id))
     .map((tab) => {
       const before = previousById.get(tab.id);

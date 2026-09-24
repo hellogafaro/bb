@@ -41,6 +41,8 @@ import {
   buildMarkdownLeaseImageRouting,
 } from "@/components/ui/markdown-file-image-routing";
 import { getAbsoluteDirname } from "@/lib/absolute-file-path";
+import { opensInEditor } from "@/components/files/editor-routing";
+import { LazyFileEditor } from "@/components/files/LazyFileEditor";
 
 const GIT_DIFF_SKELETON_FILE_COUNT = 3;
 
@@ -311,7 +313,32 @@ export function GitDiffTabContent({
   );
 }
 
-export function WorkspaceFilePreviewTabContent({
+export function WorkspaceFilePreviewTabContent(
+  props: WorkspaceFilePreviewTabContentProps,
+) {
+  const { activePath, environmentId, source, statusLabel } = props;
+  if (
+    environmentId !== null &&
+    environmentId !== undefined &&
+    source?.kind === "working-tree" &&
+    statusLabel !== "deleted" &&
+    opensInEditor(activePath)
+  ) {
+    return (
+      <LazyFileEditor
+        source={{ kind: "workspace", environmentId, path: activePath }}
+        displayPath={activePath}
+        copyPath={props.copyPath ?? null}
+        lineRange={props.lineRange}
+        isPanelOpen={props.isPanelOpen}
+        onSelectionAddToChat={props.onSelectionAddToChat}
+      />
+    );
+  }
+  return <WorkspaceFilePreview {...props} />;
+}
+
+export function WorkspaceFilePreview({
   activePath,
   copyPath = null,
   environmentId,
@@ -452,7 +479,30 @@ export function ProjectFilePreviewTabContent({
   );
 }
 
-export function HostFilePreviewTabContent({
+export function HostFilePreviewTabContent(
+  props: HostFilePreviewTabContentProps,
+) {
+  const { activePath, environmentId } = props;
+  if (
+    environmentId !== null &&
+    environmentId !== undefined &&
+    opensInEditor(activePath)
+  ) {
+    return (
+      <LazyFileEditor
+        source={{ kind: "environment-host", environmentId, path: activePath }}
+        displayPath={activePath}
+        copyPath={props.copyPath}
+        lineRange={props.lineRange}
+        isPanelOpen={props.isPanelOpen}
+        onSelectionAddToChat={props.onSelectionAddToChat}
+      />
+    );
+  }
+  return <HostFilePreview {...props} />;
+}
+
+export function HostFilePreview({
   activePath,
   copyPath,
   environmentId,
@@ -497,7 +547,24 @@ export function HostFilePreviewTabContent({
   );
 }
 
-export function HostScopedFilePreviewTabContent({
+export function HostScopedFilePreviewTabContent(
+  props: HostScopedFilePreviewTabContentProps,
+) {
+  if (opensInEditor(props.activePath)) {
+    return (
+      <LazyFileEditor
+        source={{ kind: "host", hostId: props.hostId, path: props.activePath }}
+        displayPath={props.activePath}
+        copyPath={props.activePath}
+        lineRange={props.lineRange}
+        isPanelOpen={props.isPanelOpen}
+      />
+    );
+  }
+  return <HostScopedFilePreview {...props} />;
+}
+
+export function HostScopedFilePreview({
   activePath,
   hostId,
   isPanelOpen,
@@ -529,7 +596,29 @@ export function HostScopedFilePreviewTabContent({
   );
 }
 
-export function ThreadStorageFilePreviewTabContent({
+export function ThreadStorageFilePreviewTabContent(
+  props: ThreadStorageFilePreviewTabContentProps,
+) {
+  if (opensInEditor(props.activePath)) {
+    return (
+      <LazyFileEditor
+        source={{
+          kind: "thread-storage",
+          threadId: props.threadId,
+          path: props.activePath,
+        }}
+        displayPath={props.activePath}
+        copyPath={props.copyPath ?? null}
+        lineRange={props.lineRange}
+        isPanelOpen={props.isPanelOpen}
+        onSelectionAddToChat={props.onSelectionAddToChat}
+      />
+    );
+  }
+  return <ThreadStorageFilePreview {...props} />;
+}
+
+export function ThreadStorageFilePreview({
   activePath,
   copyPath = null,
   isPanelOpen,

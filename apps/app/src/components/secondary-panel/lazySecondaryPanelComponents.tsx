@@ -49,6 +49,11 @@ const BrowserTabDeckChunk = lazy(() =>
     default: BrowserTabDeck,
   })),
 );
+const FilesPanelChunk = lazy(() =>
+  import("@/components/files/FilesPanel").then(({ FilesPanel }) => ({
+    default: FilesPanel,
+  })),
+);
 const NewTabPageChunk = lazy(() =>
   import("./NewTabPage").then(({ NewTabPage }) => ({ default: NewTabPage })),
 );
@@ -204,6 +209,11 @@ export const LazyThreadTerminalPanel = withSuspense(
 );
 
 export const LazyBrowserTabDeck = withSuspense(BrowserTabDeckChunk, null);
+
+export const LazyFilesPanel = withSuspense(
+  FilesPanelChunk,
+  <SecondaryPanelContentSkeleton />,
+);
 
 export const LazyNewTabPage = withSuspense(
   NewTabPageChunk,

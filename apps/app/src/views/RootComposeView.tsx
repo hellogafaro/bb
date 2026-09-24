@@ -1,3 +1,4 @@
+import { FILES_PANEL_TITLE } from "@/components/files/files-title";
 import { useInitialPromptDraft } from "@/components/promptbox/mentions/initial-prompt-draft";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -1723,6 +1724,20 @@ function RootComposeSurface({
               leadingVisual: (
                 <Icon
                   name="NewTab"
+                  className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
+                  aria-hidden
+                />
+              ),
+              statusLabel: null,
+              onSelect: () => handleActivateFileTab(tab.id),
+            };
+          case "files":
+            return {
+              ...shared,
+              label: FILES_PANEL_TITLE,
+              leadingVisual: (
+                <Icon
+                  name="FolderOpen"
                   className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
                   aria-hidden
                 />

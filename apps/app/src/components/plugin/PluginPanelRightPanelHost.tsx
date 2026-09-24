@@ -1007,6 +1007,8 @@ export function PluginPanelRightPanelHost({
                 onClose: () => closeTab(tab.id),
               },
             ];
+          case "files":
+            return [];
           case "workspace-file-preview":
           case "host-file-preview":
           case "thread-storage-file-preview":

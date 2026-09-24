@@ -182,12 +182,15 @@ import { getThreadConversationCollapsedAtom } from "@/components/secondary-panel
 import { BrowserTabLifecycleObserver } from "@/components/secondary-panel/BrowserTabDeck";
 import {
   LazyBrowserTabDeck,
+  LazyFilesPanel,
   LazyHostFilePreviewTabContent,
   LazyNewTabPage,
   LazyThreadStorageFilePreviewTabContent,
   LazyThreadTerminalPanel,
   LazyWorkspaceFilePreviewTabContent,
 } from "@/components/secondary-panel/lazySecondaryPanelComponents";
+import { opensInEditor } from "@/components/files/editor-routing";
+import { FILES_PANEL_TITLE } from "@/components/files/files-title";
 import type { BrowserAddressFocusRequest } from "@/components/secondary-panel/BrowserTabContent";
 import {
   SIDE_CHAT_PLUGIN_ID,
@@ -1435,6 +1438,25 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     },
     [openCompactDrawer, selectFileSearchResult],
   );
+  const openFilesTab = useCallback(() => {
+    openTab({ kind: "files" });
+    openCompactDrawer();
+  }, [openCompactDrawer, openTab]);
+  const openFilesPanelFile = useCallback(
+    (path: string) => {
+      openTab({
+        kind: "workspace-file-preview",
+        tab: {
+          lineRange: null,
+          path,
+          source: { kind: "working-tree" },
+          statusLabel: null,
+        },
+      });
+      openCompactDrawer();
+    },
+    [openCompactDrawer, openTab],
+  );
   const handleActivateFileTab = useCallback(
     (tabId: string) => {
       activateTab(tabId);
@@ -2586,6 +2608,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
               activateTab(tab.id);
               openBrowserTabAndReveal();
             }}
+            onOpenFiles={
+              thread.environmentId === null ? undefined : openFilesTab
+            }
             onStartTerminal={
               canCreateTerminal
                 ? () => {
@@ -2595,6 +2620,14 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
                 : undefined
             }
             pluginActions={pluginPanelActions}
+          />
+        );
+      case "files":
+        return (
+          <LazyFilesPanel
+            environmentId={thread.environmentId ?? null}
+            isActive={isSecondaryPanelOpen}
+            onOpenFile={openFilesPanelFile}
           />
         );
       case "workspace-file-preview": {
@@ -2712,9 +2745,20 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           : undefined;
       const shared = {
         contentFillsRegion:
-          tab.kind === "plugin-panel" &&
-          (tab.fileOpenerOwner !== undefined ||
-            pluginAction?.layout === "flush"),
+          tab.kind === "files" ||
+          (tab.kind === "workspace-file-preview" &&
+            tab.environmentId !== null &&
+            tab.source.kind === "working-tree" &&
+            tab.statusLabel !== "deleted" &&
+            opensInEditor(tab.path)) ||
+          (tab.kind === "host-file-preview" &&
+            tab.environmentId !== null &&
+            opensInEditor(tab.path)) ||
+          (tab.kind === "thread-storage-file-preview" &&
+            opensInEditor(tab.path)) ||
+          (tab.kind === "plugin-panel" &&
+            (tab.fileOpenerOwner !== undefined ||
+              pluginAction?.layout === "flush")),
         onClose: () => closeTab(tab.id),
         renderContent: () => renderSecondaryTabContent(tab),
         tab,
@@ -2779,6 +2823,20 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             label: filenameOfPanelTab(tab.path),
             isPinned: tab.isPinned,
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
+            statusLabel: null,
+            onSelect: () => handleActivateFileTab(tab.id),
+          };
+        case "files":
+          return {
+            ...shared,
+            label: FILES_PANEL_TITLE,
+            leadingVisual: (
+              <Icon
+                name="FolderOpen"
+                className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
+                aria-hidden
+              />
+            ),
             statusLabel: null,
             onSelect: () => handleActivateFileTab(tab.id),
           };

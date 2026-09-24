@@ -143,3 +143,19 @@ describe("thread tab terminal target", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("thread files tab", () => {
+  it("accepts the native Files tab", () => {
+    const tab = { id: "files:files:none", kind: "files" } as const;
+
+    expect(threadTabsSchema.parse([tab])).toEqual([tab]);
+  });
+
+  it("rejects a Files tab with unknown fields", () => {
+    const result = threadTabsSchema.safeParse([
+      { id: "files:files:none", kind: "files", path: "src" },
+    ]);
+
+    expect(result.success).toBe(false);
+  });
+});

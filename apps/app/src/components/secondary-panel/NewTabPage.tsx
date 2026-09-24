@@ -14,6 +14,7 @@ type NewTabPageFileSearchProps = Omit<NewTabFileSearchProps, "idleActions">;
 
 interface NewTabPageProps extends NewTabPageFileSearchProps {
   onOpenBrowser?: OpenBrowserHandler;
+  onOpenFiles?: () => void;
   onStartTerminal?: StartTerminalHandler;
   pluginActions?: readonly PluginPanelActionEntry[];
   startTerminalDisabled?: boolean;
@@ -28,6 +29,7 @@ export function NewTabPage({
   initialQuery,
   onAutoFocusHandled,
   onOpenBrowser,
+  onOpenFiles,
   onSelect,
   onStartTerminal,
   pluginActions,
@@ -51,6 +53,7 @@ export function NewTabPage({
         idleActions={
           <NewTabActions
             onOpenBrowser={onOpenBrowser}
+            onOpenFiles={onOpenFiles}
             onStartTerminal={onStartTerminal}
             pluginActions={pluginActions}
             startTerminalDisabled={startTerminalDisabled}
