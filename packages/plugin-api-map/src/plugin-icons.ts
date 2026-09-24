@@ -20,7 +20,6 @@ import concurrencyLimitManifest from "../../../plugins/concurrency-limit/package
 import customInstructionsManifest from "../../../plugins/custom-instructions/package.json";
 import docsManifest from "../../../plugins/docs/package.json";
 import draftsManifest from "../../../plugins/drafts/package.json";
-import monacoEditorManifest from "../../../plugins/monaco-editor/package.json";
 import githubManifest from "../../../plugins/github/package.json";
 import inlineVisManifest from "../../../plugins/inline-vis/package.json";
 import keepAwakeManifest from "../../../plugins/keep-awake/package.json";
@@ -52,7 +51,6 @@ const FIRST_PARTY_PLUGINS = [
   customInstructionsManifest,
   docsManifest,
   draftsManifest,
-  monacoEditorManifest,
   githubManifest,
   inlineVisManifest,
   keepAwakeManifest,

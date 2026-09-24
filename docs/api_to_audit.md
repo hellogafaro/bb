@@ -1808,8 +1808,7 @@ provider-retry) stops vendoring provider names, icons, and copy.
 mode, the registered name of the code theme bb renders that mode with, and the
 resolved VS Code theme document behind it (`type`, `fg`, `bg`, `colors`,
 `tokenColors`) — the same document bb's own highlighter paints from. It exists
-for plugins that render code with an engine of their own (the Monaco file
-editor is the first): without it, an embedded editor can only follow
+for plugins that render code with an engine of their own: without it, an embedded editor can only follow
 light/dark and strands its syntax colors on a palette bb is not using.
 `theme` is null only before the first resolve, and holds the previous document
 while a palette switch resolves, so a consumer never paints an unthemed frame.
@@ -2846,7 +2845,7 @@ requested navigation; older hosts may omit the optional property. The app
 supplies a new object on each targeted open, even when the active file and
 line numbers match. Openers should observe that identity, reveal the latest
 range after asynchronous loading, and navigate without replacing an existing
-editor model. Monaco selects the complete lines and clamps targets past EOF.
+editor model.
 Columns are not part of the existing preview range contract.
 
 The range uses the existing tab owner and persistence policy. This adds no

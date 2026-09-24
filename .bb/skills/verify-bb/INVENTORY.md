@@ -539,13 +539,6 @@ has been exercised or that every behavior has been understood.
 - `cli-name-candidate: plugins/memory/server.ts: update`
 - `plugin-slot: plugins/memory/app.tsx: settingsSection`
 
-## plugin:monaco-editor
-
-15 source files. Recipes: [plugin-monaco-editor](features/plugin-monaco-editor.md).
-
-- `plugin-slot: plugins/monaco-editor/app.tsx: commandPaletteAction`
-- `plugin-slot: plugins/monaco-editor/app.tsx: fileOpener`
-
 ## plugin:pdf-preview
 
 6 source files. Recipes: [plugin-pdf-preview](features/plugin-pdf-preview.md).

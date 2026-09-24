@@ -65,7 +65,6 @@ were excluded. See the [audit](../MAINTENANCE.md) and
 | [Inline HTML visualizations](plugin-inline-vis.md) | 5 | 5 passed |
 | [Keep machines awake](plugin-keep-awake.md) | 4 | 4 passed |
 | [Persistent agent memory](plugin-memory.md) | 6 | 6 passed |
-| [Code editor and file tree](plugin-monaco-editor.md) | 6 | 3 passed, 1 failed, 2 partial/blocked |
 | [PDF preview](plugin-pdf-preview.md) | 3 | 2 passed, 1 partial/blocked |
 | [Plugin Guide](plugin-plugin-api-docs.md) | 4 | 3 passed, 1 partial/blocked |
 | [Plugin API tester](plugin-plugin-api-tester.md) | 2 | 2 passed |

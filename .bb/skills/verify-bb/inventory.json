@@ -726,17 +726,6 @@
         "plugin-slot: plugins/memory/app.tsx: settingsSection"
       ]
     },
-    "plugin:monaco-editor": {
-      "recipes": [
-        "features/plugin-monaco-editor.md"
-      ],
-      "sourceFiles": 15,
-      "sourceDigest": "2d021f75a871bb04f93b0e5cefe556ac63a9f1fb64fa47c951c3bded6fabdcf4",
-      "declarations": [
-        "plugin-slot: plugins/monaco-editor/app.tsx: commandPaletteAction",
-        "plugin-slot: plugins/monaco-editor/app.tsx: fileOpener"
-      ]
-    },
     "plugin:pdf-preview": {
       "recipes": [
         "features/plugin-pdf-preview.md"
