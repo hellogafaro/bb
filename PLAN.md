@@ -49,7 +49,7 @@ Notion and search; durable sessions; agents with role profiles, models, tools, s
 ## Build path
 
 1. **Run the fork.** Build `main` in `~/.local/bb`, a clean clone outside the projects folder, and run `bb-server` from it. It keeps the same `~/.bb` data, BB Connect pairing, machines, and BB apps as the npm-installed BB it replaces.
-2. **Hide the noise.** Hide the core surfaces we do not use, such as the built-in browser, and disable unused built-in plugins. Remove only what gets in the way.
+2. **Hide the noise.** Hide the core surfaces we do not use, such as the built-in browser, and disable unused built-in plugins. Remove only what gets in the way. The Customize page (Skills and MCPs, no marketplaces) and moving `mcps` into the fork are in [plans/customize-and-mcps.md](plans/customize-and-mcps.md).
 3. **Prove one full run.** Build the run into the fork with its own page. Start from a Notion task link, plan, execute, review, repair, update Notion, draft in the original thread, approve, and send. Make the run visible in the BB inbox.
 4. **Expand intake and coverage.** Add email, WhatsApp, meetings, and other sources one at a time. Apply the same run to coding, marketing, and other work. Track failures and improve skills and checks from real cases.
 
