@@ -11,6 +11,10 @@ export const hostFileReadRequestSchema = z
     hostId: z.string().min(1).optional(),
     path: z.string().min(1),
     rootPath: z.string().min(1).optional(),
+    ifNoneMatchSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
   })
   .strict();
 export type HostFileReadRequest = z.infer<typeof hostFileReadRequestSchema>;
@@ -106,6 +110,10 @@ export interface CreateFilePreviewResponse {
 }
 
 export type HostFileReadResponse = Exclude<
+  HostDaemonOnlineRpcResultByType["host.read_file"],
+  { notModified: true }
+>;
+export type HostFileReadNotModifiedResponse = Extract<
   HostDaemonOnlineRpcResultByType["host.read_file"],
   { notModified: true }
 >;

@@ -218,6 +218,9 @@ if (saved.outcome === "conflict") {
 For `bb.sdk.files`, `hostId` is optional and defaults to the server machine
 (`primaryHostId` from `bb.sdk.system.config()`).
 Other SDK areas define their own routing rules.
+`bb.sdk.files.experimental_readIfChanged({ path, sha256 })` returns the
+file's metadata with `notModified: true` when its content hash still equals
+`sha256`, and the full read result otherwise; poll with it instead of `read`.
 `bb.sdk.files.list({ path, query?, limit? })` is a recursive fuzzy file
 listing under a directory. Writes cap at 25 MB and return
 `{ outcome: "written", sha256, sizeBytes }`.

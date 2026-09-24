@@ -288,6 +288,7 @@ describe("browseHostDirectory", () => {
     const result = await browseHostDirectory({
       type: "host.browse_directory",
       path: root,
+      includeHidden: false,
     });
 
     expect(result.directory).toBe(realRoot);
@@ -308,9 +309,32 @@ describe("browseHostDirectory", () => {
     ]);
   });
 
+  it("lists dot entries when includeHidden is set, still skipping node_modules", async () => {
+    const root = await makeTempDir("bb-browse-hidden-");
+    await fs.mkdir(path.join(root, ".github"));
+    await fs.mkdir(path.join(root, "node_modules"));
+    await fs.writeFile(path.join(root, ".env"), "x", "utf8");
+    await fs.writeFile(path.join(root, "readme.md"), "hi", "utf8");
+
+    const realRoot = await fs.realpath(root);
+    const result = await browseHostDirectory({
+      type: "host.browse_directory",
+      path: root,
+      includeHidden: true,
+    });
+
+    expect(result.entries.map((entry) => entry.name)).toEqual([
+      ".github",
+      ".env",
+      "readme.md",
+    ]);
+    expect(result.entries[0]?.path).toBe(path.join(realRoot, ".github"));
+  });
+
   it("defaults to the host home directory when no path is given", async () => {
     const result = await browseHostDirectory({
       type: "host.browse_directory",
+      includeHidden: false,
     });
 
     expect(result.directory).toBe(await fs.realpath(os.homedir()));
@@ -321,6 +345,7 @@ describe("browseHostDirectory", () => {
       browseHostDirectory({
         type: "host.browse_directory",
         path: "relative/dir",
+        includeHidden: false,
       }),
     ).rejects.toBeInstanceOf(CommandDispatchError);
   });
@@ -334,6 +359,7 @@ describe("browseHostDirectory", () => {
       browseHostDirectory({
         type: "host.browse_directory",
         path: filePath,
+        includeHidden: false,
       }),
     ).rejects.toMatchObject({
       code: "invalid_path",

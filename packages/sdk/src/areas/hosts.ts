@@ -44,8 +44,10 @@ export interface HostActionArgs {
   hostId: string;
 }
 
-export interface HostDirectoryArgs extends HostDirectoryQuery {
+export interface HostDirectoryArgs {
   hostId: string;
+  path?: HostDirectoryQuery["path"];
+  includeHidden?: boolean;
   signal?: AbortSignal;
 }
 
@@ -200,7 +202,12 @@ export function createHostsArea(args: CreateSdkAreaArgs): HostsArea {
         transport.api.v1.hosts[":id"].directory.$get(
           {
             param: { id: input.hostId },
-            query: { path: input.path },
+            query: {
+              path: input.path,
+              ...(input.includeHidden === true
+                ? { includeHidden: "true" as const }
+                : {}),
+            },
           },
           ...signalRequestArgs(input.signal),
         ),

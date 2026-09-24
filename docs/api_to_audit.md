@@ -3095,6 +3095,19 @@ returns a credential only while that host is creating.
 Before stabilizing, verify creation cancellation through host removal,
 same-host restoration, serialized removal, plugin callers and UI/CLI parity.
 
+## Conditional file reads (`files.experimental_readIfChanged`)
+
+`files.experimental_readIfChanged({ path, sha256, hostId?, rootPath? })` sends
+`ifNoneMatchSha256` to `POST /files/read`. The host still reads and hashes the
+file, but returns only its metadata with `notModified: true` when the hash
+matches, so pollers skip the content transfer on both server hops. `bb file
+read --if-none-match <sha256>` is the CLI form. The plain `files.read` keeps
+its full-result type and never sends the condition.
+
+Before stabilizing, decide whether the condition belongs on `read` itself
+(a union result would break existing typed callers) and whether a
+modification-time precheck should let the host skip hashing unchanged files.
+
 ## Moving the server (`bb.sdk.experimental_server`, `hosts.experimental_deleteOldServerCopy`)
 
 `experimental_server.checkMove({ targetHostId, serverUrl })` returns the pre-move

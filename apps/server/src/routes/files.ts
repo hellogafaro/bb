@@ -244,9 +244,21 @@ export function registerFileRoutes(app: Hono, deps: AppDeps): void {
           ...(payload.rootPath !== undefined
             ? { rootPath: payload.rootPath }
             : {}),
+          ...(payload.ifNoneMatchSha256 !== undefined
+            ? {
+                ifNoneMatch: {
+                  kind: "sha256" as const,
+                  values: [payload.ifNoneMatchSha256],
+                },
+              }
+            : {}),
         },
       });
-      return context.json(requireDaemonFileContentResult(result));
+      return context.json(
+        payload.ifNoneMatchSha256 === undefined
+          ? requireDaemonFileContentResult(result)
+          : result,
+      );
     }),
   );
 

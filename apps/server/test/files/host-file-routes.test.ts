@@ -407,6 +407,92 @@ describe("host file routes", () => {
     });
   });
 
+  it("forwards ifNoneMatchSha256 and returns the daemon's not-modified result", async () => {
+    await withTestHarness(async (harness) => {
+      const { host, session } = seedHostSession(harness.deps);
+      const commands: HostDaemonOnlineRpcRequestMessage["command"][] = [];
+      registerHostRpcResponder(harness, {
+        hostId: host.id,
+        sessionId: session.id,
+        handle: (request) => {
+          commands.push(request.command);
+          const { content: _content, ...metadata } = READ_RESULT;
+          return request.command.type === "host.read_file" &&
+            request.command.ifNoneMatch !== undefined
+            ? { ok: true, result: { ...metadata, notModified: true } }
+            : { ok: true, result: READ_RESULT };
+        },
+      });
+
+      const unchanged = await harness.app.request(
+        ...postJson("/api/v1/files/read", {
+          hostId: host.id,
+          path: "/home/me/notes/note.md",
+          ifNoneMatchSha256: READ_RESULT.sha256,
+        }),
+      );
+      expect(unchanged.status).toBe(200);
+      const body = await readJson(unchanged);
+      expect(body).toMatchObject({
+        notModified: true,
+        sha256: READ_RESULT.sha256,
+      });
+      expect(body).not.toHaveProperty("content");
+      expect(commands[0]).toMatchObject({
+        type: "host.read_file",
+        ifNoneMatch: { kind: "sha256", values: [READ_RESULT.sha256] },
+      });
+
+      const invalid = await harness.app.request(
+        ...postJson("/api/v1/files/read", {
+          hostId: host.id,
+          path: "/home/me/notes/note.md",
+          ifNoneMatchSha256: "not-a-hash",
+        }),
+      );
+      expect(invalid.status).toBe(400);
+    });
+  });
+
+  it("forwards an explicit includeHidden to directory browsing", async () => {
+    await withTestHarness(async (harness) => {
+      const { host, session } = seedHostSession(harness.deps);
+      const commands: HostDaemonOnlineRpcRequestMessage["command"][] = [];
+      registerHostRpcResponder(harness, {
+        hostId: host.id,
+        sessionId: session.id,
+        handle: (request) => {
+          commands.push(request.command);
+          return {
+            ok: true,
+            result: { directory: "/home/me", parent: "/home", entries: [] },
+          };
+        },
+      });
+
+      const hidden = await harness.app.request(
+        `/api/v1/hosts/${host.id}/directory?path=%2Fhome%2Fme&includeHidden=true`,
+      );
+      expect(hidden.status).toBe(200);
+      const plain = await harness.app.request(
+        `/api/v1/hosts/${host.id}/directory?path=%2Fhome%2Fme`,
+      );
+      expect(plain.status).toBe(200);
+      expect(commands).toEqual([
+        {
+          type: "host.browse_directory",
+          path: "/home/me",
+          includeHidden: true,
+        },
+        {
+          type: "host.browse_directory",
+          path: "/home/me",
+          includeHidden: false,
+        },
+      ]);
+    });
+  });
+
   it("allows a non-primary host target", async () => {
     await withTestHarness(async (harness) => {
       const { host: primary, session: primarySession } = seedHostSession(

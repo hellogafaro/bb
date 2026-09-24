@@ -9,6 +9,10 @@ interface FileTargetOptions {
   root?: string;
 }
 
+interface FileReadOptions extends FileTargetOptions {
+  ifNoneMatch?: string;
+}
+
 interface FileListOptions extends FileTargetOptions {
   directories?: boolean;
   exclude?: string[];
@@ -77,14 +81,24 @@ export function registerFileCommands(
     .description("Read a file")
     .option("--host <id>", "Machine ID")
     .option("--root <path>", "Confining root path")
+    .option(
+      "--if-none-match <sha256>",
+      "Print nothing when the file's content hash still matches",
+    )
     .option("--json", "Print machine-readable JSON output")
     .action(
-      action(async (path: string, opts: FileTargetOptions) => {
-        const result = await createCliBbSdk(getUrl()).files.read({
-          path,
-          ...commonTarget(opts),
-        });
+      action(async (path: string, opts: FileReadOptions) => {
+        const sdk = createCliBbSdk(getUrl());
+        const result =
+          opts.ifNoneMatch === undefined
+            ? await sdk.files.read({ path, ...commonTarget(opts) })
+            : await sdk.files.experimental_readIfChanged({
+                path,
+                sha256: opts.ifNoneMatch,
+                ...commonTarget(opts),
+              });
         if (outputJson(opts, result)) return;
+        if ("notModified" in result) return;
         if (result.contentEncoding === "utf8")
           process.stdout.write(result.content);
         else process.stdout.write(`${result.content}\n`);

@@ -14,6 +14,7 @@ import {
 
 export const hostDirectoryQuerySchema = z.object({
   path: z.string().min(1).optional(),
+  includeHidden: z.enum(["true", "false"]).optional(),
 });
 export type HostDirectoryQuery = z.infer<typeof hostDirectoryQuerySchema>;
 

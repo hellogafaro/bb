@@ -263,6 +263,7 @@ type ExpectedEnvironmentsKey =
 
 type ExpectedFilesKey =
   | "createPreview"
+  | "experimental_readIfChanged"
   | "list"
   | "listPaths"
   | "mkdir"

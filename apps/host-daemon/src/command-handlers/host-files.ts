@@ -155,7 +155,9 @@ export async function browseHostDirectory(
   const dirents = await fs.readdir(directory, { withFileTypes: true });
   const entries: DirectoryEntry[] = [];
   for (const dirent of dirents) {
-    if (dirent.name.startsWith(".")) continue;
+    if (dirent.name.startsWith(".") && !command.includeHidden) {
+      continue;
+    }
     if (DIRECTORY_BROWSE_SKIP_NAMES.has(dirent.name)) continue;
 
     const fullPath = path.join(directory, dirent.name);

@@ -281,6 +281,11 @@ permission; OS notification settings still control whether a banner appears.
 Host files and voice transcription
 
   bb file read|write|list|paths|mkdir|move|remove ...
+  bb file read <path> --if-none-match <sha256>
+
+`bb file read --if-none-match` prints nothing (and `--json` prints the
+metadata with `notModified: true`) while the file's content hash still
+matches.
   bb voice transcribe <audio-file> [--prompt <context>]
 
 Voice transcription uses the `BB_TRANSCRIPTION` model, which defaults to

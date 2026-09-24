@@ -1,6 +1,7 @@
 import type {
   CreateFilePreviewResponse,
   HostFileListResponse,
+  HostFileReadNotModifiedResponse,
   HostFileReadResponse,
   HostFileWriteResponse,
   HostMkdirResponse,
@@ -15,6 +16,10 @@ export interface FileReadArgs {
   path: string;
   rootPath?: string;
   signal?: AbortSignal;
+}
+
+export interface FileReadIfChangedArgs extends FileReadArgs {
+  sha256: string;
 }
 
 export interface FileWriteArgs {
@@ -72,6 +77,7 @@ export interface FilePreviewArgs {
 }
 
 export type FileReadResult = HostFileReadResponse;
+export type FileReadNotModifiedResult = HostFileReadNotModifiedResponse;
 export type FileWriteResult = HostFileWriteResponse;
 export type FileListResult = HostFileListResponse;
 export type PathListResult = HostPathListResponse;
@@ -82,6 +88,11 @@ export type FilePreviewResult = CreateFilePreviewResponse;
 
 export interface FilesArea {
   read(args: FileReadArgs): Promise<FileReadResult>;
+  /** Reads the file only when its content hash differs from `sha256`;
+   * otherwise returns its metadata with `notModified: true`. */
+  experimental_readIfChanged(
+    args: FileReadIfChangedArgs,
+  ): Promise<FileReadResult | FileReadNotModifiedResult>;
   write(args: FileWriteArgs): Promise<FileWriteResult>;
   list(args: FileListArgs): Promise<FileListResult>;
   listPaths(args: PathListArgs): Promise<PathListResult>;
@@ -95,6 +106,24 @@ export function createFilesArea(args: CreateSdkAreaArgs): FilesArea {
   const { transport } = args;
   return {
     async read(input) {
+      const result = await transport.readJson(
+        transport.api.v1.files.read.$post(
+          {
+            json: {
+              hostId: input.hostId,
+              path: input.path,
+              rootPath: input.rootPath,
+            },
+          },
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+      if ("notModified" in result) {
+        throw new Error("An unconditional file read returned not modified");
+      }
+      return result;
+    },
+    async experimental_readIfChanged(input) {
       return transport.readJson(
         transport.api.v1.files.read.$post(
           {
@@ -102,6 +131,7 @@ export function createFilesArea(args: CreateSdkAreaArgs): FilesArea {
               hostId: input.hostId,
               path: input.path,
               rootPath: input.rootPath,
+              ifNoneMatchSha256: input.sha256,
             },
           },
           ...signalRequestArgs(input.signal),

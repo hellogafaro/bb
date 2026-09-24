@@ -560,6 +560,7 @@ const hostRemovePathCommandSchema = z
 const hostBrowseDirectoryCommandSchema = z.object({
   type: z.literal("host.browse_directory"),
   path: z.string().min(1).optional(),
+  includeHidden: z.boolean(),
 });
 
 const hostPathsExistCommandSchema = pathsExistRequestSchema

@@ -302,6 +302,7 @@ export function registerHostRoutes(
       command: {
         type: "host.browse_directory",
         ...(query.path ? { path: query.path } : {}),
+        includeHidden: query.includeHidden === "true",
       },
     });
     return context.json(result);

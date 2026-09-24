@@ -130,6 +130,7 @@ import type {
   HostFileListRequest,
   HostFileListResponse,
   HostFileReadRequest,
+  HostFileReadNotModifiedResponse,
   HostFileReadResponse,
   HostFileWriteRequest,
   HostFileWriteResponse,
@@ -642,7 +643,9 @@ export const publicApiRoutes = {
       request: jsonRequest<EmptyInput, HostFileReadRequest>(
         hostFileReadRequestSchema,
       ),
-      response: jsonResponse<HostFileReadResponse>(),
+      response: jsonResponse<
+        HostFileReadResponse | HostFileReadNotModifiedResponse
+      >(),
     }),
     write: defineRoute({
       path: "/files/write",
