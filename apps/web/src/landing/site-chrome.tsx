@@ -1,6 +1,4 @@
-import GithubIcon from "@hugeicons/core-free-icons/GithubIcon";
-import { HugeiconsIcon } from "@hugeicons/react";
-
+import { PiGithubLogoBold } from "react-icons/pi";
 import { DASHBOARD_PATH } from "../lib/connect-return-to";
 import { DiscordLink, DownloadLink, GitHubLink, XLink } from "./cta";
 import { useDesktopPlatform } from "./desktop-platform";
@@ -41,7 +39,7 @@ export function SiteNav({ current }: { current?: SiteNavPage }) {
           className="nav-icon-button"
           aria-label="GitHub"
         >
-          <HugeiconsIcon icon={GithubIcon} />
+          <PiGithubLogoBold />
         </GitHubLink>
         <DownloadLink
           placement="nav"

@@ -14,7 +14,7 @@ Hooks:
   nothing else is needed; the writes are not optimistic there, which is what
   `experimental_useSidebarThreadActions()` is for. The client is stable, so
   it is safe in dependency lists. Test with `renderSlot({ sdk: { threads:
-  { update: async () => ({ … }) } } })` and read `inspection.sdkCalls`.
+{ update: async () => ({ … }) } } })` and read `inspection.sdkCalls`.
 - `useRpc<typeof rpcContract>()` → `{ call(method, input?) }` — exact method,
   input, and result inference from a type-only backend contract import.
   Reach for it when the work needs your server: secrets, host files, or your
@@ -171,7 +171,7 @@ plugin types --check` reports drift). Never list one in `dependencies` —
   `@pierre/diffs` import. The shim stays for compatibility, but hand-rolled
   Pierre usage means owning patch normalization and the code theme yourself,
   and it opts you out of any installed renderer replacement.
-- Everything else bundles from YOUR `node_modules` (hugeicons, lucide,
+- Everything else bundles from YOUR `node_modules` (react-icons, lucide,
   non-portal radix, zod, form/calendar/chart libs): run `npm install`
   after adding components (`bb plugin new` runs the first one; `shadcn add`
   installs each item's declared deps). Users of your prebuilt artifact need no

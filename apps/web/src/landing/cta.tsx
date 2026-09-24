@@ -1,5 +1,4 @@
-import CheckmarkCircle02Icon from "@hugeicons/core-free-icons/CheckmarkCircle02Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PiCheckCircleBold } from "react-icons/pi";
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
@@ -144,10 +143,7 @@ export function EmailSignup({ placement }: { placement: CtaPlacement }) {
   if (status === "success") {
     return (
       <p className="subscribe-done" role="status">
-        <HugeiconsIcon
-          icon={CheckmarkCircle02Icon}
-          className="subscribe-done-ic"
-        />
+        <PiCheckCircleBold className="subscribe-done-ic" />
         You&rsquo;re on the list. We&rsquo;ll be in touch.
       </p>
     );

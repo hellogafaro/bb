@@ -1,38 +1,40 @@
-import AiContentGenerator01Icon from "@hugeicons/core-free-icons/AiContentGenerator01Icon";
-import AlertCircleIcon from "@hugeicons/core-free-icons/AlertCircleIcon";
-import Archive03Icon from "@hugeicons/core-free-icons/Archive03Icon";
-import ArrowDown01Icon from "@hugeicons/core-free-icons/ArrowDown01Icon";
-import LinkSquare02Icon from "@hugeicons/core-free-icons/LinkSquare02Icon";
-import AudioWave01Icon from "@hugeicons/core-free-icons/AudioWave01Icon";
-import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
-import ChartColumnIcon from "@hugeicons/core-free-icons/ChartColumnIcon";
-import CheckListIcon from "@hugeicons/core-free-icons/CheckListIcon";
-import Clock01Icon from "@hugeicons/core-free-icons/Clock01Icon";
-import CloudIcon from "@hugeicons/core-free-icons/CloudIcon";
-import ComputerTerminal01Icon from "@hugeicons/core-free-icons/ComputerTerminal01Icon";
-import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
-import Database01Icon from "@hugeicons/core-free-icons/Database01Icon";
-import Download01Icon from "@hugeicons/core-free-icons/Download01Icon";
-import File01Icon from "@hugeicons/core-free-icons/File01Icon";
-import Folder02Icon from "@hugeicons/core-free-icons/Folder02Icon";
-import FolderGitTwoIcon from "@hugeicons/core-free-icons/FolderGit2Icon";
-import GithubIcon from "@hugeicons/core-free-icons/GithubIcon";
-import GitBranchIcon from "@hugeicons/core-free-icons/GitBranchIcon";
-import GridViewIcon from "@hugeicons/core-free-icons/GridViewIcon";
-import Layers01Icon from "@hugeicons/core-free-icons/Layers01Icon";
-import LockIcon from "@hugeicons/core-free-icons/LockIcon";
-import Mail02Icon from "@hugeicons/core-free-icons/Mail02Icon";
-import PackageIcon from "@hugeicons/core-free-icons/PackageIcon";
-import PuzzleIcon from "@hugeicons/core-free-icons/PuzzleIcon";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
-import SentIcon from "@hugeicons/core-free-icons/SentIcon";
-import SidebarLeftIcon from "@hugeicons/core-free-icons/SidebarLeftIcon";
-import SlidersHorizontalIcon from "@hugeicons/core-free-icons/SlidersHorizontalIcon";
-import UserSwitchIcon from "@hugeicons/core-free-icons/UserSwitchIcon";
-import WorkflowCircle03Icon from "@hugeicons/core-free-icons/WorkflowCircle03Icon";
-import ZapIcon from "@hugeicons/core-free-icons/ZapIcon";
-import ZoomInAreaIcon from "@hugeicons/core-free-icons/ZoomInAreaIcon";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import {
+  PiArchiveBold,
+  PiArrowSquareOutBold,
+  PiBookBookmarkBold,
+  PiCaretDownBold,
+  PiChartBarBold,
+  PiClockBold,
+  PiCloudBold,
+  PiCopyBold,
+  PiDatabaseBold,
+  PiDownloadSimpleBold,
+  PiEnvelopeBold,
+  PiFileTextBold,
+  PiFolderOpenBold,
+  PiGitBranchBold,
+  PiGithubLogoBold,
+  PiLightningBold,
+  PiListChecksBold,
+  PiLockBold,
+  PiMagnifyingGlassBold,
+  PiMagnifyingGlassPlusBold,
+  PiPackageBold,
+  PiPaperPlaneTiltBold,
+  PiPuzzlePieceBold,
+  PiSidebarSimpleBold,
+  PiSlidersHorizontalBold,
+  PiSparkleBold,
+  PiSquaresFourBold,
+  PiStackBold,
+  PiTerminalWindowBold,
+  PiTreeStructureBold,
+  PiUserSwitchBold,
+  PiWarningCircleBold,
+  PiWaveformBold,
+  PiXBold,
+} from "react-icons/pi";
+import type { IconType } from "react-icons";
 import {
   createContext,
   type ReactNode,
@@ -82,34 +84,34 @@ const SORT_LABELS: Record<MarketplaceSort, string> = {
   "most-installed": "Popular",
 };
 
-const PLUGIN_ICONS: Readonly<Record<string, IconSvgElement | undefined>> = {
-  AiContentGenerator01: AiContentGenerator01Icon,
-  AlertCircle: AlertCircleIcon,
-  Archive: Archive03Icon,
-  AudioLines: AudioWave01Icon,
-  ChartColumn: ChartColumnIcon,
-  ClipboardCheck: CheckListIcon,
-  Clock: Clock01Icon,
-  Cloud: CloudIcon,
-  Copy: Copy01Icon,
-  Database: Database01Icon,
-  FileText: File01Icon,
-  FolderGit: FolderGitTwoIcon,
-  FolderOpen: Folder02Icon,
-  GitBranch: GitBranchIcon,
-  GridView: GridViewIcon,
-  Layers: Layers01Icon,
-  Lock: LockIcon,
-  Mail: Mail02Icon,
-  PanelLeft: SidebarLeftIcon,
-  Puzzle: PuzzleIcon,
-  SlidersHorizontal: SlidersHorizontalIcon,
-  SideChat: SentIcon,
-  Terminal: ComputerTerminal01Icon,
-  UserSwitch: UserSwitchIcon,
-  Workflow: WorkflowCircle03Icon,
-  Zap: ZapIcon,
-  ZoomIn: ZoomInAreaIcon,
+const PLUGIN_ICONS: Readonly<Record<string, IconType | undefined>> = {
+  AiContentGenerator01: PiSparkleBold,
+  AlertCircle: PiWarningCircleBold,
+  Archive: PiArchiveBold,
+  AudioLines: PiWaveformBold,
+  ChartColumn: PiChartBarBold,
+  ClipboardCheck: PiListChecksBold,
+  Clock: PiClockBold,
+  Cloud: PiCloudBold,
+  Copy: PiCopyBold,
+  Database: PiDatabaseBold,
+  FileText: PiFileTextBold,
+  FolderGit: PiBookBookmarkBold,
+  FolderOpen: PiFolderOpenBold,
+  GitBranch: PiGitBranchBold,
+  GridView: PiSquaresFourBold,
+  Layers: PiStackBold,
+  Lock: PiLockBold,
+  Mail: PiEnvelopeBold,
+  PanelLeft: PiSidebarSimpleBold,
+  Puzzle: PiPuzzlePieceBold,
+  SlidersHorizontal: PiSlidersHorizontalBold,
+  SideChat: PiPaperPlaneTiltBold,
+  Terminal: PiTerminalWindowBold,
+  UserSwitch: PiUserSwitchBold,
+  Workflow: PiTreeStructureBold,
+  Zap: PiLightningBold,
+  ZoomIn: PiMagnifyingGlassPlusBold,
 };
 
 const MarketplaceNavigationContext = createContext<
@@ -175,9 +177,10 @@ function PluginArtwork({
     ? "marketplace-artwork is-large"
     : "marketplace-artwork";
   if (typeof entry.icon === "string") {
+    const PluginGlyph = PLUGIN_ICONS[entry.icon] ?? PiPuzzlePieceBold;
     return (
       <span className={className} aria-hidden>
-        <HugeiconsIcon icon={PLUGIN_ICONS[entry.icon] ?? PuzzleIcon} />
+        <PluginGlyph />
       </span>
     );
   }
@@ -252,13 +255,15 @@ function InstallCount({
     return <span className={`${className} is-new`}>New</span>;
   }
   const formatted =
-    variant === "detail" ? total.toLocaleString("en-US") : formatInstalls(total);
+    variant === "detail"
+      ? total.toLocaleString("en-US")
+      : formatInstalls(total);
   return (
     <span
       className={className}
       aria-label={`${total.toLocaleString("en-US")} ${total === 1 ? "install" : "installs"}`}
     >
-      <HugeiconsIcon icon={Download01Icon} aria-hidden />
+      <PiDownloadSimpleBold aria-hidden />
       {formatted}
     </span>
   );
@@ -371,7 +376,8 @@ function Shelf({
       <div className="marketplace-section-head">
         <div>
           <h2>
-            {shelf.label}{"\u00a0"}
+            {shelf.label}
+            {"\u00a0"}
             <span>{shelf.entries.length}</span>
           </h2>
           {description === undefined ? null : <p>{description}</p>}
@@ -410,7 +416,7 @@ function MarketplaceState({
   return (
     <div className="marketplace-state" role="status">
       <span aria-hidden>
-        <HugeiconsIcon icon={PackageIcon} />
+        <PiPackageBold />
       </span>
       <h2>{title}</h2>
       <p>{description}</p>
@@ -510,7 +516,7 @@ function MarketplaceToolbar({
   }, []);
   const search = (
     <div className="marketplace-search">
-      <HugeiconsIcon icon={Search01Icon} aria-hidden />
+      <PiMagnifyingGlassBold aria-hidden />
       <input
         ref={searchInput}
         aria-label="Search plugins"
@@ -529,7 +535,7 @@ function MarketplaceToolbar({
             searchInput.current?.focus();
           }}
         >
-          <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+          <PiXBold aria-hidden />
         </button>
       ) : (
         <kbd>/</kbd>
@@ -582,7 +588,7 @@ function MarketplaceToolbar({
                   {selectedCategory.count}
                 </span>
               ) : null}
-              <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+              <PiCaretDownBold aria-hidden />
             </summary>
             <div
               className="marketplace-category-options"
@@ -636,7 +642,7 @@ function MarketplaceToolbar({
                 </option>
               ))}
             </select>
-            <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+            <PiCaretDownBold aria-hidden />
           </label>
           <div
             className="marketplace-sort-control"
@@ -859,7 +865,8 @@ function MoreInCategory({
       <div className="marketplace-section-head">
         <div>
           <h2>
-            More in {categoryName}{"\u00a0"}
+            More in {categoryName}
+            {"\u00a0"}
             <span>{entries.length}</span>
           </h2>
           {category?.description === undefined ? null : (
@@ -950,7 +957,6 @@ export function PublicMarketplaceDetailPage({
                 {category}
               </MarketplaceLink>
               <InstallCount entry={entry} stats={stats} variant="detail" />
-
             </div>
           </div>
           <div className="marketplace-detail-install">
@@ -972,7 +978,7 @@ export function PublicMarketplaceDetailPage({
                 href="/download/macos"
               >
                 Get it for macOS
-                <HugeiconsIcon icon={LinkSquare02Icon} aria-hidden />
+                <PiArrowSquareOutBold aria-hidden />
               </MarketplaceLink>
             </div>
           </div>
@@ -991,15 +997,15 @@ export function PublicMarketplaceDetailPage({
               <hr className="marketplace-overview-rule" />
               <div className="marketplace-overview-heading">
                 <h2>Overview</h2>
-              <a
-                className="marketplace-detail-source"
-                href={repository}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View source
-                <HugeiconsIcon icon={LinkSquare02Icon} aria-hidden />
-              </a>
+                <a
+                  className="marketplace-detail-source"
+                  href={repository}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View source
+                  <PiArrowSquareOutBold aria-hidden />
+                </a>
               </div>
               {entry.overview === undefined ? null : (
                 <MarketplaceOverview markdown={entry.overview} />
@@ -1063,9 +1069,9 @@ export function PublicMarketplaceAuthorPage({
               target="_blank"
               rel="noreferrer"
             >
-              <HugeiconsIcon icon={GithubIcon} aria-hidden />
+              <PiGithubLogoBold aria-hidden />
               {author.github}
-              <HugeiconsIcon icon={LinkSquare02Icon} aria-hidden />
+              <PiArrowSquareOutBold aria-hidden />
             </a>
           )}
         </header>

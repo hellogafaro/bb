@@ -1,6 +1,4 @@
-import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
-import Mail01Icon from "@hugeicons/core-free-icons/Mail01Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PiCaretRightBold, PiEnvelopeBold } from "react-icons/pi";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { POSTS } from "../blog/posts";
@@ -38,7 +36,7 @@ function BlogIndexRoute() {
         <p className="sub">{PAGE_DESCRIPTION}</p>
         <div className="meta-row">
           <a href={`#${SUBSCRIBE_EMAIL_ID}`} onClick={focusSubscribeEmail}>
-            <HugeiconsIcon icon={Mail01Icon} className="ri" />
+            <PiEnvelopeBold className="ri" />
             Get new posts by email
           </a>
         </div>
@@ -62,7 +60,7 @@ function BlogIndexRoute() {
               ) : null}
               <a className="read-more" href={`/blog/${post.slug}`}>
                 Read
-                <HugeiconsIcon icon={ArrowRight01Icon} />
+                <PiCaretRightBold />
               </a>
             </div>
           </article>

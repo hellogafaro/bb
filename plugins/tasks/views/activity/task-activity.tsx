@@ -1,10 +1,11 @@
+import {
+  PiArrowUpBold,
+  PiBellBold,
+  PiBellSlashBold,
+  PiFileTextBold,
+  PiPaperclipBold,
+} from "react-icons/pi";
 import { useMemo, useRef, useState } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import ArrowUp02Icon from "@hugeicons/core-free-icons/ArrowUp02Icon";
-import AttachmentIcon from "@hugeicons/core-free-icons/AttachmentIcon";
-import File01Icon from "@hugeicons/core-free-icons/File01Icon";
-import Notification02Icon from "@hugeicons/core-free-icons/Notification02Icon";
-import NotificationOff02Icon from "@hugeicons/core-free-icons/NotificationOff02Icon";
 import { Button } from "@bb/shared-ui/button";
 import {
   Tooltip,
@@ -117,7 +118,7 @@ function FileAttachmentCard({ attachment }: { attachment: Attachment }) {
       className="inline-flex min-w-0 max-w-60 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-2xs hover:border-input hover:bg-state-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
       <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-secondary text-muted-foreground">
-        <HugeiconsIcon icon={File01Icon} className="size-3.5" />
+        <PiFileTextBold className="size-3.5" />
       </span>
       <span className="min-w-0">
         <span className="block truncate">{attachment.fileName}</span>
@@ -268,7 +269,7 @@ function CommentCard({ entry, nowMs }: { entry: FeedEntry; nowMs: number }) {
         ) : null}
         {comment.kind === "user" && comment.notifiedCount > 0 ? (
           <div className="mt-1 flex items-center gap-1 text-2xs font-medium text-success">
-            <HugeiconsIcon icon={Notification02Icon} className="size-2.5" />
+            <PiBellBold className="size-2.5" />
             notified the last responding agent
           </div>
         ) : null}
@@ -394,7 +395,7 @@ export function CommentComposer({ taskId, notificationTarget }: ComposerProps) {
           className="size-6.5 shrink-0 text-muted-foreground"
           onClick={() => fileInputRef.current?.click()}
         >
-          <HugeiconsIcon icon={AttachmentIcon} className="size-3.5" />
+          <PiPaperclipBold className="size-3.5" />
         </Button>
         <Button
           type="button"
@@ -404,7 +405,7 @@ export function CommentComposer({ taskId, notificationTarget }: ComposerProps) {
           className="size-6.5 shrink-0 rounded-md bg-foreground text-background hover:bg-foreground/90"
           onClick={() => void send()}
         >
-          <HugeiconsIcon icon={ArrowUp02Icon} className="size-3.5" />
+          <PiArrowUpBold className="size-3.5" />
         </Button>
       </div>
     </div>
@@ -450,10 +451,11 @@ export function AgentNotificationControl({
                 "cursor-not-allowed opacity-60 hover:bg-transparent hover:text-muted-foreground",
             )}
           >
-            <HugeiconsIcon
-              icon={on ? Notification02Icon : NotificationOff02Icon}
-              className="size-3.5"
-            />
+            {on ? (
+              <PiBellBold className="size-3.5" />
+            ) : (
+              <PiBellSlashBold className="size-3.5" />
+            )}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">{label}</TooltipContent>

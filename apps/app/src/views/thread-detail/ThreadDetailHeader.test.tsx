@@ -246,7 +246,7 @@ describe("ThreadDetailHeader", () => {
     expect(closeIcon).not.toBeNull();
     expect(closeIcon?.querySelectorAll("path")).toHaveLength(1);
     expect(closeIcon?.querySelector("path")?.getAttribute("d")).toContain(
-      "M18 6L6.00081 17.9992",
+      "M208.49,191.51a12,12,0,0,1-17,17L128,145",
     );
   });
 

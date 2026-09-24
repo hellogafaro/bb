@@ -1,5 +1,5 @@
 import type { SFSymbol } from "sf-symbols-typescript";
-import type { IconName } from "./icon-map";
+import type { IconName } from "./icon-names";
 
 export type { SFSymbol };
 

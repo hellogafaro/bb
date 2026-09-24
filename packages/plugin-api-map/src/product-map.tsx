@@ -1,3 +1,4 @@
+import { PiDesktopBold, PiDeviceMobileBold } from "react-icons/pi";
 import {
   Fragment,
   useEffect,
@@ -9,9 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { Icon } from "@bb/shared-ui/icon";
-import { HugeiconsIcon } from "@hugeicons/react";
-import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
-import SmartPhone01Icon from "@hugeicons/core-free-icons/SmartPhone01Icon";
 
 import { cn } from "./cn";
 import { SurfaceCard, useSurfaceCard } from "./surface-card";
@@ -67,32 +65,50 @@ const DESKTOP_SLIDES: GuideSlide[] = SURFACE_GROUPS.map((group) => ({
 }));
 const MOBILE_SLIDES: GuideSlide[] = DESKTOP_SLIDES.flatMap((group) => {
   if (group.id === "composer") {
-    return [{
-      ...group,
-      blurb: "Plugins can add banners, actions, providers, and rich text to the prompt box.",
-    }];
+    return [
+      {
+        ...group,
+        blurb:
+          "Plugins can add banners, actions, providers, and rich text to the prompt box.",
+      },
+    ];
   }
   if (group.id === "app-shell") {
     return [
       {
         ...group,
         title: "Sidebar",
-        blurb: "Plugins can add navigation, thread status, and footer controls.",
+        blurb:
+          "Plugins can add navigation, thread status, and footer controls.",
         appShellScene: "navigation" as const,
-        surfaces: group.surfaces.filter((surface) => [
-          "sidebar-navigation", "nav-panel", "thread-row-status", "thread-list", "sidebar-footer",
-        ].includes(surface.id)),
+        surfaces: group.surfaces.filter((surface) =>
+          [
+            "sidebar-navigation",
+            "nav-panel",
+            "thread-row-status",
+            "thread-list",
+            "sidebar-footer",
+          ].includes(surface.id),
+        ),
       },
       {
         ...group,
         id: "app-shell-thread",
         title: "Thread",
-        blurb: "Plugins can extend the thread header, conversation, and composer.",
+        blurb:
+          "Plugins can extend the thread header, conversation, and composer.",
         appShellScene: "conversation" as const,
-        surfaces: group.surfaces.filter((surface) => [
-          "thread-header", "timeline-renderers", "message-directives", "message-actions",
-          "pending-interaction", "app-overlay", "content-scripts",
-        ].includes(surface.id)),
+        surfaces: group.surfaces.filter((surface) =>
+          [
+            "thread-header",
+            "timeline-renderers",
+            "message-directives",
+            "message-actions",
+            "pending-interaction",
+            "app-overlay",
+            "content-scripts",
+          ].includes(surface.id),
+        ),
       },
       {
         ...group,
@@ -100,9 +116,14 @@ const MOBILE_SLIDES: GuideSlide[] = DESKTOP_SLIDES.flatMap((group) => {
         title: "Side panel",
         blurb: "Explore plugin controls and content in the side panel’s tabs.",
         appShellScene: "panel" as const,
-        surfaces: group.surfaces.filter((surface) => [
-          "code-renderers", "browser-toolbar", "thread-panel", "file-opener",
-        ].includes(surface.id)),
+        surfaces: group.surfaces.filter((surface) =>
+          [
+            "code-renderers",
+            "browser-toolbar",
+            "thread-panel",
+            "file-opener",
+          ].includes(surface.id),
+        ),
       },
     ];
   }
@@ -110,7 +131,9 @@ const MOBILE_SLIDES: GuideSlide[] = DESKTOP_SLIDES.flatMap((group) => {
     return [
       {
         ...group,
-        surfaces: group.surfaces.filter((surface) => surface.id === "homepage-section"),
+        surfaces: group.surfaces.filter(
+          (surface) => surface.id === "homepage-section",
+        ),
       },
       {
         ...group,
@@ -118,7 +141,9 @@ const MOBILE_SLIDES: GuideSlide[] = DESKTOP_SLIDES.flatMap((group) => {
         title: "New thread actions",
         blurb: "Plugins can add an action to the new-thread panel launcher.",
         homePanel: true,
-        surfaces: group.surfaces.filter((surface) => surface.id === "new-thread-panel"),
+        surfaces: group.surfaces.filter(
+          (surface) => surface.id === "new-thread-panel",
+        ),
       },
     ];
   }
@@ -144,7 +169,7 @@ export function annotationNeighbors(
 function PlatformCard({ surface }: { surface: PluginSurface }) {
   const { activeId, setActiveId, expandedId, onSelect } = useSurfaceMap();
   const selected = activeId === surface.id || expandedId === surface.id;
-  const icon = surfaceIcon(surface.id);
+  const SurfaceGlyph = surfaceIcon(surface.id);
   return (
     <a
       href={`#surface-${surface.id}`}
@@ -167,9 +192,8 @@ function PlatformCard({ surface }: { surface: PluginSurface }) {
           : "border-border-hairline bg-surface-raised-solid hover:border-border hover:bg-state-hover",
       )}
     >
-      {icon ? (
-        <HugeiconsIcon
-          icon={icon}
+      {SurfaceGlyph ? (
+        <SurfaceGlyph
           className={cn(
             "size-4 shrink-0",
             selected ? "text-file-accent" : "text-foreground",
@@ -416,7 +440,9 @@ function SlideContent({
 }) {
   switch (group.groupId) {
     case "app-shell":
-      return <AppShellWireframe mobile={mobile} mobileScene={group.appShellScene} />;
+      return (
+        <AppShellWireframe mobile={mobile} mobileScene={group.appShellScene} />
+      );
     case "command-palette":
       return <CommandPaletteWireframe mobile={mobile} />;
     case "composer":
@@ -495,7 +521,9 @@ function Slide({
   return (
     <>
       <SpatialFixture
-        band={mobile ? { min: 430, max: 430 } : FIXTURE_WIDTH_BANDS[group.groupId]}
+        band={
+          mobile ? { min: 430, max: 430 } : FIXTURE_WIDTH_BANDS[group.groupId]
+        }
         maxScale={mobile ? 1 : MAX_FIXTURE_SCALE}
       >
         <SlideContent group={group} mobile={mobile} />
@@ -650,11 +678,19 @@ export function ProductMap({
   const mobile =
     displayMode === null ? viewportMobile : displayMode === "mobile";
   const slides = mobile ? MOBILE_SLIDES : DESKTOP_SLIDES;
-  const numbers = useMemo(() => new Map(
-    slides.filter((slide) => slide.groupId !== "headless").flatMap((slide) =>
-      slide.surfaces.map((surface, index) => [surface.id, index + 1] as const),
-    ),
-  ), [slides]);
+  const numbers = useMemo(
+    () =>
+      new Map(
+        slides
+          .filter((slide) => slide.groupId !== "headless")
+          .flatMap((slide) =>
+            slide.surfaces.map(
+              (surface, index) => [surface.id, index + 1] as const,
+            ),
+          ),
+      ),
+    [slides],
+  );
   useEffect(() => {
     const query = window.matchMedia?.("(max-width: 767px)");
     if (!query) return;
@@ -682,9 +718,14 @@ export function ProductMap({
     }
   }, [mobile, card.openId, slides, slideId, onSlideChange]);
   const selectedSlide = MOBILE_SLIDES.find((slide) => slide.id === slideId);
-  const index = Math.max(0, slides.findIndex((slide) =>
-    slide.id === slideId || (!mobile && slide.id === selectedSlide?.groupId),
-  ));
+  const index = Math.max(
+    0,
+    slides.findIndex(
+      (slide) =>
+        slide.id === slideId ||
+        (!mobile && slide.id === selectedSlide?.groupId),
+    ),
+  );
   const stage = useStageHeight(index, slideRefs);
 
   useEffect(() => {
@@ -727,7 +768,10 @@ export function ProductMap({
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.target instanceof HTMLSelectElement) return;
-    if (event.target instanceof Element && event.target.closest('[role="dialog"]')) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('[role="dialog"]')
+    ) {
       return;
     }
     if (event.key === "ArrowRight") {
@@ -793,11 +837,7 @@ export function ProductMap({
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('[role="dialog"]')) return;
-      if (
-        target.closest(
-          'a[href^="#surface-"], [data-guide-display-mode]',
-        )
-      )
+      if (target.closest('a[href^="#surface-"], [data-guide-display-mode]'))
         return;
       card.close();
     };
@@ -951,11 +991,11 @@ export function ProductMap({
                         : "text-muted-foreground hover:bg-state-hover",
                     )}
                   >
-                    <HugeiconsIcon
-                      icon={mode === "mobile" ? SmartPhone01Icon : ComputerIcon}
-                      className="size-4"
-                      aria-hidden
-                    />
+                    {mode === "mobile" ? (
+                      <PiDeviceMobileBold className="size-4" aria-hidden />
+                    ) : (
+                      <PiDesktopBold className="size-4" aria-hidden />
+                    )}
                   </button>
                 ))}
               </div>
@@ -991,13 +1031,21 @@ export function ProductMap({
                     }
                     className="min-w-0 w-full shrink-0 self-start px-1 pt-2"
                   >
-                    <Slide group={entry} mobile={mobile} viewportMobile={viewportMobile} />
+                    <Slide
+                      group={entry}
+                      mobile={mobile}
+                      viewportMobile={viewportMobile}
+                    />
                   </div>
                 ))}
               </div>
             </div>
 
-            {viewportMobile ? <MobileCardFlow>{cardNode}</MobileCardFlow> : cardNode}
+            {viewportMobile ? (
+              <MobileCardFlow>{cardNode}</MobileCardFlow>
+            ) : (
+              cardNode
+            )}
           </section>
         </div>
       </div>

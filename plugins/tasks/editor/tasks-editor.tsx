@@ -1,17 +1,18 @@
+import {
+  PiChatCircleBold,
+  PiCodeBold,
+  PiCodeSimpleBold,
+  PiListBulletsBold,
+  PiListChecksBold,
+  PiQuotesBold,
+  PiTextBBold,
+  PiTextHTwoBold,
+  PiTextItalicBold,
+} from "react-icons/pi";
 import { useEffect, useRef, useState } from "react";
 import { Editor, isNodeSelection, type ChainedCommands } from "@tiptap/core";
 import { BubbleMenuPlugin } from "@tiptap/extension-bubble-menu";
-import type { IconSvgElement } from "@hugeicons/react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import BubbleChatIcon from "@hugeicons/core-free-icons/BubbleChatIcon";
-import CheckListIcon from "@hugeicons/core-free-icons/CheckListIcon";
-import CodeIcon from "@hugeicons/core-free-icons/CodeIcon";
-import Heading02Icon from "@hugeicons/core-free-icons/Heading02Icon";
-import LeftToRightBlockQuoteIcon from "@hugeicons/core-free-icons/LeftToRightBlockQuoteIcon";
-import LeftToRightListBulletIcon from "@hugeicons/core-free-icons/LeftToRightListBulletIcon";
-import SourceCodeIcon from "@hugeicons/core-free-icons/SourceCodeIcon";
-import TextBoldIcon from "@hugeicons/core-free-icons/TextBoldIcon";
-import TextItalicIcon from "@hugeicons/core-free-icons/TextItalicIcon";
+import type { IconType } from "react-icons";
 import type { SuggestionProps } from "@tiptap/suggestion";
 import { Button } from "@bb/shared-ui/button";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
@@ -127,7 +128,7 @@ interface MentionPopoverState {
 interface BubbleAction {
   id: string;
   label: string;
-  icon: IconSvgElement;
+  icon: IconType;
   isActive(editor: Editor): boolean;
   run(chain: ChainedCommands): ChainedCommands;
 }
@@ -136,56 +137,56 @@ const BUBBLE_ACTIONS: BubbleAction[] = [
   {
     id: "bold",
     label: "Bold",
-    icon: TextBoldIcon,
+    icon: PiTextBBold,
     isActive: (editor) => editor.isActive("bold"),
     run: (chain) => chain.toggleBold(),
   },
   {
     id: "italic",
     label: "Italic",
-    icon: TextItalicIcon,
+    icon: PiTextItalicBold,
     isActive: (editor) => editor.isActive("italic"),
     run: (chain) => chain.toggleItalic(),
   },
   {
     id: "code",
     label: "Inline code",
-    icon: CodeIcon,
+    icon: PiCodeSimpleBold,
     isActive: (editor) => editor.isActive("code"),
     run: (chain) => chain.toggleCode(),
   },
   {
     id: "heading",
     label: "Heading",
-    icon: Heading02Icon,
+    icon: PiTextHTwoBold,
     isActive: (editor) => editor.isActive("heading", { level: 2 }),
     run: (chain) => chain.toggleHeading({ level: 2 }),
   },
   {
     id: "bulletList",
     label: "Bullet list",
-    icon: LeftToRightListBulletIcon,
+    icon: PiListBulletsBold,
     isActive: (editor) => editor.isActive("bulletList"),
     run: (chain) => chain.toggleBulletList(),
   },
   {
     id: "taskList",
     label: "Checklist",
-    icon: CheckListIcon,
+    icon: PiListChecksBold,
     isActive: (editor) => editor.isActive("taskList"),
     run: (chain) => chain.toggleTaskList(),
   },
   {
     id: "codeBlock",
     label: "Code block",
-    icon: SourceCodeIcon,
+    icon: PiCodeBold,
     isActive: (editor) => editor.isActive("codeBlock"),
     run: (chain) => chain.toggleCodeBlock(),
   },
   {
     id: "blockquote",
     label: "Quote",
-    icon: LeftToRightBlockQuoteIcon,
+    icon: PiQuotesBold,
     isActive: (editor) => editor.isActive("blockquote"),
     run: (chain) => chain.toggleBlockquote(),
   },
@@ -510,10 +511,7 @@ export function TasksEditor({
           {item.key}
         </span>
       ) : (
-        <HugeiconsIcon
-          icon={BubbleChatIcon}
-          className="size-3.5 shrink-0 text-muted-foreground"
-        />
+        <PiChatCircleBold className="size-3.5 shrink-0 text-muted-foreground" />
       )}
       <span className="min-w-0 flex-1 truncate">{item.title}</span>
     </button>
@@ -566,7 +564,7 @@ export function TasksEditor({
                 action.run(current.chain().focus()).run();
               }}
             >
-              <HugeiconsIcon icon={action.icon} className="size-4" />
+              <action.icon className="size-4" />
             </Button>
           ))}
         </div>

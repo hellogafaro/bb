@@ -1,6 +1,5 @@
+import { PiSmileyBold } from "react-icons/pi";
 import { useEffect, useRef, useState } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import SmilePlusIcon from "@hugeicons/core-free-icons/SmilePlusIcon";
 import type { Task } from "../../shared/contract.js";
 import { errorMessage } from "../../shared/errors.js";
 import type { DelegationRpcContract } from "../../delegate/contract.js";
@@ -418,7 +417,7 @@ function TaskDetail({ task }: { task: Task }) {
               disabled
               className="flex size-6.5 items-center justify-center rounded-md text-muted-foreground opacity-50"
             >
-              <HugeiconsIcon icon={SmilePlusIcon} className="size-4" />
+              <PiSmileyBold className="size-4" />
             </button>
             <button
               type="button"

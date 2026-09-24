@@ -1,4 +1,20 @@
 import {
+  PiArrowUpRightBold,
+  PiCaretDownBold,
+  PiCaretRightBold,
+  PiFileHtmlBold,
+  PiFilePlusBold,
+  PiFileTextBold,
+  PiFolderOpenBold,
+  PiFolderSimpleBold,
+  PiFolderSimplePlusBold,
+  PiMagnifyingGlassBold,
+  PiPlusBold,
+  PiTrashBold,
+  PiWarningCircleBold,
+  PiXBold,
+} from "react-icons/pi";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -58,21 +74,6 @@ import TableRow from "@tiptap/extension-table-row";
 import { Markdown } from "tiptap-markdown";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import { toast } from "sonner";
-import ArrowDown01Icon from "@hugeicons/core-free-icons/ArrowDown01Icon";
-import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
-import AlertCircleIcon from "@hugeicons/core-free-icons/AlertCircleIcon";
-import ArrowUpRight01Icon from "@hugeicons/core-free-icons/ArrowUpRight01Icon";
-import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
-import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
-import File01Icon from "@hugeicons/core-free-icons/File01Icon";
-import FileAddIcon from "@hugeicons/core-free-icons/FileAddIcon";
-import Folder01Icon from "@hugeicons/core-free-icons/Folder01Icon";
-import Folder02Icon from "@hugeicons/core-free-icons/Folder02Icon";
-import FolderAddIcon from "@hugeicons/core-free-icons/FolderAddIcon";
-import HtmlFile01Icon from "@hugeicons/core-free-icons/HtmlFile01Icon";
-import PlusSignIcon from "@hugeicons/core-free-icons/PlusSignIcon";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@bb/shared-ui/button";
 import { DelayedLoading } from "@bb/shared-ui/delayed-loading";
 import {
@@ -1142,7 +1143,7 @@ function DocsDirectiveCard({ attributes }: PluginMessageDirectiveProps) {
         onClick={openPreview}
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <HugeiconsIcon icon={HtmlFile01Icon} className="size-4" />
+          <PiFileHtmlBold className="size-4" />
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {document.title}
@@ -1155,7 +1156,7 @@ function DocsDirectiveCard({ attributes }: PluginMessageDirectiveProps) {
         aria-label="Open in Docs"
         onClick={openInDocs}
       >
-        <HugeiconsIcon icon={ArrowUpRight01Icon} />
+        <PiArrowUpRightBold />
       </Button>
     </div>
   );
@@ -1265,7 +1266,7 @@ function DocumentPanel({ params }: PluginThreadPanelProps) {
             })
           }
         >
-          <HugeiconsIcon icon={ArrowUpRight01Icon} />
+          <PiArrowUpRightBold />
         </Button>
       </div>
       <HtmlPreview {...document} panel />
@@ -1491,7 +1492,7 @@ function DocsFileOpener({ path: filePath, source }: PluginFileOpenerProps) {
               })
             }
           >
-            <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
+            <PiArrowUpRightBold className="size-4" />
           </Button>
         </div>
       )}
@@ -1572,10 +1573,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
       {props.searchOpen ? (
         <>
           <div className="relative min-w-0 flex-1">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            />
+            <PiMagnifyingGlassBold className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               autoFocus
               className="h-8 pl-8"
@@ -1599,7 +1597,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
               props.onSearchOpenChange(false);
             }}
           >
-            <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+            <PiXBold className="size-4" />
           </Button>
         </>
       ) : null}
@@ -1612,7 +1610,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="Search notes"
             onClick={() => props.onSearchOpenChange(true)}
           >
-            <HugeiconsIcon icon={Search01Icon} className="size-4" />
+            <PiMagnifyingGlassBold className="size-4" />
           </Button>
           <Button
             className="size-8"
@@ -1621,7 +1619,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="New note"
             onClick={props.onNewNote}
           >
-            <HugeiconsIcon icon={FileAddIcon} className="size-4" />
+            <PiFilePlusBold className="size-4" />
           </Button>
           <Button
             className="size-8"
@@ -1630,7 +1628,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="New folder"
             onClick={props.onNewFolder}
           >
-            <HugeiconsIcon icon={FolderAddIcon} className="size-4" />
+            <PiFolderSimplePlusBold className="size-4" />
           </Button>
           <span className="min-w-0 flex-1" />
         </>
@@ -1827,7 +1825,7 @@ function Tree({
             }}
             onDrop={(event) => moveIntoFolder(event, "")}
           >
-            <HugeiconsIcon icon={Folder01Icon} className="size-4 shrink-0" />
+            <PiFolderSimpleBold className="size-4 shrink-0" />
             Move to top level
           </button>
         ) : null}
@@ -1900,29 +1898,25 @@ function Tree({
               style={{ paddingLeft: `${8 + depth * 15}px` }}
             >
               {isFolder ? (
-                <HugeiconsIcon
-                  icon={
-                    collapsed.has(entry.path)
-                      ? ArrowRight01Icon
-                      : ArrowDown01Icon
-                  }
-                  className="size-3.5 shrink-0 text-muted-foreground"
-                />
+                collapsed.has(entry.path) ? (
+                  <PiCaretRightBold className="size-3.5 shrink-0 text-muted-foreground" />
+                ) : (
+                  <PiCaretDownBold className="size-3.5 shrink-0 text-muted-foreground" />
+                )
               ) : (
                 <span className="size-3.5 shrink-0" />
               )}
-              <HugeiconsIcon
-                icon={
-                  isFolder
-                    ? collapsed.has(entry.path)
-                      ? Folder01Icon
-                      : Folder02Icon
-                    : /\.html?$/i.test(entry.path)
-                      ? HtmlFile01Icon
-                      : File01Icon
-                }
-                className="size-4 shrink-0 text-muted-foreground"
-              />
+              {isFolder ? (
+                collapsed.has(entry.path) ? (
+                  <PiFolderSimpleBold className="size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <PiFolderOpenBold className="size-4 shrink-0 text-muted-foreground" />
+                )
+              ) : /\.html?$/i.test(entry.path) ? (
+                <PiFileHtmlBold className="size-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <PiFileTextBold className="size-4 shrink-0 text-muted-foreground" />
+              )}
               <span className="truncate">{label}</span>
             </button>
           );
@@ -1943,7 +1937,7 @@ function Tree({
                     className="flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-destructive outline-none focus:bg-destructive/15 focus:text-destructive"
                     onSelect={() => onDeleteFile(entry.path)}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                    <PiTrashBold className="size-4" />
                     Delete
                   </ContextMenuPrimitive.Item>
                 </ContextMenuPrimitive.Content>
@@ -1981,7 +1975,7 @@ function Tree({
             aria-label="Add vault"
             onClick={onAddVault}
           >
-            <HugeiconsIcon icon={PlusSignIcon} className="size-4" />
+            <PiPlusBold className="size-4" />
           </Button>
         </div>
         {hostUnavailable ? (
@@ -1989,7 +1983,7 @@ function Tree({
             className="flex items-center gap-1.5 px-1 text-xs text-destructive"
             role="status"
           >
-            <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0" />
+            <PiWarningCircleBold className="size-4 shrink-0" />
             <span className="truncate">Host unavailable</span>
           </div>
         ) : null}

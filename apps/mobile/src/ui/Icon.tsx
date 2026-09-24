@@ -1,7 +1,7 @@
-import { HugeIcon, type IconProps } from "./HugeIcon";
+import { PhosphorIcon, type IconProps } from "./PhosphorIcon";
 
 export function Icon(props: IconProps) {
-  return <HugeIcon {...props} />;
+  return <PhosphorIcon {...props} />;
 }
 
-export { isIconName, type IconName } from "./icon-map";
+export { isIconName, type IconName } from "./icon-names";

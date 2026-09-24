@@ -1,3 +1,4 @@
+import { PiFileTextBold, PiXBold } from "react-icons/pi";
 import {
   useEffect,
   useRef,
@@ -5,9 +6,6 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
-import File01Icon from "@hugeicons/core-free-icons/File01Icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "../shared/attachments.js";
 import { errorMessage } from "../shared/errors.js";
@@ -158,8 +156,7 @@ export function AttachmentChip({
       {!broken && image ? (
         <ChipThumbnail file={entry.file} />
       ) : (
-        <HugeiconsIcon
-          icon={File01Icon}
+        <PiFileTextBold
           className={cn("size-3", broken ? undefined : "text-muted-foreground")}
         />
       )}
@@ -195,7 +192,7 @@ export function AttachmentChip({
         )}
         onClick={onRemove}
       >
-        <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+        <PiXBold className="size-3" />
       </button>
     </span>
   );

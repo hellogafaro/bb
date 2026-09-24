@@ -1,30 +1,32 @@
-import ArrowDown01Icon from "@hugeicons/core-free-icons/ArrowDown01Icon";
-import ArrowExpand01Icon from "@hugeicons/core-free-icons/ArrowExpand01Icon";
-import ArrowLeft01Icon from "@hugeicons/core-free-icons/ArrowLeft01Icon";
-import ArrowMoveDownLeftIcon from "@hugeicons/core-free-icons/ArrowMoveDownLeftIcon";
-import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
-import AttachmentIcon from "@hugeicons/core-free-icons/AttachmentIcon";
-import BubbleChatAddIcon from "@hugeicons/core-free-icons/BubbleChatAddIcon";
-import CheckmarkCircle02Icon from "@hugeicons/core-free-icons/CheckmarkCircle02Icon";
-import Clock01Icon from "@hugeicons/core-free-icons/Clock01Icon";
-import FolderGitTwoIcon from "@hugeicons/core-free-icons/FolderGit2Icon";
-import HiFolderIcon from "@hugeicons/core-free-icons/Folder01Icon";
-import HiGitBranchIcon from "@hugeicons/core-free-icons/GitBranchIcon";
-import HiGitMergeIcon from "@hugeicons/core-free-icons/GitMergeIcon";
-import HiLaptopIcon from "@hugeicons/core-free-icons/LaptopIcon";
-import Loading03Icon from "@hugeicons/core-free-icons/Loading03Icon";
-import MessageQuestionIcon from "@hugeicons/core-free-icons/MessageQuestionIcon";
-import Mic02Icon from "@hugeicons/core-free-icons/Mic02Icon";
-import MoreHorizontalIcon from "@hugeicons/core-free-icons/MoreHorizontalIcon";
-import PauseIcon from "@hugeicons/core-free-icons/PauseIcon";
-import PlayIcon from "@hugeicons/core-free-icons/PlayIcon";
-import PlusMinusSquare01Icon from "@hugeicons/core-free-icons/PlusMinusSquare01Icon";
-import SentIcon from "@hugeicons/core-free-icons/SentIcon";
-import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
-import SidebarLeftIcon from "@hugeicons/core-free-icons/SidebarLeftIcon";
-import SidebarRightIcon from "@hugeicons/core-free-icons/SidebarRightIcon";
-import Tick02Icon from "@hugeicons/core-free-icons/Tick02Icon";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import {
+  PiAppleLogoFill,
+  PiArrowElbowDownLeftBold,
+  PiArrowsOutSimpleBold,
+  PiBookBookmarkBold,
+  PiCaretDownBold,
+  PiCaretLeftBold,
+  PiCaretRightBold,
+  PiChatCircleDotsBold,
+  PiCheckBold,
+  PiCheckCircleBold,
+  PiCircleNotchBold,
+  PiClockBold,
+  PiDotsThreeBold,
+  PiFolderSimpleBold,
+  PiGearSixBold,
+  PiGitBranchBold,
+  PiGitMergeBold,
+  PiLaptopBold,
+  PiMicrophoneBold,
+  PiNotePencilBold,
+  PiPaperPlaneTiltBold,
+  PiPaperclipBold,
+  PiPauseBold,
+  PiPlayBold,
+  PiPlusMinusBold,
+  PiSidebarSimpleBold,
+  PiSquareHalfBold,
+} from "react-icons/pi";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -139,30 +141,11 @@ function LandingRoute() {
   return <LandingPage />;
 }
 
-const AppleSolidIcon: IconSvgElement = [
-  [
-    "path",
-    {
-      d: "M12 5.75C12 3.75 13.5 1.75 15.5 1.75C15.5 3.75 14 5.75 12 5.75Z",
-      fill: "currentColor",
-      key: "0",
-    },
-  ],
-  [
-    "path",
-    {
-      d: "M12.5 8.09001C11.9851 8.09001 11.5867 7.92646 11.1414 7.74368C10.5776 7.51225 9.93875 7.25 8.89334 7.25C7.02235 7.25 4 8.74945 4 12.7495C4 17.4016 7.10471 22.25 9.10471 22.25C9.77426 22.25 10.3775 21.9871 10.954 21.7359C11.4815 21.5059 11.9868 21.2857 12.5 21.2857C13.0132 21.2857 13.5185 21.5059 14.046 21.7359C14.6225 21.9871 15.2257 22.25 15.8953 22.25C17.2879 22.25 18.9573 19.8992 20 16.9008C18.3793 16.2202 17.338 14.618 17.338 12.75C17.338 11.121 18.2036 10.0398 19.5 9.25C18.5 7.75 17.0134 7.25 15.9447 7.25C14.8993 7.25 14.2604 7.51225 13.6966 7.74368C13.2514 7.92646 13.0149 8.09001 12.5 8.09001Z",
-      fill: "currentColor",
-      key: "1",
-    },
-  ],
-];
-
 function DesktopDownloadIcon({ platform }: { platform: DesktopPlatform }) {
   if (platform === "linux") {
     return <LinuxIcon className="btn-ic" />;
   }
-  return <HugeiconsIcon icon={AppleSolidIcon} className="btn-ic" />;
+  return <PiAppleLogoFill className="btn-ic" />;
 }
 
 function InstallOptions({ placement }: { placement: CtaPlacement }) {
@@ -346,76 +329,76 @@ function ProviderChips() {
 type IconProps = { className?: string };
 
 const PanelIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={SidebarLeftIcon} className={className} />
+  <PiSidebarSimpleBold className={className} />
 );
 const PanelRightIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={SidebarRightIcon} className={className} />
+  <PiSquareHalfBold className={className} />
 );
 const ChevronLeft = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={ArrowLeft01Icon} className={className} />
+  <PiCaretLeftBold className={className} />
 );
 const ChevronRight = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={ArrowRight01Icon} className={className} />
+  <PiCaretRightBold className={className} />
 );
 const ChevronDown = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={ArrowDown01Icon} className={className} />
+  <PiCaretDownBold className={className} />
 );
 const Ellipsis = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={MoreHorizontalIcon} className={className} />
+  <PiDotsThreeBold className={className} />
 );
 const NewThreadIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={BubbleChatAddIcon} className={className} />
+  <PiNotePencilBold className={className} />
 );
 const ClockIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={Clock01Icon} className={className} />
+  <PiClockBold className={className} />
 );
 const GearIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={Settings01Icon} className={className} />
+  <PiGearSixBold className={className} />
 );
 const CheckIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={Tick02Icon} className={className} />
+  <PiCheckBold className={className} />
 );
 const CircleCheckIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={CheckmarkCircle02Icon} className={className} />
+  <PiCheckCircleBold className={className} />
 );
 const MessageQuestionGlyph = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={MessageQuestionIcon} className={className} />
+  <PiChatCircleDotsBold className={className} />
 );
 const PaperPlane = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={SentIcon} className={className} />
+  <PiPaperPlaneTiltBold className={className} />
 );
 const Paperclip = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={AttachmentIcon} className={className} />
+  <PiPaperclipBold className={className} />
 );
 const FolderIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={HiFolderIcon} className={className} />
+  <PiFolderSimpleBold className={className} />
 );
 const FolderGitIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={FolderGitTwoIcon} className={className} />
+  <PiBookBookmarkBold className={className} />
 );
 const GitBranchIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={HiGitBranchIcon} className={className} />
+  <PiGitBranchBold className={className} />
 );
 const GitMergeIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={HiGitMergeIcon} className={className} />
+  <PiGitMergeBold className={className} />
 );
 const Spinner = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={Loading03Icon} className={className} />
+  <PiCircleNotchBold className={className} />
 );
 const Maximize2 = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={ArrowExpand01Icon} className={className} />
+  <PiArrowsOutSimpleBold className={className} />
 );
 const MicIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={Mic02Icon} className={className} />
+  <PiMicrophoneBold className={className} />
 );
 const SendIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={ArrowMoveDownLeftIcon} className={className} />
+  <PiArrowElbowDownLeftBold className={className} />
 );
 const LaptopGlyph = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={HiLaptopIcon} className={className} />
+  <PiLaptopBold className={className} />
 );
 const FileDiffIcon = ({ className }: IconProps) => (
-  <HugeiconsIcon icon={PlusMinusSquare01Icon} className={className} />
+  <PiPlusMinusBold className={className} />
 );
 
 type Status = "running" | "done" | "waiting";
@@ -1678,10 +1661,11 @@ function LandingPage() {
             }
             onClick={() => setCompanyProofPaused((paused) => !paused)}
           >
-            <HugeiconsIcon
-              icon={companyProofPaused ? PlayIcon : PauseIcon}
-              aria-hidden="true"
-            />
+            {companyProofPaused ? (
+              <PiPlayBold aria-hidden="true" />
+            ) : (
+              <PiPauseBold aria-hidden="true" />
+            )}
           </button>
         </div>
         <div className="company-proof-marquee" ref={companyProofMarqueeRef}>

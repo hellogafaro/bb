@@ -18,6 +18,9 @@ import {
 } from "./gesture-dom.js";
 import { useHorizontalDismissDrag } from "./use-horizontal-dismiss-drag.js";
 
+const SIDEBAR_CONTENT_CLASS =
+  "flex h-full w-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] [&_[data-icon-root]:not(.size-3)]:scale-[0.875]";
+
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_MOBILE_VIEWPORT_FRACTION = 0.76;
 const SIDEBAR_WIDTH_MOBILE = `min(${SIDEBAR_MOBILE_VIEWPORT_FRACTION * 100}vw, 320px)`;
@@ -727,10 +730,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
           style={{ ...widthStyle, ...style }}
           {...props}
         >
-          <div
-            data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
-          >
+          <div data-sidebar="sidebar" className={SIDEBAR_CONTENT_CLASS}>
             {children}
           </div>
         </div>
@@ -965,10 +965,7 @@ const SidebarMobilePanel = React.forwardRef<
           onTouchStart={beginPanelTouchDrag}
           {...props}
         >
-          <div
-            data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
-          >
+          <div data-sidebar="sidebar" className={SIDEBAR_CONTENT_CLASS}>
             {children}
           </div>
         </div>
