@@ -55,7 +55,7 @@ Notion and search; durable sessions; agents with role profiles, models, tools, s
 
 ## Base decision
 
-Otto is our work system, built as plugins on a soft fork of [BB](https://github.com/get-bb/bb) (MIT). The app keeps BB's name, so upstream merges stay clean and BB Connect, the BB apps, push, and the machine installer keep working. We compared BB, Orca, T3 Code, Synara, and Craft Agents in September 2026. We also tried renaming BB to Otto and forking T3 Code; both are kept in `hellogafaro/otto` (branches `bb-archive` and `t3-archive`). A full rename cost us clean upstream merges and BB's hosted services, so we went back to a soft fork.
+Otto is our work system, built as plugins on a soft fork of [BB](https://github.com/get-bb/bb) (MIT). The app keeps BB's name, so upstream merges stay clean and BB Connect, the BB apps, push, and the machine installer keep working. We compared BB, Orca, T3 Code, Synara, and Craft Agents in September 2026. We also tried renaming BB to Otto and forking T3 Code, then deleted both trials. A full rename cost us clean upstream merges and BB's hosted services, so we went back to a soft fork.
 
 - **BB** runs Claude Code and Codex on our subscriptions, supports multiple machines, mobile, push, workflows, automations, and computer use, and is already our daily tool. Its code is well tested and organized by domain, and most features are removable plugin folders. Upstream ships one squash-merged PR per commit, so changes are easy to track.
 - **Orca** was too large (about 2M lines) and too fast-moving to maintain.
