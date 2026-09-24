@@ -29,7 +29,7 @@ import { useAppCommandShortcut } from "@/components/commands/AppCommandProvider"
 import { AppCommandShortcutHint } from "@/components/commands/AppCommandShortcutHint";
 import { useSidebarRename } from "@/components/sidebar/SidebarInlineRename";
 import { useThreadActions } from "@/components/thread/ThreadActionsProvider";
-import { ThreadTitleMentions } from "@/components/thread/ThreadTitleMentions";
+import { ThreadTitle } from "@/components/thread/ThreadTitleMentions";
 import { SecondaryPanelHostLayoutContext } from "@/components/secondary-panel/SecondaryPanelHostLayoutContext";
 import { RIGHT_PANEL_TOGGLE_ICON_NAME } from "@/components/secondary-panel/panelToggleControlState";
 import { CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS } from "@bb/shared-ui/chrome-style-tokens";
@@ -156,7 +156,7 @@ export function ThreadDetailHeader({
         <p
           className={cn(
             "relative min-w-0 text-sm font-normal transition-colors",
-            isEditing ? "overflow-visible" : "bb-thread-title",
+            isEditing && "overflow-visible",
             isSplitPaneHeader &&
               !isFocused &&
               dimsInactiveSplits &&
@@ -174,7 +174,7 @@ export function ThreadDetailHeader({
               loading={generatingTitleIds.has(threadId)}
               label="Generating title"
             >
-              <ThreadTitleMentions title={threadTitle} />
+              <ThreadTitle title={threadTitle} />
             </TextSkeleton>
           )}
         </p>
