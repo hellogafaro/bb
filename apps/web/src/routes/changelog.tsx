@@ -1,4 +1,4 @@
-import { PiCircleNotchBold, PiEnvelopeBold } from "react-icons/pi";
+import { RiLoader4Line, RiMailLine } from "react-icons/ri";
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment } from "react";
 import type { ReactNode } from "react";
@@ -59,7 +59,7 @@ function ByMachineSidebar() {
               <div className="trow">
                 <span className="trow-title">Special Case Handling</span>
                 <span className="tstatus" aria-hidden>
-                  <PiCircleNotchBold className="trun" />
+                  <RiLoader4Line className="trun" />
                 </span>
               </div>
             </li>
@@ -169,7 +169,7 @@ function ChangelogPage() {
         <p className="sub">{PAGE_DESCRIPTION}</p>
         <div className="meta-row">
           <a href={`#${SUBSCRIBE_EMAIL_ID}`} onClick={focusSubscribeEmail}>
-            <PiEnvelopeBold className="ri" />
+            <RiMailLine className="ri" />
             Get release notes by email
           </a>
         </div>

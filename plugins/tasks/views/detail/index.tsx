@@ -1,4 +1,4 @@
-import { PiSmileyBold } from "react-icons/pi";
+import { RiEmotionLine } from "react-icons/ri";
 import { useEffect, useRef, useState } from "react";
 import type { Task } from "../../shared/contract.js";
 import { errorMessage } from "../../shared/errors.js";
@@ -417,7 +417,7 @@ function TaskDetail({ task }: { task: Task }) {
               disabled
               className="flex size-6.5 items-center justify-center rounded-md text-muted-foreground opacity-50"
             >
-              <PiSmileyBold className="size-4" />
+              <RiEmotionLine className="size-4" />
             </button>
             <button
               type="button"

@@ -1,10 +1,10 @@
 import {
-  PiArrowUpBold,
-  PiBellBold,
-  PiBellSlashBold,
-  PiFileTextBold,
-  PiPaperclipBold,
-} from "react-icons/pi";
+  RiArrowUpLine,
+  RiAttachment2,
+  RiFileTextLine,
+  RiNotification3Line,
+  RiNotificationOffLine,
+} from "react-icons/ri";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@bb/shared-ui/button";
 import {
@@ -118,7 +118,7 @@ function FileAttachmentCard({ attachment }: { attachment: Attachment }) {
       className="inline-flex min-w-0 max-w-60 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-2xs hover:border-input hover:bg-state-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
       <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-secondary text-muted-foreground">
-        <PiFileTextBold className="size-3.5" />
+        <RiFileTextLine className="size-3.5" />
       </span>
       <span className="min-w-0">
         <span className="block truncate">{attachment.fileName}</span>
@@ -269,7 +269,7 @@ function CommentCard({ entry, nowMs }: { entry: FeedEntry; nowMs: number }) {
         ) : null}
         {comment.kind === "user" && comment.notifiedCount > 0 ? (
           <div className="mt-1 flex items-center gap-1 text-2xs font-medium text-success">
-            <PiBellBold className="size-2.5" />
+            <RiNotification3Line className="size-2.5" />
             notified the last responding agent
           </div>
         ) : null}
@@ -395,7 +395,7 @@ export function CommentComposer({ taskId, notificationTarget }: ComposerProps) {
           className="size-6.5 shrink-0 text-muted-foreground"
           onClick={() => fileInputRef.current?.click()}
         >
-          <PiPaperclipBold className="size-3.5" />
+          <RiAttachment2 className="size-3.5" />
         </Button>
         <Button
           type="button"
@@ -405,7 +405,7 @@ export function CommentComposer({ taskId, notificationTarget }: ComposerProps) {
           className="size-6.5 shrink-0 rounded-md bg-foreground text-background hover:bg-foreground/90"
           onClick={() => void send()}
         >
-          <PiArrowUpBold className="size-3.5" />
+          <RiArrowUpLine className="size-3.5" />
         </Button>
       </div>
     </div>
@@ -452,9 +452,9 @@ export function AgentNotificationControl({
             )}
           >
             {on ? (
-              <PiBellBold className="size-3.5" />
+              <RiNotification3Line className="size-3.5" />
             ) : (
-              <PiBellSlashBold className="size-3.5" />
+              <RiNotificationOffLine className="size-3.5" />
             )}
           </Button>
         </TooltipTrigger>

@@ -377,6 +377,7 @@ function buildPromptArea({
         modelFallback={null}
         isEnvironmentActionPending={false}
         onChangedFileClick={vi.fn()}
+        onCommit={null}
         parentThreadSection={null}
         pendingInteractions={pendingInteractions}
         pendingInteractionsInitialLoading={false}

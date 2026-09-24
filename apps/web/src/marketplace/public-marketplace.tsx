@@ -1,39 +1,39 @@
 import {
-  PiArchiveBold,
-  PiArrowSquareOutBold,
-  PiBookBookmarkBold,
-  PiCaretDownBold,
-  PiChartBarBold,
-  PiClockBold,
-  PiCloudBold,
-  PiCopyBold,
-  PiDatabaseBold,
-  PiDownloadSimpleBold,
-  PiEnvelopeBold,
-  PiFileTextBold,
-  PiFolderOpenBold,
-  PiGitBranchBold,
-  PiGithubLogoBold,
-  PiLightningBold,
-  PiListChecksBold,
-  PiLockBold,
-  PiMagnifyingGlassBold,
-  PiMagnifyingGlassPlusBold,
-  PiPackageBold,
-  PiPaperPlaneTiltBold,
-  PiPuzzlePieceBold,
-  PiSidebarSimpleBold,
-  PiSlidersHorizontalBold,
-  PiSparkleBold,
-  PiSquaresFourBold,
-  PiStackBold,
-  PiTerminalWindowBold,
-  PiTreeStructureBold,
-  PiUserSwitchBold,
-  PiWarningCircleBold,
-  PiWaveformBold,
-  PiXBold,
-} from "react-icons/pi";
+  RiArchiveLine,
+  RiArrowDownSLine,
+  RiBarChart2Line,
+  RiBox3Line,
+  RiCloseLine,
+  RiCloudLine,
+  RiDatabase2Line,
+  RiDownloadLine,
+  RiEqualizerLine,
+  RiErrorWarningLine,
+  RiExternalLinkLine,
+  RiFileCopyLine,
+  RiFileTextLine,
+  RiFlashlightLine,
+  RiFlowChart,
+  RiFolderOpenLine,
+  RiGitBranchLine,
+  RiGitRepositoryLine,
+  RiGithubLine,
+  RiLayoutGridLine,
+  RiLayoutLeft2Line,
+  RiListCheck2,
+  RiLockLine,
+  RiMailLine,
+  RiPuzzleLine,
+  RiSearchLine,
+  RiSendPlaneLine,
+  RiSoundModuleLine,
+  RiSparkling2Line,
+  RiStackLine,
+  RiTerminalBoxLine,
+  RiTimeLine,
+  RiUserSharedLine,
+  RiZoomInLine,
+} from "react-icons/ri";
 import type { IconType } from "react-icons";
 import {
   createContext,
@@ -85,33 +85,33 @@ const SORT_LABELS: Record<MarketplaceSort, string> = {
 };
 
 const PLUGIN_ICONS: Readonly<Record<string, IconType | undefined>> = {
-  AiContentGenerator01: PiSparkleBold,
-  AlertCircle: PiWarningCircleBold,
-  Archive: PiArchiveBold,
-  AudioLines: PiWaveformBold,
-  ChartColumn: PiChartBarBold,
-  ClipboardCheck: PiListChecksBold,
-  Clock: PiClockBold,
-  Cloud: PiCloudBold,
-  Copy: PiCopyBold,
-  Database: PiDatabaseBold,
-  FileText: PiFileTextBold,
-  FolderGit: PiBookBookmarkBold,
-  FolderOpen: PiFolderOpenBold,
-  GitBranch: PiGitBranchBold,
-  GridView: PiSquaresFourBold,
-  Layers: PiStackBold,
-  Lock: PiLockBold,
-  Mail: PiEnvelopeBold,
-  PanelLeft: PiSidebarSimpleBold,
-  Puzzle: PiPuzzlePieceBold,
-  SlidersHorizontal: PiSlidersHorizontalBold,
-  SideChat: PiPaperPlaneTiltBold,
-  Terminal: PiTerminalWindowBold,
-  UserSwitch: PiUserSwitchBold,
-  Workflow: PiTreeStructureBold,
-  Zap: PiLightningBold,
-  ZoomIn: PiMagnifyingGlassPlusBold,
+  AiContentGenerator01: RiSparkling2Line,
+  AlertCircle: RiErrorWarningLine,
+  Archive: RiArchiveLine,
+  AudioLines: RiSoundModuleLine,
+  ChartColumn: RiBarChart2Line,
+  ClipboardCheck: RiListCheck2,
+  Clock: RiTimeLine,
+  Cloud: RiCloudLine,
+  Copy: RiFileCopyLine,
+  Database: RiDatabase2Line,
+  FileText: RiFileTextLine,
+  FolderGit: RiGitRepositoryLine,
+  FolderOpen: RiFolderOpenLine,
+  GitBranch: RiGitBranchLine,
+  GridView: RiLayoutGridLine,
+  Layers: RiStackLine,
+  Lock: RiLockLine,
+  Mail: RiMailLine,
+  PanelLeft: RiLayoutLeft2Line,
+  Puzzle: RiPuzzleLine,
+  SlidersHorizontal: RiEqualizerLine,
+  SideChat: RiSendPlaneLine,
+  Terminal: RiTerminalBoxLine,
+  UserSwitch: RiUserSharedLine,
+  Workflow: RiFlowChart,
+  Zap: RiFlashlightLine,
+  ZoomIn: RiZoomInLine,
 };
 
 const MarketplaceNavigationContext = createContext<
@@ -177,7 +177,7 @@ function PluginArtwork({
     ? "marketplace-artwork is-large"
     : "marketplace-artwork";
   if (typeof entry.icon === "string") {
-    const PluginGlyph = PLUGIN_ICONS[entry.icon] ?? PiPuzzlePieceBold;
+    const PluginGlyph = PLUGIN_ICONS[entry.icon] ?? RiPuzzleLine;
     return (
       <span className={className} aria-hidden>
         <PluginGlyph />
@@ -263,7 +263,7 @@ function InstallCount({
       className={className}
       aria-label={`${total.toLocaleString("en-US")} ${total === 1 ? "install" : "installs"}`}
     >
-      <PiDownloadSimpleBold aria-hidden />
+      <RiDownloadLine aria-hidden />
       {formatted}
     </span>
   );
@@ -416,7 +416,7 @@ function MarketplaceState({
   return (
     <div className="marketplace-state" role="status">
       <span aria-hidden>
-        <PiPackageBold />
+        <RiBox3Line />
       </span>
       <h2>{title}</h2>
       <p>{description}</p>
@@ -516,7 +516,7 @@ function MarketplaceToolbar({
   }, []);
   const search = (
     <div className="marketplace-search">
-      <PiMagnifyingGlassBold aria-hidden />
+      <RiSearchLine aria-hidden />
       <input
         ref={searchInput}
         aria-label="Search plugins"
@@ -535,7 +535,7 @@ function MarketplaceToolbar({
             searchInput.current?.focus();
           }}
         >
-          <PiXBold aria-hidden />
+          <RiCloseLine aria-hidden />
         </button>
       ) : (
         <kbd>/</kbd>
@@ -588,7 +588,7 @@ function MarketplaceToolbar({
                   {selectedCategory.count}
                 </span>
               ) : null}
-              <PiCaretDownBold aria-hidden />
+              <RiArrowDownSLine aria-hidden />
             </summary>
             <div
               className="marketplace-category-options"
@@ -642,7 +642,7 @@ function MarketplaceToolbar({
                 </option>
               ))}
             </select>
-            <PiCaretDownBold aria-hidden />
+            <RiArrowDownSLine aria-hidden />
           </label>
           <div
             className="marketplace-sort-control"
@@ -978,7 +978,7 @@ export function PublicMarketplaceDetailPage({
                 href="/download/macos"
               >
                 Get it for macOS
-                <PiArrowSquareOutBold aria-hidden />
+                <RiExternalLinkLine aria-hidden />
               </MarketplaceLink>
             </div>
           </div>
@@ -1004,7 +1004,7 @@ export function PublicMarketplaceDetailPage({
                   rel="noreferrer"
                 >
                   View source
-                  <PiArrowSquareOutBold aria-hidden />
+                  <RiExternalLinkLine aria-hidden />
                 </a>
               </div>
               {entry.overview === undefined ? null : (
@@ -1069,9 +1069,9 @@ export function PublicMarketplaceAuthorPage({
               target="_blank"
               rel="noreferrer"
             >
-              <PiGithubLogoBold aria-hidden />
+              <RiGithubLine aria-hidden />
               {author.github}
-              <PiArrowSquareOutBold aria-hidden />
+              <RiExternalLinkLine aria-hidden />
             </a>
           )}
         </header>

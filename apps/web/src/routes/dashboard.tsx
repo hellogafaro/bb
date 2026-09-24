@@ -1,9 +1,9 @@
 import {
-  PiArrowUpRightBold,
-  PiDotsThreeBold,
-  PiGithubLogoBold,
-  PiPlusBold,
-} from "react-icons/pi";
+  RiAddLine,
+  RiArrowRightUpLine,
+  RiGithubLine,
+  RiMoreLine,
+} from "react-icons/ri";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { MAX_PER_ACCOUNT } from "@bb/connect-db";
@@ -230,7 +230,7 @@ function Overlay({
 }
 
 function GithubMark() {
-  return <PiGithubLogoBold className="size-4" aria-hidden />;
+  return <RiGithubLine className="size-4" aria-hidden />;
 }
 
 function relativeTime(ms: number): string {
@@ -822,7 +822,7 @@ function RowMenu({
           setOpen((v) => !v);
         }}
       >
-        <PiDotsThreeBold className="size-4" />
+        <RiMoreLine className="size-4" />
       </button>
       {open && (
         <>
@@ -937,7 +937,7 @@ function ServerRow({
           className="justify-self-center text-subtle-foreground"
           aria-hidden
         >
-          <PiArrowUpRightBold className="size-4" />
+          <RiArrowRightUpLine className="size-4" />
         </span>
       ) : (
         <span aria-hidden />
@@ -1178,7 +1178,7 @@ function AccountDashboard({ state }: { state: ServerState }) {
             className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-recessed hover:text-foreground"
             onClick={() => setConnectOpen(true)}
           >
-            <PiPlusBold className="size-3" />
+            <RiAddLine className="size-3" />
             Add a bb
           </button>
         </div>
@@ -1197,7 +1197,7 @@ function AccountDashboard({ state }: { state: ServerState }) {
               href={`${manageServer.serverUrl}/settings/machines`}
             >
               Manage machines in bb
-              <PiArrowUpRightBold className="size-3" />
+              <RiArrowRightUpLine className="size-3" />
             </a>
           ) : null}
         </div>

@@ -1,4 +1,4 @@
-import { PiCaretLeftBold } from "react-icons/pi";
+import { RiArrowLeftSLine } from "react-icons/ri";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { PostBlocks, PostHeader, PostLede } from "../blog/post-body";
@@ -43,7 +43,7 @@ function BlogPostRoute() {
 
       <div className="article-head">
         <a className="back-link" href="/blog">
-          <PiCaretLeftBold className="ri" />
+          <RiArrowLeftSLine className="ri" />
           Blog
         </a>
       </div>

@@ -1,10 +1,6 @@
 import { Image } from "expo-image";
 import { useTheme } from "@/theme/ThemeProvider";
-import {
-  ICON_SIZE_DEFAULT,
-  PhosphorIcon,
-  type IconProps,
-} from "./PhosphorIcon";
+import { ICON_SIZE_DEFAULT, RemixIcon, type IconProps } from "./RemixIcon";
 import {
   SF_SYMBOL_WEIGHT,
   SF_SYMBOL_WEIGHTS,
@@ -25,7 +21,7 @@ export function Icon({
   const symbol = symbolOverride ?? sfSymbolFor(name);
   if (symbol === undefined) {
     return (
-      <PhosphorIcon
+      <RemixIcon
         name={name}
         size={size}
         color={color}

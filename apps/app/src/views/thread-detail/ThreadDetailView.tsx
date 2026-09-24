@@ -2458,18 +2458,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           },
         }))
       : [];
-  const responsiveGitActions: ThreadActionsMenuResponsiveAction[] =
-    gitActions.threadHeaderGitActions.map((action) => ({
-      icon: "GitBranch" as const,
-      label: action.label,
-      onSelect: () => {
-        gitActions.threadGitActionDialog.onOpen(action.target);
-      },
-    }));
-  const responsiveHeaderActions = [
-    ...responsiveWorkspaceActions,
-    ...responsiveGitActions,
-  ];
   const timelineHeader = (
     <ThreadDetailHeader
       actionsMenu={(includeResponsiveActions) => (
@@ -2477,7 +2465,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           thread={thread}
           triggerClassName={HEADER_ICON_BUTTON_CLASS}
           responsiveActions={
-            includeResponsiveActions ? responsiveHeaderActions : undefined
+            includeResponsiveActions ? responsiveWorkspaceActions : undefined
           }
         />
       )}
@@ -2486,7 +2474,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       }
       isSecondaryPanelOpen={isSecondaryPanelOpen}
       onClosePane={onRequestClose ?? undefined}
-      onOpenThreadGitAction={gitActions.threadGitActionDialog.onOpen}
       onToggleSecondaryPanel={toggleSecondaryPanel}
       pluginActions={
         <PluginThreadHeaderActions
@@ -2494,7 +2481,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           projectId={thread.projectId}
         />
       }
-      threadHeaderGitActions={gitActions.threadHeaderGitActions}
       threadId={thread.id}
       threadTitle={threadTitle}
     />
@@ -2525,6 +2511,11 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       onPullRequestReady={handlePullRequestReady}
       pullRequestMergeMethod={pullRequestMergeMethod}
       onChangedFileClick={handleChangedFileClick}
+      onCommit={
+        gitActions.canCommit
+          ? () => gitActions.threadGitActionDialog.onOpen({ kind: "commit" })
+          : null
+      }
       projectId={projectId}
       resolveMentionLink={resolveMentionLink}
       workspaceChangedFilesSection={

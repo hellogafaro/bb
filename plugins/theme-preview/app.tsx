@@ -1,4 +1,4 @@
-import { PiMoonBold, PiSunBold } from "react-icons/pi";
+import { RiMoonLine, RiSunLine } from "react-icons/ri";
 import {
   definePluginApp,
   useBbNavigate,
@@ -3308,13 +3308,13 @@ function ModeSwitch({
             )}
           >
             {option === "light" ? (
-              <PiSunBold
+              <RiSunLine
                 aria-hidden
                 data-tp-mode-icon={option}
                 className="size-4"
               />
             ) : (
-              <PiMoonBold
+              <RiMoonLine
                 aria-hidden
                 data-tp-mode-icon={option}
                 className="size-4"

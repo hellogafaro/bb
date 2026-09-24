@@ -1,32 +1,32 @@
 import {
-  PiAppleLogoFill,
-  PiArrowElbowDownLeftBold,
-  PiArrowsOutSimpleBold,
-  PiBookBookmarkBold,
-  PiCaretDownBold,
-  PiCaretLeftBold,
-  PiCaretRightBold,
-  PiChatCircleDotsBold,
-  PiCheckBold,
-  PiCheckCircleBold,
-  PiCircleNotchBold,
-  PiClockBold,
-  PiDotsThreeBold,
-  PiFolderSimpleBold,
-  PiGearSixBold,
-  PiGitBranchBold,
-  PiGitMergeBold,
-  PiLaptopBold,
-  PiMicrophoneBold,
-  PiNotePencilBold,
-  PiPaperPlaneTiltBold,
-  PiPaperclipBold,
-  PiPauseBold,
-  PiPlayBold,
-  PiPlusMinusBold,
-  PiSidebarSimpleBold,
-  PiSquareHalfBold,
-} from "react-icons/pi";
+  RiAppleFill,
+  RiArrowDownSLine,
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiAttachment2,
+  RiChatNewLine,
+  RiCheckLine,
+  RiCheckboxCircleLine,
+  RiCornerDownLeftLine,
+  RiExpandDiagonalLine,
+  RiFileChartLine,
+  RiFolderLine,
+  RiGitBranchLine,
+  RiGitMergeLine,
+  RiGitRepositoryLine,
+  RiLayoutLeft2Line,
+  RiLayoutRight2Line,
+  RiLoader4Line,
+  RiMacbookLine,
+  RiMicLine,
+  RiMoreLine,
+  RiPauseLine,
+  RiPlayLine,
+  RiQuestionAnswerLine,
+  RiSendPlaneLine,
+  RiSettings3Line,
+  RiTimeLine,
+} from "react-icons/ri";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -145,7 +145,7 @@ function DesktopDownloadIcon({ platform }: { platform: DesktopPlatform }) {
   if (platform === "linux") {
     return <LinuxIcon className="btn-ic" />;
   }
-  return <PiAppleLogoFill className="btn-ic" />;
+  return <RiAppleFill className="btn-ic" />;
 }
 
 function InstallOptions({ placement }: { placement: CtaPlacement }) {
@@ -329,76 +329,76 @@ function ProviderChips() {
 type IconProps = { className?: string };
 
 const PanelIcon = ({ className }: IconProps) => (
-  <PiSidebarSimpleBold className={className} />
+  <RiLayoutLeft2Line className={className} />
 );
 const PanelRightIcon = ({ className }: IconProps) => (
-  <PiSquareHalfBold className={className} />
+  <RiLayoutRight2Line className={className} />
 );
 const ChevronLeft = ({ className }: IconProps) => (
-  <PiCaretLeftBold className={className} />
+  <RiArrowLeftSLine className={className} />
 );
 const ChevronRight = ({ className }: IconProps) => (
-  <PiCaretRightBold className={className} />
+  <RiArrowRightSLine className={className} />
 );
 const ChevronDown = ({ className }: IconProps) => (
-  <PiCaretDownBold className={className} />
+  <RiArrowDownSLine className={className} />
 );
 const Ellipsis = ({ className }: IconProps) => (
-  <PiDotsThreeBold className={className} />
+  <RiMoreLine className={className} />
 );
 const NewThreadIcon = ({ className }: IconProps) => (
-  <PiNotePencilBold className={className} />
+  <RiChatNewLine className={className} />
 );
 const ClockIcon = ({ className }: IconProps) => (
-  <PiClockBold className={className} />
+  <RiTimeLine className={className} />
 );
 const GearIcon = ({ className }: IconProps) => (
-  <PiGearSixBold className={className} />
+  <RiSettings3Line className={className} />
 );
 const CheckIcon = ({ className }: IconProps) => (
-  <PiCheckBold className={className} />
+  <RiCheckLine className={className} />
 );
 const CircleCheckIcon = ({ className }: IconProps) => (
-  <PiCheckCircleBold className={className} />
+  <RiCheckboxCircleLine className={className} />
 );
 const MessageQuestionGlyph = ({ className }: IconProps) => (
-  <PiChatCircleDotsBold className={className} />
+  <RiQuestionAnswerLine className={className} />
 );
 const PaperPlane = ({ className }: IconProps) => (
-  <PiPaperPlaneTiltBold className={className} />
+  <RiSendPlaneLine className={className} />
 );
 const Paperclip = ({ className }: IconProps) => (
-  <PiPaperclipBold className={className} />
+  <RiAttachment2 className={className} />
 );
 const FolderIcon = ({ className }: IconProps) => (
-  <PiFolderSimpleBold className={className} />
+  <RiFolderLine className={className} />
 );
 const FolderGitIcon = ({ className }: IconProps) => (
-  <PiBookBookmarkBold className={className} />
+  <RiGitRepositoryLine className={className} />
 );
 const GitBranchIcon = ({ className }: IconProps) => (
-  <PiGitBranchBold className={className} />
+  <RiGitBranchLine className={className} />
 );
 const GitMergeIcon = ({ className }: IconProps) => (
-  <PiGitMergeBold className={className} />
+  <RiGitMergeLine className={className} />
 );
 const Spinner = ({ className }: IconProps) => (
-  <PiCircleNotchBold className={className} />
+  <RiLoader4Line className={className} />
 );
 const Maximize2 = ({ className }: IconProps) => (
-  <PiArrowsOutSimpleBold className={className} />
+  <RiExpandDiagonalLine className={className} />
 );
 const MicIcon = ({ className }: IconProps) => (
-  <PiMicrophoneBold className={className} />
+  <RiMicLine className={className} />
 );
 const SendIcon = ({ className }: IconProps) => (
-  <PiArrowElbowDownLeftBold className={className} />
+  <RiCornerDownLeftLine className={className} />
 );
 const LaptopGlyph = ({ className }: IconProps) => (
-  <PiLaptopBold className={className} />
+  <RiMacbookLine className={className} />
 );
 const FileDiffIcon = ({ className }: IconProps) => (
-  <PiPlusMinusBold className={className} />
+  <RiFileChartLine className={className} />
 );
 
 type Status = "running" | "done" | "waiting";
@@ -1662,9 +1662,9 @@ function LandingPage() {
             onClick={() => setCompanyProofPaused((paused) => !paused)}
           >
             {companyProofPaused ? (
-              <PiPlayBold aria-hidden="true" />
+              <RiPlayLine aria-hidden="true" />
             ) : (
-              <PiPauseBold aria-hidden="true" />
+              <RiPauseLine aria-hidden="true" />
             )}
           </button>
         </div>

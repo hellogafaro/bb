@@ -9,17 +9,14 @@ import {
 } from "react";
 import { Button } from "@bb/shared-ui/button";
 import { useAtomValue } from "jotai";
-import { COARSE_POINTER_TOOLBAR_ACTION_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { Icon } from "@bb/shared-ui/icon";
 import { Pill } from "@bb/shared-ui/pill";
-import { SplitButton } from "@/components/ui/split-button.js";
 import {
   AppPageHeader,
   COMPACT_SHELF_HIDDEN_PAGE_HEADER_ACTIONS_CLASS,
   HEADER_ICON_BUTTON_CLASS,
   HEADER_PANE_ACTION_ICON_BUTTON_CLASS,
 } from "@/components/layout/AppPageHeader";
-import type { ThreadGitActionDialogTarget } from "@/components/dialogs/ThreadGitActionDialog";
 import {
   getBbDesktopInfo,
   MACOS_WINDOW_NO_DRAG_CLASS,
@@ -42,12 +39,7 @@ import {
 } from "@/components/ui/context-selection";
 import { usePaneContext } from "./PaneContext";
 import { PaneMaximizeButton } from "./PaneMaximizeButton";
-import type { ThreadHeaderGitAction } from "./useThreadGitActions";
 
-const THREAD_HEADER_ACTION_BUTTON_CLASS = cn(
-  COARSE_POINTER_TOOLBAR_ACTION_BUTTON_CLASS,
-  "border-border/70 bg-transparent font-normal hover:bg-state-hover",
-);
 const NARROW_SPLIT_HEADER_MAX_WIDTH = 560;
 
 interface ThreadDetailHeaderProps {
@@ -55,10 +47,8 @@ interface ThreadDetailHeaderProps {
   childPillLabel: "child" | "side chat" | null;
   isSecondaryPanelOpen: boolean;
   onClosePane?: () => void;
-  onOpenThreadGitAction: (target: ThreadGitActionDialogTarget) => void;
   onToggleSecondaryPanel: () => void;
   pluginActions?: ReactNode;
-  threadHeaderGitActions: ThreadHeaderGitAction[];
   threadId: string;
   threadTitle: string;
   workspaceOpenButton?: ReactNode;
@@ -69,16 +59,13 @@ export function ThreadDetailHeader({
   childPillLabel,
   isSecondaryPanelOpen,
   onClosePane,
-  onOpenThreadGitAction,
   onToggleSecondaryPanel,
   pluginActions,
-  threadHeaderGitActions,
   threadId,
   threadTitle,
   workspaceOpenButton,
 }: ThreadDetailHeaderProps) {
   const isCompactViewport = useIsCompactViewport();
-  const [primaryAction, ...secondaryActions] = threadHeaderGitActions;
   const { renameThread } = useThreadActions();
   const handleRename = useCallback(
     (nextTitle: string) => {
@@ -190,18 +177,6 @@ export function ThreadDetailHeader({
           {childPillLabel}
         </Pill>
       ) : null}
-      {actionsMenu == null ? null : (
-        <span
-          data-testid="thread-detail-header-actions-menu"
-          className={cn(
-            "flex items-center",
-            COMPACT_SHELF_HIDDEN_PAGE_HEADER_ACTIONS_CLASS,
-            usesDesktopChrome && MACOS_WINDOW_NO_DRAG_CLASS,
-          )}
-        >
-          {actionsMenu(usesResponsiveActionOverflow)}
-        </span>
-      )}
     </>
   );
 
@@ -217,33 +192,18 @@ export function ThreadDetailHeader({
             {workspaceOpenButton}
           </span>
         ) : null}
-        {!usesResponsiveActionOverflow && primaryAction ? (
-          <span className="inline-flex" data-thread-header-responsive-action="">
-            {secondaryActions.length > 0 ? (
-              <SplitButton
-                className={THREAD_HEADER_ACTION_BUTTON_CLASS}
-                primaryAction={{
-                  label: primaryAction.label,
-                  onSelect: () => onOpenThreadGitAction(primaryAction.target),
-                }}
-                secondaryActions={secondaryActions.map((action) => ({
-                  label: action.label,
-                  onSelect: () => onOpenThreadGitAction(action.target),
-                }))}
-              />
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={THREAD_HEADER_ACTION_BUTTON_CLASS}
-                onClick={() => onOpenThreadGitAction(primaryAction.target)}
-              >
-                {primaryAction.label}
-              </Button>
+        {actionsMenu == null ? null : (
+          <span
+            data-testid="thread-detail-header-actions-menu"
+            className={cn(
+              "flex items-center",
+              COMPACT_SHELF_HIDDEN_PAGE_HEADER_ACTIONS_CLASS,
+              usesDesktopChrome && MACOS_WINDOW_NO_DRAG_CLASS,
             )}
+          >
+            {actionsMenu(usesResponsiveActionOverflow)}
           </span>
-        ) : null}
+        )}
       </div>
       <div
         className="ml-1 flex items-center gap-0.5"

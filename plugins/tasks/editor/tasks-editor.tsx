@@ -1,14 +1,14 @@
 import {
-  PiChatCircleBold,
-  PiCodeBold,
-  PiCodeSimpleBold,
-  PiListBulletsBold,
-  PiListChecksBold,
-  PiQuotesBold,
-  PiTextBBold,
-  PiTextHTwoBold,
-  PiTextItalicBold,
-} from "react-icons/pi";
+  RiBold,
+  RiChat3Line,
+  RiCodeLine,
+  RiCodeSSlashLine,
+  RiDoubleQuotesL,
+  RiH2,
+  RiItalic,
+  RiListCheck2,
+  RiListUnordered,
+} from "react-icons/ri";
 import { useEffect, useRef, useState } from "react";
 import { Editor, isNodeSelection, type ChainedCommands } from "@tiptap/core";
 import { BubbleMenuPlugin } from "@tiptap/extension-bubble-menu";
@@ -137,56 +137,56 @@ const BUBBLE_ACTIONS: BubbleAction[] = [
   {
     id: "bold",
     label: "Bold",
-    icon: PiTextBBold,
+    icon: RiBold,
     isActive: (editor) => editor.isActive("bold"),
     run: (chain) => chain.toggleBold(),
   },
   {
     id: "italic",
     label: "Italic",
-    icon: PiTextItalicBold,
+    icon: RiItalic,
     isActive: (editor) => editor.isActive("italic"),
     run: (chain) => chain.toggleItalic(),
   },
   {
     id: "code",
     label: "Inline code",
-    icon: PiCodeSimpleBold,
+    icon: RiCodeLine,
     isActive: (editor) => editor.isActive("code"),
     run: (chain) => chain.toggleCode(),
   },
   {
     id: "heading",
     label: "Heading",
-    icon: PiTextHTwoBold,
+    icon: RiH2,
     isActive: (editor) => editor.isActive("heading", { level: 2 }),
     run: (chain) => chain.toggleHeading({ level: 2 }),
   },
   {
     id: "bulletList",
     label: "Bullet list",
-    icon: PiListBulletsBold,
+    icon: RiListUnordered,
     isActive: (editor) => editor.isActive("bulletList"),
     run: (chain) => chain.toggleBulletList(),
   },
   {
     id: "taskList",
     label: "Checklist",
-    icon: PiListChecksBold,
+    icon: RiListCheck2,
     isActive: (editor) => editor.isActive("taskList"),
     run: (chain) => chain.toggleTaskList(),
   },
   {
     id: "codeBlock",
     label: "Code block",
-    icon: PiCodeBold,
+    icon: RiCodeSSlashLine,
     isActive: (editor) => editor.isActive("codeBlock"),
     run: (chain) => chain.toggleCodeBlock(),
   },
   {
     id: "blockquote",
     label: "Quote",
-    icon: PiQuotesBold,
+    icon: RiDoubleQuotesL,
     isActive: (editor) => editor.isActive("blockquote"),
     run: (chain) => chain.toggleBlockquote(),
   },
@@ -511,7 +511,7 @@ export function TasksEditor({
           {item.key}
         </span>
       ) : (
-        <PiChatCircleBold className="size-3.5 shrink-0 text-muted-foreground" />
+        <RiChat3Line className="size-3.5 shrink-0 text-muted-foreground" />
       )}
       <span className="min-w-0 flex-1 truncate">{item.title}</span>
     </button>

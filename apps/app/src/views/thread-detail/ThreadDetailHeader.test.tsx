@@ -87,9 +87,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Panel state"
         />
@@ -110,9 +108,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Panel state"
         />
@@ -139,9 +135,7 @@ describe("ThreadDetailHeader", () => {
             actionsMenu={null}
             childPillLabel={null}
             isSecondaryPanelOpen={false}
-            onOpenThreadGitAction={vi.fn()}
             onToggleSecondaryPanel={vi.fn()}
-            threadHeaderGitActions={[]}
             threadId={THREAD_ID}
             threadTitle="Panel state"
           />
@@ -171,9 +165,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Split panel state"
         />
@@ -221,11 +213,7 @@ describe("ThreadDetailHeader", () => {
           childPillLabel={null}
           isSecondaryPanelOpen={false}
           onClosePane={vi.fn()}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[
-            { label: "Commit", target: { kind: "commit" } },
-          ]}
           threadId={THREAD_ID}
           threadTitle="Narrow split"
           workspaceOpenButton={<button>Open workspace</button>}
@@ -246,7 +234,7 @@ describe("ThreadDetailHeader", () => {
     expect(closeIcon).not.toBeNull();
     expect(closeIcon?.querySelectorAll("path")).toHaveLength(1);
     expect(closeIcon?.querySelector("path")?.getAttribute("d")).toContain(
-      "M208.49,191.51a12,12,0,0,1-17,17L128,145",
+      "M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093",
     );
   });
 
@@ -283,11 +271,7 @@ describe("ThreadDetailHeader", () => {
           childPillLabel={null}
           isSecondaryPanelOpen={false}
           onClosePane={vi.fn()}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[
-            { label: "Commit", target: { kind: "commit" } },
-          ]}
           threadId={THREAD_ID}
           threadTitle="Wide split"
           workspaceOpenButton={<button>Open workspace</button>}
@@ -296,7 +280,12 @@ describe("ThreadDetailHeader", () => {
     );
 
     expect(screen.getByText("Open workspace")).not.toBeNull();
-    expect(screen.getByText("Commit")).not.toBeNull();
+    expect(screen.queryByText("Commit")).toBeNull();
+    expect(
+      screen
+        .getByTestId("thread-detail-header-actions-menu")
+        .closest("[data-thread-header-workflow-actions]"),
+    ).not.toBeNull();
     expect(screen.getByText("Thread menu")).not.toBeNull();
     expect(screen.queryByText("Responsive menu actions")).toBeNull();
   });
@@ -308,9 +297,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Review @docs/foo.test.ts with @thread:thr_worker"
         />
@@ -344,9 +331,7 @@ describe("ThreadDetailHeader", () => {
             actionsMenu={null}
             childPillLabel={null}
             isSecondaryPanelOpen={false}
-            onOpenThreadGitAction={vi.fn()}
             onToggleSecondaryPanel={vi.fn()}
-            threadHeaderGitActions={[]}
             threadId={THREAD_ID}
             threadTitle="Continue from thr_dcwivn5n8w docs/foo.ts"
           />
@@ -385,9 +370,7 @@ describe("ThreadDetailHeader", () => {
               actionsMenu={null}
               childPillLabel={null}
               isSecondaryPanelOpen={false}
-              onOpenThreadGitAction={vi.fn()}
               onToggleSecondaryPanel={vi.fn()}
-              threadHeaderGitActions={[]}
               threadId={THREAD_ID}
               threadTitle={title}
             />
@@ -433,9 +416,7 @@ describe("ThreadDetailHeader", () => {
             actionsMenu={null}
             childPillLabel={null}
             isSecondaryPanelOpen={false}
-            onOpenThreadGitAction={vi.fn()}
             onToggleSecondaryPanel={vi.fn()}
-            threadHeaderGitActions={[]}
             threadId={THREAD_ID}
             threadTitle={title}
           />
@@ -463,9 +444,7 @@ describe("ThreadDetailHeader", () => {
             actionsMenu={null}
             childPillLabel={null}
             isSecondaryPanelOpen={false}
-            onOpenThreadGitAction={vi.fn()}
             onToggleSecondaryPanel={vi.fn()}
-            threadHeaderGitActions={[]}
             threadId={THREAD_ID}
             threadTitle="Unknown thr_2222222222"
           />
@@ -485,9 +464,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Focused thread"
         />
@@ -516,9 +493,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Focused thread"
         />
@@ -549,9 +524,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Focused thread"
         />

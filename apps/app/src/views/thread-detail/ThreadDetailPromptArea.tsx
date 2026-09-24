@@ -194,6 +194,7 @@ interface ThreadDetailPromptAreaProps {
   pendingInteractionsInitialLoading: boolean;
   queuedMessageCount: number;
   onChangedFileClick: (selection: WorkspaceChangedFileSelection) => void;
+  onCommit: (() => void) | null;
   projectId: string;
   resolveMentionLink: PromptMentionLinkResolver;
   workspaceChangedFilesSection: WorkspaceChangedFilesSection | null;
@@ -406,6 +407,7 @@ export function ThreadDetailPromptArea({
   pendingInteractionsInitialLoading,
   queuedMessageCount,
   onChangedFileClick,
+  onCommit,
   projectId,
   resolveMentionLink,
   workspaceChangedFilesSection,
@@ -2023,6 +2025,7 @@ export function ThreadDetailPromptArea({
                   onPromptBannerFileClick: canUseGitUi
                     ? onChangedFileClick
                     : ignorePromptBannerFileClick,
+                  onCommit: canUseGitUi ? onCommit : null,
                 }
               : null
           }

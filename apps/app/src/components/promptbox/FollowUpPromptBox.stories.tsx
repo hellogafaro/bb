@@ -441,6 +441,7 @@ const contextBannerElement: ReactNode = dirtyContextBannerSection ? (
         onChange: noop,
       },
       onPromptBannerFileClick: noop,
+      onCommit: noop,
     }}
     gitSectionPending={false}
     parentThreadSection={null}

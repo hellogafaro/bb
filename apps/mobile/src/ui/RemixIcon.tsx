@@ -21,7 +21,7 @@ export interface IconProps {
   accessibilityLabel?: string;
 }
 
-export function PhosphorIcon({
+export function RemixIcon({
   name,
   size = ICON_SIZE_DEFAULT,
   color,
@@ -41,7 +41,7 @@ export function PhosphorIcon({
         accessibilityLabel === undefined ? "no-hide-descendants" : "auto"
       }
     >
-      <Glyph size={size} color={color ?? tokens.foreground} weight="bold" />
+      <Glyph width={size} height={size} color={color ?? tokens.foreground} />
     </View>
   );
 }

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import type { ThreadPullRequest } from "@bb/domain";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isThreadDisplayStatusBannerActive,
   ThreadPromptContextBanner,
@@ -50,6 +50,7 @@ const pullRequestFixture: ThreadPullRequest = {
 function makeGitSection(
   kind: ThreadPromptGitSection["changedFiles"]["kind"] = "uncommitted",
   mergeBase: ThreadPromptGitSection["mergeBase"] = null,
+  onCommit: ThreadPromptGitSection["onCommit"] = null,
 ): ThreadPromptGitSection {
   return {
     changedFiles: {
@@ -66,6 +67,7 @@ function makeGitSection(
     },
     mergeBase,
     onPromptBannerFileClick: noop,
+    onCommit,
   };
 }
 
@@ -624,11 +626,14 @@ describe("ThreadPromptContextBanner", () => {
 });
 
 describe("ThreadPromptContextBanner git section body", () => {
-  function renderBanner(expandedSection: "git" | null) {
+  function renderBanner(
+    expandedSection: "git" | null,
+    onCommit: ThreadPromptGitSection["onCommit"] = null,
+  ) {
     return (
       <MemoryRouter>
         <ThreadPromptContextBanner
-          gitSection={makeGitSection("uncommitted")}
+          gitSection={makeGitSection("uncommitted", null, onCommit)}
           gitSectionPending={false}
           archivedSection={null}
           environmentGoneSection={null}
@@ -654,5 +659,20 @@ describe("ThreadPromptContextBanner git section body", () => {
 
     rerender(renderBanner(null));
     expect(screen.getByRole("list", { hidden: true })).toBeTruthy();
+  });
+
+  it("commits from the git summary when the thread can commit", () => {
+    const onCommit = vi.fn();
+    render(renderBanner(null, onCommit));
+
+    fireEvent.click(screen.getByRole("button", { name: "Commit" }));
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the commit action when the thread cannot commit", () => {
+    render(renderBanner(null));
+
+    expect(screen.queryByRole("button", { name: "Commit" })).toBeNull();
   });
 });

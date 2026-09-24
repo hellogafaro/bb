@@ -2073,7 +2073,7 @@ describe("SplitThreadArea", () => {
     expect(closeIcon).not.toBeNull();
     expect(closeIcon?.querySelectorAll("path")).toHaveLength(1);
     expect(closeIcon?.querySelector("path")?.getAttribute("d")).toContain(
-      "M208.49,191.51a12,12,0,0,1-17,17L128,145",
+      "M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093",
     );
     expect(
       toggle.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING,

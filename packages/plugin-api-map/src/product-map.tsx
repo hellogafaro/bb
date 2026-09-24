@@ -1,4 +1,4 @@
-import { PiDesktopBold, PiDeviceMobileBold } from "react-icons/pi";
+import { RiComputerLine, RiSmartphoneLine } from "react-icons/ri";
 import {
   Fragment,
   useEffect,
@@ -992,9 +992,9 @@ export function ProductMap({
                     )}
                   >
                     {mode === "mobile" ? (
-                      <PiDeviceMobileBold className="size-4" aria-hidden />
+                      <RiSmartphoneLine className="size-4" aria-hidden />
                     ) : (
-                      <PiDesktopBold className="size-4" aria-hidden />
+                      <RiComputerLine className="size-4" aria-hidden />
                     )}
                   </button>
                 ))}

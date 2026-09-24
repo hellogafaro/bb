@@ -1,4 +1,4 @@
-import { PiGithubLogoBold } from "react-icons/pi";
+import { RiGithubLine } from "react-icons/ri";
 import { DASHBOARD_PATH } from "../lib/connect-return-to";
 import { DiscordLink, DownloadLink, GitHubLink, XLink } from "./cta";
 import { useDesktopPlatform } from "./desktop-platform";
@@ -39,7 +39,7 @@ export function SiteNav({ current }: { current?: SiteNavPage }) {
           className="nav-icon-button"
           aria-label="GitHub"
         >
-          <PiGithubLogoBold />
+          <RiGithubLine />
         </GitHubLink>
         <DownloadLink
           placement="nav"

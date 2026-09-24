@@ -1,4 +1,4 @@
-import { PiCheckCircleBold } from "react-icons/pi";
+import { RiCheckboxCircleLine } from "react-icons/ri";
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
@@ -143,7 +143,7 @@ export function EmailSignup({ placement }: { placement: CtaPlacement }) {
   if (status === "success") {
     return (
       <p className="subscribe-done" role="status">
-        <PiCheckCircleBold className="subscribe-done-ic" />
+        <RiCheckboxCircleLine className="subscribe-done-ic" />
         You&rsquo;re on the list. We&rsquo;ll be in touch.
       </p>
     );
