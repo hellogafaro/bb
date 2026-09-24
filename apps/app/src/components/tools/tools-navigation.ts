@@ -15,6 +15,7 @@ import {
   isPluginsRoutePath,
   isSkillsRoutePath,
 } from "@/lib/route-paths";
+import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 export type ToolsSectionId = "skills" | "plugins";
 
@@ -29,7 +30,7 @@ interface ToolsSectionDefinition {
 const TOOLS_SECTIONS = {
   skills: {
     id: "skills",
-    label: "Skills",
+    label: "Customize",
     to: getSkillsRoutePath(),
   },
   plugins: {
@@ -189,7 +190,8 @@ export function resolveToolsBreadcrumbs(
         sectionCrumb(section.id),
         {
           label:
-            view === TOOLS_OWNED_COLLECTION_VIEW[section.id]
+            view === TOOLS_OWNED_COLLECTION_VIEW[section.id] ||
+            (FORK_CUSTOMIZE_PAGE && section.id === "skills")
               ? TOOLS_OWNED_COLLECTION_LABEL[section.id]
               : "Browse",
         },
@@ -305,5 +307,5 @@ export function resolveSkillsWorkspaceHeaderMeta(
   pathname: string,
 ): ResourceWorkspaceHeaderMeta | null {
   if (!isSkillsRoutePath(pathname)) return null;
-  return { kind: "section-title", title: "Skills" };
+  return { kind: "section-title", title: "Customize" };
 }

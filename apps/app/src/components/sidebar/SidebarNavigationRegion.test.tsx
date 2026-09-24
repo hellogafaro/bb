@@ -204,18 +204,18 @@ describe("SidebarNavigationRegion", () => {
     );
   });
 
-  it("routes Skills and leaves Plugins out of the navigation", () => {
+  it("routes Customize and leaves Plugins out of the navigation", () => {
     registerFixture();
     renderHarness(vi.fn(), ["/skills/library/demo"]);
 
     expect(
       screen
-        .getByRole("button", { name: "Skills" })
+        .getByRole("button", { name: "Customize" })
         .getAttribute("aria-current"),
     ).toBe("page");
     expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
+    fireEvent.click(screen.getByRole("button", { name: "Customize" }));
     expect(screen.getByTestId("pathname").textContent).toBe("/skills");
   });
 

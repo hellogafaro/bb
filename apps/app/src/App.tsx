@@ -68,6 +68,7 @@ import { AppCommandProvider } from "./components/commands/AppCommandProvider";
 import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provider-cli-install";
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
+import { FORK_CUSTOMIZE_PAGE } from "./lib/fork-flags";
 
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((m) => ({
@@ -181,6 +182,12 @@ function normalizeLegacySkillSuffix(suffix: string): string {
   }
   return suffix;
 }
+
+const registrySkillsElement = FORK_CUSTOMIZE_PAGE ? (
+  <Navigate to={`${SKILLS_ROUTE_PATH}?view=library`} replace />
+) : (
+  <SkillsView />
+);
 
 export function LegacySkillsPathRedirect() {
   const location = useLocation();
@@ -379,10 +386,13 @@ export function AppRoutes() {
           />
           <Route path={SKILLS_ROUTE_PATH} element={<SkillsView />} />
           <Route path={SKILL_DETAIL_ROUTE_PATH} element={<SkillsView />} />
-          <Route path={REGISTRY_SKILLS_ROUTE_PATH} element={<SkillsView />} />
+          <Route
+            path={REGISTRY_SKILLS_ROUTE_PATH}
+            element={registrySkillsElement}
+          />
           <Route
             path={REGISTRY_SKILL_DETAIL_ROUTE_PATH}
-            element={<SkillsView />}
+            element={registrySkillsElement}
           />
           <Route path={PLUGINS_ROUTE_PATH} element={<PluginsRoute />} />
           <Route path={PLUGIN_DETAIL_ROUTE_PATH} element={<PluginsRoute />} />

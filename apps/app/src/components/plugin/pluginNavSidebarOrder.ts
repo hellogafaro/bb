@@ -1,4 +1,5 @@
 import { arrangeByStoredOrder } from "@/lib/stored-order";
+import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 interface PluginNavPanelIdentity {
   pluginId: string;
@@ -15,6 +16,7 @@ export const BUILT_IN_SIDEBAR_NAVIGATION_KEYS = {
 
 export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
+  ...(FORK_CUSTOMIZE_PAGE ? ["mcps/mcps"] : []),
 ] as const;
 
 export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [

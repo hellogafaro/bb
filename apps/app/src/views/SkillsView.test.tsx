@@ -39,6 +39,8 @@ import {
 import { SkillsLibrary } from "../components/tools/SkillsLibrary";
 import { focusWithKeyboard } from "@/test/keyboard-focus";
 
+vi.mock("@/lib/fork-flags", () => ({ FORK_CUSTOMIZE_PAGE: false }));
+
 afterEach(() => {
   focusManager.setFocused(undefined);
   cleanup();

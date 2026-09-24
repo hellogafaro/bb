@@ -55,8 +55,8 @@ export function BuiltInSidebarNavigation({
       id: "skills",
       content: (
         <ResourceNavSidebarItem
-          icon="Zap"
-          title="Skills"
+          icon="SlidersHorizontal"
+          title="Customize"
           routePath={skillsRoutePath}
           onNavigate={onNavigate}
         />

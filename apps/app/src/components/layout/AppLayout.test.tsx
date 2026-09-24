@@ -54,12 +54,16 @@ vi.mock("./AppLayoutSidebar", async () => {
   >("@/components/ui/sidebar");
   return {
     AppLayoutSidebar: ({
+      mode,
       onResizeMouseDown,
     }: {
+      mode: string;
       onResizeMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void;
     }) => (
       <Sidebar>
-        <div data-testid="sidebar-body">App sidebar</div>
+        <div data-testid="sidebar-body" data-mode={mode}>
+          App sidebar
+        </div>
         <div data-testid="resize-handle" onMouseDown={onResizeMouseDown} />
       </Sidebar>
     ),
@@ -273,6 +277,20 @@ describe("canonical thread routes", () => {
     renderLayout(APP_ROUTE);
 
     expect(screen.getByTestId("location").textContent).toBe(APP_ROUTE);
+  });
+});
+
+describe("Customize page sidebar", () => {
+  it.each([
+    ["/skills", "app"],
+    ["/skills?view=library", "app"],
+    ["/skills/library/skill_abc123", "app"],
+    ["/plugins", "plugins"],
+  ])("renders the %s sidebar as %s", (route, mode) => {
+    renderLayout(route);
+    expect(screen.getByTestId("sidebar-body").getAttribute("data-mode")).toBe(
+      mode,
+    );
   });
 });
 

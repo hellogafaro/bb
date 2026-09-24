@@ -63,6 +63,7 @@ import {
 } from "@/hooks/queries/skills-queries";
 import { CreateWithTemplatesButton } from "@/components/create-via-prompt-examples";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
+import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 const EMPTY_SKILLS: readonly SkillSummary[] = [];
 
@@ -177,9 +178,10 @@ export function SkillsLibrary() {
   const isLoading =
     skillsQuery.isFetching && skillsQuery.data === undefined && !hasError;
   const isRegistryBrowseRoute =
-    location.pathname === getRegistrySkillsRoutePath() ||
-    (matchPath(getSkillsRoutePath(), location.pathname) !== null &&
-      new URLSearchParams(location.search).get("view") !== "library");
+    !FORK_CUSTOMIZE_PAGE &&
+    (location.pathname === getRegistrySkillsRoutePath() ||
+      (matchPath(getSkillsRoutePath(), location.pathname) !== null &&
+        new URLSearchParams(location.search).get("view") !== "library"));
   const registryRequestPage =
     isRegistryBrowseRoute || routeRegistrySkillId !== undefined
       ? registryPage

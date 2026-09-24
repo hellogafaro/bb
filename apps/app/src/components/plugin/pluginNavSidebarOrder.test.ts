@@ -3,6 +3,7 @@ import {
   arrangePluginNavPanelPreferences,
   arrangePluginNavPanels,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS,
+  DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
   getPluginNavPanelKey,
   seedSkillsNavigationPreference,
   togglePluginNavPanelVisibility,
@@ -281,5 +282,22 @@ describe("togglePluginNavPanelVisibility", () => {
         true,
       ),
     ).toEqual(["github/pulls"]);
+  });
+});
+
+describe("Customize page sidebar defaults", () => {
+  it("hides the mcps panel by default but keeps it available to show", () => {
+    const mcps = panel("mcps", "mcps");
+    const arranged = arrangePluginNavPanelPreferences({
+      panels: [github, mcps],
+      storedOrder: [],
+      storedVisibleKeys: null,
+      defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
+    });
+    expect(arranged.visible).toEqual([github]);
+    expect(arranged.ordered).toEqual([github, mcps]);
+    expect(DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS).toContain(
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
+    );
   });
 });

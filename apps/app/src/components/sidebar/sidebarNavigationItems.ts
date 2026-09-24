@@ -76,7 +76,7 @@ export function createSidebarNavigationItems({
     },
     {
       id: SKILLS_NAVIGATION_ITEM_ID,
-      label: "Skills",
+      label: "Customize",
       icon: { kind: "host", name: "extensions" },
       action: resourceWorkspaceAction,
       isDisabled: false,
