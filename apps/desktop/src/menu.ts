@@ -4,6 +4,7 @@ import {
   type BaseWindow,
   type MenuItemConstructorOptions,
 } from "electron";
+import type { BbDesktopZoomCommand } from "@bb/desktop-contract";
 import type { ApplicationMenuAccelerators } from "./desktop-menu-shortcuts.js";
 import type { ConnectServerSyncSkipReason } from "./connect-server-sync.js";
 
@@ -56,6 +57,7 @@ export interface InstallApplicationMenuArgs {
     browserWindow: BaseWindow | undefined,
     ignoreCache: boolean,
   ): void;
+  zoomFocusedPage(command: BbDesktopZoomCommand): void;
   closeWindowOrSideTab(browserWindow: BaseWindow | undefined): void;
   createNewWindow(): void;
   openServerDaemonLogs(): void;
@@ -254,9 +256,27 @@ export function buildApplicationMenuTemplate(
           role: "toggleDevTools",
         },
         { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
+        {
+          accelerator: "CommandOrControl+0",
+          label: "Actual Size",
+          click() {
+            args.zoomFocusedPage("reset");
+          },
+        },
+        {
+          accelerator: "CommandOrControl+Plus",
+          label: "Zoom In",
+          click() {
+            args.zoomFocusedPage("in");
+          },
+        },
+        {
+          accelerator: "CommandOrControl+-",
+          label: "Zoom Out",
+          click() {
+            args.zoomFocusedPage("out");
+          },
+        },
         ...createServerDaemonLogsMenuItems(args),
       ],
     },
