@@ -419,7 +419,6 @@ export function ThreadPinQuickAction({
           size="icon"
           className={cn("rounded-md p-0", className)}
           aria-label={`${label} thread`}
-          aria-pressed={isPinned}
           disabled={isPending}
           onClick={(event) => {
             event.preventDefault();
