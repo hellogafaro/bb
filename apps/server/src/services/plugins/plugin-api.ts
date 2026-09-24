@@ -152,6 +152,10 @@ class PluginContextStaleError extends Error {
   }
 }
 
+export function isPluginContextStaleError(error: unknown): error is Error {
+  return error instanceof Error && error.name === "PluginContextStaleError";
+}
+
 export function isNeedsConfigurationError(error: unknown): error is Error {
   return error instanceof Error && error.name === "NeedsConfigurationError";
 }
