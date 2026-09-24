@@ -82,7 +82,6 @@ import {
 import {
   createPluginApi,
   isNeedsConfigurationError,
-  isPluginContextStaleError,
   type BbPluginApi,
   type PluginApiHandle,
   type PluginThreadEventName,
@@ -503,13 +502,7 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
 
   function handleUncaughtException(error: unknown): boolean {
     const instance = serviceContext.getStore();
-    if (instance === undefined) {
-      if (!isPluginContextStaleError(error)) return false;
-      logger.warn(
-        `a disposed plugin used a stale API handle outside any service run: ${error.message}`,
-      );
-      return true;
-    }
+    if (instance === undefined) return false;
     const { id, service, controller } = instance;
     const name = service.record.name;
     const message = error instanceof Error ? error.message : String(error);

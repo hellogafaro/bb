@@ -4,8 +4,8 @@ import type {
   BbDesktopWindowState,
 } from "@bb/desktop-contract";
 
-export const MACOS_TRAFFIC_LIGHT_RESERVE_OFFSET_CLASS = "left-[80px]";
-export const MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS = "pl-[100px]";
+export const MACOS_TRAFFIC_LIGHT_RESERVE_OFFSET_CLASS = "left-[88px]";
+export const MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS = "pl-[108px]";
 
 export const BROWSER_SIDEBAR_TRIGGER_INSET_CLASS = "pl-[10px]";
 export const BROWSER_COLLAPSED_HEADER_RESERVE_CLASS =
