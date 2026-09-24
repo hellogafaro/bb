@@ -1894,7 +1894,6 @@ function RootComposeSurface({
   const promptBox = renderPromptBox({
     id: "root-compose-prompt",
     autoFocus: !isProviderCliBlocked,
-    allowSoftKeyboardAutoFocus: isCompactViewport,
     mentionMenuPlacement: "top",
     banner: promptBanner,
     header: promptHeader,
