@@ -22,6 +22,7 @@ import { isWithinRoot } from "./safe-fs.js";
 import { McpOAuthProvider } from "./oauth.js";
 import { compactToolFromCatalog, scoreTokens, tokenize, SEARCH_LIMIT, SEARCH_MAX } from "./catalog.js";
 import { parameterNames, validateCallArgs } from "./call-card.js";
+import { classifyTool } from "./policy.js";
 import type {
   CatalogPrompt,
   CatalogResource,
@@ -696,6 +697,12 @@ export class McpGateway implements McpRuntime {
     const ids = new Set<string>();
     this.serverIndex.set(key, ids);
     const index = (id: string, ref: CatalogRef) => { ids.add(id); this.catalogIndex.set(id, ref); };
+    if (!catalog.error) {
+      this.store.seedToolPolicies(record.pluginId, record.serverId, catalog.tools.map((tool) => ({
+        name: tool.name,
+        risk: classifyTool(optionalRecord((tool as unknown as JsonRecord).annotations)),
+      })));
+    }
     for (const tool of catalog.tools) {
       index(this.exposedId("tool", record.pluginId, record.serverId, tool.name), {
         kind: "tool", pluginId: record.pluginId, serverId: record.serverId, name: tool.name,
@@ -806,6 +813,20 @@ export class McpGateway implements McpRuntime {
       if (this.catalogLoads.get(key) === load) this.catalogLoads.delete(key);
       if (this.catalogControllers.get(key) === controller) this.catalogControllers.delete(key);
     }
+  }
+
+  async warm(): Promise<void> {
+    await Promise.all(this.enabledApprovedServers().map(async (record) => {
+      const key = keyOf(record.pluginId, record.serverId);
+      const cached = this.catalogCache.get(key);
+      if (cached && !cached.error && cached.configJson === record.configJson) return;
+      try {
+        const catalog = await this.getCatalog(record);
+        this.log.info(`MCP warmed ${key} (${catalog.tools.length} tools)`);
+      } catch (error) {
+        if (!this.closed) this.log.info(`MCP warmup skipped ${key}: ${errorText(error)}`);
+      }
+    }));
   }
 
   async listTools(): Promise<CatalogTool[]> {

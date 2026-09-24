@@ -11,6 +11,7 @@ import {
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { mcpHostContract, mcpHostSignals, type McpHostCatalog } from "./src/host-contract.js";
 import { optionalMcpCall } from "./src/mcp-compat.js";
+import { disableClaudeConnectors, providerGuardPaths, readProviderMcpStatus } from "./src/provider-guard.js";
 
 const CONNECT_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -290,6 +291,11 @@ export default experimental_defineHostEntry({
       await connection.client.setLoggingLevel(level as never, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
       return { updated: true };
     }),
+    providerMcpStatus: async ({ projectPath }) => readProviderMcpStatus(projectPath ? { projectPath } : {}),
+    providerMcpFix: async ({ projectPath }) => {
+      await disableClaudeConnectors(providerGuardPaths().claudeSettings);
+      return readProviderMcpStatus(projectPath ? { projectPath } : {});
+    },
   },
   dispose: closeAll,
 });

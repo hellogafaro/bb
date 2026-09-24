@@ -1,6 +1,22 @@
 import { randomInt } from "node:crypto";
 import type Database from "better-sqlite3";
-import type { McpServerRecord, McpSourceRecord } from "./types.js";
+import type { PolicyMode } from "./policy.js";
+import type { McpServerRecord, McpSourceRecord, ToolRisk } from "./types.js";
+
+const SOURCE_COLUMNS = "id, name, description, sourceKind, sourceRef, registryName, registryVersion, pluginRoot, pluginData, createdAt, updatedAt";
+
+export interface ConnectedSource {
+  id: string;
+  handle: string;
+  description: string | null;
+  guide: string | null;
+}
+
+export interface ToolPolicyRecord {
+  toolName: string;
+  risk: ToolRisk;
+  mode: PolicyMode;
+}
 
 export class McpsStore {
   private readonly identities = new Map<string, { id: string; handle: string }>();
@@ -51,6 +67,7 @@ export class McpsStore {
         id TEXT NOT NULL UNIQUE,
         handle TEXT NOT NULL UNIQUE
       )`,
+      `ALTER TABLE sources ADD COLUMN guide TEXT`,
     ]);
     this.transaction(() => {
       for (const source of this.listSources()) this.ensureIdentity(source.id);
@@ -77,15 +94,15 @@ export class McpsStore {
   }
 
   listSources(): McpSourceRecord[] {
-    return this.db.prepare(`SELECT * FROM sources ORDER BY createdAt DESC`).all() as McpSourceRecord[];
+    return this.db.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources ORDER BY createdAt DESC`).all() as McpSourceRecord[];
   }
 
   getPlugin(id: string): McpSourceRecord | undefined {
-    return this.db.prepare(`SELECT * FROM sources WHERE id = ?`).get(id) as McpSourceRecord | undefined;
+    return this.db.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE id = ?`).get(id) as McpSourceRecord | undefined;
   }
 
   getSourceByName(name: string): McpSourceRecord | undefined {
-    return this.db.prepare(`SELECT * FROM sources WHERE name = ? COLLATE NOCASE`).get(name) as McpSourceRecord | undefined;
+    return this.db.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE name = ? COLLATE NOCASE`).get(name) as McpSourceRecord | undefined;
   }
 
   snapshot(): { sources: McpSourceRecord[]; mcpServers: McpServerRecord[] } {
@@ -102,6 +119,24 @@ export class McpsStore {
          pluginRoot=excluded.pluginRoot, pluginData=excluded.pluginData, updatedAt=excluded.updatedAt`,
     ).run(record as unknown as Record<string, unknown>);
     this.ensureIdentity(record.id);
+  }
+
+  getGuide(id: string): string | null {
+    const row = this.db.prepare(`SELECT guide FROM sources WHERE id = ?`).get(id) as { guide: string | null } | undefined;
+    return row?.guide ?? null;
+  }
+
+  setGuide(id: string, guide: string | null): boolean {
+    return this.db.prepare(`UPDATE sources SET guide = ? WHERE id = ?`).run(guide, id).changes > 0;
+  }
+
+  listConnectedSources(): ConnectedSource[] {
+    return this.db.prepare(
+      `SELECT i.id AS id, i.handle AS handle, s.description AS description, s.guide AS guide
+       FROM sources s JOIN source_identities i ON i.sourceKey = s.id
+       WHERE EXISTS (SELECT 1 FROM mcp_servers m WHERE m.pluginId = s.id AND m.enabled = 1 AND m.approved = 1)
+       ORDER BY i.handle`,
+    ).all() as ConnectedSource[];
   }
 
   deleteSource(id: string): boolean {
@@ -154,6 +189,30 @@ export class McpsStore {
   setMcpEnabled(pluginId: string, serverId: string, enabled: boolean): McpServerRecord | undefined {
     this.db.prepare(`UPDATE mcp_servers SET enabled = ? WHERE pluginId = ? AND serverId = ?`).run(enabled ? 1 : 0, pluginId, serverId);
     return this.getServer(pluginId, serverId);
+  }
+
+  seedToolPolicies(pluginId: string, serverId: string, tools: Array<{ name: string; risk: ToolRisk }>): void {
+    if (tools.length === 0) return;
+    const insert = this.db.prepare(
+      `INSERT INTO tool_policies (pluginId, serverId, toolName, risk, mode) VALUES (?, ?, ?, ?, 'inherit')
+       ON CONFLICT(pluginId, serverId, toolName) DO UPDATE SET risk = excluded.risk WHERE risk != excluded.risk`,
+    );
+    this.transaction(() => { for (const tool of tools) insert.run(pluginId, serverId, tool.name, tool.risk); });
+  }
+
+  getToolPolicy(pluginId: string, serverId: string, toolName: string): ToolPolicyRecord | undefined {
+    return this.db.prepare(`SELECT toolName, risk, mode FROM tool_policies WHERE pluginId = ? AND serverId = ? AND toolName = ?`)
+      .get(pluginId, serverId, toolName) as ToolPolicyRecord | undefined;
+  }
+
+  listToolPolicies(pluginId: string, serverId: string): ToolPolicyRecord[] {
+    return this.db.prepare(`SELECT toolName, risk, mode FROM tool_policies WHERE pluginId = ? AND serverId = ? ORDER BY toolName`)
+      .all(pluginId, serverId) as ToolPolicyRecord[];
+  }
+
+  setToolPolicyMode(pluginId: string, serverId: string, toolName: string, mode: PolicyMode): ToolPolicyRecord | undefined {
+    this.db.prepare(`UPDATE tool_policies SET mode = ? WHERE pluginId = ? AND serverId = ? AND toolName = ?`).run(mode, pluginId, serverId, toolName);
+    return this.getToolPolicy(pluginId, serverId, toolName);
   }
 
   transaction<T>(fn: () => T): T {

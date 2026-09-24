@@ -6,7 +6,10 @@ import { createHash } from "node:crypto";
 
 const source = { id: "notion", name: "Notion", description: null, sourceKind: "manual" as const, sourceRef: null, registryName: null, registryVersion: null, pluginRoot: "/tmp", pluginData: "/tmp", createdAt: 0, updatedAt: 0 };
 const server = { pluginId: "notion", serverId: "mcp", type: "stdio" as const, configJson: '{"type":"stdio","command":"echo"}', status: "idle" as const, lastError: null, approved: 1, enabled: 1 };
-const migrate = (db: Database.Database, statements: string[]) => statements.forEach(s => db.exec(s));
+const migrate = (db: Database.Database, statements: string[]) => statements.forEach((statement) => {
+  try { db.exec(statement); }
+  catch (error) { if (!String(error).includes("duplicate column name")) throw error; }
+});
 
 it("backfills stable public IDs while preserving legacy storage, policy and credential keys", () => {
   const db = new Database(":memory:");

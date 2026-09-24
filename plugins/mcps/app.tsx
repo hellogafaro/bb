@@ -4,7 +4,14 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, u
 import { createPortal } from "react-dom";
 import { definePluginApp, useBbNavigate, useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
-import { crumbsForRoute, detailPath, parseRoute, publishDetailLabel, subscribeDetailLabel, type Tab } from "@/lib/route";
+import { crumbsForRoute, detailPath, parseRoute, publishDetailLabel, subscribeDetailLabel } from "@/lib/route";
+import { buildMcpEditThreadPrompt, CREATE_MCP_PROMPT, MCP_CREATE_TEMPLATES } from "@/lib/prompts";
+import { McpApprovalInteraction } from "@/components/mcp-approval";
+import { ProviderGuardNotice } from "@/components/provider-guard";
+import { RiskPill, ToolPolicySelect, useToolPolicies } from "@/components/tool-policy";
+import { APPROVAL_RENDERER_ID } from "@/src/approval-contract";
+import { ResourceCreateButton } from "@bb/shared-ui/resource-list";
+import { Textarea } from "@bb/shared-ui/textarea";
 import { usePortalScopeProps } from "@/lib/portal-scope";
 import {
   AlertDialog,
@@ -17,15 +24,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -59,18 +57,7 @@ type ServerRow = {
   registryVersion: string | null;
   configJson: string;
   toolCount: number | null;
-};
-
-type RegistryHit = {
-  name: string;
-  description: string;
-  version: string;
-  status: string;
-  installable: boolean;
-  sourceRef: string | null;
-  type: string | null;
-  remote: boolean;
-  requiredHeaders: string[];
+  guide: string | null;
 };
 
 type CompactTool = {
@@ -88,11 +75,9 @@ type CompactTool = {
   };
 };
 
-type AddKind = "url" | "command" | null;
 type TypeFilter = "http" | "sse" | "stdio";
 type StatusFilter = "enabled" | "disabled";
 type AuthFilter = "authenticated" | "needs-auth";
-type ReadyFilter = "installable" | "needs-headers" | "unsupported";
 
 const TYPE_FILTERS: Array<[TypeFilter, string]> = [
   ["http", "HTTP"],
@@ -134,19 +119,6 @@ function toggleFilter<T extends string>(values: T[], id: T, onChange: (next: T[]
   onChange(values.includes(id) ? values.filter((item) => item !== id) : [...values, id]);
 }
 
-function hitType(hit: RegistryHit): TypeFilter | null {
-  if (hit.type === "stdio") return "stdio";
-  if (hit.type === "sse") return "sse";
-  if (hit.type === "streamable-http" || hit.remote) return "http";
-  return null;
-}
-
-function hitReady(hit: RegistryHit): ReadyFilter {
-  if (!hit.installable) return "unsupported";
-  if (hit.requiredHeaders.length > 0) return "needs-headers";
-  return "installable";
-}
-
 const FilterButton = forwardRef<
   HTMLButtonElement,
   { active: boolean; label: string } & ButtonHTMLAttributes<HTMLButtonElement>
@@ -178,22 +150,6 @@ function serverHaystack(server: ServerRow): string {
 const CRUMB_LINK =
   "-mx-2 inline-flex min-h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [app-region:no-drag] [-webkit-app-region:no-drag]";
 
-type HeaderRow = { name: string; value: string };
-
-function emptyHeader(): HeaderRow {
-  return { name: "", value: "" };
-}
-
-function headersFromRows(rows: HeaderRow[]): Record<string, string> | undefined {
-  const headers: Record<string, string> = {};
-  for (const row of rows) {
-    const name = row.name.trim();
-    const value = row.value.trim();
-    if (!name || !value) continue;
-    headers[name] = value;
-  }
-  return Object.keys(headers).length > 0 ? headers : undefined;
-}
 function HeaderCrumbs({ subPath }: { subPath: string }) {
   const nav = useBbNavigate();
   const scope = usePortalScopeProps();
@@ -263,89 +219,6 @@ function HeaderCrumbs({ subPath }: { subPath: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function HeaderFields({
-  rows,
-  onChange,
-}: {
-  rows: HeaderRow[];
-  onChange: (rows: HeaderRow[]) => void;
-}) {
-  const update = (index: number, patch: Partial<HeaderRow>) => {
-    onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
-  };
-  return (
-    <div className="space-y-1.5">
-      <span className="block text-sm">Headers</span>
-      {rows.map((row, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <Input
-            value={row.name}
-            onChange={(event) => update(index, { name: event.target.value })}
-            placeholder="Name"
-            aria-label={`Header ${index + 1} name`}
-            className="min-w-0 flex-1"
-          />
-          <Input
-            value={row.value}
-            onChange={(event) => update(index, { value: event.target.value })}
-            placeholder="Value"
-            aria-label={`Header ${index + 1} value`}
-            className="min-w-0 flex-[1.4]"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 shrink-0 text-muted-foreground"
-            aria-label={`Remove header ${index + 1}`}
-            onClick={() => onChange(rows.filter((_, i) => i !== index))}
-          >
-            <Icon name="X" className="size-4" />
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 w-full justify-start text-muted-foreground"
-        onClick={() => onChange([...rows, emptyHeader()])}
-      >
-        <Icon name="Plus" className="size-4" />
-        Add header
-      </Button>
-    </div>
-  );
-}
-
-function CheckRow({
-  id,
-  checked,
-  onCheckedChange,
-  children,
-}: {
-  id: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Checkbox id={id} checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
-      <label htmlFor={id} className="text-sm leading-none">{children}</label>
-    </div>
-  );
-}
-
 function PageShell({ fill, children }: { fill?: boolean; children: ReactNode }) {
   return (
     <div className="h-full min-h-0 flex-1 overflow-y-auto">
@@ -357,57 +230,21 @@ function PageShell({ fill, children }: { fill?: boolean; children: ReactNode }) 
 }
 
 function CollectionChrome({
-  tab,
-  installedCount,
-  onTabChange,
   actions,
   children,
 }: {
-  tab: Tab;
-  installedCount: number | undefined;
-  onTabChange: (tab: Tab) => void;
   actions: ReactNode;
   children: ReactNode;
 }) {
-  const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-    { id: "installed", label: "Installed", count: installedCount },
-    { id: "browse", label: "Browse" },
-  ];
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
-      <p className="pr-3 text-sm leading-5 text-muted-foreground">
-        Install MCP servers from the official registry, a URL, or a local command. Every provider uses the same catalog.
-      </p>
-      <div className="flex flex-wrap items-center justify-between gap-2 pr-3">
-        <div className="flex items-center gap-1" role="tablist" aria-label="MCP views">
-          {tabs.map((item) => {
-            const selected = item.id === tab;
-            return (
-              <button
-                key={item.id}
-                id={`mcps-${item.id}-tab`}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-controls={`mcps-${item.id}-panel`}
-                tabIndex={selected ? 0 : -1}
-                className={cn(
-                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium",
-                  selected ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => onTabChange(item.id)}
-              >
-                {item.label}
-                {item.count !== undefined ? <span className="text-xs text-muted-foreground">{item.count}</span> : null}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 pr-3">
         {actions}
       </div>
-      <div id={`mcps-${tab}-panel`} role="tabpanel" aria-labelledby={`mcps-${tab}-tab`} className="min-h-0 flex-1">
-        {children}
-      </div>
+      <p className="pr-3 text-sm leading-5 text-muted-foreground">
+        MCP servers every provider can use. Add new ones in chat with New MCP.
+      </p>
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -418,28 +255,6 @@ function MenuRow({ icon, children }: { icon: string; children: ReactNode }) {
       <Icon name={icon} className="size-4 shrink-0" />
       <span className="min-w-0 truncate">{children}</span>
     </>
-  );
-}
-
-function NewMcpButton({ onPick }: { onPick: (kind: "url" | "command") => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" size="sm">
-          <Icon name="Plus" className="size-4" />
-          New MCP
-          <Icon name="ChevronDown" className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-max min-w-40">
-        <DropdownMenuItem onSelect={() => onPick("url")}>
-          <MenuRow icon="Globe">From URL</MenuRow>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onPick("command")}>
-          <MenuRow icon="Terminal">From command</MenuRow>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
@@ -475,101 +290,6 @@ function RemoveDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-function AddFormDialog({
-  kind,
-  pending,
-  onOpenChange,
-  onSubmitUrl,
-  onSubmitCommand,
-}: {
-  kind: AddKind;
-  pending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmitUrl: (input: { name: string; url: string; headers?: Record<string, string>; sse: boolean }) => void;
-  onSubmitCommand: (input: { name: string; command: string; args: string[] }) => void;
-}) {
-  const [httpName, setHttpName] = useState("");
-  const [httpUrl, setHttpUrl] = useState("");
-  const [httpHeaders, setHttpHeaders] = useState<HeaderRow[]>([]);
-  const [httpSse, setHttpSse] = useState(false);
-  const [commandName, setCommandName] = useState("");
-  const [commandLine, setCommandLine] = useState("");
-
-  useEffect(() => {
-    setHttpName("");
-    setHttpUrl("");
-    setHttpHeaders([]);
-    setHttpSse(false);
-    setCommandName("");
-    setCommandLine("");
-  }, [kind]);
-
-  return (
-    <Dialog open={kind !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        {kind === "url" ? (
-          <form
-            className="space-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = httpName.trim();
-              const url = httpUrl.trim();
-              if (!name || !url) return;
-              onSubmitUrl({
-                name,
-                url,
-                headers: headersFromRows(httpHeaders),
-                sse: httpSse || url.includes("/sse"),
-              });
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>Add from URL</DialogTitle>
-              <DialogDescription>Connect a cloud HTTP or SSE MCP server.</DialogDescription>
-            </DialogHeader>
-            <Field label="Name">
-              <Input value={httpName} onChange={(event) => setHttpName(event.target.value)} required autoFocus />
-            </Field>
-            <Field label="URL">
-              <Input value={httpUrl} onChange={(event) => setHttpUrl(event.target.value)} placeholder="https://example.com/mcp" required />
-            </Field>
-            <HeaderFields rows={httpHeaders} onChange={setHttpHeaders} />
-            <CheckRow id="http-sse" checked={httpSse} onCheckedChange={setHttpSse}>Use SSE instead of streamable HTTP</CheckRow>
-            <DialogFooter>
-              <Button type="submit" disabled={pending || httpName.trim() === "" || httpUrl.trim() === ""}>Add MCP</Button>
-            </DialogFooter>
-          </form>
-        ) : kind === "command" ? (
-          <form
-            className="space-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = commandName.trim();
-              if (!name || !commandLine.trim()) return;
-              const [command, ...args] = commandLine.trim().split(/\s+/);
-              onSubmitCommand({ name, command, args });
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>Add from command</DialogTitle>
-              <DialogDescription>Run a local stdio MCP on this BB host.</DialogDescription>
-            </DialogHeader>
-            <Field label="Name">
-              <Input value={commandName} onChange={(event) => setCommandName(event.target.value)} required autoFocus />
-            </Field>
-            <Field label="Command">
-              <Input value={commandLine} onChange={(event) => setCommandLine(event.target.value)} placeholder="npx -y package" required />
-            </Field>
-            <DialogFooter>
-              <Button type="submit" disabled={pending || commandName.trim() === "" || commandLine.trim() === ""}>Add MCP</Button>
-            </DialogFooter>
-          </form>
-        ) : null}
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -722,7 +442,7 @@ function InstalledList({
         </div>
       ) : filtered && filtered.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-          {servers.length === 0 ? "No MCP servers yet. Browse the registry or add a URL or command." : "No MCPs match these filters."}
+          {servers.length === 0 ? "No MCP servers yet. Use New MCP to add one in chat." : "No MCPs match these filters."}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5">
@@ -770,167 +490,6 @@ function InstalledList({
   );
 }
 
-function BrowsePane({
-  pending,
-  onAdd,
-}: {
-  pending: boolean;
-  onAdd: (name: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<RegistryHit[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [cursors, setCursors] = useState<string[]>([]);
-  const cursor = cursors.at(-1);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [types, setTypes] = useState<TypeFilter[]>([]);
-  const [readies, setReadies] = useState<ReadyFilter[]>([]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const next = query.trim();
-    setHits(null);
-    if (next.length < 2) {
-      setHits(null);
-      setSearchError(null);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const timer = window.setTimeout(() => {
-      setSearchError(null);
-      readRpc("registrySearch", { query: next, ...(cursor ? {cursor} : {}) }, controller.signal).then((result) => {
-        if (controller.signal.aborted) return;
-        setHits(result.servers);
-        setNextCursor(result.nextCursor);
-        setSearching(false);
-      }, (cause) => {
-        if (controller.signal.aborted) return;
-        setSearchError(errorText(cause));
-        setHits([]);
-        setSearching(false);
-      });
-    }, 280);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, cursor]);
-
-  const filtered = useMemo(() => {
-    if (hits === null) return null;
-    return hits.filter((hit) => {
-      if (types.length > 0) {
-        const kind = hitType(hit);
-        if (kind === null || !types.includes(kind)) return false;
-      }
-      if (readies.length > 0 && !readies.includes(hitReady(hit))) return false;
-      return true;
-    });
-  }, [hits, types, readies]);
-
-  const filtersActive = types.length + readies.length > 0;
-
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-2 pr-3">
-        <div className="relative w-full min-w-0 sm:w-auto sm:flex-1">
-          <Icon name="Search" className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => { setQuery(event.target.value); setCursors([]); setNextCursor(null); }}
-            placeholder="Search the MCP Registry"
-            aria-label="Search the MCP Registry"
-            className="h-8 pl-8"
-            autoFocus
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <FilterButton active={filtersActive} label={filtersActive ? "Filters on" : "Filters"} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-max max-w-64">
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Type</DropdownMenuLabel>
-            {TYPE_FILTERS.map(([id, label]) => (
-              <DropdownMenuCheckboxItem
-                key={id}
-                checked={types.includes(id)}
-                onSelect={(event) => event.preventDefault()}
-                onCheckedChange={() => toggleFilter(types, id, setTypes)}
-              >
-                {label}
-              </DropdownMenuCheckboxItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Ready</DropdownMenuLabel>
-            {([
-              ["installable", "Installable"],
-              ["needs-headers", "Needs headers"],
-              ["unsupported", "Unsupported"],
-            ] as const).map(([id, label]) => (
-              <DropdownMenuCheckboxItem
-                key={id}
-                checked={readies.includes(id)}
-                onSelect={(event) => event.preventDefault()}
-                onCheckedChange={() => toggleFilter(readies, id, setReadies)}
-              >
-                {label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {searching ? (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,23rem),1fr))] gap-2.5 pr-3">
-          {[0, 1, 2, 3].map((row) => (
-            <div key={row} className="min-h-28 rounded-lg border border-border p-3" aria-hidden="true">
-              <Skeleton className="h-4 w-2/5" />
-              <Skeleton className="mt-3 h-3 w-full" />
-              <Skeleton className="mt-2 h-3 w-3/4" />
-            </div>
-          ))}
-        </div>
-      ) : searchError ? (
-        <p role="alert" className="px-3 py-8 text-center text-sm text-destructive">{searchError}</p>
-      ) : hits === null ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-          Search the official registry to add a server.
-        </p>
-      ) : filtered && filtered.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-          {hits.length === 0 ? "No registry matches." : "No MCPs match these filters."}
-        </p>
-      ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,23rem),1fr))] gap-2.5 pr-3">
-          {filtered?.map((hit) => (
-            <div key={hit.name} className="flex min-h-28 flex-col gap-2 rounded-lg border border-border p-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="min-w-0 truncate text-sm font-medium">{hit.name}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 shrink-0"
-                  disabled={!hit.installable || pending}
-                  onClick={() => onAdd(hit.name)}
-                >
-                  Add
-                </Button>
-              </div>
-              <p className="line-clamp-3 text-xs leading-snug text-muted-foreground">
-                {hit.remote ? "HTTP" : hit.type ?? "unsupported"}
-                {hit.requiredHeaders.length > 0 ? ` · needs ${hit.requiredHeaders.join(", ")}` : ""}
-                {hit.description ? ` · ${hit.description}` : ""}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-      {!searching && !searchError && (cursors.length > 0 || nextCursor) ? <div className="flex justify-between gap-3">
-        <Button size="sm" variant="outline" disabled={cursors.length === 0} onClick={() => setCursors(p => p.slice(0, -1))}>Previous matches</Button>
-        <Button size="sm" variant="outline" disabled={!nextCursor || nextCursor === cursor} onClick={() => { if (nextCursor) setCursors(p => [...p, nextCursor]); }}>Next matches</Button>
-      </div> : null}
-    </div>
-  );
-}
-
 function DetailPage({
   id,
   servers,
@@ -939,6 +498,8 @@ function DetailPage({
   onEnabledChange,
   onRemove,
   onAuth,
+  onEditInChat,
+  onSaveGuide,
 }: {
   id: string;
   servers: ServerRow[] | null;
@@ -947,11 +508,17 @@ function DetailPage({
   onEnabledChange: (id: string, enabled: boolean) => void;
   onRemove: (server: ServerRow) => void;
   onAuth: (id: string) => void;
+  onEditInChat: (server: ServerRow) => void;
+  onSaveGuide: (id: string, guide: string | null) => void;
 }) {
   const server = servers?.find((item) => (item.id === id || item.handle === id)) ?? null;
   const [tools, setTools] = useState<CompactTool[] | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [toolPage, setToolPage] = useState(0);
+  const toolPolicies = useToolPolicies(id, tools);
+  const savedGuide = server?.guide ?? "";
+  const [guideDraft, setGuideDraft] = useState(savedGuide);
+  useEffect(() => setGuideDraft(savedGuide), [savedGuide]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1023,6 +590,10 @@ function DetailPage({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          <Button type="button" variant="outline" size="sm" onClick={() => onEditInChat(server)}>
+            <Icon name="MessageCirclePlus" className="size-4" aria-hidden />
+            Edit in chat
+          </Button>
           <Switch
             checked={server.enabled}
             disabled={pending !== null}
@@ -1070,6 +641,31 @@ function DetailPage({
           </div>
         </section>
       ) : null}
+      <section className="space-y-3">
+        <div className="flex min-h-6 items-center justify-between gap-3">
+          <h2 className="text-sm font-medium text-foreground">Agent guide</h2>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending !== null || guideDraft.trim() === savedGuide.trim()}
+            onClick={() => onSaveGuide(server.id, guideDraft.trim() || null)}
+          >
+            Save guide
+          </Button>
+        </div>
+        <Textarea
+          value={guideDraft}
+          onChange={(event) => setGuideDraft(event.target.value)}
+          placeholder="How agents should use this server, e.g. which workspace or project to search first."
+          aria-label="Agent guide"
+          maxLength={4000}
+          rows={4}
+        />
+        <p className="text-xs text-muted-foreground">
+          Added to agent instructions under this server while it is enabled. Agents see the first 600 characters.
+        </p>
+      </section>
       <section data-resource-detail-section="definition" className="space-y-3">
         <div className="flex min-h-6 items-center justify-between gap-3">
           <h2 className="text-sm font-medium text-foreground">Tools</h2>
@@ -1095,18 +691,22 @@ function DetailPage({
           <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5">
             <ul className="divide-y divide-border">
               {tools.slice(toolPage * 50, (toolPage + 1) * 50).map((tool) => (
-                <li key={tool.opaqueId} className="py-2.5 first:pt-0 last:pb-0">
-                  <p className="truncate text-sm font-medium">{tool.name}</p>
-                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                    {tool.risk}
-                    {tool.description ? ` · ${tool.description}` : ""}
-                  </p>
+                <li key={tool.opaqueId} className="flex min-w-0 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm font-medium">{tool.name}</p>
+                      <RiskPill risk={tool.risk} />
+                    </div>
+                    {tool.description ? <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{tool.description}</p> : null}
+                  </div>
+                  <ToolPolicySelect tool={tool.name} policy={toolPolicies.policies.get(tool.name)} onChange={(mode) => void toolPolicies.setMode(tool.name, mode)} />
                 </li>
               ))}
             </ul>
           </div>
         )}
         <Pagination page={toolPage} total={tools?.length ?? 0} onPage={setToolPage} label="tools" />
+        {toolPolicies.error ? <p role="alert" className="text-sm text-destructive">{toolPolicies.error}</p> : null}
         {catalogError && tools && tools.length > 0 ? (
           <p role="alert" className="text-sm text-destructive">{catalogError}</p>
         ) : null}
@@ -1120,7 +720,6 @@ function McpsPage({ subPath }: { subPath: string }) {
   const { rpc, servers, error, setError, refetch } = useServers();
   const route = parseRoute(subPath);
   const [pending, setPending] = useState<string | null>(null);
-  const [addKind, setAddKind] = useState<AddKind>(null);
   const [removeTarget, setRemoveTarget] = useState<ServerRow | null>(null);
 
   const go = (next: string, replace = false) => {
@@ -1149,30 +748,22 @@ function McpsPage({ subPath }: { subPath: string }) {
     }
   };
 
-  const addThenOpen = async (work: () => Promise<{ id: string; name: string }>, oauth = false) => {
-    setPending("add");
-    const authWindow = oauth ? window.open("about:blank", "_blank") : null;
-    try {
-      const added = await work();
-      toast.success("MCP added");
-      setAddKind(null);
-      refetch();
-      go(detailPath(added.id));
-      if (oauth) {
-        const result = await rpc.call("authenticate", { id: added.id });
-        if (result.url) {
-          if (authWindow) authWindow.location.href = result.url;
-          else window.open(result.url, "_blank", "noopener,noreferrer");
-        } else {
-          authWindow?.close();
-        }
-      }
-    } catch (cause) {
-      authWindow?.close();
-      toast.error(`Failed to add MCP: ${errorText(cause)}`);
-    } finally {
-      setPending(null);
-    }
+  const createViaChat = (prompt?: string) => {
+    nav.toCompose({ focusPrompt: true, initialPrompt: prompt ?? CREATE_MCP_PROMPT });
+  };
+
+  const editInChat = (server: ServerRow) => {
+    nav.toCompose({
+      focusPrompt: true,
+      initialPrompt: buildMcpEditThreadPrompt({ name: server.name, id: server.id, handle: server.handle }),
+    });
+  };
+
+  const saveGuide = (id: string, guide: string | null) => {
+    void run(`guide:${id}`, async () => {
+      await rpc.call("setGuide", { id, guide });
+      toast.success(guide === null ? "Guide cleared" : "Guide saved");
+    });
   };
 
   const removeMcp = () => {
@@ -1220,6 +811,8 @@ function McpsPage({ subPath }: { subPath: string }) {
           onEnabledChange={(id, enabled) => void run(`enable:${id}`, () => rpc.call("setEnabled", { id, enabled }))}
           onRemove={setRemoveTarget}
           onAuth={authenticate}
+          onEditInChat={editInChat}
+          onSaveGuide={saveGuide}
         />
         <RemoveDialog
           name={removeTarget?.name ?? null}
@@ -1234,45 +827,22 @@ function McpsPage({ subPath }: { subPath: string }) {
   return (
     <PageShell fill>
       {error ? <p role="alert" className="mb-4 text-sm text-destructive">{error}</p> : null}
+      <ProviderGuardNotice />
       <CollectionChrome
-        tab={route.tab}
-        installedCount={servers?.length}
-        onTabChange={(tab) => go(tab === "browse" ? "browse" : "")}
-        actions={<NewMcpButton onPick={setAddKind} />}
+        actions={<ResourceCreateButton label="New MCP" templates={MCP_CREATE_TEMPLATES} onCreate={createViaChat} />}
       >
-        {route.tab === "browse" ? (
-          <BrowsePane pending={pending !== null} onAdd={(name) => void addThenOpen(() => rpc.call("addFromRegistry", { name }), true)} />
-        ) : (
-          <InstalledList
-            servers={servers}
-            pending={pending}
-            onOpen={(id) => go(detailPath(id))}
-            onEnabledChange={(id, enabled) => void run(`enable:${id}`, () => rpc.call("setEnabled", { id, enabled }))}
-          />
-        )}
+        <InstalledList
+          servers={servers}
+          pending={pending}
+          onOpen={(id) => go(detailPath(id))}
+          onEnabledChange={(id, enabled) => void run(`enable:${id}`, () => rpc.call("setEnabled", { id, enabled }))}
+        />
       </CollectionChrome>
-      <AddFormDialog
-        kind={addKind}
-        pending={pending !== null}
-        onOpenChange={(open) => { if (!open) setAddKind(null); }}
-        onSubmitUrl={(input) => void addThenOpen(() => rpc.call("addManual", {
-          name: input.name,
-          type: input.sse ? "sse" : "streamable-http",
-          url: input.url,
-          ...(input.headers ? { headers: input.headers } : {}),
-        }), true)}
-        onSubmitCommand={(input) => void addThenOpen(() => rpc.call("addManual", {
-          name: input.name,
-          type: "stdio",
-          command: input.command,
-          args: input.args,
-        }))}
-      />
       <RemoveDialog
         name={removeTarget?.name ?? null}
         pending={pending !== null}
         onOpenChange={(open) => { if (!open) setRemoveTarget(null); }}
-          onConfirm={removeMcp}
+        onConfirm={removeMcp}
       />
     </PageShell>
   );
@@ -1287,4 +857,5 @@ export default definePluginApp((app) => {
     component: McpsPage,
     headerContent: HeaderCrumbs,
   });
+  app.slots.pendingInteraction({ id: APPROVAL_RENDERER_ID, component: McpApprovalInteraction });
 });

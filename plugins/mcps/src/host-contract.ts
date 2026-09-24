@@ -23,6 +23,20 @@ const stdioConfigSchema = z.object({
 
 const operationSchema = z.object({ key: serverKeySchema }).strict();
 
+const providerMcpEntrySchema = z.object({ name: z.string(), file: z.string(), scope: z.string() }).strict();
+
+export const providerMcpStatusSchema = z.object({
+  claude: z.object({
+    settingsPath: z.string(),
+    connectorsDisabled: z.boolean(),
+    mcpServers: z.array(providerMcpEntrySchema),
+  }).strict(),
+  codex: z.object({
+    configPath: z.string(),
+    mcpServers: z.array(providerMcpEntrySchema),
+  }).strict(),
+}).strict();
+
 export const mcpHostContract = defineRpcContract({
   start: {
     input: stdioConfigSchema,
@@ -68,6 +82,14 @@ export const mcpHostContract = defineRpcContract({
   setLoggingLevel: {
     input: z.object({ key: serverKeySchema, level: z.string().min(1).max(32) }).strict(),
     output: z.object({ updated: z.boolean() }).strict(),
+  },
+  providerMcpStatus: {
+    input: z.object({ projectPath: z.string().min(1).max(16_384).optional() }).strict(),
+    output: providerMcpStatusSchema,
+  },
+  providerMcpFix: {
+    input: z.object({ projectPath: z.string().min(1).max(16_384).optional() }).strict(),
+    output: providerMcpStatusSchema,
   },
 });
 

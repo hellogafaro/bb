@@ -5,19 +5,25 @@ import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { McpsStore } from "./src/store.js";
 import { McpGateway, slug, type McpStdioCatalog, type McpStdioHost } from "./src/gateway.js";
-import { mcpHostContract, mcpHostSignals } from "./src/host-contract.js";
+import { mcpHostContract, mcpHostSignals, providerMcpStatusSchema } from "./src/host-contract.js";
 import { DeferredOAuthCredentialStore, McpOAuthProvider, type OAuthCredentialRecord } from "./src/oauth.js";
 import { oauthRedirectBase, serverAccessPublicUrl, serverAppUrl } from "./src/oauth-redirect.js";
 import { parseHeaderLines, validateMcpServer } from "./src/loader.js";
 import { ensureDir, rimraf } from "./src/safe-fs.js";
 import { boundText, boundJson, formatMcpResult, SCHEMA_INLINE_CHARS, scoreMatch, SEARCH_LIMIT, SEARCH_MAX, writeArtifact } from "./src/catalog.js";
 import { validateCallArgs } from "./src/call-card.js";
-import { classifyTool } from "./src/policy.js";
+import { classifyTool, effectivePolicy, formatPolicyRows, isPolicyMode, POLICY_MODES, type PolicyMode } from "./src/policy.js";
+import { McpApprovals, type CallScope } from "./src/approvals.js";
+import { formatProviderStatus, providerGuardIssues } from "./src/provider-guard.js";
+import { connectedInstructions, threadServerSelection } from "./src/context.js";
 import { fetchRegistryServers, normalizeRegistryServer, OFFICIAL_REGISTRY, type RegistryServerSummary } from "./src/registry.js";
-import type { JsonRecord, McpServerType, McpSourceKind } from "./src/types.js";
+import type { JsonRecord, McpServerType, McpSourceKind, ToolRisk } from "./src/types.js";
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 const sourceIdSchema = z.string().min(1).max(128);
+const GUIDE_INPUT_MAX_CHARS = 4000;
+const WARMUP_ON_START_MS = 1_000;
+const WARMUP_AFTER_CHANGE_MS = 250;
 
 const compactServerSchema = z.object({
   id: z.string(),
@@ -38,18 +44,7 @@ const compactServerSchema = z.object({
   toolCount: z.number().int().nullable(),
   promptCount: z.number().int().nullable(),
   resourceCount: z.number().int().nullable(),
-}).strict();
-
-const registryHitSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  version: z.string(),
-  status: z.string(),
-  installable: z.boolean(),
-  sourceRef: z.string().nullable(),
-  type: z.string().nullable(),
-  remote: z.boolean(),
-  requiredHeaders: z.array(z.string()),
+  guide: z.string().nullable(),
 }).strict();
 
 const compactToolSchema = z.object({
@@ -75,38 +70,23 @@ const compactToolSchema = z.object({
   }).optional(),
 }).strict();
 
+const policyModeSchema = z.enum(["inherit", "allow", "confirm", "deny"]);
+
+const toolPolicySchema = z.object({
+  tool: z.string(),
+  risk: z.enum(["read", "write", "destructive"]),
+  mode: policyModeSchema,
+  policy: z.enum(["allow", "confirm", "deny"]),
+}).strict();
+
+const providerStatusSchema = z.object({
+  hostId: z.string(),
+  status: providerMcpStatusSchema,
+  issues: z.array(z.object({ provider: z.enum(["claude", "codex"]), message: z.string() }).strict()),
+}).strict();
+
 export const rpcContract = defineRpcContract({
   snapshot: { input: z.null(), output: z.object({ servers: z.array(compactServerSchema) }).strict() },
-  registrySearch: {
-    input: z.object({
-      query: z.string().trim().min(1).max(200),
-      limit: z.number().int().min(1).max(30).optional(),
-      remoteOnly: z.boolean().optional(),
-      cursor: z.string().max(2000).optional(),
-    }).strict(),
-    output: z.object({ servers: z.array(registryHitSchema), nextCursor: z.string().nullable() }).strict(),
-  },
-  addFromRegistry: {
-    input: z.object({
-      name: z.string().min(1).max(200),
-      headers: z.record(z.string(), z.string()).optional(),
-      headerLines: z.array(z.string().max(4096)).max(32).optional(),
-    }).strict(),
-    output: z.object({ id: z.string(), handle: z.string(), name: z.string() }).strict(),
-  },
-  addManual: {
-    input: z.object({
-      name: z.string().trim().min(1).max(120),
-      type: z.enum(["stdio", "streamable-http", "sse"]),
-      command: z.string().max(1024).optional(),
-      args: z.array(z.string().max(1024)).max(64).optional(),
-      cwd: z.string().max(16_384).optional(),
-      url: z.string().max(2048).optional(),
-      headers: z.record(z.string(), z.string()).optional(),
-      headerLines: z.array(z.string().max(4096)).max(32).optional(),
-    }).strict(),
-    output: z.object({ id: z.string(), handle: z.string(), name: z.string() }).strict(),
-  },
   remove: { input: z.object({ id: sourceIdSchema }).strict(), output: z.object({ deleted: z.boolean() }).strict() },
   approve: { input: z.object({ id: sourceIdSchema }).strict(), output: z.object({ approved: z.boolean() }).strict() },
   setEnabled: { input: z.object({ id: sourceIdSchema, enabled: z.boolean() }).strict(), output: z.object({ enabled: z.boolean(), status: z.string() }).strict() },
@@ -129,6 +109,26 @@ export const rpcContract = defineRpcContract({
   inspectServer: {
     input: z.object({ id: sourceIdSchema }).strict(),
     output: z.object({ tools: z.array(compactToolSchema), error: z.string().nullable() }).strict(),
+  },
+  setGuide: {
+    input: z.object({ id: sourceIdSchema, guide: z.string().max(GUIDE_INPUT_MAX_CHARS).nullable() }).strict(),
+    output: z.object({ id: z.string(), handle: z.string(), guide: z.string().nullable() }).strict(),
+  },
+  listToolPolicies: {
+    input: z.object({ id: sourceIdSchema }).strict(),
+    output: z.object({ tools: z.array(toolPolicySchema) }).strict(),
+  },
+  setToolPolicy: {
+    input: z.object({ id: sourceIdSchema, tool: z.string().min(1).max(512), mode: policyModeSchema }).strict(),
+    output: toolPolicySchema,
+  },
+  providerStatus: {
+    input: z.object({ hostId: z.string().min(1).max(128).optional() }).strict(),
+    output: providerStatusSchema,
+  },
+  providerFix: {
+    input: z.object({ hostId: z.string().min(1).max(128).optional() }).strict(),
+    output: providerStatusSchema,
   },
 });
 
@@ -190,7 +190,10 @@ export default async function plugin(bb: BbPluginApi) {
     throw new Error("dataDir unavailable");
   };
 
+  let warmTimer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
   async function publishChanged(payload: Record<string, unknown>): Promise<void> {
+    if (payload.kind !== "mcp-runtime") scheduleWarmup(WARMUP_AFTER_CHANGE_MS);
     try { await bb.realtime.publish("mcps-changed", payload); }
     catch (error) { bb.log.warn(`[mcps] realtime publish failed: ${errorText(error)}`); }
   }
@@ -293,8 +296,11 @@ export default async function plugin(bb: BbPluginApi) {
       return mcpHostClient.experimental_onSignal("connectionChanged", ({ payload }) => handler(payload.key, payload.status, payload.error));
     },
   };
+  const approvals = new McpApprovals(bb.ui, bb.log);
+  const serverHandle = (pluginId: string): string => store.getPlugin(pluginId) ? store.identity(pluginId).handle : pluginId;
   const gateway = new McpGateway(store, bb.log, {
     onChanged: () => publishChanged({ kind: "mcp-runtime" }),
+    onElicitation: (request, pluginId, serverId) => approvals.elicit(request, `${pluginId}:${serverId}`, serverHandle(pluginId)),
     stdioHost,
     oauth: {
       async getProvider(pluginId, serverId, serverUrl) {
@@ -419,6 +425,7 @@ export default async function plugin(bb: BbPluginApi) {
         registryName: source?.registryName ?? null,
         registryVersion: source?.registryVersion ?? null,
         configJson: redactMcpConfigJson(server?.configJson ?? "{}"),
+        guide: store.getGuide(item.id),
       };
     }));
     return { servers };
@@ -514,13 +521,61 @@ export default async function plugin(bb: BbPluginApi) {
     return { enabled: next.enabled === 1, status: store.getServer(source.id, server.serverId)?.status ?? next.status };
   }
 
-  async function invokeTool(opaqueId: string, args: JsonRecord, signal?: AbortSignal) {
+  function policyRow(tool: string, mode: PolicyMode, risk: ToolRisk) {
+    return { tool, risk, mode, policy: effectivePolicy(mode, risk) };
+  }
+
+  async function listPolicies(id: string) {
+    const { source, server } = await requireSource(id);
+    const { tools } = await gateway.inspectServer(source.id);
+    const stored = store.listToolPolicies(source.id, server.serverId);
+    if (tools.length === 0) return stored.map((row) => policyRow(row.toolName, row.mode, row.risk));
+    const modes = new Map(stored.map((row) => [row.toolName, row.mode]));
+    return tools.map((tool) => policyRow(tool.name, modes.get(tool.name) ?? "inherit", tool.risk)).sort((a, b) => a.tool.localeCompare(b.tool));
+  }
+
+  async function setPolicy(id: string, tool: string, mode: PolicyMode) {
+    const { source, server } = await requireSource(id);
+    if (!store.getToolPolicy(source.id, server.serverId, tool)) await gateway.inspectServer(source.id);
+    const next = store.setToolPolicyMode(source.id, server.serverId, tool, mode);
+    if (!next) throw new Error(`Tool not found on ${serverHandle(source.id)}: ${tool}`);
+    await publishChanged({ kind: "policy", id: source.id, tool });
+    return policyRow(next.toolName, next.mode, next.risk);
+  }
+
+  async function providerStatus(method: "providerMcpStatus" | "providerMcpFix", hostId?: string, projectPath?: string) {
+    const target = hostId ?? await getMcpHostId();
+    const status = providerMcpStatusSchema.parse(await mcpHostClient.call(method, projectPath ? { projectPath } : {}, { hostId: target }));
+    return { hostId: target, status, issues: providerGuardIssues(status) };
+  }
+
+  function scheduleWarmup(delayMs: number): void {
+    if (disposed) return;
+    if (warmTimer) clearTimeout(warmTimer);
+    warmTimer = setTimeout(() => {
+      warmTimer = null;
+      if (!disposed) void gateway.warm().catch((error) => bb.log.info(`[mcps] warmup failed: ${errorText(error)}`));
+    }, delayMs);
+    warmTimer.unref?.();
+  }
+
+  async function invokeTool(opaqueId: string, args: JsonRecord, scope: CallScope = { threadId: null }) {
     const tool = gateway.peekTool(opaqueId) ?? await gateway.getTool(opaqueId);
     const invalid = validateCallArgs(tool.inputSchema, args);
     if (invalid) {
       return { isError: true, error: `Invalid arguments for ${tool.name}: ${invalid}` };
     }
-    return gateway.call(opaqueId, args, signal);
+    const risk = classifyTool(tool.annotations);
+    const policy = effectivePolicy(store.getToolPolicy(tool.pluginId, tool.serverId, tool.name)?.mode ?? "inherit", risk);
+    const server = serverHandle(tool.pluginId);
+    if (policy === "deny") {
+      return { isError: true, error: `${server}/${tool.name} is blocked by the user's MCP policy (deny); the tool was not run. Ask the user if it should be allowed.` };
+    }
+    if (policy === "confirm") {
+      const refused = await approvals.confirmTool({ scope, server, tool: tool.name, risk, args });
+      if (refused) return { isError: true, error: refused };
+    }
+    return approvals.runCall(`${tool.pluginId}:${tool.serverId}`, scope, () => gateway.call(opaqueId, args, scope.signal));
   }
 
   bb.http.route("GET", "/oauth/callback", async (context) => {
@@ -538,25 +593,18 @@ export default async function plugin(bb: BbPluginApi) {
     }
   });
 
+  async function writeGuide(id: string, guide: string | null) {
+    const source = store.resolveSource(id);
+    if (!source) throw new Error(`MCP server not found: ${id}`);
+    if (guide !== null && guide.length > GUIDE_INPUT_MAX_CHARS) throw new Error(`Guide is longer than ${GUIDE_INPUT_MAX_CHARS} characters`);
+    const next = guide?.trim() || null;
+    store.setGuide(source.id, next);
+    await publishChanged({ kind: "guide", id: source.id });
+    return { ...store.identity(source.id), guide: next };
+  }
+
   bb.rpc.register(rpcContract, {
     snapshot: () => buildSnapshot(),
-    async registrySearch({ query, limit, remoteOnly, cursor }) { return registryPage(query, limit ?? 12, remoteOnly === true, cursor); },
-    addFromRegistry: ({ name, headers, headerLines }) => addFromRegistry(name, headersFromInput(headers, headerLines)),
-    async addManual({ name, type, command, args, cwd, url, headers, headerLines }) {
-      const config: Record<string, unknown> = { type };
-      if (type === "stdio") {
-        if (!command) throw new Error("stdio servers need a command");
-        config.command = command;
-        if (args) config.args = args;
-        config.cwd = cwd || "${PLUGIN_DATA}";
-      } else {
-        if (!url) throw new Error("HTTP servers need a url");
-        config.url = url;
-        const httpHeaders = headersFromInput(headers, headerLines);
-        if (httpHeaders) config.headers = httpHeaders;
-      }
-      return addServer({ name, sourceKind: "manual", sourceRef: type === "stdio" ? command : url, type, config });
-    },
     async remove({ id }) {
       const source = store.resolveSource(id);
       if (!source) return { deleted: false };
@@ -604,6 +652,11 @@ export default async function plugin(bb: BbPluginApi) {
       const { source } = await requireSource(id);
       return gateway.inspectServer(source.id);
     },
+    setGuide: ({ id, guide }) => writeGuide(id, guide),
+    async listToolPolicies({ id }) { return { tools: await listPolicies(id) }; },
+    setToolPolicy: ({ id, tool, mode }) => setPolicy(id, tool, mode),
+    providerStatus: ({ hostId }) => providerStatus("providerMcpStatus", hostId),
+    providerFix: ({ hostId }) => providerStatus("providerMcpFix", hostId),
   });
 
   const idField = z.string().min(1).optional().describe("ID from discovery.");
@@ -618,15 +671,20 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   function toolRows(tools: Awaited<ReturnType<McpGateway["searchTools"]>>["tools"]) {
-    return tools.map(tool => ({
-      id: tool.opaqueId,
-      server: tool.pluginId && store.getPlugin(tool.pluginId) ? store.identity(tool.pluginId).handle : tool.serverName,
-      name: tool.name,
-      description: tool.description,
-      ...(tool.risk !== "read" ? { risk: tool.risk } : {}),
-      ...(tool.card ? { input: Object.fromEntries(tool.card.fields.map(field => [field.name + (field.required ? "" : "?"), field.type])) } : { schemaRequired: true }),
-      ...(tool.schemaRequired || tool.card?.truncated || tool.card?.shape.includes("…") || tool.card?.fields.length === 0 && tool.card.shape !== "{}" ? { schemaRequired: true } : {}),
-    }));
+    return tools.map(tool => {
+      const mode = tool.pluginId ? store.getToolPolicy(tool.pluginId, tool.serverId, tool.name)?.mode : undefined;
+      const policy = effectivePolicy(mode ?? "inherit", tool.risk);
+      return {
+        id: tool.opaqueId,
+        server: tool.pluginId && store.getPlugin(tool.pluginId) ? store.identity(tool.pluginId).handle : tool.serverName,
+        name: tool.name,
+        description: tool.description,
+        ...(tool.risk !== "read" ? { risk: tool.risk } : {}),
+        ...(policy !== "allow" ? { policy } : {}),
+        ...(tool.card ? { input: Object.fromEntries(tool.card.fields.map(field => [field.name + (field.required ? "" : "?"), field.type])) } : { schemaRequired: true }),
+        ...(tool.schemaRequired || tool.card?.truncated || tool.card?.shape.includes("…") || tool.card?.fields.length === 0 && tool.card.shape !== "{}" ? { schemaRequired: true } : {}),
+      };
+    });
   }
 
   async function serverRows(details = false) {
@@ -647,11 +705,11 @@ export default async function plugin(bb: BbPluginApi) {
     }));
   }
 
-  const toolNames = ["mcps_servers", "mcps_search", "mcps_schema", "mcps_call", "mcps_prompts", "mcps_get_prompt", "mcps_resources", "mcps_read_resource"] as const;
+  const toolNames = ["mcp_servers", "mcp_search", "mcp_schema", "mcp_call", "mcp_prompts", "mcp_get_prompt", "mcp_resources", "mcp_read_resource"] as const;
   bb.agents.registerTool({
-    name: "mcps_servers",
+    name: "mcp_servers",
     description: "List installed MCPs with stable IDs, handles, status and known tool counts. Paginated; details opt-in.",
-    instructions: "Use only to inspect installed servers, status, or handles. mcps_search does not require this first.",
+    instructions: "Use only to inspect installed servers, status, or handles. mcp_search does not require this first.",
     presentation: { label: { pending: "Listing MCP servers", completed: "Listed MCP servers" } },
     parameters: z.object({
       query: z.string().max(200).optional(),
@@ -671,9 +729,9 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_search",
+    name: "mcp_search",
     description: "Search MCP tools directly; returns id, server handle, description and input fields (? optional, dots nested). Default 5 results; optional limit is capped at 12.",
-    instructions: "Do not list servers first. Search a short capability phrase, optionally filtering by a known server ID or handle. Do not repeat an unchanged query after it succeeds. Usually omit limit; oversized values are capped. Call by id. Request mcps_schema only for missing constraints or schemaRequired results.",
+    instructions: "Do not list servers first. Search a short capability phrase, optionally filtering by a known server ID or handle. Do not repeat an unchanged query after it succeeds. Usually omit limit; oversized values are capped. Call by id. Request mcp_schema only for missing constraints or schemaRequired results.",
     presentation: { label: { pending: "Searching MCP tools", completed: "Searched MCP tools" } },
     parameters: z.object({
       query: z.string().trim().min(1).max(200),
@@ -686,7 +744,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_schema",
+    name: "mcp_schema",
     description: "Get one tool's full description and input schema by id. Large schemas are saved as artifacts.",
     instructions: "Use when search input is insufficient. Read artifactPath for schemas too large to inline.",
     presentation: { label: { pending: "Loading MCP schema", completed: "Loaded MCP schema" } },
@@ -712,20 +770,20 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_call",
+    name: "mcp_call",
     description: "Call one MCP tool by tool ID. Does not re-list the catalog.",
-    instructions: "Use id from mcps_search. Report the result to the user; the UI may show only a success envelope.",
+    instructions: "Use id from mcp_search. Report the result to the user; the UI may show only a success envelope.",
     presentation: { label: { pending: "Calling MCP tool", completed: "Called MCP tool" } },
     parameters: z.object({
       ...idFields,
       args: jsonRecordSchema.default({}),
     }).passthrough().refine(v => hasId(v, "toolId"), "id is required"),
     async execute(input, ctx) {
-      return agentReply(await invokeTool(readId(input, "toolId"), input.args as JsonRecord, ctx.signal), "call");
+      return agentReply(await invokeTool(readId(input, "toolId"), input.args as JsonRecord, { threadId: ctx.threadId, signal: ctx.signal }), "call");
     },
   });
   bb.agents.registerTool({
-    name: "mcps_prompts",
+    name: "mcp_prompts",
     description: "Search compact MCP prompts. Pass query; default 5 hits.",
     presentation: { label: { pending: "Searching MCP prompts", completed: "Searched MCP prompts" } },
     parameters: z.object({ query: z.string().trim().max(200).optional(), server: z.string().max(128).optional() }).strict(),
@@ -744,9 +802,9 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_get_prompt",
+    name: "mcp_get_prompt",
     description: "Get one MCP prompt by prompt ID.",
-    instructions: "Use id from mcps_prompts.",
+    instructions: "Use id from mcp_prompts.",
     presentation: { label: { pending: "Getting MCP prompt", completed: "Got MCP prompt" } },
     parameters: z.object({ ...idFields, args: jsonRecordSchema.default({}) }).passthrough().refine(v => hasId(v, "promptId"), "id is required"),
     async execute(input, ctx) {
@@ -754,7 +812,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_resources",
+    name: "mcp_resources",
     description: "Search compact MCP resources. Pass query; default 5 hits.",
     presentation: { label: { pending: "Searching MCP resources", completed: "Searched MCP resources" } },
     parameters: z.object({ query: z.string().trim().max(200).optional(), server: z.string().max(128).optional() }).strict(),
@@ -770,17 +828,17 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
   bb.agents.registerTool({
-    name: "mcps_read_resource",
+    name: "mcp_read_resource",
     description: "Read one MCP resource by resource ID.",
-    instructions: "Use id from mcps_resources.",
+    instructions: "Use id from mcp_resources.",
     presentation: { label: { pending: "Reading MCP resource", completed: "Read MCP resource" } },
     parameters: z.object(idFields).passthrough().refine(v => hasId(v, "resourceId"), "id is required"),
     async execute(input, ctx) { return agentReply(await gateway.readResource(readId(input, "resourceId"), ctx.signal), "resource"); },
   });
-  bb.agents.configure(() => ({
-    tools: [...toolNames],
-    skills: [],
-  }));
+  bb.agents.configure((ctx) => {
+    const instructions = connectedInstructions(store.listConnectedSources(), threadServerSelection(ctx.pluginMetadata));
+    return { tools: [...toolNames], skills: [], ...(instructions ? { instructions } : {}) };
+  });
 
   function looksLikeUrl(value: string): boolean {
     return /^https?:\/\//i.test(value);
@@ -801,7 +859,7 @@ export default async function plugin(bb: BbPluginApi) {
       const name = opts.name || before[0];
       const commandArgs = after.length > 0 ? after : before.slice(opts.name ? 0 : 1);
       const commandName = commandArgs[0];
-      if (!name || !commandName) throw new Error("Usage: bb mcps add <name> -- <command> [args...]");
+      if (!name || !commandName) throw new Error("Usage: bb mcp add <name> -- <command> [args...]");
       return addServer({
         name,
         sourceKind: "manual",
@@ -811,7 +869,7 @@ export default async function plugin(bb: BbPluginApi) {
       });
     }
     const source = before.length >= 2 ? before[1]! : before[0];
-    if (!source) throw new Error("Usage: bb mcps add <name> <url|registry-id>");
+    if (!source) throw new Error("Usage: bb mcp add <name> <url|registry-id>");
     const explicitName = opts.name || (before.length >= 2 ? before[0]! : undefined);
     if (looksLikeUrl(source) || opts.sse) {
       const name = explicitName || nameFromSource(source);
@@ -829,38 +887,44 @@ export default async function plugin(bb: BbPluginApi) {
 
   const usage = [
     "Usage:",
-    "  bb mcps list [--details] [--json]",
-    "  bb mcps show <id> [--json]",
-    "  bb mcps add <name> <url> [--header 'Name: value'] [--sse] [--json]",
-    "  bb mcps add <name> <registry-id> [--header 'Name: value'] [--json]",
-    "  bb mcps add <name> -- <command> [args...] [--json]",
-    "  bb mcps registry <query> [--http] [--json]",
-    "  bb mcps tools <query> [--json]",
-    "  bb mcps auth <id> [--json]",
-    "  bb mcps header <id> Name: value [--json]",
-    "  bb mcps enable <id> [--json]",
-    "  bb mcps disable <id> [--json]",
-    "  bb mcps remove <id> [--json]",
-    "  bb mcps call <id> [json-args] [--json]",
+    "  bb mcp list [--details] [--json]",
+    "  bb mcp show <id> [--json]",
+    "  bb mcp add <name> <url> [--header 'Name: value'] [--sse] [--json]",
+    "  bb mcp add <name> <registry-id> [--header 'Name: value'] [--json]",
+    "  bb mcp add <name> -- <command> [args...] [--json]",
+    "  bb mcp registry <query> [--http] [--json]",
+    "  bb mcp tools <query> [--json]",
+    "  bb mcp auth <id> [--json]",
+    "  bb mcp header <id> Name: value [--json]",
+    "  bb mcp enable <id> [--json]",
+    "  bb mcp disable <id> [--json]",
+    "  bb mcp remove <id> [--json]",
+    "  bb mcp call <id> [json-args] [--json]",
+    "  bb mcp guide <id> [text] [--clear] [--json]",
+    "  bb mcp policy <id> [tool] [allow|confirm|deny|inherit] [--json]",
+    "  bb mcp providers [--fix] [--machine <id>] [--path <dir>] [--json]",
   ].join("\n");
 
   bb.cli.register({
-    name: "mcps",
+    name: "mcp",
     summary: "Manage MCP servers for every provider",
     commands: [
-      { name: "list", summary: "List installed MCP servers", usage: "bb mcps list [--details] [--json]" },
-      { name: "show", summary: "Show one MCP server", usage: "bb mcps show <id> [--json]" },
-      { name: "add", summary: "Add an HTTP URL, registry id, or local command", usage: "bb mcps add <name> <url|registry-id>  |  bb mcps add <name> -- <command> [args...]" },
-      { name: "registry", summary: "Search the official MCP Registry", usage: "bb mcps registry <query> [--http] [--json]" },
-      { name: "tools", summary: "Search tools on enabled servers", usage: "bb mcps tools <query> [--json]" },
-      { name: "auth", summary: "Start or inspect OAuth for an HTTP server", usage: "bb mcps auth <id> [--json]" },
-      { name: "header", summary: "Set HTTP headers on a cloud server", usage: "bb mcps header <id> Name: value [--json]" },
-      { name: "enable", summary: "Enable a server", usage: "bb mcps enable <id> [--json]" },
-      { name: "disable", summary: "Disable a server", usage: "bb mcps disable <id> [--json]" },
-      { name: "remove", summary: "Remove a server", usage: "bb mcps remove <id> [--json]" },
-      { name: "call", summary: "Call one MCP tool by tool ID", usage: "bb mcps call <id> [json-args] [--json]" },
+      { name: "list", summary: "List installed MCP servers", usage: "bb mcp list [--details] [--json]" },
+      { name: "show", summary: "Show one MCP server", usage: "bb mcp show <id> [--json]" },
+      { name: "add", summary: "Add an HTTP URL, registry id, or local command", usage: "bb mcp add <name> <url|registry-id>  |  bb mcp add <name> -- <command> [args...]" },
+      { name: "registry", summary: "Search the official MCP Registry", usage: "bb mcp registry <query> [--http] [--json]" },
+      { name: "tools", summary: "Search tools on enabled servers", usage: "bb mcp tools <query> [--json]" },
+      { name: "auth", summary: "Start or inspect OAuth for an HTTP server", usage: "bb mcp auth <id> [--json]" },
+      { name: "header", summary: "Set HTTP headers on a cloud server", usage: "bb mcp header <id> Name: value [--json]" },
+      { name: "enable", summary: "Enable a server", usage: "bb mcp enable <id> [--json]" },
+      { name: "disable", summary: "Disable a server", usage: "bb mcp disable <id> [--json]" },
+      { name: "remove", summary: "Remove a server", usage: "bb mcp remove <id> [--json]" },
+      { name: "call", summary: "Call one MCP tool by tool ID", usage: "bb mcp call <id> [json-args] [--json]" },
+      { name: "guide", summary: "Show, set, or clear the agent guide for a server", usage: "bb mcp guide <id> [text] [--clear] [--json]" },
+      { name: "policy", summary: "List or set per-tool call policies", usage: "bb mcp policy <id> [tool] [allow|confirm|deny|inherit] [--json]" },
+      { name: "providers", summary: "Check that Claude Code and Codex load no MCPs of their own", usage: "bb mcp providers [--fix] [--machine <id>] [--path <dir>] [--json]" },
     ],
-    async run(argv) {
+    async run(argv, ctx) {
       const asJson = argv.includes("--json");
       const args = argv.filter((item) => item !== "--json");
       const [command, ...rest] = args;
@@ -903,7 +967,7 @@ export default async function plugin(bb: BbPluginApi) {
           case "ls": {
             const rows = await serverRows(rest.includes("--details"));
             return reply(rows, rows.length === 0
-              ? "No MCP servers. Try: bb mcps registry notion"
+              ? "No MCP servers. Try: bb mcp registry notion"
               : rows.map((item) => `${item.id}  ${item.handle}  ${item.type}  ${item.status}`).join("\n"));
           }
           case "show": {
@@ -922,6 +986,7 @@ export default async function plugin(bb: BbPluginApi) {
               item.sourceRef ? `source: ${item.sourceRef}` : null,
               item.registryName ? `registry: ${item.registryName}` : null,
               item.lastError ? `error: ${item.lastError}` : null,
+              item.guide ? `guide: ${item.guide}` : null,
             ].filter(Boolean).join("\n"));
           }
           case "registry":
@@ -996,6 +1061,54 @@ export default async function plugin(bb: BbPluginApi) {
             if (unavailable.length > 0) lines.push(`unavailable: ${unavailable.join("; ")}`);
             return reply({ tools: toolRows(tools), ...(unavailable.length ? { unavailable } : {}) }, lines.length === 0 ? "No matching tools." : lines.join("\n"));
           }
+          case "guide": {
+            const id = rest[0];
+            if (!id) break;
+            const clear = rest.includes("--clear");
+            const text = rest.slice(1).filter((item) => item !== "--clear").join(" ").trim();
+            if (clear && text) return { exitCode: 2, stderr: "Pass guide text or --clear, not both\n" };
+            if (!clear && !text) {
+              const source = store.resolveSource(id);
+              if (!source) return { exitCode: 1, stderr: `not found: ${id}\n` };
+              const guide = store.getGuide(source.id);
+              return reply({ ...store.identity(source.id), guide }, guide ?? `No guide for ${store.identity(source.id).handle}.`);
+            }
+            const result = await writeGuide(id, clear ? null : text);
+            return reply(result, result.guide === null ? `Cleared guide for ${result.handle}` : `Updated guide for ${result.handle}`);
+          }
+          case "policy": {
+            const [id, tool, mode, extra] = rest;
+            if (!id || extra !== undefined) break;
+            if (!tool) {
+              const rows = await listPolicies(id);
+              return reply(rows, rows.length === 0 ? "No tools reported yet." : formatPolicyRows(rows));
+            }
+            if (!mode) {
+              const row = (await listPolicies(id)).find((item) => item.tool === tool);
+              if (!row) return { exitCode: 1, stderr: `Tool not found on ${id}: ${tool}\n` };
+              return reply(row, formatPolicyRows([row]));
+            }
+            if (!isPolicyMode(mode)) return { exitCode: 2, stderr: `mode must be one of: ${POLICY_MODES.join(", ")}\n` };
+            const row = await setPolicy(id, tool, mode);
+            return reply(row, formatPolicyRows([row]));
+          }
+          case "providers": {
+            let machine: string | undefined;
+            let projectPath: string | undefined;
+            let fix = false;
+            for (let i = 0; i < rest.length; i += 1) {
+              const item = rest[i]!;
+              if (item === "--fix") fix = true;
+              else if (item === "--machine" || item === "--path") {
+                const value = rest[i + 1];
+                if (!value) return { exitCode: 2, stderr: `${item} needs a value\n` };
+                if (item === "--machine") machine = value; else projectPath = value;
+                i += 1;
+              } else return { exitCode: 2, stderr: usage + "\n" };
+            }
+            const result = await providerStatus(fix ? "providerMcpFix" : "providerMcpStatus", machine, projectPath ?? (machine ? undefined : ctx.cwd));
+            return reply(result, formatProviderStatus(result, fix));
+          }
           case "call": {
             const opaqueId = rest[0];
             if (!opaqueId) break;
@@ -1004,7 +1117,7 @@ export default async function plugin(bb: BbPluginApi) {
               try { callArgs = JSON.parse(rest.slice(1).join(" ")) as JsonRecord; }
               catch { return { exitCode: 2, stderr: "call args must be JSON object\n" }; }
             }
-            const result = await invokeTool(opaqueId, callArgs);
+            const result = await invokeTool(opaqueId, callArgs, { threadId: ctx.threadId ?? null, ...(ctx.signal ? { signal: ctx.signal } : {}) });
             return reply(result, JSON.stringify(result, null, 2));
           }
         }
@@ -1015,7 +1128,14 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
+  scheduleWarmup(WARMUP_ON_START_MS);
+  void providerStatus("providerMcpStatus").then(({ hostId, issues }) => {
+    for (const issue of issues) bb.log.warn(`[mcps] provider MCP guard on ${hostId}: ${issue.message}`);
+  }, (error) => bb.log.info(`[mcps] provider MCP guard unavailable: ${errorText(error)}`));
+
   bb.onDispose(async () => {
+    disposed = true;
+    if (warmTimer) clearTimeout(warmTimer);
     await gateway.close().catch(() => {});
     oauthCredentialStore.dispose();
     bb.log.info("[mcps] disposed");

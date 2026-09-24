@@ -1,8 +1,8 @@
 # MCPs
 
 Built-in BB plugin that is the MCP registry for every provider: official registry plus
-manual stdio/HTTP servers, exposed as a small lazy catalog (`mcps_search` with
-compact input maps, then `mcps_call`; `mcps_schema` when more detail is needed)
+manual stdio/HTTP servers, exposed as a small lazy catalog (`mcp_search` with
+compact input maps, then `mcp_call`; `mcp_schema` when more detail is needed)
 instead of dumping every schema into context.
 
 Source: `plugins/mcps` in the BB monorepo. The plugin ID is `mcps`;
@@ -14,9 +14,100 @@ pnpm exec turbo run test --filter=bb-plugin-mcps
 bb plugin install builtin:mcps --yes
 ```
 
-CLI: `bb mcps list`, `bb mcps registry <query>`, `bb mcps add <name> <url|registry-id>`,
-`bb mcps auth <id>`, `bb mcps remove <id>`. Adding a server enables it. Tools run as the MCP
-server defines them; no extra confirmation layer.
+CLI: `bb mcp list`, `bb mcp registry <query>`, `bb mcp add <name> <url|registry-id>`,
+`bb mcp auth <id>`, `bb mcp guide <id> [text] [--clear]`, `bb mcp remove <id>`,
+`bb mcp policy <id> [tool] [allow|confirm|deny|inherit]`,
+`bb mcp providers [--fix] [--machine <id>] [--path <dir>]`. Adding a server
+enables it.
+
+The MCPs page lists installed servers and opens a detail page for each (enable,
+authenticate, remove, agent guide, tools). It has no registry browser or add
+forms: **New MCP** opens chat with a prompt that has the agent run `bb mcp
+registry`/`bb mcp add`, and **Edit in chat** prefills a prompt with the server's
+`bb mcp` commands. Core BB renders the Skills | MCPs tabs above the panel; the
+plugin page starts with its list. Registry search and manual adds are CLI-only; the
+`registrySearch`, `addFromRegistry`, and `addManual` RPCs were removed.
+
+The detail page's tool list shows each tool's risk and a policy select (see
+Policies and approvals below).
+
+Agent instructions list enabled servers with their descriptions and guides; see
+`PLUGIN_OVERVIEW.md` for the format and the `servers` thread-metadata key.
+
+## Policies and approvals
+
+Every tool has a risk from its MCP annotations: `readOnlyHint` is `read`,
+`destructiveHint` is `destructive`, anything else is `write`. The first catalog
+load seeds a `tool_policies` row per tool with mode `inherit`; later loads
+update the risk and keep the mode. The effective policy is the explicit mode,
+or for `inherit`, `allow` for read tools and `confirm` for write and
+destructive tools.
+
+`mcp_call` and `bb mcp call` enforce it before contacting the server:
+
+- `allow` runs the tool.
+- `deny` returns an error naming the policy; the tool is not run.
+- `confirm` opens a BB interaction in the calling thread
+  (`bb.ui.requestInput`, renderer `mcp-approval`) showing the server, tool,
+  risk, and arguments (first 4,000 characters). Approve runs the tool; Deny,
+  dismissal, stopping the thread, or 10 minutes without an answer return an
+  error and nothing runs. While it waits, the agent gets BB's waiting notice
+  and the result arrives later as a message. Approvals are logged with the
+  thread ID. A `bb mcp call` without a thread context cannot be approved and
+  returns an error.
+
+`bb mcp policy <id>` lists tools with risk and effective policy (`(default)`
+marks `inherit`); `bb mcp policy <id> <tool>` shows one; adding a mode sets it.
+The same data is available over RPC as `listToolPolicies({ id })` and
+`setToolPolicy({ id, tool, mode })`. `mcp_search` rows carry `policy` when it
+is not `allow`, next to `risk` when it is not `read`.
+
+## Warmup and elicitation
+
+Catalogs for enabled servers load in the background one second after the
+plugin starts and 250 ms after any server change (add, enable, auth, headers,
+policy, guide), so the first `mcp_search` in a thread is usually warm. Warmup
+never blocks startup, skips servers whose catalog is cached, and reuses the
+five-second failure backoff; results are logged at info.
+
+HTTP servers that send `elicitation/create` (form mode) during a tool call get
+a BB interaction in the thread that made the call: one field per string,
+number, integer, boolean, or enum property. Submitted values are type-checked
+against the requested schema before they are returned. Decline, invalid
+answers, a form with an unsupported required field, URL-mode requests, calls
+without a thread, and the 10-minute timeout all answer `decline`; dismissing
+the form answers `cancel`. Host-isolated stdio servers do not advertise
+elicitation. Sampling and roots stay off.
+
+## Provider guard
+
+Claude Code and Codex should use only these MCPs. The host RPC
+`providerMcpStatus` reads, on the target machine:
+
+- `~/.claude/settings.json` (`disableClaudeAiConnectors`),
+- `~/.claude.json` top-level `mcpServers` and `projects.*.mcpServers`
+  (`$CLAUDE_CONFIG_DIR` replaces `~/.claude` and holds `.claude.json` when set),
+- `<path>/.mcp.json` when a path is given,
+- `$CODEX_HOME/config.toml` (default `~/.codex`) `mcp_servers` tables, dotted
+  keys, and inline tables, found with a line scan rather than a TOML parser.
+
+`providerMcpFix` sets `"disableClaudeAiConnectors": true` in
+`~/.claude/settings.json`, creating it if missing and keeping every other key;
+the write goes through a temporary file and a rename. MCP entries are never
+removed automatically.
+
+`bb mcp providers` prints the status for the primary machine (or `--machine
+<id>`), checking `.mcp.json` in `--path` or, without `--machine`, the CLI's
+working directory. Each entry names its file and how to remove it by hand.
+`--fix` applies `providerMcpFix` and prints the new status. The command exits
+0 either way; `--json` includes an `issues` list. The MCPs page shows the same
+issues with a button to disable the connectors, and plugin start logs each
+issue as a warning.
+
+The guard is not wired into `bb.providers.experimental_contributeEnvHealth`.
+That resolver runs only when a provider reports `unauthenticated` or
+`expired`, and a non-null result marks the provider ready. It cannot warn
+about a signed-in provider, and it would hide a real sign-in failure.
 
 ## Reliability checks
 
@@ -47,11 +138,11 @@ remain accepted. Existing storage and OAuth keys are retained internally so this
 migration does not invalidate credentials; `serverId: "mcp"` was the old internal
 connection name, not a global identity.
 
-`mcps_servers` returns 20 entries by default, with a cursor for more. Known zero
+`mcp_servers` returns 20 entries by default, with a cursor for more. Known zero
 tool counts are retained; unknown counts are omitted. Installation metadata,
 empty descriptions and prompt/resource counts are available via `details:true`.
-The management UI and `bb mcps show <id-or-handle>` retain full diagnostics.
-`bb mcps list --json` is compact; `--details` adds diagnostic metadata.
+The management UI and `bb mcp show <id-or-handle>` retain full diagnostics.
+`bb mcp list --json` is compact; `--details` adds diagnostic metadata.
 
 Search emits one input map instead of overlapping shape/field/example objects.
 `?` marks optional fields; dots represent nested argument objects. Common value

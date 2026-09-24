@@ -2,7 +2,7 @@ import type { PluginRpcResult } from '@get-bb/plugin-sdk/app';
 import type { z } from 'zod';
 import type { rpcContract } from '../server';
 
-type ReadMethod = 'snapshot' | 'inspectServer' | 'registrySearch';
+type ReadMethod = 'snapshot' | 'inspectServer';
 export async function readRpc<M extends ReadMethod>(method: M, input: z.input<(typeof rpcContract)[M]["input"]>, signal: AbortSignal): Promise<PluginRpcResult<(typeof rpcContract)[M]>> {
   const response = await fetch(`/api/v1/plugins/mcps/rpc/${method}`, {
     method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },

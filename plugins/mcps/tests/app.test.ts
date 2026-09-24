@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { act, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { loadPluginApp, renderSlot } from '@get-bb/plugin-sdk/testing/app';
+import { buildMcpEditThreadPrompt, CREATE_MCP_PROMPT } from '../lib/prompts';
 
 const app = await loadPluginApp(() => import('../app'));
 const panel = app.navPanels[0]!;
@@ -45,20 +46,6 @@ it('keeps the newest snapshot after out-of-order realtime refreshes and aborts o
   await act(async () => old.resolve({servers: [rows[0]!]}));
   expect(slot.queryByText('alpha')).toBeNull();
 });
-it('discards a slow registry result when typing a newer query, then clearing', async () => {
-  const old = deferred<{servers: unknown[]}>();
-  const hit = (name: string) => ({name, description: '', remote: true, installable: true, requiredHeaders: []});
-  const slot = mount('browse', {snapshot: () => ({servers: []}), registrySearch: ({query}) => query === 'old' ? old.promise : {servers: [hit('new-result')], nextCursor: null}});
-  const input = slot.getByRole('textbox', {name: 'Search the MCP Registry'});
-  fireEvent.change(input, {target: {value: 'old'}});
-  await act(async () => { await new Promise(r => setTimeout(r, 300)); });
-  fireEvent.change(input, {target: {value: 'new'}});
-  await slot.findByText('new-result');
-  await act(async () => old.resolve({servers: [hit('old-result')]}));
-  expect(slot.queryByText('old-result')).toBeNull();
-  fireEvent.change(input, {target: {value: ''}});
-  expect(slot.queryByText('new-result')).toBeNull();
-});
 it('paginates 60 installed servers without hiding matches on later pages', async () => {
   const servers = Array.from({length: 60}, (_, i) => ({...rows[0], id: `server-${i}`, name: `server-${i}`}));
   const slot = mount('', {snapshot: () => ({servers})});
@@ -78,4 +65,41 @@ it('opens existing handle links after stable IDs are introduced', async () => {
   slot.lifecycle.rerender(createElement(panel.component, {subPath: 'installed/mcp_1234567890'}));
   await slot.findByText('echo-0');
   expect(slot.queryByText('That MCP is gone.')).toBeNull();
+});
+
+it('replaces the add dialogs and registry browser with New MCP via chat', async () => {
+  const slot = mount('', {snapshot: () => ({servers: rows})});
+  await slot.findByText('alpha');
+  expect(slot.queryByRole('tab', {name: 'Browse'})).toBeNull();
+  expect(slot.queryByRole('textbox', {name: 'Search the MCP Registry'})).toBeNull();
+  expect(slot.queryByText('From URL')).toBeNull();
+  fireEvent.click(slot.getByRole('button', {name: 'New MCP'}));
+  expect(slot.inspection.navigateCalls.at(-1)).toEqual({method: 'toCompose', options: {focusPrompt: true, initialPrompt: CREATE_MCP_PROMPT}});
+  expect(CREATE_MCP_PROMPT.endsWith('The MCP I want is: ')).toBe(true);
+});
+
+it('routes the retired browse path to the installed list', async () => {
+  const slot = mount('browse', {snapshot: () => ({servers: rows})});
+  await slot.findByText('beta');
+  expect(slot.queryByText('That MCP is gone.')).toBeNull();
+});
+
+it('prefills an edit prompt and saves the agent guide from the detail page', async () => {
+  const server = {...rows[0], id: 'mcp_1234567890', handle: 'alpha', guide: 'Old guide'};
+  const setGuide = vi.fn(() => ({id: server.id, handle: server.handle, guide: 'New guide'}));
+  const slot = mount('installed/alpha', {snapshot: () => ({servers: [server]}), inspectServer: () => catalog('echo'), setGuide});
+  await slot.findByText('echo-0');
+  fireEvent.click(slot.getByRole('button', {name: 'Edit in chat'}));
+  const prompt = buildMcpEditThreadPrompt({name: 'alpha', id: server.id, handle: 'alpha'});
+  expect(slot.inspection.navigateCalls.at(-1)).toEqual({method: 'toCompose', options: {focusPrompt: true, initialPrompt: prompt}});
+  expect(prompt).toContain('bb mcp header alpha');
+  expect(prompt).toContain('bb mcp disable alpha');
+  expect(prompt).toContain('bb mcp remove alpha');
+  const guide = slot.getByRole('textbox', {name: 'Agent guide'}) as HTMLTextAreaElement;
+  expect(guide.value).toBe('Old guide');
+  const save = slot.getByRole('button', {name: 'Save guide'}) as HTMLButtonElement;
+  expect(save.disabled).toBe(true);
+  fireEvent.change(guide, {target: {value: '  New guide  '}});
+  await act(async () => { fireEvent.click(save); });
+  expect(setGuide).toHaveBeenCalledWith({id: server.id, guide: 'New guide'});
 });
