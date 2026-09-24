@@ -12,9 +12,9 @@ export const sidebarFooterOrderAtom = createSyncedPreferenceAtom(
 export const sidebarFooterHiddenAtom = createSyncedPreferenceAtom(
   "sidebar.hiddenFooterItems",
 );
-export const SIDEBAR_FOOTER_MORE_ID = "sidebar-footer-more";
+const RETIRED_FOOTER_ITEM_KEYS = new Set(["plugin:connect/remote-access"]);
 
-export type BuiltinFooterId = "settings" | "report-bug";
+export type BuiltinFooterId = "settings";
 export type FooterItem = { key: string; label: string; icon: string } & (
   | { kind: "builtin"; id: BuiltinFooterId }
   | { kind: "plugin"; slot: PluginSidebarFooterItemSlot }
@@ -38,20 +38,13 @@ export function useSidebarFooterPreferences() {
       label: "Settings",
       icon: "Settings",
     },
-    ...sidebarFooterItems.map((slot): FooterItem => ({
-      kind: "plugin",
-      key: footerPreferenceKey(slot),
-      label: slot.label,
-      icon: slot.icon,
-      slot,
-    })),
-    {
-      kind: "builtin",
-      id: "report-bug",
-      key: "builtin:report-bug",
-      label: "Report a bug",
-      icon: "Bug",
-    },
+    ...sidebarFooterItems.flatMap((slot): FooterItem[] => {
+      const key = footerPreferenceKey(slot);
+      if (RETIRED_FOOTER_ITEM_KEYS.has(key)) return [];
+      return [
+        { kind: "plugin", key, label: slot.label, icon: slot.icon, slot },
+      ];
+    }),
   ];
   const { ordered, normalizedOrder } = arrangeByStoredOrder({
     items,

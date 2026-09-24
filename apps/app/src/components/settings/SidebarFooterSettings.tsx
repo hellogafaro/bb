@@ -29,7 +29,7 @@ export function SidebarFooterSettings() {
   return (
     <SettingsWithControl
       label="Sidebar footer"
-      description="Drag to reorder. Hidden actions remain available in the footer’s More menu."
+      description="Drag to reorder. Hidden actions leave the footer until you show them again."
       controlPlacement="below"
     >
       <div

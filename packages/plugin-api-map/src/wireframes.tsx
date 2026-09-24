@@ -531,7 +531,6 @@ const FOOTER_ITEM_RENDERERS: Record<string, () => ReactNode> = {
       </span>
     </span>
   ),
-  "bug-report": () => <MiniIcon icon="Bug" className="size-4" />,
 };
 
 const SIDEBAR_SECTION_RENDERERS: Record<string, () => ReactNode> = {

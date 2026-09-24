@@ -18,27 +18,9 @@ import {
   usePluginSlots,
   type PluginSidebarFooterItemSlot,
 } from "@/lib/plugin-slots";
-import {
-  getSettingsRoutePath,
-  getPluginConfigurationRoutePath,
-} from "@/lib/route-paths";
-
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@bb/shared-ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@bb/shared-ui/dropdown-menu";
+import { getPluginConfigurationRoutePath } from "@/lib/route-paths";
 import {
   useSidebarFooterPreferences,
-  SIDEBAR_FOOTER_MORE_ID,
   type FooterItem,
   type BuiltinFooterId,
 } from "@/components/sidebar/sidebarFooterPreferences";
@@ -108,10 +90,9 @@ export function usePluginSidebarFooterDisclosure() {
 
   useLayoutEffect(() => {
     if (restoreFocusItem === null || activeItem !== null) return;
-    (
-      document.getElementById(footerTriggerId(restoreFocusItem)) ??
-      document.getElementById(SIDEBAR_FOOTER_MORE_ID)
-    )?.focus({ preventScroll: true });
+    document
+      .getElementById(footerTriggerId(restoreFocusItem))
+      ?.focus({ preventScroll: true });
   }, [activeItem, restoreFocusItem]);
 
   useEffect(() => {
@@ -209,7 +190,6 @@ export function PluginSidebarFooterItems({
       item.kind === "plugin" ||
       builtInActions.some((action) => action.id === item.id),
   );
-  const hidden = items.filter((item) => preferences.hidden.includes(item.key));
   useEffect(() => {
     for (const item of items) {
       if (
@@ -250,10 +230,6 @@ export function PluginSidebarFooterItems({
         }),
     );
   }
-  function customize() {
-    onNavigate?.();
-    void navigate(getSettingsRoutePath("appearance"));
-  }
   return (
     <>
       {items.map((item) =>
@@ -277,115 +253,58 @@ export function PluginSidebarFooterItems({
             footerItemKey(item.slot) === activeDisclosureKey;
           const label = builtin?.ariaLabel ?? item.label;
           return (
-            <ContextMenu key={item.key}>
-              <ContextMenuTrigger asChild>
-                <SidebarMenuItem
-                  className="min-w-0"
-                  data-footer-item={item.key}
-                >
-                  <SidebarMenuButton
-                    asChild={builtin?.href !== undefined}
-                    id={
-                      item.kind === "plugin"
-                        ? footerTriggerId(item.slot)
-                        : `sidebar-footer-${item.id}`
+            <SidebarMenuItem
+              key={item.key}
+              className="min-w-0"
+              data-footer-item={item.key}
+            >
+              <SidebarMenuButton
+                asChild={builtin?.href !== undefined}
+                id={
+                  item.kind === "plugin"
+                    ? footerTriggerId(item.slot)
+                    : `sidebar-footer-${item.id}`
+                }
+                aria-label={label}
+                aria-keyshortcuts={builtin?.ariaKeyShortcuts}
+                tooltip={{ children: label, hidden: false, side: "top" }}
+                className={cn(
+                  SIDEBAR_FOOTER_ACTION_CLASS,
+                  active &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground [&>[data-icon-root]]:opacity-100",
+                )}
+                data-testid={
+                  item.kind === "plugin"
+                    ? item.slot.source === "sidebarFooterAction"
+                      ? `plugin-sidebar-footer-action-${item.slot.pluginId}-${item.slot.id}`
+                      : `plugin-sidebar-footer-item-${item.slot.pluginId}-${item.slot.id}`
+                    : undefined
+                }
+                {...(item.kind === "plugin" && item.slot.kind === "disclosure"
+                  ? {
+                      "aria-expanded": active,
+                      "aria-controls": footerDisclosureId(item.slot),
                     }
-                    aria-label={label}
-                    aria-keyshortcuts={builtin?.ariaKeyShortcuts}
-                    tooltip={{ children: label, hidden: false, side: "top" }}
-                    className={cn(
-                      SIDEBAR_FOOTER_ACTION_CLASS,
-                      active &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground [&>[data-icon-root]]:opacity-100",
-                    )}
-                    data-testid={
-                      item.kind === "plugin"
-                        ? item.slot.source === "sidebarFooterAction"
-                          ? `plugin-sidebar-footer-action-${item.slot.pluginId}-${item.slot.id}`
-                          : `plugin-sidebar-footer-item-${item.slot.pluginId}-${item.slot.id}`
-                        : undefined
-                    }
-                    {...(item.kind === "plugin" &&
-                    item.slot.kind === "disclosure"
-                      ? {
-                          "aria-expanded": active,
-                          "aria-controls": footerDisclosureId(item.slot),
-                        }
-                      : {})}
-                    onClick={
-                      builtin?.href === undefined
-                        ? () => activate(item)
-                        : undefined
-                    }
-                  >
-                    {builtin?.href !== undefined ? (
-                      <Link to={builtin.href} onClick={onNavigate}>
-                        <FooterItemIcon item={item} />
-                        <span className="sr-only">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <>
-                        <FooterItemIcon item={item} />
-                        <span className="sr-only">{item.label}</span>
-                      </>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </ContextMenuTrigger>
-              <ContextMenuContent
-                onPointerUpCapture={(event) => {
-                  if (event.button !== 0) event.preventDefault();
-                }}
+                  : {})}
+                onClick={
+                  builtin?.href === undefined ? () => activate(item) : undefined
+                }
               >
-                <ContextMenuItem
-                  onSelect={() => preferences.setVisible(item.key, false)}
-                >
-                  <Icon name="EyeOff" />
-                  Hide
-                </ContextMenuItem>
-                <ContextMenuItem onSelect={customize}>
-                  Customize footer
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+                {builtin?.href !== undefined ? (
+                  <Link to={builtin.href} onClick={onNavigate}>
+                    <FooterItemIcon item={item} />
+                    <span className="sr-only">{item.label}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <FooterItemIcon item={item} />
+                    <span className="sr-only">{item.label}</span>
+                  </>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           );
         })}
-      {hidden.length > 0 ? (
-        <SidebarMenuItem className="min-w-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                id={SIDEBAR_FOOTER_MORE_ID}
-                aria-label="More footer actions"
-                tooltip={{ children: "More", hidden: false, side: "top" }}
-                className={SIDEBAR_FOOTER_ACTION_CLASS}
-              >
-                <Icon name="MoreHorizontal" />
-                <span className="sr-only">More</span>
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="top"
-              align="start"
-              mobileTitle="More footer actions"
-            >
-              {hidden.map((item) => (
-                <DropdownMenuItem
-                  key={item.key}
-                  onSelect={() => activate(item)}
-                >
-                  <FooterItemIcon item={item} />
-                  {item.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={customize}>
-                Customize footer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      ) : null}
     </>
   );
 }

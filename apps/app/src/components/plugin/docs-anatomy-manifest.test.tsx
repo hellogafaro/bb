@@ -205,7 +205,6 @@ describe("docs anatomy manifest", () => {
       settings: () => footer!.querySelector('a[aria-label^="Settings"]'),
       "plugin-footer-items": () =>
         footer!.querySelector('button[aria-label="Anatomy footer action"]'),
-      "bug-report": () => footer!.querySelector('[aria-label^="Report a bug"]'),
     };
     expect(Object.keys(footerSelectors).sort()).toEqual(
       [...manifest.sidebarFooter].sort(),
