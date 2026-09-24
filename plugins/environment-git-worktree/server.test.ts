@@ -155,6 +155,7 @@ describe("worktree resource operations", () => {
             retireAt: null,
             teardown: { status: "removed", attempt: 1 },
           },
+          hostLifecycle: "active",
           environmentProviderSelection: null,
           environmentProviderInstanceKey: THREAD_ID,
           managed: true,

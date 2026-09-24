@@ -35,7 +35,10 @@ import {
   callHostOnlineRpcForWork,
   callHostRetryableOnlineRpc,
 } from "../services/hosts/online-rpc.js";
-import { handleHostRemoved } from "../internal/session-owner-side-effects.js";
+import {
+  handleHostRemoved,
+  settleRemovedHostWork,
+} from "../internal/session-owner-side-effects.js";
 import {
   submitMachine,
   requestMachineRemoval,
@@ -283,13 +286,8 @@ export function registerHostRoutes(
     }
 
     if (host.machineProviderId !== null) {
-      if (!requestMachineRemoval(deps, hostId)) {
-        throw new ApiError(
-          409,
-          "machine_has_live_threads",
-          "Archive or delete every thread on this machine before removing it",
-        );
-      }
+      requestMachineRemoval(deps, hostId);
+      settleRemovedHostWork(deps, { hostId });
       await sweepProviderMachine(deps, hostId);
       return context.json({ ok: true });
     }
@@ -302,6 +300,7 @@ export function registerHostRoutes(
     if (sessionId) {
       handleHostRemoved(deps, { hostId, sessionId });
     }
+    settleRemovedHostWork(deps, { hostId });
     const destroyed = updateHost(deps.db, deps.hub, hostId, {
       destroyedAt: Date.now(),
     });

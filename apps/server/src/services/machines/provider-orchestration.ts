@@ -2,7 +2,12 @@ import { withHostCleanup } from "../hosts/cleanup-context.js";
 import { isServerMachineHost } from "../hosts/primary-host.js";
 import { requestQueuedMachineReadiness } from "../threads/queued-message-dispatch.js";
 import { and, desc, eq } from "drizzle-orm";
-import { createHostId, hostDaemonSessions, hosts } from "@bb/db";
+import {
+  createHostId,
+  hostDaemonSessions,
+  hosts,
+  environments as environmentRows,
+} from "@bb/db";
 import { handleHostRemoved } from "../../internal/session-owner-side-effects.js";
 import type { WorkSessionDeps } from "../../types.js";
 import { maintainMachine } from "./lifecycle.js";
@@ -1090,8 +1095,6 @@ export function requestMachineRemoval(deps: Deps, hostId: string): boolean {
   const row = getHost(deps.db, hostId);
   if (row === null || row.destroyedAt !== null) return false;
   if (row.machineProviderId === null) return false;
-  if (row.phase !== "creating" && machineHasLiveThreads(deps.db, hostId))
-    return false;
   updateHost(deps.db, deps.hub, hostId, {
     phase: "removing",
     machineOperationId:
@@ -1150,7 +1153,25 @@ export async function retryMachineCleanup(
       "Cleanup can only be retried after machine teardown fails",
     );
   }
-  updateHost(deps.db, deps.hub, hostId, { removeRetryAt: Date.now() });
+  for (const environment of deps.db
+    .update(environmentRows)
+    .set({ retireAt: Date.now() })
+    .where(
+      and(
+        eq(environmentRows.hostId, hostId),
+        eq(environmentRows.teardownStatus, "failed"),
+      ),
+    )
+    .returning({ id: environmentRows.id })
+    .all()) {
+    deps.hub.notifyEnvironment(environment.id, ["metadata-changed"]);
+  }
+  updateHost(deps.db, deps.hub, hostId, {
+    removeRetryAt: Date.now(),
+    teardownStatus: "running",
+    statusMessage: null,
+  });
+  deps.hub.notifyHost(hostId, ["host-disconnected"]);
   await sweepProviderMachine(deps, hostId);
 }
 
@@ -1261,6 +1282,7 @@ async function removeMachine(deps: Deps, hostId: string): Promise<void> {
           statusMessage: errorMessage(error),
           removeRetryAt: Date.now() + 60_000,
         });
+        deps.hub.notifyHost(hostId, ["host-disconnected"]);
       }
     },
   });
@@ -1371,7 +1393,28 @@ export async function sweepProviderMachine(
       });
       if (current.length > 0) pendingEnvironment = true;
     }
-    if (pendingEnvironment) return;
+    if (pendingEnvironment) {
+      const failed = deps.db
+        .select()
+        .from(environmentRows)
+        .where(
+          and(
+            eq(environmentRows.hostId, hostId),
+            eq(environmentRows.teardownStatus, "failed"),
+          ),
+        )
+        .limit(1)
+        .get();
+      if (failed) {
+        updateHost(deps.db, deps.hub, hostId, {
+          teardownStatus: "failed",
+          statusMessage: failed.teardownMessage ?? "Environment cleanup failed",
+          removeRetryAt: failed.retireAt ?? Date.now() + 60_000,
+        });
+        deps.hub.notifyHost(hostId, ["host-disconnected"]);
+      }
+      return;
+    }
   }
   if (
     row.teardownStatus === "failed" &&

@@ -1,3 +1,4 @@
+import type { MachineRemovalStatus } from "@/lib/machine-removal-display";
 import { ThreadMachineStatus } from "@/components/promptbox/banner/ThreadMachineStatus";
 import {
   useCallback,
@@ -183,7 +184,7 @@ interface ThreadDetailPromptAreaProps {
   contextWindowUsage?: ThreadTimelineResponse["contextWindowUsage"];
   environmentCheckout?: WorkspaceCheckoutDisplay;
   environmentCompactLabel?: string;
-  environmentGoneStatus: "destroyed" | null;
+  environmentGoneStatus: "destroyed" | MachineRemovalStatus | null;
   environmentHostId?: string;
   environmentHost?: MachineLabelHost;
   environmentMachineProvider?: MachineProviderPresentation | null;
@@ -1095,14 +1096,16 @@ export function ThreadDetailPromptArea({
     ],
   );
   const hasPromptDraftInput = currentPromptDraftInput.length > 0;
-  const canSubmitModifierShortcut = canSubmitFollowUpShortcut({
-    hasPromptDraftInput,
-    isFollowUpSubmitting,
-    isQueueMutationPending,
-    queuedMessageCount: queuedMessages.length,
-    runtimeDisplayStatus,
-    submitModeKind: submitMode.kind,
-  });
+  const canSubmitModifierShortcut =
+    !shouldHideComposer &&
+    canSubmitFollowUpShortcut({
+      hasPromptDraftInput,
+      isFollowUpSubmitting,
+      isQueueMutationPending,
+      queuedMessageCount: queuedMessages.length,
+      runtimeDisplayStatus,
+      submitModeKind: submitMode.kind,
+    });
   const followUpExecutionSelection = useMemo<FollowUpExecutionSelection>(() => {
     if (FORK_AGENT_COMPOSER || !hasConcreteDefaultExecutionOptions) {
       return null;
@@ -1254,6 +1257,7 @@ export function ThreadDetailPromptArea({
       submitOptions: ExperimentalComposerSubmitOptions,
       pluginSubmission: SendMessageRequest["pluginSubmission"],
     ) => {
+      if (shouldHideComposer) throw new Error("This thread is read-only.");
       if (isHandoffSelection) {
         if (effectiveSelectedModel.length === 0) {
           throw new Error("The selected model is still loading.");
@@ -1317,6 +1321,7 @@ export function ThreadDetailPromptArea({
     },
     [
       createHandoffThread,
+      shouldHideComposer,
       effectiveSelectedModel,
       followUpExecutionSelection,
       isDefaultExecutionOptionsLoading,
@@ -1998,8 +2003,8 @@ export function ThreadDetailPromptArea({
           isExpanded={isBackgroundCommandsExpanded}
           onToggle={() => setIsBackgroundCommandsExpanded((value) => !value)}
         />
-        {activePromptModeCard}
-        {activeGoalCard}
+        {shouldHideComposer ? null : activePromptModeCard}
+        {shouldHideComposer ? null : activeGoalCard}
         <ThreadTodoCard
           pendingTodos={
             thread.archivedAt === null && environmentGoneStatus === null

@@ -281,6 +281,7 @@ export {
   getNonDestroyedHost,
   getNonDestroyedHostByLaunchKey,
   listHosts,
+  listHostsByIds,
   listNonDestroyedHostsByIds,
   listPublicHosts,
   updateHost,

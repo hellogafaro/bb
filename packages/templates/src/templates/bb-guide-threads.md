@@ -155,6 +155,7 @@ Listing:
   bb thread list                           List threads
     --project <id>                         Filter by project
     --environment <id>                     Filter by environment
+    --machine <id-or-name>                 Filter by the machine the environment is on (alias --host)
     --parent-thread <id>                   Filter by parent thread
     --status <archived|active>             Filter by lifecycle (defaults to both)
     --snoozed                              Show only threads snoozed into the future

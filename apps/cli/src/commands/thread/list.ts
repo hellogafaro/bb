@@ -9,9 +9,15 @@ import {
   truncateCell,
 } from "../../table.js";
 import { outputJson } from "../helpers.js";
+import {
+  resolveMachineHostId,
+  resolveMachineTargetOption,
+} from "../machine.js";
 
 interface ThreadListCommandOptions {
   environment?: string;
+  machine?: string;
+  host?: string;
   project?: string;
   parentThread?: string;
   status?: string;
@@ -38,6 +44,11 @@ export function registerListCommand(
     .description("List threads")
     .option("--project <id>", "Filter by project ID (defaults to all projects)")
     .option("--environment <id>", "Filter by environment ID")
+    .option(
+      "--machine <id-or-name>",
+      "Filter by machine ID or active machine name",
+    )
+    .option("--host <id-or-name>", "Alias for --machine")
     .option("--parent-thread <id>", "Filter by parent thread ID")
     .option("--section <id>", "Filter by thread section ID")
     .option("--unsectioned", "Show only threads outside sections")
@@ -63,6 +74,19 @@ export function registerListCommand(
           flagName: "--environment",
           value: opts.environment,
         });
+        const machineTarget = resolveMachineTargetOption(opts);
+        const hostId =
+          machineTarget === undefined
+            ? undefined
+            : machineTarget.trim().startsWith("host_")
+              ? resolveExplicitIdFlag({
+                  flagName: "--machine",
+                  value: machineTarget,
+                })
+              : await resolveMachineHostId({
+                  serverUrl: getUrl(),
+                  target: machineTarget,
+                });
         if (opts.section && opts.unsectioned) {
           throw new Error("Cannot combine --section with --unsectioned.");
         }
@@ -74,6 +98,7 @@ export function registerListCommand(
         const threads = await sdk.threads.list({
           ...(projectId ? { projectId } : {}),
           ...(environmentId ? { environmentId } : {}),
+          ...(hostId ? { hostId } : {}),
           ...(parentThreadId ? { parentThreadId } : {}),
           ...(archived === undefined ? {} : { archived }),
           ...(sectionId ? { sectionId } : {}),

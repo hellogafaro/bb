@@ -431,6 +431,7 @@ export function listThreadMentionRowsByIds(
 export interface ListThreadsOptions {
   projectId?: string;
   environmentId?: string;
+  hostId?: string;
   archived?: boolean;
   sectionId?: string;
   unsectioned?: boolean;
@@ -702,6 +703,7 @@ function buildListThreadsFilters(options: ListThreadsOptions) {
     options.environmentId
       ? eq(threads.environmentId, options.environmentId)
       : undefined,
+    options.hostId ? eq(environments.hostId, options.hostId) : undefined,
     options.sectionId ? eq(threads.sectionId, options.sectionId) : undefined,
     options.unsectioned ? isNull(threads.sectionId) : undefined,
     options.snoozeFilter === undefined
