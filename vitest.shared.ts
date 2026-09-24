@@ -322,6 +322,7 @@ export function defineWorkspaceTestConfig(
           fileURLToPath(new URL("./vitest.global-tmpdir.ts", import.meta.url)),
         ],
         sequence: { sequencer: SharedWorkerSequencer },
+        maxWorkers: 2,
         coverage: {
           provider: "v8",
           include: ["**/*.{ts,tsx,js,jsx,mjs,cjs}"],
