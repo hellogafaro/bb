@@ -11,7 +11,6 @@ import type {
   ExperimentalSidebarNavigationItem,
 } from "@get-bb/plugin-sdk";
 import { useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@bb/shared-ui/lib/utils";
 import {
   useAppCommandRunner,
   useAppCommandShortcut,
@@ -234,9 +233,6 @@ export function SidebarNavigationRegion(props: BuiltInSidebarNavigationProps) {
     <nav
       aria-label="Sidebar navigation"
       data-testid="sidebar-navigation-region"
-      className={cn(
-        props.compactCustomizeMode && "flex min-h-0 flex-1 flex-col",
-      )}
     >
       <PluginReplacementSlot
         replacement={replacement}

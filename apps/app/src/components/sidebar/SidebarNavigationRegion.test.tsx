@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { useEffect, useState, type MouseEventHandler } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -38,17 +38,11 @@ vi.mock("@/components/plugin/PluginNavSidebarItems", () => ({
   PluginNavSidebarItems: ({
     builtInEntries = [],
   }: {
-    builtInEntries?: Array<{
-      id: string;
-      title: string;
-      onActivate: MouseEventHandler<HTMLButtonElement>;
-    }>;
+    builtInEntries?: Array<{ id: string; content: ReactNode }>;
   }) => (
     <div>
       {builtInEntries.map((entry) => (
-        <button key={entry.id} type="button" onClick={entry.onActivate}>
-          {entry.title}
-        </button>
+        <div key={entry.id}>{entry.content}</div>
       ))}
     </div>
   ),

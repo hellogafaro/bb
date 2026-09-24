@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@bb/shared-ui/lib/utils";
 import { THREAD_JUMP_APP_COMMAND_IDS } from "@bb/domain";
 import { useNavigate } from "react-router-dom";
 import { OverflowFade } from "@/components/ui/overflow-fade.js";
@@ -9,7 +8,6 @@ import {
   SidebarFooter,
   SidebarMenu,
   useCloseMobileSidebar,
-  useSidebar,
 } from "@/components/ui/sidebar.js";
 import { PluginThreadList } from "./PluginThreadList";
 import { useThreadListReplacement } from "./threadListProvider";
@@ -67,8 +65,6 @@ export function AppSidebar({
     label: "New thread",
   });
   const closeOnMobile = useCloseMobileSidebar();
-  const { isCompactViewport, openMobile } = useSidebar();
-  const [compactCustomizeMode, setCompactCustomizeMode] = useState(false);
   const [threadShortcutKeysById, setThreadShortcutKeysById] = useState<
     ReadonlyMap<string, SidebarThreadShortcutPresentation>
   >(EMPTY_SIDEBAR_THREAD_SHORTCUT_KEYS);
@@ -154,13 +150,6 @@ export function AppSidebar({
   );
 
   const isHiddenHostedBody = mobileHosted?.hidden === true;
-  const isCompactCustomizeModeActive =
-    isCompactViewport && compactCustomizeMode;
-  useEffect(() => {
-    if (!isCompactViewport || !openMobile || isHiddenHostedBody) {
-      setCompactCustomizeMode(false);
-    }
-  }, [isCompactViewport, isHiddenHostedBody, openMobile]);
   const activateVisibleThreadShortcut = useCallback(
     (index: number) =>
       isHiddenHostedBody ? false : activateThreadShortcut(index),
@@ -189,27 +178,13 @@ export function AppSidebar({
     <AppCommandShortcutHintScope>
       <SidebarTopReserveRow testId="app-sidebar-top-reserve-row" />
       <SidebarNavigationRegion
-        compactCustomizeMode={isCompactCustomizeModeActive}
-        onCompactCustomizeModeChange={setCompactCustomizeMode}
         onNavigate={closeOnMobile}
         splitEnabled
         newThreadSplit={newThreadSplit}
         onNewChat={handleNewChat}
         onSearchThreads={closeOnMobile}
       />
-      <div
-        aria-hidden="true"
-        className={cn(
-          "mx-2 my-2 shrink-0 border-t border-sidebar-border/25",
-          isCompactCustomizeModeActive && "hidden",
-        )}
-        data-testid="app-sidebar-navigation-divider"
-      />
-      <SidebarContent
-        className={cn(isCompactCustomizeModeActive && "hidden")}
-        aria-hidden={isCompactCustomizeModeActive ? true : undefined}
-        inert={isCompactCustomizeModeActive ? true : undefined}
-      >
+      <SidebarContent>
         <PluginThreadList
           replacement={threadListReplacement}
           onNavigate={closeOnMobile}
