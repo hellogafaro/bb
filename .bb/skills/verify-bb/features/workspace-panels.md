@@ -15,6 +15,9 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 
 - `apps/app/src/views/SplitWorkspaceRoute.tsx`
 - `apps/app/src/components/secondary-panel/FilePreview.tsx`
+- `apps/app/src/components/files/FilesPanel.tsx`
+- `apps/app/src/components/files/FileEditor.tsx`
+- `apps/app/src/components/files/file-document-store.ts`
 - `apps/app/src/components/secondary-panel/SidebarSplitContainer.tsx`
 - `apps/cli/src/commands/thread/open.ts`
 - `apps/cli/src/commands/thread/pane.ts`
@@ -30,6 +33,13 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 | Split and focus panes | Open a thread in split, drag/reorder, focus previous/next/numbered panes, maximize and restore, then close one. | Focus and layout refer to the right thread; closing the last remaining pane is handled deliberately. |
 | Agent pane controls | With the same thread open in a connected client, use thread pane maximize/restore/toggle/spotlight/clear-spotlight. | Delivered result matches visible client action; a delivered event is not assumed proof without observing the UI. |
 | Quick open and file tree | Search a unique path with Quick open file, expand tree folders, and open a line-specific link. | Results and displayed content match the selected host/workspace; missing paths remain explicit. |
+| Files tab | In a thread with a workspace, open New panel tab → Files; expand a folder, scroll, switch to another tab and back; confirm New tab still offers Search files. | Files appears before plugin actions without waiting for plugins; rows list dotfiles in daemon order; the expanded folder and scroll position survive the tab switch; only visible rows are mounted. |
+| Files tab search and refresh | Type a unique filename in the Files search, open a hit, clear it; create a file in an expanded folder with file write and wait 10 s with the tab active. | At most 80 hits appear after the 150 ms debounce and open the chosen path; the new row appears on the next refresh; nothing refreshes while the tab or window is hidden. |
+| Open files in the editor | Open a .ts, a .md, a .png, and a binary fixture from the Files tree, from a timeline file link, and with thread open <thread> <path> --line 12. | .ts opens in the code editor with highlighting and line 12 selected; .md opens rich with a working Code toggle; .png renders; binary shows its notice; head and merge-base diff sources keep the read-only preview. |
+| Edit and save | Type in a .ts fixture and press Mod-s; type again and wait 5 s; repeat on a CRLF fixture. | file read shows the new bytes after each save, the dirty dot clears, and CRLF line endings are unchanged. |
+| External change and conflict | With a clean buffer, change the file with file write; then type without saving and change it again; choose Overwrite, repeat and choose Reload. | The clean buffer reloads in place without losing caret or scroll; the dirty buffer shows the changed-on-disk banner; Overwrite writes the buffer over the latest disk version; Reload shows the disk content; both are disabled while a save runs. |
+| Deleted file and delete | Type in an open fixture and remove it with file remove, then Recreate; delete another fixture from File actions → Delete. | The deleted-or-moved banner offers Recreate, which writes the buffer back; Delete removes the file after confirmation and the tree drops the row. |
+| Editor Add to chat and remote host | Select lines in the code editor and text in the rich Markdown editor and choose Add to chat; open and save a file in a thread on a remote host. | The composer quotes path:start-end with the selected text; remote reads, polls, and writes go to that host. |
 | Read-only previews | Open each fixture type, a large text file, and an unsupported binary. | Renderer or download fallback matches type/size; original bytes are unchanged. |
 | Host, workspace, and thread-storage files | Open a same-named fixture from each source and compare file read/project content/thread storage APIs. | Source identity is maintained; no accidental cross-root content leak. |
 | File mutation CLI | Use file mkdir/write/list/paths/read/move/remove on a temporary subtree only; verify bytes after each. | Path routing and recursive flags obey scope; errors preserve unrelated files. |
@@ -57,4 +67,5 @@ recipe. External writes require a disposable test target and task authorization.
 - Pane/open commands broadcast to connected app clients and have no browser-profile targeting flag. Coordinate a short window with other browser owners, and verify the intended client after each delivered result. Source: `apps/cli/src/commands/thread/pane.ts:1`, `apps/app/src/views/thread-detail/splitThreadNavigation.ts:168`.
 - terminal restart returns a new terminal ID. Use that returned ID for later send/output/close checks. Source: `apps/cli/src/commands/terminal.ts:189`.
 - Start with a Git fixture and choose Uncommitted changes when no merge-base exists. The Diff button accessible name includes its current shortcut; select by prefix rather than exact "Show diff panel". Source: `apps/app/src/views/thread-detail/ThreadDetailView.tsx:1487`, `apps/app/src/components/git-diff/GitDiffCardBody.tsx:241`.
+- The editor polls with file read --if-none-match semantics: every 1.5 s while the tab is active, the window visible, and the file changed within 30 s, otherwise every 5 s, and never while inactive. Tabs of one host path share one document. Tabs persisted by the retired Sidetree plugin reopen as the Files tab and the editor. Source: `apps/app/src/components/files/file-document-store.ts`, `apps/app/src/lib/thread-tabs-sync.ts`.
 - POST /files/previews accepts hostId, rootPath and optional ttlMs, and returns baseUrl plus expiresAtMs. Append encoded relative path segments to the returned baseUrl; binary files may download rather than render. Source: `packages/server-contract/src/api/files.ts:101`, `packages/server-contract/src/public-api.ts:586`.

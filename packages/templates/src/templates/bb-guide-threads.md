@@ -247,6 +247,9 @@ Opening threads and files in the app:
   target thread workspace. Absolute paths under BB_THREAD_STORAGE open as
   thread-storage files for the current thread. Use this for Markdown or HTML
   artifacts you create for the user so they open in the BB IDE.
+  Text and image files open in the built-in editor, which saves with Mod-s,
+  autosaves after 5 seconds, and reloads when the file changes on disk; the
+  panel's New tab Files entry browses the thread workspace.
 
 Messaging:
 

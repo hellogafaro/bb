@@ -2440,6 +2440,11 @@ registration — conditional behavior belongs in the component, which decides pe
 call from its semantic props and renders `Original` when it does
 not want the render.
 
+BB's own working-tree, host, and thread-storage text and image tabs no longer
+route through this slot: they open in the native file editor. The slot still
+covers read-only previews of other sources (`head`, `merge-base`), timeline
+code, the diff panel, and plugin callers of the public components.
+
 Fallbacks: no registration renders BB's renderer; a disabled or uninstalled
 plugin reveals the next registration or BB's renderer; a component that throws
 renders BB's renderer through the slot's crash fallback. A pinned provider that

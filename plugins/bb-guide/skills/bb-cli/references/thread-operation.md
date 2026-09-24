@@ -159,6 +159,8 @@ For review or fix pipelines, get the environment ID from
 
 - Use `bb file read|write|list|paths|mkdir|move|remove` for SDK-equivalent host
   file access. `--host` targets another machine; `--root` confines mutations.
+- `bb file read <path> --if-none-match <sha256>` prints nothing (`--json`
+  prints metadata with `notModified: true`) while the content hash matches.
 - File write requires exactly one of `--content` and `--stdin`. File paths lists
   files and directories when neither selector is present. File list and file
   paths include dot-prefixed entries; `--no-hidden` skips them. Both skip
