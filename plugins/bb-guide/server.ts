@@ -26,7 +26,7 @@ export default async function plugin(bb: BbPluginApi) {
       type: "boolean",
       label: "Plugin authoring skill",
       description: "Create and change BB plugins and SDK extensions.",
-      default: true,
+      default: false,
     },
     skillCreator: {
       type: "boolean",
@@ -39,7 +39,7 @@ export default async function plugin(bb: BbPluginApi) {
       label: "Plugin submission skill",
       description:
         "Prepare and submit a BB plugin to the Community marketplace.",
-      default: true,
+      default: false,
     },
   });
   let current = await settings.get();

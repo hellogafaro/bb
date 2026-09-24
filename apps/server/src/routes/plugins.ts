@@ -731,15 +731,6 @@ export function registerPluginRoutes(
 
   app.delete("/plugins/:id", async (context) => {
     const id = context.req.param("id");
-    if (plugins.isBuiltin(id)) {
-      return context.json(
-        {
-          ok: false,
-          error: "Built-in plugins can be disabled, but not deleted.",
-        },
-        409,
-      );
-    }
     const removed = await plugins.remove(id);
     if (!removed)
       return context.json({ ok: false, error: "unknown plugin" }, 404);

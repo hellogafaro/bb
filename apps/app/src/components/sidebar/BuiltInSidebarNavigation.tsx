@@ -13,7 +13,7 @@ import {
   ProjectListSearchThreadsAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
-import { getPluginsRoutePath, getSkillsRoutePath } from "@/lib/route-paths";
+import { getSkillsRoutePath } from "@/lib/route-paths";
 
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
@@ -38,7 +38,6 @@ export function BuiltInSidebarNavigation({
 }: BuiltInSidebarNavigationProps) {
   const navigate = useNavigate();
   const commandRunner = useAppCommandRunner();
-  const pluginsRoutePath = getPluginsRoutePath();
   const skillsRoutePath = getSkillsRoutePath();
   const builtInEntries: BuiltInSidebarNavEntry[] = [
     {
@@ -77,25 +76,6 @@ export function BuiltInSidebarNavigation({
       onActivate: () => {
         onSearchThreads?.();
         commandRunner.dispatch("thread.search", null);
-      },
-    },
-    {
-      kind: "built-in",
-      pluginId: "__bb__",
-      id: "extensions",
-      title: "Plugins",
-      icon: <Icon name="Plug02" aria-hidden="true" />,
-      content: (
-        <ResourceNavSidebarItem
-          icon="Plug02"
-          title="Plugins"
-          routePath={pluginsRoutePath}
-          onNavigate={onNavigate}
-        />
-      ),
-      onActivate: () => {
-        onNavigate?.();
-        void navigate(pluginsRoutePath);
       },
     },
     {

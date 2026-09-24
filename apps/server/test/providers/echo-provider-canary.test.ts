@@ -607,12 +607,7 @@ describe("echo-provider canary: plugin install → server command → runtime �
     }
     expect(
       command.injectedSkillSources.map((source) => source.name).sort(),
-    ).toEqual([
-      "bb-cli",
-      "bb-plugin-authoring",
-      "skill-creator",
-      "submit-a-plugin",
-    ]);
+    ).toEqual(["bb-cli", "skill-creator"]);
     expect(command.instructions).toContain("bb status");
 
     const skillDirectoryRootPath = join(guideRoot, "skills");

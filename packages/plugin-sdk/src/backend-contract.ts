@@ -1012,8 +1012,8 @@ export interface PluginCliRegistration {
    * `bb plugin run <plugin-id>`. */
   name: string;
   summary: string;
-  /** Subcommand metadata rendered in help and the plugin-commands skill
-   * without executing plugin code. Parsing argv is plugin-owned. */
+  /** Subcommand metadata rendered in help without executing plugin code.
+   * Parsing argv is plugin-owned. */
   commands?: PluginCliCommandInfo[];
   /**
    * Set when `run` answers `--help` / `-h` itself, at every level, without

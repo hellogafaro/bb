@@ -511,6 +511,20 @@ describe("builtin plugin reconciliation", () => {
     ]);
   });
 
+  it("keeps a removed builtin uninstalled across restarts", async () => {
+    service = createService({ db, dataDir: join(workDir, "data") });
+    await service.start();
+    await expect(service.remove("builtin-fixture")).resolves.toBe(true);
+    expect(service.list()).toEqual([]);
+    await service.stop();
+
+    service = createService({ db, dataDir: join(workDir, "data") });
+    await service.start();
+
+    expect(service.list()).toEqual([]);
+    expect(loadCount()).toBe(1);
+  });
+
   it("preserves an installed builtin's choice when its default changes", async () => {
     service = createService({
       db,

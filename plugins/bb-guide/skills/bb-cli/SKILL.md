@@ -153,8 +153,8 @@ remote service. Report the stable ID or URL that the user needs next.
 Use `bb plugin config <id>` to inspect the plugin’s configuration and
 `bb plugin config <id> set <key> <value>` to change it. Read the plugin’s own
 skill for its commands, configuration meanings, and operating constraints.
-Discover contributed command paths through `bb plugin list`, the generated
-`plugin-commands` skill, or `bb plugin run <id> --help`.
+Discover contributed command paths through `bb plugin list` or
+`bb plugin run <id> --help`.
 
 Keep this skill and its references focused on core BB commands. Plugin-specific
 behavior belongs in the owning plugin’s `skills/` directory, including built-in

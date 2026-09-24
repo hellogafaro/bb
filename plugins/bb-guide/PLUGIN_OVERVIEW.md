@@ -1,7 +1,8 @@
 # BB guide
 
 Control the BB introduction and bundled agent skills in Settings → Installed
-plugins → BB guide. The plugin and all six settings default to enabled.
+plugins → BB guide. The plugin and its settings default to enabled, except
+`pluginAuthoring` and `submitPlugin`, which default to disabled.
 
 - `introduction`: send the BB CLI, thread, and link instructions.
 - `skills`: make the selected bundled skills available.
@@ -17,5 +18,4 @@ they do not erase instructions from an existing conversation.
 
 Disabling the plugin removes its introduction and all four skills. The
 settings affect this plugin's copies, not independently installed user or
-provider skills. Other plugins keep their own skills. The generated
-`plugin-commands` skill continues to describe enabled plugin commands.
+provider skills. Other plugins keep their own skills.

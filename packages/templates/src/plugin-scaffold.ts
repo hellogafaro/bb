@@ -863,8 +863,8 @@ export default async function plugin(bb: BbPluginApi) {
   });
 
   // The \`bb ${id}\` command: what agents (and you) use from a shell. Parsing
-  // argv is plugin-owned; \`commands\` is metadata BB renders into help and
-  // the generated plugin-commands skill without running plugin code.
+  // argv is plugin-owned; \`commands\` is metadata BB renders into help
+  // without running plugin code.
   const usage = [
     "Usage:",
     "  bb ${id} list [--json]",

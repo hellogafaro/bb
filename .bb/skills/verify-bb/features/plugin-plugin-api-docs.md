@@ -25,7 +25,7 @@ SKILL.md. Inspect nested `--help` before selecting flags and IDs.
 | Guide maps | Visit app window, palette, composer, home, settings, plugin detail, and backend maps. | Each map renders its annotated fixture and matching numbered cards. |
 | Cards and symbols | Select representative numbered cards, read their descriptions, follow internal links, and inspect SDK symbols through Copy for agent context. | Card, annotation and copied SDK context describe the same current API surface. |
 | Navigation and agent context | Reload a map-group URL, use Copy for agent, and paste its rich Plugin Guide mention into a synthetic turn. | Selection survives routing; copied/resolved context identifies the correct surface and symbols. |
-| Inventory reconciliation | Compare every surface in surfaces.ts with visible Guide cards, especially after a public SDK change. | No source surface lacks its documented map/card; use plugin-guide-maintenance for actual guide repairs. |
+| Inventory reconciliation | Compare every surface in surfaces.ts with visible Guide cards, especially after a public SDK change. | No source surface lacks its documented map/card. |
 
 ## Evidence and cleanup
 

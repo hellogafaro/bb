@@ -117,7 +117,7 @@ import {
   type PluginWebSocketRouteRecord,
 } from "./plugin-api.js";
 import {
-  syncPluginCommandsSkill,
+  removePluginCommandsSkill,
   type PluginCliContribution,
 } from "./plugin-commands-skill.js";
 import { readPluginLogTail } from "./plugin-log.js";
@@ -215,7 +215,6 @@ export interface PluginStartOptions {
 }
 
 export interface PluginService {
-  isBuiltin(id: string): boolean;
   events: PluginThreadEventEmitter;
   /** The hook chain the dispatch pipeline consults; registered in createApp. */
   hooks: PluginHookProvider;
@@ -586,7 +585,6 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
     hostArtifacts,
     identities,
     invokeWrapped,
-    isBuiltinPluginId,
     listPluginHooks,
     listPluginEnvironmentCompositions,
     listPluginEnvironmentProviders,
@@ -808,12 +806,15 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
     return contributions.sort((a, b) => a.pluginId.localeCompare(b.pluginId));
   }
 
+  let generatedSkillsRetired = false;
   async function syncCliSkill(): Promise<void> {
+    if (generatedSkillsRetired) return;
+    generatedSkillsRetired = true;
     try {
-      await syncPluginCommandsSkill(deps.dataDir, cliContributions());
+      await removePluginCommandsSkill(deps.dataDir);
     } catch (error) {
       logger.warn(
-        `failed to sync the plugin-commands skill: ${error instanceof Error ? error.message : String(error)}`,
+        `failed to remove the retired plugin-commands skill: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -1162,8 +1163,6 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
   }
 
   return {
-    isBuiltin: isBuiltinPluginId,
-
     listThemes() {
       return [...loaded.entries()]
         .sort(([a], [b]) => a.localeCompare(b))

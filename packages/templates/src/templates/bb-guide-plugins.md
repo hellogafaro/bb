@@ -756,8 +756,7 @@ Plugin CLI commands: a plugin can register one top-level subcommand (for
 example `bb github …`). Unknown `bb` commands are looked up against installed
 plugins and proxied to the server, so plugin commands work exactly like core
 commands; core command names always win. A collision logs an activation warning,
-and `bb plugin list` shows the required `bb plugin run <id>` form. Inside agent
-threads the generated `plugin-commands` skill lists the available plugin commands.
+and `bb plugin list` shows the required `bb plugin run <id>` form.
 
 Settings changes do not auto-reload a plugin — run `bb plugin reload <id>`
 after configuring. Add --json to plugin commands for machine-readable output.

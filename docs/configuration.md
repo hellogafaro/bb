@@ -1170,9 +1170,6 @@ Plugin state lives under the data dir:
 <dataDir>/marketplaces/staging/    Throwaway checkouts a git: marketplace
                                    refresh reads its manifest from, deleted
                                    as soon as the catalog is stored
-<dataDir>/skills-generated/        Server-generated skills (the
-                                   plugin-commands skill listing plugin CLI
-                                   commands, injected into agent threads)
 ```
 
 BB's official plugins (GitHub, Docs, Memory, and Tasks) ship bundled
@@ -1321,7 +1318,9 @@ if it moved. `--tag-prefix <prefix>` ranges over one plugin's tags in a
 multi-plugin repository. A bare range that is also a literal branch or tag
 name fails the install and asks for `@semver:` or `@ref:`. Local
 path installs register the directory in place and never delete it. Builtin
-plugins use `builtin:<name>` and ship with bb unless removed. Managed
+plugins use `builtin:<name>` and ship with bb unless removed; `bb plugin
+remove <id>` removes a builtin for good, and `bb plugin install builtin:<name>`
+brings it back. Managed
 (`git:`/`npm:`) installs
 refuse plugins whose optional `engines.bb` or `engines.bbPluginSdk` ranges
 do not match the running bb/SDK, or whose `dist/*.meta.json` plugin identity
@@ -1474,7 +1473,8 @@ For isolated development smoke tests only, `DEV_BROWSER_SMOKE_BINARY` selects th
 BB guide is installed and enabled by default. In Settings → Installed plugins
 → BB guide, `introduction` controls the BB introduction, `skills` controls all
 four bundled skills, and `bbCli`, `pluginAuthoring`, `skillCreator`, and `submitPlugin` control
-individual skills. All default to true. Disabling BB guide removes its
+individual skills. All default to true except `pluginAuthoring` and
+`submitPlugin`, which default to false. Disabling BB guide removes its
 introduction and skills; other plugins and independently installed skill
 copies retain their own configuration.
 

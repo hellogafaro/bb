@@ -210,7 +210,7 @@ describe("SidebarNavigationRegion", () => {
     );
   });
 
-  it("routes Plugins and Skills while preserving the active resource row", () => {
+  it("routes Skills and leaves Plugins out of the navigation", () => {
     registerFixture();
     renderHarness(vi.fn(), ["/skills/library/demo"]);
 
@@ -219,19 +219,7 @@ describe("SidebarNavigationRegion", () => {
         .getByRole("button", { name: "Skills" })
         .getAttribute("aria-current"),
     ).toBe("page");
-    expect(
-      screen
-        .getByRole("button", { name: "Plugins" })
-        .getAttribute("aria-current"),
-    ).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Plugins" }));
-    expect(screen.getByTestId("pathname").textContent).toBe("/plugins");
-    expect(
-      screen
-        .getByRole("button", { name: "Plugins" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
+    expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Skills" }));
     expect(screen.getByTestId("pathname").textContent).toBe("/skills");

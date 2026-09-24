@@ -31,10 +31,10 @@ it("keeps the introduction and skill switches independent across reloads", async
         )
       ).skills;
     expect(instructions()).toContain("You are working inside bb");
-    expect((await skills()).sort()).toEqual([...bundledSkills].sort());
+    expect(await skills()).toEqual(["bb-cli", "skill-creator"]);
     await harness.behavior.setSettings({
       introduction: false,
-      pluginAuthoring: false,
+      submitPlugin: true,
     });
     expect(instructions()).toBeNull();
     expect(await skills()).toEqual([
@@ -72,6 +72,17 @@ describe("individual skill selection", () => {
     });
     try {
       await plugin(bb);
+      await harness.behavior.setSettings({
+        pluginAuthoring: true,
+        submitPlugin: true,
+      });
+      expect(
+        (
+          await harness.behavior.resolveAgentConfiguration(
+            makePluginAgentConfigurationContext(),
+          )
+        ).skills.sort(),
+      ).toEqual([...bundledSkills].sort());
       await harness.behavior.setSettings({ [key]: false });
       expect(
         (

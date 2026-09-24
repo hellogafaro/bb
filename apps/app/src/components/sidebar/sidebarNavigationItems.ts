@@ -75,15 +75,6 @@ export function createSidebarNavigationItems({
       experimental_splitProps: {},
     },
     {
-      id: PLUGINS_NAVIGATION_ITEM_ID,
-      label: "Plugins",
-      icon: { kind: "host", name: "extensions" },
-      action: resourceWorkspaceAction,
-      isDisabled: false,
-      shortcut: null,
-      experimental_splitProps: {},
-    },
-    {
       id: SKILLS_NAVIGATION_ITEM_ID,
       label: "Skills",
       icon: { kind: "host", name: "extensions" },
