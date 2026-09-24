@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clip, compactToolFromCatalog, formatMcpResult, packSearchResult, scoreMatch } from "../src/catalog.js";
+import { clip, compactToolFromCatalog, formatMcpResult, scoreMatch } from "../src/catalog.js";
 import { classifyTool } from "../src/policy.js";
 import { normalizeRegistryServer, parseRegistryList } from "../src/registry.js";
 
@@ -13,11 +13,12 @@ describe("catalog search", () => {
 
   it("clips descriptions and keeps compact tools schema-free", () => {
     const compact = compactToolFromCatalog({
-      opaqueId: "src__mcp__echo_abc",
-      serverId: "mcp",
-      pluginName: "Echo",
+      id: "mcpt_abcdefghij",
+      sourceId: "mcp_abcdefghij",
+      handle: "echo",
       name: "echo",
       description: "x".repeat(400),
+      inputSchema: { type: "object" },
       annotations: { readOnlyHint: true },
     });
     expect(compact.description.endsWith("…")).toBe(true);
@@ -114,26 +115,5 @@ describe("formatMcpResult", () => {
     expect(formatted.text).toContain('"title":"Tasks"');
     expect(formatted.text).toContain("[image image/png omitted]");
     expect(formatted.text.split("Tasks").length).toBe(2);
-  });
-});
-
-describe("packSearchResult", () => {
-  it("drops trailing cards instead of slicing JSON", () => {
-    const tools = Array.from({ length: 8 }, (_, index) => ({
-      opaqueId: `id${index}`,
-      serverId: "mcp",
-      serverName: "S",
-      name: `tool_${index}`,
-      description: "d",
-      risk: "read" as const,
-      enabled: true,
-      card: { shape: "{ " + "x".repeat(4000) + " }", fields: [{ name: "a", type: "string", required: true }], example: { a: "" } },
-    }));
-    const packed = packSearchResult({ tools, unavailable: ["Slow"] }, 2_000);
-    const json = JSON.stringify(packed);
-    expect(json.length).toBeLessThanOrEqual(2_000);
-    expect(json.startsWith("{")).toBe(true);
-    expect(json.endsWith("}")).toBe(true);
-    expect(packed.unavailable).toEqual(["Slow"]);
   });
 });

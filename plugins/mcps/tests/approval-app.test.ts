@@ -19,11 +19,11 @@ it("approves or denies a confirm-policy tool call", async () => {
   expect(slot.getByText("notes / write_note")).not.toBeNull();
   expect(slot.getByText("write")).not.toBeNull();
   await act(async () => { fireEvent.click(slot.getByRole("button", { name: "Approve" })); });
-  expect(submit).toHaveBeenLastCalledWith({ approved: true });
+  expect(submit).toHaveBeenLastCalledWith({ allowed: true });
   cleanup();
   const denied = interaction({ kind: "tool", server: "notes", tool: "write_note", risk: "write", args: "{}", truncated: false });
   await act(async () => { fireEvent.click(denied.slot.getByRole("button", { name: "Deny" })); });
-  expect(denied.submit).toHaveBeenLastCalledWith({ approved: false });
+  expect(denied.submit).toHaveBeenLastCalledWith({ allowed: false });
 });
 
 it("collects typed elicitation answers and requires required fields", async () => {
@@ -46,8 +46,8 @@ it("collects typed elicitation answers and requires required fields", async () =
 });
 
 it("changes a tool policy from the detail page", async () => {
-  const rows = [{ id: "notes", handle: "notes", name: "notes", description: null, type: "stdio", enabled: true, approved: true, status: "ready", authStatus: "not-applicable", configJson: "{}", sourceKind: "manual", guide: null, lastError: null }];
-  const tools = { tools: [{ opaqueId: "t1", serverId: "mcp", serverName: "notes", name: "write_note", description: "Write", risk: "write", enabled: true }], error: null };
+  const rows = [{ id: "notes", handle: "notes", name: "notes", description: null, type: "stdio", enabled: true, status: "ready", authStatus: "not-applicable", configJson: "{}", sourceKind: "manual", guide: null, lastError: null }];
+  const tools = { tools: [{ id: "t1", sourceId: "notes", handle: "notes", name: "write_note", description: "Write", risk: "write" }], error: null };
   const handlers: Record<string, (input: any) => any> = {
     snapshot: () => ({ servers: rows }),
     inspectServer: () => tools,

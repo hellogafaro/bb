@@ -1,7 +1,6 @@
-export type McpServerType = "stdio" | "streamable-http" | "sse";
+import type { McpServerType } from "./types.js";
 
 export interface McpServerResult {
-  serverId: string;
   valid: boolean;
   type: McpServerType | null;
   errors: string[];
@@ -12,7 +11,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 }
 
-export function safeRecord(input: unknown): Record<string, unknown> {
+function safeRecord(input: unknown): Record<string, unknown> {
   if (!isRecord(input)) return Object.create(null);
   const out: Record<string, unknown> = Object.create(null);
   for (const [k, v] of Object.entries(input)) out[k] = v;
@@ -23,15 +22,15 @@ function hasShellMeta(value: string): boolean {
   return /[\s|&;`$()<>\"']/.test(value);
 }
 
-export function validateMcpServer(serverId: string, raw: unknown): McpServerResult {
+export function validateMcpServer(raw: unknown): McpServerResult {
   const errors: string[] = [];
   if (!isRecord(raw)) {
-    return { serverId, valid: false, type: null, errors: ["server entry must be object"], config: null };
+    return { valid: false, type: null, errors: ["server entry must be object"], config: null };
   }
   const rec = safeRecord(raw);
   const type = rec.type;
   if (type !== "stdio" && type !== "streamable-http" && type !== "sse") {
-    return { serverId, valid: false, type: null, errors: [`invalid type: ${String(type)}`], config: null };
+    return { valid: false, type: null, errors: [`invalid type: ${String(type)}`], config: null };
   }
 
   const allowedByType: Record<McpServerType, Set<string>> = {
@@ -119,11 +118,11 @@ export function validateMcpServer(serverId: string, raw: unknown): McpServerResu
     }
   }
 
-  return { serverId, valid: errors.length === 0, type, errors, config: errors.length === 0 ? rec : null };
+  return { valid: errors.length === 0, type, errors, config: errors.length === 0 ? rec : null };
 }
 
-export function expandPlaceholders(input: string, pluginRoot: string, pluginData: string): string {
-  return input.replace(/\$\{PLUGIN_ROOT\}|\$\{PLUGIN_DATA\}/g, (m) => (m === "${PLUGIN_ROOT}" ? pluginRoot : pluginData));
+export function expandPlaceholders(input: string, root: string, data: string): string {
+  return input.replace(/\$\{PLUGIN_ROOT\}|\$\{PLUGIN_DATA\}/g, (m) => (m === "${PLUGIN_ROOT}" ? root : data));
 }
 
 export function parseHeaderLines(lines: string[]): Record<string, string> {

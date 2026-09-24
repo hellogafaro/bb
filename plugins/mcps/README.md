@@ -8,6 +8,13 @@ instead of dumping every schema into context.
 Source: `plugins/mcps` in the BB monorepo. The plugin ID is `mcps`;
 settings, OAuth credentials, and server data live under that ID.
 
+Storage is the plugin's SQLite database with two tables: `sources` (one row
+per server: `id`, unique `handle`, name, transport `type`, `configJson`,
+`status`, `lastError`, `enabled`, `guide`, and registry provenance) and
+`tool_policies` (`sourceId`, `toolName`, `risk`, `mode`, deleted with their
+source). OAuth credentials are one BB secret keyed by source ID, and stdio
+working directories live under `plugins/mcps/servers/<id>/`.
+
 ```
 pnpm exec turbo run typecheck --filter=bb-plugin-mcps
 pnpm exec turbo run test --filter=bb-plugin-mcps
@@ -18,15 +25,15 @@ CLI: `bb mcp list`, `bb mcp registry <query>`, `bb mcp add <name> <url|registry-
 `bb mcp auth <id>`, `bb mcp guide <id> [text] [--clear]`, `bb mcp remove <id>`,
 `bb mcp policy <id> [tool] [allow|confirm|deny|inherit]`,
 `bb mcp providers [--fix] [--machine <id>] [--path <dir>]`. Adding a server
-enables it.
+enables it; enabled is the only gate on connecting and calling. `<id>`
+accepts the server's `mcp_` ID, handle, or name.
 
 The MCPs page lists installed servers and opens a detail page for each (enable,
 authenticate, remove, agent guide, tools). It has no registry browser or add
 forms: **New MCP** opens chat with a prompt that has the agent run `bb mcp
 registry`/`bb mcp add`, and **Edit in chat** prefills a prompt with the server's
 `bb mcp` commands. Core BB renders the Skills | MCPs tabs above the panel; the
-plugin page starts with its list. Registry search and manual adds are CLI-only; the
-`registrySearch`, `addFromRegistry`, and `addManual` RPCs were removed.
+plugin page starts with its list. Registry search and manual adds are CLI-only.
 
 The detail page's tool list shows each tool's risk and a policy select (see
 Policies and approvals below).
@@ -53,7 +60,7 @@ destructive tools.
   dismissal, stopping the thread, or 10 minutes without an answer return an
   error and nothing runs. While it waits, the agent gets BB's waiting notice
   and the result arrives later as a message. Approvals are logged with the
-  thread ID. A `bb mcp call` without a thread context cannot be approved and
+  thread ID. A `bb mcp call` without a thread context has nowhere to ask and
   returns an error.
 
 `bb mcp policy <id>` lists tools with risk and effective policy (`(default)`
@@ -130,13 +137,13 @@ fixtures do not expire real account tokens or simulate every provider policy.
 
 ## IDs and context
 
-MCP installations expose a stable `mcp_` ID and a separate readable `handle`.
-Tools, prompts, resources and resource templates use `mcpt_`, `mcpp_`, `mcpr_`
-and `mcprt_` IDs. Agent results and calls consistently use `id`. Existing handles,
-old capability IDs and previous `toolId`/`promptId`/`resourceId`/`opaqueId` inputs
-remain accepted. Existing storage and OAuth keys are retained internally so this
-migration does not invalidate credentials; `serverId: "mcp"` was the old internal
-connection name, not a global identity.
+Each server has an `mcp_` ID and a readable `handle` derived from its name
+(a random suffix keeps handles unique). Tools, prompts, resources and resource
+templates get `mcpt_`, `mcpp_`, `mcpr_` and `mcprt_` IDs hashed from the
+server ID and the capability name, so they stay stable across restarts until
+the server is removed. Agent tools take a single `id` field; any other field is
+rejected, and an ID in another format fails with `Invalid MCP <kind> id` before
+any server is contacted.
 
 `mcp_servers` returns 20 entries by default, with a cursor for more. Known zero
 tool counts are retained; unknown counts are omitted. Installation metadata,

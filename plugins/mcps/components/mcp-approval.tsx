@@ -96,8 +96,8 @@ export function McpApprovalInteraction({ interaction, submit, cancel }: PluginPe
         <pre className="max-h-48 overflow-auto rounded-md border border-border bg-card p-2 font-mono text-xs">{payload.args}{payload.truncated ? "\n…" : ""}</pre>
         {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" disabled={busy} onClick={() => void send({ approved: false })}>Deny</Button>
-          <Button disabled={busy} onClick={() => void send({ approved: true })}>Approve</Button>
+          <Button variant="outline" disabled={busy} onClick={() => void send({ allowed: false })}>Deny</Button>
+          <Button disabled={busy} onClick={() => void send({ allowed: true })}>Approve</Button>
         </div>
       </div>
     );

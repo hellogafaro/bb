@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import { fetchRegistryServers } from '../src/registry';
-import { LruMap } from '../src/lru';
 
 it('aborts offline registry fetches at the deadline and accepts caller cancellation', async () => {
   const fetchImpl = ((_url: unknown, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
@@ -13,13 +12,6 @@ it('aborts offline registry fetches at the deadline and accepts caller cancellat
   const pending = fetchRegistryServers({fetchImpl, signal: controller.signal});
   controller.abort();
   await expect(pending).rejects.toThrow();
-});
-it('retains recent LRU entries, evicts once, and respects replacements', () => {
-  const removed: string[] = [];
-  const cache = new LruMap<string, number>(2, key => removed.push(key));
-  cache.set('a', 1).set('b', 2); cache.get('a'); cache.set('c', 3); cache.set('a', 4);
-  expect([...cache.keys()]).toEqual(['c', 'a']);
-  expect(removed).toEqual(['b']);
 });
 it('forwards registry cursor and returns the next cursor', async () => {
   let requested = '';

@@ -1,10 +1,8 @@
-import { LruMap } from "./src/lru.js";
-import * as crypto from "node:crypto";
 import * as path from "node:path";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { McpsStore } from "./src/store.js";
-import { McpGateway, slug, type McpStdioCatalog, type McpStdioHost } from "./src/gateway.js";
+import { handleFor, McpsStore, type NewMcpSource } from "./src/store.js";
+import { McpGateway, type McpStdioCatalog, type McpStdioHost } from "./src/gateway.js";
 import { mcpHostContract, mcpHostSignals, providerMcpStatusSchema } from "./src/host-contract.js";
 import { DeferredOAuthCredentialStore, McpOAuthProvider, type OAuthCredentialRecord } from "./src/oauth.js";
 import { oauthRedirectBase, serverAccessPublicUrl, serverAppUrl } from "./src/oauth-redirect.js";
@@ -17,7 +15,7 @@ import { McpApprovals, type CallScope } from "./src/approvals.js";
 import { formatProviderStatus, providerGuardIssues } from "./src/provider-guard.js";
 import { connectedInstructions, threadServerSelection } from "./src/context.js";
 import { fetchRegistryServers, normalizeRegistryServer, OFFICIAL_REGISTRY, type RegistryServerSummary } from "./src/registry.js";
-import type { JsonRecord, McpServerType, McpSourceKind, ToolRisk } from "./src/types.js";
+import type { CompactTool, JsonRecord, McpSource, ToolRisk } from "./src/types.js";
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 const sourceIdSchema = z.string().min(1).max(128);
@@ -33,7 +31,6 @@ const compactServerSchema = z.object({
   type: z.string(),
   status: z.string(),
   sourceKind: z.string(),
-  approved: z.boolean(),
   enabled: z.boolean(),
   authStatus: z.string(),
   lastError: z.string().nullable(),
@@ -49,14 +46,12 @@ const compactServerSchema = z.object({
 
 const compactToolSchema = z.object({
   schemaRequired: z.boolean().optional(),
-  pluginId: z.string().optional(),
-  opaqueId: z.string(),
-  serverId: z.string(),
-  serverName: z.string(),
+  id: z.string(),
+  sourceId: z.string(),
+  handle: z.string(),
   name: z.string(),
   description: z.string(),
   risk: z.enum(["read", "write", "destructive"]),
-  enabled: z.boolean(),
   card: z.object({
     truncated: z.boolean().optional(),
     shape: z.string(),
@@ -88,7 +83,6 @@ const providerStatusSchema = z.object({
 export const rpcContract = defineRpcContract({
   snapshot: { input: z.null(), output: z.object({ servers: z.array(compactServerSchema) }).strict() },
   remove: { input: z.object({ id: sourceIdSchema }).strict(), output: z.object({ deleted: z.boolean() }).strict() },
-  approve: { input: z.object({ id: sourceIdSchema }).strict(), output: z.object({ approved: z.boolean() }).strict() },
   setEnabled: { input: z.object({ id: sourceIdSchema, enabled: z.boolean() }).strict(), output: z.object({ enabled: z.boolean(), status: z.string() }).strict() },
   setHeaders: {
     input: z.object({
@@ -199,7 +193,6 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   const store = new McpsStore(bb.storage.database(), (db, statements) => bb.storage.migrate(db, statements));
-  store.admitPending();
   const settings = bb.settings.define({
     registryUrl: {
       type: "string",
@@ -240,11 +233,6 @@ export default async function plugin(bb: BbPluginApi) {
     try { return await operation(); }
     finally { release(); }
   }
-  async function deleteOAuthCredentials(pluginId: string, serverId: string): Promise<void> {
-    await oauthCredentialStore.delete(`${pluginId}:${serverId}`).catch((error) => {
-      throw new Error(`Could not delete OAuth credentials for ${pluginId}:${serverId}: ${errorText(error)}`, { cause: error });
-    });
-  }
 
   const mcpHostClient = bb.hosts.experimental_client({
     contract: mcpHostContract,
@@ -275,35 +263,39 @@ export default async function plugin(bb: BbPluginApi) {
   };
   const stdioHost: McpStdioHost = {
     async start(config, signal) { return await hostCall("start", config, signal) as McpStdioCatalog; },
-    async refresh(key, signal) { return await hostCall("refresh", { key }, signal) as McpStdioCatalog; },
-    async close(key, signal) { await hostCall("close", { key }, signal); },
-    async callTool(key, name, args, toolDefinition, signal) {
-      return hostCall("callTool", { key, name, args, ...(toolDefinition ? { toolDefinition } : {}) }, signal);
+    async refresh(id, signal) { return await hostCall("refresh", { id }, signal) as McpStdioCatalog; },
+    async close(id, signal) { await hostCall("close", { id }, signal); },
+    async callTool(id, name, args, toolDefinition, signal) {
+      return hostCall("callTool", { id, name, args, ...(toolDefinition ? { toolDefinition } : {}) }, signal);
     },
-    async getPrompt(key, name, args, signal) { return hostCall("getPrompt", { key, name, args }, signal); },
-    async readResource(key, uri, signal) { return hostCall("readResource", { key, uri }, signal); },
-    async complete(key, ref, argument, signal) { return hostCall("complete", { key, ref, argument }, signal); },
-    async subscribeResource(key, uri, signal) { await hostCall("subscribeResource", { key, uri }, signal); },
-    async unsubscribeResource(key, uri, signal) { await hostCall("unsubscribeResource", { key, uri }, signal); },
-    async setLoggingLevel(key, level, signal) { await hostCall("setLoggingLevel", { key, level }, signal); },
+    async getPrompt(id, name, args, signal) { return hostCall("getPrompt", { id, name, args }, signal); },
+    async readResource(id, uri, signal) { return hostCall("readResource", { id, uri }, signal); },
     onWorkerExit(handler) {
       return mcpHostClient.experimental_onWorkerExit(({ hostId }) => handler(hostId));
     },
     onCatalogChanged(handler) {
-      return mcpHostClient.experimental_onSignal("catalogChanged", ({ payload }) => handler(payload.key, payload.kind, payload.error));
+      return mcpHostClient.experimental_onSignal("catalogChanged", ({ payload }) => handler(payload.id, payload.kind, payload.error));
     },
     onConnectionChanged(handler) {
-      return mcpHostClient.experimental_onSignal("connectionChanged", ({ payload }) => handler(payload.key, payload.status, payload.error));
+      return mcpHostClient.experimental_onSignal("connectionChanged", ({ payload }) => handler(payload.id, payload.status, payload.error));
     },
   };
+  async function serverDir(id: string): Promise<string> {
+    return path.join(await getDataDir(), "plugins", "mcps", "servers", id);
+  }
+  async function serverDirs(id: string) {
+    const dir = await serverDir(id);
+    return { root: path.join(dir, "root"), data: path.join(dir, "data") };
+  }
+
   const approvals = new McpApprovals(bb.ui, bb.log);
-  const serverHandle = (pluginId: string): string => store.getPlugin(pluginId) ? store.identity(pluginId).handle : pluginId;
   const gateway = new McpGateway(store, bb.log, {
+    serverDirs,
     onChanged: () => publishChanged({ kind: "mcp-runtime" }),
-    onElicitation: (request, pluginId, serverId) => approvals.elicit(request, `${pluginId}:${serverId}`, serverHandle(pluginId)),
+    onElicitation: (request, id) => approvals.elicit(request, id, store.get(id)?.handle ?? id),
     stdioHost,
     oauth: {
-      async getProvider(pluginId, serverId, serverUrl) {
+      async getProvider(id, serverUrl) {
         const current = await settings.get();
         let publicUrl: string | null = null;
         try { publicUrl = serverAccessPublicUrl(await bb.sdk.system.config()); } catch {}
@@ -314,8 +306,8 @@ export default async function plugin(bb: BbPluginApi) {
           loopbackBaseUrl: bb.server.loopbackBaseUrl,
         });
         const redirect = new URL(`/api/v1/plugins/${encodeURIComponent(bb.pluginId)}/http/oauth/callback`, base);
-        redirect.search = new URLSearchParams({ pluginId, serverId }).toString();
-        return new McpOAuthProvider(`${pluginId}:${serverId}`, serverUrl, redirect, oauthCredentialStore);
+        redirect.search = new URLSearchParams({ id }).toString();
+        return new McpOAuthProvider(id, serverUrl, redirect, oauthCredentialStore);
       },
     },
   });
@@ -336,129 +328,85 @@ export default async function plugin(bb: BbPluginApi) {
     return { content: [{ type: "text" as const, text: result.json }] };
   }
 
-  function sourceDirs(id: string, dd: string) {
-    const root = path.join(dd, "plugins", "mcps", "servers", id);
-    return { pluginRoot: path.join(root, "root"), pluginData: path.join(root, "data") };
-  }
-
-  const reservedSourceIds = new Set<string>();
-
-  async function addServer(input: {
-    name: string;
-    description?: string;
-    sourceKind: McpSourceKind;
-    sourceRef?: string;
-    registryName?: string;
-    registryVersion?: string;
-    type: McpServerType;
-    config: Record<string, unknown>;
-  }) {
-    const validation = validateMcpServer("mcp", input.config);
+  async function addServer({ config, ...input }: Omit<NewMcpSource, "configJson"> & { config: Record<string, unknown> }) {
+    const validation = validateMcpServer(config);
     if (!validation.valid || !validation.config) throw new Error(validation.errors.join("; "));
-    const dd = await getDataDir();
-    const base = slug(input.name).slice(0, 40);
-    let id = base;
-    while (store.resolveSource(id) || reservedSourceIds.has(id)) id = `${base}_${crypto.randomBytes(3).toString("hex")}`;
-    const dirs = sourceDirs(id, dd);
-    reservedSourceIds.add(id);
+    const source = store.insert({ ...input, configJson: JSON.stringify(validation.config) });
     try {
-      await ensureDir(dirs.pluginRoot);
-      await ensureDir(dirs.pluginData);
-      const now = Date.now();
-      store.transaction(() => {
-        store.upsertSource({
-          id,
-          name: input.name,
-          description: input.description ?? null,
-          sourceKind: input.sourceKind,
-          sourceRef: input.sourceRef ?? null,
-          registryName: input.registryName ?? null,
-          registryVersion: input.registryVersion ?? null,
-          pluginRoot: dirs.pluginRoot,
-          pluginData: dirs.pluginData,
-          createdAt: now,
-          updatedAt: now,
-        });
-        store.upsertMcpServer({
-          pluginId: id,
-          serverId: "mcp",
-          type: input.type,
-          configJson: JSON.stringify(validation.config),
-          status: "idle",
-          lastError: null,
-          approved: 1,
-          enabled: 1,
-        });
-      });
-    } finally { reservedSourceIds.delete(id); }
-    await publishChanged({ kind: "add", id });
-    return { ...store.identity(id), name: input.name };
+      const dirs = await serverDirs(source.id);
+      await ensureDir(dirs.root);
+      await ensureDir(dirs.data);
+    } catch (error) {
+      store.delete(source.id);
+      throw error;
+    }
+    await publishChanged({ kind: "add", id: source.id });
+    return { id: source.id, handle: source.handle, name: source.name };
   }
 
-  async function requireSource(id: string) {
-    const source = store.resolveSource(id);
-    if (!source) throw new Error(`not found: ${id}`);
-    const server = store.getServer(source.id, "mcp");
-    if (!server) throw new Error(`MCP server missing for ${source.id}`);
-    return { source, server };
+  function requireSource(ref: string): McpSource {
+    const source = store.resolve(ref);
+    if (!source) throw new Error(`MCP server not found: ${ref}`);
+    return source;
+  }
+
+  async function removeServer(ref: string): Promise<McpSource | undefined> {
+    const source = store.resolve(ref);
+    if (!source) return undefined;
+    await gateway.resetServer(source.id).catch(() => {});
+    await oauthCredentialStore.delete(source.id).catch((error) => {
+      bb.log.warn(`[mcps] could not delete OAuth credentials for ${source.handle}: ${errorText(error)}`);
+    });
+    store.delete(source.id);
+    await rimraf(await serverDir(source.id)).catch(() => {});
+    await publishChanged({ kind: "remove", id: source.id });
+    return source;
+  }
+
+  function counts(id: string) {
+    const known = gateway.catalogCounts(id);
+    return { toolCount: known?.tools ?? null, promptCount: known?.prompts ?? null, resourceCount: known?.resources ?? null };
+  }
+
+  async function snapshotRow(source: McpSource) {
+    let authStatus = "not-applicable";
+    if (source.type !== "stdio") {
+      try { authStatus = await gateway.authStatus(source.id); }
+      catch { authStatus = "unknown"; }
+    }
+    return {
+      id: source.id,
+      handle: source.handle,
+      name: source.name,
+      description: source.description,
+      type: source.type,
+      status: source.status,
+      sourceKind: source.sourceKind,
+      enabled: source.enabled,
+      authStatus,
+      lastError: source.lastError,
+      sourceRef: source.sourceRef,
+      registryName: source.registryName,
+      registryVersion: source.registryVersion,
+      configJson: redactMcpConfigJson(source.configJson),
+      guide: source.guide,
+      ...counts(source.id),
+    };
   }
 
   async function buildSnapshot() {
-    const compact = await gateway.compactServers();
-    const servers = await Promise.all(compact.map(async (item) => {
-      const source = store.getPlugin(item.id);
-      const server = store.getServer(item.id, item.serverId);
-      let authStatus = "not-applicable";
-      if (server && server.type !== "stdio") {
-        try { authStatus = await gateway.authStatus(item.id, item.serverId); }
-        catch { authStatus = "unknown"; }
-      }
-      return {
-        ...store.identity(item.id),
-        name: item.name, description: item.description, type: item.type, status: item.status,
-        sourceKind: item.sourceKind, toolCount: item.toolCount, promptCount: item.promptCount, resourceCount: item.resourceCount,
-        approved: server?.approved === 1,
-        enabled: server?.enabled === 1,
-        authStatus,
-        lastError: server?.lastError ?? null,
-        sourceRef: source?.sourceRef ?? null,
-        registryName: source?.registryName ?? null,
-        registryVersion: source?.registryVersion ?? null,
-        configJson: redactMcpConfigJson(server?.configJson ?? "{}"),
-        guide: store.getGuide(item.id),
-      };
-    }));
-    return { servers };
+    return { servers: await Promise.all(store.list().map(snapshotRow)) };
   }
 
-  const registryCache = new LruMap<string, { at: number; page: Awaited<ReturnType<typeof fetchRegistryServers>> }>(64);
-  async function registryPage(query: string, limit = 12, remoteOnly = false, cursor?: string) {
-    const current = await settings.get();
-    const baseUrl = current.registryUrl || OFFICIAL_REGISTRY;
-    const key = JSON.stringify([baseUrl, query, limit, remoteOnly, cursor]);
-    const cached = registryCache.get(key);
-    const page = cached && Date.now() - cached.at < 60_000 ? cached.page : await fetchRegistryServers({
-      baseUrl, search: query, limit: remoteOnly ? Math.min(limit * 2, 50) : limit, cursor,
-    });
-    if (page !== cached?.page) registryCache.set(key, { at: Date.now(), page });
-    const hits = page.servers.map(registryHit);
-    return { servers: remoteOnly ? hits.filter(hit => hit.remote) : hits, nextCursor: page.nextCursor };
-  }
   async function searchRegistry(query: string, limit = 12, remoteOnly = false) {
-    return (await registryPage(query, limit, remoteOnly)).servers;
+    const baseUrl = (await settings.get()).registryUrl || OFFICIAL_REGISTRY;
+    const page = await fetchRegistryServers({ baseUrl, search: query, limit: remoteOnly ? Math.min(limit * 2, 50) : limit });
+    return page.servers;
   }
 
   async function addFromRegistry(name: string, extraHeaders?: Record<string, string>, displayName?: string) {
-    const hits = await searchRegistry(name, 20);
-    const exact = hits.find((hit) => hit.name === name) ?? hits.find((hit) => hit.name.toLowerCase() === name.toLowerCase());
-    if (!exact) throw new Error(`Registry server not found: ${name}`);
-    const current = await settings.get();
-    const { servers } = await fetchRegistryServers({
-      baseUrl: current.registryUrl || OFFICIAL_REGISTRY,
-      search: exact.name,
-      limit: 20,
-    });
-    const summary = servers.find((item) => item.name === exact.name);
+    const servers = await searchRegistry(name, 20);
+    const summary = servers.find((item) => item.name === name) ?? servers.find((item) => item.name.toLowerCase() === name.toLowerCase());
     if (!summary) throw new Error(`Registry server not found: ${name}`);
     const install = normalizeRegistryServer(summary);
     if (!install) throw new Error(`No supported install package or remote for ${name}`);
@@ -477,68 +425,47 @@ export default async function plugin(bb: BbPluginApi) {
     });
   }
 
-  async function writeHeaders(id: string, headers?: Record<string, string>) {
-    const { source, server } = await requireSource(id);
-    if (server.type === "stdio") throw new Error("stdio MCP servers do not use HTTP headers");
+  async function writeHeaders(ref: string, headers?: Record<string, string>) {
+    const source = requireSource(ref);
+    if (source.type === "stdio") throw new Error("stdio MCP servers do not use HTTP headers");
     let cfg: Record<string, unknown>;
-    try { cfg = JSON.parse(server.configJson) as Record<string, unknown>; }
+    try { cfg = JSON.parse(source.configJson) as Record<string, unknown>; }
     catch (error) { throw new Error(`invalid server config: ${errorText(error)}`); }
     if (headers && Object.keys(headers).length > 0) cfg.headers = headers;
     else delete cfg.headers;
-    const validation = validateMcpServer(server.serverId, cfg);
+    const validation = validateMcpServer(cfg);
     if (!validation.valid || !validation.config) throw new Error(validation.errors.join("; "));
-    store.upsertMcpServer({ ...server, configJson: JSON.stringify(validation.config), lastError: null });
-    await gateway.resetServer(source.id, server.serverId);
+    store.setConfig(source.id, JSON.stringify(validation.config));
+    await gateway.resetServer(source.id);
     await publishChanged({ kind: "headers", id: source.id });
   }
 
-  async function approve(id: string) {
-    const { source, server } = await requireSource(id);
-    if (server.enabled !== 1) throw new Error(`Enable ${source.name} before approving it`);
-    let cfg: Record<string, unknown>;
-    try { cfg = JSON.parse(server.configJson) as Record<string, unknown>; }
-    catch (error) { throw new Error(`Cannot approve invalid server: ${errorText(error)}`); }
-    const validation = validateMcpServer(server.serverId, cfg);
-    if (!validation.valid) throw new Error(`Cannot approve invalid server: ${validation.errors.join("; ")}`);
-    store.upsertMcpServer({ ...server, approved: 1, status: "idle", lastError: null });
-    await gateway.closeServer(source.id, server.serverId);
-    try { await gateway.startServer(source.id, server.serverId); }
-    catch (error) { bb.log.warn(`[mcps] first connect after approve ${server.serverId}: ${errorText(error)}`); }
-    await publishChanged({ kind: "approve", id: source.id });
-  }
-
-  async function setEnabled(id: string, enabled: boolean) {
-    const { source, server } = await requireSource(id);
-    const next = store.setMcpEnabled(source.id, server.serverId, enabled);
-    if (!next) throw new Error(`not found: ${id}`);
-    if (!enabled) {
-      store.upsertMcpServer({ ...next, status: "disabled", lastError: null });
-      await gateway.closeServer(source.id, server.serverId);
-    } else if (next.approved === 1) {
-      store.upsertMcpServer({ ...next, status: "idle", lastError: null });
-    }
+  async function setEnabled(ref: string, enabled: boolean) {
+    const source = requireSource(ref);
+    const next = store.setEnabled(source.id, enabled)!;
+    if (!enabled) await gateway.closeServer(source.id);
     await publishChanged({ kind: "enable", id: source.id, enabled });
-    return { enabled: next.enabled === 1, status: store.getServer(source.id, server.serverId)?.status ?? next.status };
+    return { enabled: next.enabled, status: next.status };
   }
 
   function policyRow(tool: string, mode: PolicyMode, risk: ToolRisk) {
     return { tool, risk, mode, policy: effectivePolicy(mode, risk) };
   }
 
-  async function listPolicies(id: string) {
-    const { source, server } = await requireSource(id);
+  async function listPolicies(ref: string) {
+    const source = requireSource(ref);
     const { tools } = await gateway.inspectServer(source.id);
-    const stored = store.listToolPolicies(source.id, server.serverId);
+    const stored = store.listToolPolicies(source.id);
     if (tools.length === 0) return stored.map((row) => policyRow(row.toolName, row.mode, row.risk));
     const modes = new Map(stored.map((row) => [row.toolName, row.mode]));
     return tools.map((tool) => policyRow(tool.name, modes.get(tool.name) ?? "inherit", tool.risk)).sort((a, b) => a.tool.localeCompare(b.tool));
   }
 
-  async function setPolicy(id: string, tool: string, mode: PolicyMode) {
-    const { source, server } = await requireSource(id);
-    if (!store.getToolPolicy(source.id, server.serverId, tool)) await gateway.inspectServer(source.id);
-    const next = store.setToolPolicyMode(source.id, server.serverId, tool, mode);
-    if (!next) throw new Error(`Tool not found on ${serverHandle(source.id)}: ${tool}`);
+  async function setPolicy(ref: string, tool: string, mode: PolicyMode) {
+    const source = requireSource(ref);
+    if (!store.getToolPolicy(source.id, tool)) await gateway.inspectServer(source.id);
+    const next = store.setToolPolicyMode(source.id, tool, mode);
+    if (!next) throw new Error(`Tool not found on ${source.handle}: ${tool}`);
     await publishChanged({ kind: "policy", id: source.id, tool });
     return policyRow(next.toolName, next.mode, next.risk);
   }
@@ -559,99 +486,79 @@ export default async function plugin(bb: BbPluginApi) {
     warmTimer.unref?.();
   }
 
-  async function invokeTool(opaqueId: string, args: JsonRecord, scope: CallScope = { threadId: null }) {
-    const tool = gateway.peekTool(opaqueId) ?? await gateway.getTool(opaqueId);
+  async function invokeTool(id: string, args: JsonRecord, scope: CallScope = { threadId: null }) {
+    const tool = gateway.peekTool(id) ?? await gateway.getTool(id);
     const invalid = validateCallArgs(tool.inputSchema, args);
     if (invalid) {
       return { isError: true, error: `Invalid arguments for ${tool.name}: ${invalid}` };
     }
     const risk = classifyTool(tool.annotations);
-    const policy = effectivePolicy(store.getToolPolicy(tool.pluginId, tool.serverId, tool.name)?.mode ?? "inherit", risk);
-    const server = serverHandle(tool.pluginId);
+    const policy = effectivePolicy(store.getToolPolicy(tool.sourceId, tool.name)?.mode ?? "inherit", risk);
     if (policy === "deny") {
-      return { isError: true, error: `${server}/${tool.name} is blocked by the user's MCP policy (deny); the tool was not run. Ask the user if it should be allowed.` };
+      return { isError: true, error: `${tool.handle}/${tool.name} is blocked by the user's MCP policy (deny); the tool was not run. Ask the user if it should be allowed.` };
     }
     if (policy === "confirm") {
-      const refused = await approvals.confirmTool({ scope, server, tool: tool.name, risk, args });
+      const refused = await approvals.confirmTool({ scope, server: tool.handle, tool: tool.name, risk, args });
       if (refused) return { isError: true, error: refused };
     }
-    return approvals.runCall(`${tool.pluginId}:${tool.serverId}`, scope, () => gateway.call(opaqueId, args, scope.signal));
+    return approvals.runCall(tool.sourceId, scope, () => gateway.call(id, args, scope.signal));
   }
 
   bb.http.route("GET", "/oauth/callback", async (context) => {
     const url = new URL(context.req.url);
-    const pluginId = url.searchParams.get("pluginId");
-    const serverId = url.searchParams.get("serverId");
-    if (!pluginId || !serverId) return new Response("Missing MCPs OAuth callback context", { status: 400 });
+    const id = url.searchParams.get("id");
+    if (!id) return new Response("Missing MCPs OAuth callback context", { status: 400 });
     try {
-      await withDeferredOAuthPersistence(() => gateway.finishAuth(pluginId, serverId, url.searchParams));
-      await publishChanged({ kind: "oauth", id: pluginId, serverId });
+      await withDeferredOAuthPersistence(() => gateway.finishAuth(id, url.searchParams));
+      await publishChanged({ kind: "oauth", id });
       return new Response("<p>Authentication completed. You can close this window.</p>", { headers: { "content-type": "text/html; charset=utf-8" } });
     } catch (error) {
-      bb.log.warn(`[mcps] OAuth callback failed for ${serverId}: ${errorText(error)}`);
+      bb.log.warn(`[mcps] OAuth callback failed for ${id}: ${errorText(error)}`);
       return new Response("<p>Authentication failed. Return to BB and try again.</p>", { status: 400, headers: { "content-type": "text/html; charset=utf-8" } });
     }
   });
 
-  async function writeGuide(id: string, guide: string | null) {
-    const source = store.resolveSource(id);
-    if (!source) throw new Error(`MCP server not found: ${id}`);
+  async function writeGuide(ref: string, guide: string | null) {
+    const source = requireSource(ref);
     if (guide !== null && guide.length > GUIDE_INPUT_MAX_CHARS) throw new Error(`Guide is longer than ${GUIDE_INPUT_MAX_CHARS} characters`);
     const next = guide?.trim() || null;
     store.setGuide(source.id, next);
     await publishChanged({ kind: "guide", id: source.id });
-    return { ...store.identity(source.id), guide: next };
+    return { id: source.id, handle: source.handle, guide: next };
   }
 
   bb.rpc.register(rpcContract, {
     snapshot: () => buildSnapshot(),
-    async remove({ id }) {
-      const source = store.resolveSource(id);
-      if (!source) return { deleted: false };
-      for (const server of store.listMcpServers(source.id)) {
-        await gateway.resetServer(source.id, server.serverId).catch(() => {});
-        await deleteOAuthCredentials(source.id, server.serverId).catch((error) => {
-          bb.log.warn(`[mcps] ${errorText(error)}`);
-        });
-      }
-      const deleted = store.deleteSource(source.id);
-      await rimraf(path.dirname(source.pluginRoot)).catch(() => {});
-      await publishChanged({ kind: "remove", id: source.id });
-      return { deleted };
-    },
-    async approve({ id }) { await approve(id); return { approved: true }; },
+    async remove({ id }) { return { deleted: (await removeServer(id)) !== undefined }; },
     setEnabled: ({ id, enabled }) => setEnabled(id, enabled),
     async setHeaders({ id, headers, headerLines }) {
       await writeHeaders(id, headersFromInput(headers, headerLines));
       return { updated: true };
     },
     async authenticate({ id }) {
-      const { source, server } = await requireSource(id);
-      const url = await gateway.authUrl(source.id, server.serverId);
-      return { url, status: await gateway.authStatus(source.id, server.serverId) };
+      const source = requireSource(id);
+      const url = await gateway.authUrl(source.id);
+      return { url, status: await gateway.authStatus(source.id) };
     },
     async reconnect({ id }) {
-      const { source, server } = await requireSource(id);
-      const url = await gateway.reconnectServer(source.id, server.serverId);
+      const source = requireSource(id);
+      const url = await gateway.reconnectServer(source.id);
       await publishChanged({ kind: "reconnect", id: source.id });
-      return { url, status: await gateway.authStatus(source.id, server.serverId) };
+      return { url, status: await gateway.authStatus(source.id) };
     },
     async finishAuthentication({ id, callbackUrl }) {
-      const { source, server } = await requireSource(id);
-      await withDeferredOAuthPersistence(() => gateway.finishAuth(source.id, server.serverId, new URL(callbackUrl).searchParams));
+      const source = requireSource(id);
+      await withDeferredOAuthPersistence(() => gateway.finishAuth(source.id, new URL(callbackUrl).searchParams));
       await publishChanged({ kind: "oauth", id: source.id });
       return { authenticated: true };
     },
     async cancelAuthentication({ id }) {
-      const { source, server } = await requireSource(id);
-      await withDeferredOAuthPersistence(() => gateway.cancelAuthentication(source.id, server.serverId));
+      const source = requireSource(id);
+      await withDeferredOAuthPersistence(() => gateway.cancelAuthentication(source.id));
       return { canceled: true };
     },
     async searchTools({ query, limit }) { return gateway.searchTools(query, limit ?? SEARCH_LIMIT); },
-    async inspectServer({ id }) {
-      const { source } = await requireSource(id);
-      return gateway.inspectServer(source.id);
-    },
+    inspectServer: ({ id }) => gateway.inspectServer(requireSource(id).id),
     setGuide: ({ id, guide }) => writeGuide(id, guide),
     async listToolPolicies({ id }) { return { tools: await listPolicies(id) }; },
     setToolPolicy: ({ id, tool, mode }) => setPolicy(id, tool, mode),
@@ -659,24 +566,14 @@ export default async function plugin(bb: BbPluginApi) {
     providerFix: ({ hostId }) => providerStatus("providerMcpFix", hostId),
   });
 
-  const idField = z.string().min(1).optional().describe("ID from discovery.");
-  const idFields = { id: idField };
-  function readId(input: Record<string, unknown>, legacy: string): string {
-    const id = input.id ?? input[legacy] ?? input.opaqueId;
-    if (typeof id !== "string" || !id.trim()) throw new Error("id is required");
-    return id;
-  }
-  function hasId(input: Record<string, unknown>, legacy: string): boolean {
-    try { readId(input, legacy); return true; } catch { return false; }
-  }
+  const idSchema = z.string().trim().min(1).describe("ID from discovery.");
 
-  function toolRows(tools: Awaited<ReturnType<McpGateway["searchTools"]>>["tools"]) {
+  function toolRows(tools: CompactTool[]) {
     return tools.map(tool => {
-      const mode = tool.pluginId ? store.getToolPolicy(tool.pluginId, tool.serverId, tool.name)?.mode : undefined;
-      const policy = effectivePolicy(mode ?? "inherit", tool.risk);
+      const policy = effectivePolicy(store.getToolPolicy(tool.sourceId, tool.name)?.mode ?? "inherit", tool.risk);
       return {
-        id: tool.opaqueId,
-        server: tool.pluginId && store.getPlugin(tool.pluginId) ? store.identity(tool.pluginId).handle : tool.serverName,
+        id: tool.id,
+        server: tool.handle,
         name: tool.name,
         description: tool.description,
         ...(tool.risk !== "read" ? { risk: tool.risk } : {}),
@@ -687,22 +584,25 @@ export default async function plugin(bb: BbPluginApi) {
     });
   }
 
-  async function serverRows(details = false) {
-    const servers = await gateway.compactServers();
-    return servers.map(item => ({
-      ...store.identity(item.id),
-      type: item.type,
-      status: item.status,
-      ...(item.toolCount !== null ? { tools: item.toolCount } : {}),
-      ...(details ? {
-        name: item.name,
-        ...(item.description ? { description: item.description } : {}),
-        sourceKind: item.sourceKind,
-        ...(item.promptCount !== null ? { prompts: item.promptCount } : {}),
-        ...(item.resourceCount !== null ? { resources: item.resourceCount } : {}),
-        ...(store.getServer(item.id, item.serverId)?.lastError ? { error: store.getServer(item.id, item.serverId)!.lastError } : {}),
-      } : {}),
-    }));
+  function serverRows(details = false) {
+    return store.list().map(source => {
+      const { toolCount, promptCount, resourceCount } = counts(source.id);
+      return {
+        id: source.id,
+        handle: source.handle,
+        type: source.type,
+        status: source.status,
+        ...(toolCount !== null ? { tools: toolCount } : {}),
+        ...(details ? {
+          name: source.name,
+          ...(source.description ? { description: source.description } : {}),
+          sourceKind: source.sourceKind,
+          ...(promptCount !== null ? { prompts: promptCount } : {}),
+          ...(resourceCount !== null ? { resources: resourceCount } : {}),
+          ...(source.lastError ? { error: source.lastError } : {}),
+        } : {}),
+      };
+    });
   }
 
   const toolNames = ["mcp_servers", "mcp_search", "mcp_schema", "mcp_call", "mcp_prompts", "mcp_get_prompt", "mcp_resources", "mcp_read_resource"] as const;
@@ -718,10 +618,11 @@ export default async function plugin(bb: BbPluginApi) {
       details: z.boolean().default(false),
     }).strict(),
     async execute({ query, limit, cursor, details }) {
-      let rows = await serverRows(details);
+      let rows = serverRows(details);
       if (query) {
         const q = query.toLowerCase();
-        rows = rows.filter(row => row.id === query || row.handle.toLowerCase().includes(q) || store.resolveSource(row.id)?.name.toLowerCase().includes(q));
+        const names = new Map(store.list().map((source) => [source.id, source.name.toLowerCase()]));
+        rows = rows.filter(row => row.id === query || row.handle.includes(q) || names.get(row.id)?.includes(q));
       }
       rows.sort((a, b) => a.handle.localeCompare(b.handle));
       const servers = rows.slice(cursor, cursor + limit);
@@ -748,12 +649,12 @@ export default async function plugin(bb: BbPluginApi) {
     description: "Get one tool's full description and input schema by id. Large schemas are saved as artifacts.",
     instructions: "Use when search input is insufficient. Read artifactPath for schemas too large to inline.",
     presentation: { label: { pending: "Loading MCP schema", completed: "Loaded MCP schema" } },
-    parameters: z.object(idFields).passthrough().refine(v => hasId(v, "toolId"), "id is required"),
-    async execute(input) {
-      const tool = await gateway.getTool(readId(input, "toolId"));
+    parameters: z.object({ id: idSchema }).strict(),
+    async execute({ id }) {
+      const tool = await gateway.getTool(id);
       const schemaJson = JSON.stringify(tool.inputSchema);
       const payload: JsonRecord = {
-        id: tool.opaqueId,
+        id: tool.id,
         name: tool.name,
         description: tool.description,
         risk: classifyTool(tool.annotations),
@@ -771,15 +672,12 @@ export default async function plugin(bb: BbPluginApi) {
   });
   bb.agents.registerTool({
     name: "mcp_call",
-    description: "Call one MCP tool by tool ID. Does not re-list the catalog.",
+    description: "Call one MCP tool by id. Does not re-list the catalog.",
     instructions: "Use id from mcp_search. Report the result to the user; the UI may show only a success envelope.",
     presentation: { label: { pending: "Calling MCP tool", completed: "Called MCP tool" } },
-    parameters: z.object({
-      ...idFields,
-      args: jsonRecordSchema.default({}),
-    }).passthrough().refine(v => hasId(v, "toolId"), "id is required"),
-    async execute(input, ctx) {
-      return agentReply(await invokeTool(readId(input, "toolId"), input.args as JsonRecord, { threadId: ctx.threadId, signal: ctx.signal }), "call");
+    parameters: z.object({ id: idSchema, args: jsonRecordSchema.default({}) }).strict(),
+    async execute({ id, args }, ctx) {
+      return agentReply(await invokeTool(id, args, { threadId: ctx.threadId, signal: ctx.signal }), "call");
     },
   });
   bb.agents.registerTool({
@@ -791,11 +689,11 @@ export default async function plugin(bb: BbPluginApi) {
       const prompts = await gateway.listPrompts(server);
       const q = query?.trim() ?? "";
       const rows = prompts.map((item) => ({
-        id: item.opaqueId,
-        server: store.getPlugin(item.pluginId) ? store.identity(item.pluginId).handle : item.pluginName,
+        id: item.id,
+        server: item.handle,
         name: item.name,
         description: item.description ?? "",
-        score: q ? scoreMatch(q, [item.name, item.description ?? "", item.pluginName, item.pluginId]) : 1,
+        score: q ? scoreMatch(q, [item.name, item.description ?? "", item.handle]) : 1,
       })).filter((item) => item.score > 0);
       rows.sort((a, b) => b.score - a.score);
       return agentData({ prompts: rows.slice(0, SEARCH_LIMIT).map(({ score: _, ...item }) => item) }, "prompts");
@@ -803,12 +701,12 @@ export default async function plugin(bb: BbPluginApi) {
   });
   bb.agents.registerTool({
     name: "mcp_get_prompt",
-    description: "Get one MCP prompt by prompt ID.",
+    description: "Get one MCP prompt by id.",
     instructions: "Use id from mcp_prompts.",
     presentation: { label: { pending: "Getting MCP prompt", completed: "Got MCP prompt" } },
-    parameters: z.object({ ...idFields, args: jsonRecordSchema.default({}) }).passthrough().refine(v => hasId(v, "promptId"), "id is required"),
-    async execute(input, ctx) {
-      return agentReply(await gateway.getPrompt(readId(input, "promptId"), input.args as JsonRecord, ctx.signal), "prompt");
+    parameters: z.object({ id: idSchema, args: jsonRecordSchema.default({}) }).strict(),
+    async execute({ id, args }, ctx) {
+      return agentReply(await gateway.getPrompt(id, args, ctx.signal), "prompt");
     },
   });
   bb.agents.registerTool({
@@ -820,8 +718,8 @@ export default async function plugin(bb: BbPluginApi) {
       const [resources, resourceTemplates] = await Promise.all([gateway.listResources(server), gateway.listResourceTemplates(server)]);
       const q = query?.trim() ?? "";
       const rows = [
-        ...resources.map((item) => ({ id: item.opaqueId, server: store.getPlugin(item.pluginId) ? store.identity(item.pluginId).handle : item.pluginName, uri: item.uri, name: item.name, score: q ? scoreMatch(q, [item.name, item.uri, item.pluginName, item.pluginId]) : 1 })),
-        ...resourceTemplates.map((item) => ({ id: item.opaqueId, server: store.getPlugin(item.pluginId) ? store.identity(item.pluginId).handle : item.pluginName, uri: item.uriTemplate, name: item.name, score: q ? scoreMatch(q, [item.name, item.uriTemplate, item.pluginName, item.pluginId]) : 1 })),
+        ...resources.map((item) => ({ id: item.id, server: item.handle, uri: item.uri, name: item.name, score: q ? scoreMatch(q, [item.name, item.uri, item.handle]) : 1 })),
+        ...resourceTemplates.map((item) => ({ id: item.id, server: item.handle, uri: item.uriTemplate, name: item.name, score: q ? scoreMatch(q, [item.name, item.uriTemplate, item.handle]) : 1 })),
       ].filter((item) => item.score > 0);
       rows.sort((a, b) => b.score - a.score);
       return agentData({ resources: rows.slice(0, SEARCH_LIMIT).map(({ score: _, ...item }) => item) }, "resources");
@@ -829,58 +727,44 @@ export default async function plugin(bb: BbPluginApi) {
   });
   bb.agents.registerTool({
     name: "mcp_read_resource",
-    description: "Read one MCP resource by resource ID.",
+    description: "Read one MCP resource by id.",
     instructions: "Use id from mcp_resources.",
     presentation: { label: { pending: "Reading MCP resource", completed: "Read MCP resource" } },
-    parameters: z.object(idFields).passthrough().refine(v => hasId(v, "resourceId"), "id is required"),
-    async execute(input, ctx) { return agentReply(await gateway.readResource(readId(input, "resourceId"), ctx.signal), "resource"); },
+    parameters: z.object({ id: idSchema }).strict(),
+    async execute({ id }, ctx) { return agentReply(await gateway.readResource(id, ctx.signal), "resource"); },
   });
   bb.agents.configure((ctx) => {
-    const instructions = connectedInstructions(store.listConnectedSources(), threadServerSelection(ctx.pluginMetadata));
+    const instructions = connectedInstructions(store.listEnabled(), threadServerSelection(ctx.pluginMetadata));
     return { tools: [...toolNames], skills: [], ...(instructions ? { instructions } : {}) };
   });
 
   function looksLikeUrl(value: string): boolean {
     return /^https?:\/\//i.test(value);
   }
-  function nameFromSource(value: string): string {
-    if (looksLikeUrl(value)) {
-      try { return slug(new URL(value).hostname.replace(/^(mcp|www)\./, "")) || "http"; }
-      catch { return "http"; }
-    }
-    return slug(value);
+  function nameFromUrl(value: string): string {
+    try { return handleFor(new URL(value).hostname.replace(/^(mcp|www)\./, "")); }
+    catch { return "http"; }
   }
-  async function addFromArgv(opts: { positional: string[]; headerLines: string[]; sse: boolean; stdio: boolean; name?: string }) {
+  function addManual(name: string, type: McpSource["type"], sourceRef: string, config: Record<string, unknown>) {
+    return addServer({ name, description: null, type, sourceKind: "manual", sourceRef, registryName: null, registryVersion: null, config });
+  }
+  async function addFromArgv(opts: { positional: string[]; headerLines: string[]; sse: boolean }) {
     const dash = opts.positional.indexOf("--");
     const before = dash >= 0 ? opts.positional.slice(0, dash) : opts.positional;
     const after = dash >= 0 ? opts.positional.slice(dash + 1) : [];
     const headers = headersFromInput(undefined, opts.headerLines);
-    if (opts.stdio || after.length > 0) {
-      const name = opts.name || before[0];
-      const commandArgs = after.length > 0 ? after : before.slice(opts.name ? 0 : 1);
-      const commandName = commandArgs[0];
+    if (dash >= 0) {
+      const name = before[0];
+      const commandName = after[0];
       if (!name || !commandName) throw new Error("Usage: bb mcp add <name> -- <command> [args...]");
-      return addServer({
-        name,
-        sourceKind: "manual",
-        sourceRef: commandName,
-        type: "stdio",
-        config: { type: "stdio", command: commandName, args: commandArgs.slice(1), cwd: "${PLUGIN_DATA}" },
-      });
+      return addManual(name, "stdio", commandName, { type: "stdio", command: commandName, args: after.slice(1), cwd: "${PLUGIN_DATA}" });
     }
     const source = before.length >= 2 ? before[1]! : before[0];
     if (!source) throw new Error("Usage: bb mcp add <name> <url|registry-id>");
-    const explicitName = opts.name || (before.length >= 2 ? before[0]! : undefined);
+    const explicitName = before.length >= 2 ? before[0]! : undefined;
     if (looksLikeUrl(source) || opts.sse) {
-      const name = explicitName || nameFromSource(source);
       const type = opts.sse || source.includes("/sse") ? "sse" as const : "streamable-http" as const;
-      return addServer({
-        name,
-        sourceKind: "manual",
-        sourceRef: source,
-        type,
-        config: headers ? { type, url: source, headers } : { type, url: source },
-      });
+      return addManual(explicitName || nameFromUrl(source), type, source, headers ? { type, url: source, headers } : { type, url: source });
     }
     return addFromRegistry(source, headers, explicitName);
   }
@@ -934,19 +818,10 @@ export default async function plugin(bb: BbPluginApi) {
         const headerLines: string[] = [];
         let sse = false;
         let remoteOnly = false;
-        let stdio = false;
-        let name: string | undefined;
         for (let i = 0; i < argv.length; i += 1) {
           const item = argv[i]!;
           if (item === "--sse") sse = true;
-          else if (item === "--remote" || item === "--http") remoteOnly = true;
-          else if (item === "--stdio") stdio = true;
-          else if (item === "--name") {
-            const value = argv[i + 1];
-            if (!value) throw new Error("--name needs a value");
-            name = value;
-            i += 1;
-          } else if (item.startsWith("--name=")) name = item.slice("--name=".length);
+          else if (item === "--http") remoteOnly = true;
           else if (item === "--header") {
             const value = argv[i + 1];
             if (!value) throw new Error("--header needs a 'Name: value' argument");
@@ -955,7 +830,7 @@ export default async function plugin(bb: BbPluginApi) {
           } else if (item.startsWith("--header=")) headerLines.push(item.slice("--header=".length));
           else positional.push(item);
         }
-        return { positional, headerLines, sse, remoteOnly, stdio, name };
+        return { positional, headerLines, sse, remoteOnly };
       };
       try {
         switch (command) {
@@ -963,18 +838,17 @@ export default async function plugin(bb: BbPluginApi) {
           case "help":
           case "--help":
             return { exitCode: 0, stdout: usage + "\n" };
-          case "list":
-          case "ls": {
-            const rows = await serverRows(rest.includes("--details"));
+          case "list": {
+            const rows = serverRows(rest.includes("--details"));
             return reply(rows, rows.length === 0
               ? "No MCP servers. Try: bb mcp registry notion"
               : rows.map((item) => `${item.id}  ${item.handle}  ${item.type}  ${item.status}`).join("\n"));
           }
           case "show": {
             if (!rest[0]) break;
-            const snap = await buildSnapshot();
-            const item = snap.servers.find((row) => row.id === rest[0] || row.handle === rest[0] || row.name === rest[0]);
-            if (!item) return { exitCode: 1, stderr: `not found: ${rest[0]}\n` };
+            const source = store.resolve(rest[0]);
+            if (!source) return { exitCode: 1, stderr: `not found: ${rest[0]}\n` };
+            const item = await snapshotRow(source);
             return reply(item, [
               `id: ${item.id}`,
               `handle: ${item.handle}`,
@@ -989,28 +863,18 @@ export default async function plugin(bb: BbPluginApi) {
               item.guide ? `guide: ${item.guide}` : null,
             ].filter(Boolean).join("\n"));
           }
-          case "registry":
-          case "search":
-          case "find": {
+          case "registry": {
             const opts = takeOptions(rest);
             const query = opts.positional.join(" ").trim();
             if (!query) break;
-            const servers = await searchRegistry(query, 12, opts.remoteOnly);
-            return reply(servers, servers.length === 0 ? "No registry matches." : servers.map((item) => `${item.remote ? "http" : item.type ?? "unsupported"}  ${item.name}  ${item.requiredHeaders.length ? `headers:${item.requiredHeaders.join(",")}` : ""}  ${item.description}`.replace(/\s+/g, " ").trim()).join("\n"));
+            const hits = (await searchRegistry(query, 12, opts.remoteOnly)).map(registryHit).filter((hit) => !opts.remoteOnly || hit.remote);
+            return reply(hits, hits.length === 0 ? "No registry matches." : hits.map((item) => `${item.remote ? "http" : item.type ?? "unsupported"}  ${item.name}  ${item.requiredHeaders.length ? `headers:${item.requiredHeaders.join(",")}` : ""}  ${item.description}`.replace(/\s+/g, " ").trim()).join("\n"));
           }
-          case "add":
-          case "install":
-          case "add-http":
-          case "add-stdio":
-          case "add-registry": {
-            const opts = takeOptions(rest);
-            if (command === "add-stdio") opts.stdio = true;
-            if (command === "add-http") opts.sse = opts.sse || Boolean(opts.positional[1]?.includes("/sse"));
-            const added = await addFromArgv(opts);
+          case "add": {
+            const added = await addFromArgv(takeOptions(rest));
             return reply(added, `Added ${added.name} (${added.id})`);
           }
-          case "header":
-          case "headers": {
+          case "header": {
             const opts = takeOptions(rest);
             const id = opts.positional[0];
             if (!id) break;
@@ -1020,44 +884,30 @@ export default async function plugin(bb: BbPluginApi) {
             await writeHeaders(id, headersFromInput(undefined, lines));
             return reply({ updated: true, id }, `Updated headers for ${id}`);
           }
-          case "approve": {
-            if (!rest[0]) break;
-            await approve(rest[0]);
-            return reply({ approved: true, id: rest[0] }, `Approved ${rest[0]}`);
-          }
           case "enable":
           case "disable": {
             if (!rest[0]) break;
             const result = await setEnabled(rest[0], command === "enable");
             return reply(result, `${command}d ${rest[0]}`);
           }
-          case "remove":
-          case "delete":
-          case "rm": {
+          case "remove": {
             if (!rest[0]) break;
-            const source = store.resolveSource(rest[0]);
+            const source = await removeServer(rest[0]);
             if (!source) return { exitCode: 1, stderr: `not found: ${rest[0]}\n` };
-            for (const server of store.listMcpServers(source.id)) {
-              await gateway.resetServer(source.id, server.serverId).catch(() => {});
-              await deleteOAuthCredentials(source.id, server.serverId).catch(() => {});
-            }
-            store.deleteSource(source.id);
-            await rimraf(path.dirname(source.pluginRoot)).catch(() => {});
-            await publishChanged({ kind: "remove", id: source.id });
-            return reply({ deleted: true, id: rest[0] }, `Removed ${source.name}`);
+            return reply({ deleted: true, id: source.id }, `Removed ${source.name}`);
           }
           case "auth": {
             if (!rest[0]) break;
-            const { source, server } = await requireSource(rest[0]);
-            const url = await gateway.authUrl(source.id, server.serverId);
-            const status = await gateway.authStatus(source.id, server.serverId);
+            const source = requireSource(rest[0]);
+            const url = await gateway.authUrl(source.id);
+            const status = await gateway.authStatus(source.id);
             return reply({ url, status }, url ? `${status}\n${url}` : status);
           }
           case "tools": {
             const query = rest.join(" ").trim();
             if (!query) break;
             const { tools, unavailable } = await gateway.searchTools(query);
-            const lines = tools.map((tool) => `${tool.opaqueId}  ${tool.name}  ${tool.description}`);
+            const lines = tools.map((tool) => `${tool.id}  ${tool.name}  ${tool.description}`);
             if (unavailable.length > 0) lines.push(`unavailable: ${unavailable.join("; ")}`);
             return reply({ tools: toolRows(tools), ...(unavailable.length ? { unavailable } : {}) }, lines.length === 0 ? "No matching tools." : lines.join("\n"));
           }
@@ -1068,10 +918,9 @@ export default async function plugin(bb: BbPluginApi) {
             const text = rest.slice(1).filter((item) => item !== "--clear").join(" ").trim();
             if (clear && text) return { exitCode: 2, stderr: "Pass guide text or --clear, not both\n" };
             if (!clear && !text) {
-              const source = store.resolveSource(id);
+              const source = store.resolve(id);
               if (!source) return { exitCode: 1, stderr: `not found: ${id}\n` };
-              const guide = store.getGuide(source.id);
-              return reply({ ...store.identity(source.id), guide }, guide ?? `No guide for ${store.identity(source.id).handle}.`);
+              return reply({ id: source.id, handle: source.handle, guide: source.guide }, source.guide ?? `No guide for ${source.handle}.`);
             }
             const result = await writeGuide(id, clear ? null : text);
             return reply(result, result.guide === null ? `Cleared guide for ${result.handle}` : `Updated guide for ${result.handle}`);
@@ -1110,14 +959,14 @@ export default async function plugin(bb: BbPluginApi) {
             return reply(result, formatProviderStatus(result, fix));
           }
           case "call": {
-            const opaqueId = rest[0];
-            if (!opaqueId) break;
+            const id = rest[0];
+            if (!id) break;
             let callArgs: JsonRecord = {};
             if (rest[1]) {
               try { callArgs = JSON.parse(rest.slice(1).join(" ")) as JsonRecord; }
               catch { return { exitCode: 2, stderr: "call args must be JSON object\n" }; }
             }
-            const result = await invokeTool(opaqueId, callArgs, { threadId: ctx.threadId ?? null, ...(ctx.signal ? { signal: ctx.signal } : {}) });
+            const result = await invokeTool(id, callArgs, { threadId: ctx.threadId ?? null, ...(ctx.signal ? { signal: ctx.signal } : {}) });
             return reply(result, JSON.stringify(result, null, 2));
           }
         }

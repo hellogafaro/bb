@@ -1,13 +1,12 @@
 import * as crypto from "node:crypto";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import type { BoundedOutput, CompactTool, JsonRecord, ToolSearchHits } from "./types.js";
+import type { BoundedOutput, CatalogTool, CompactTool } from "./types.js";
 import { callCard } from "./call-card.js";
 import { classifyTool } from "./policy.js";
 
 export const SEARCH_LIMIT = 5;
 export const SEARCH_MAX = 12;
-export const INDEX_LIMIT = 64;
 export const DESCRIPTION_CHARS = 180;
 export const AGENT_OUTPUT_CHARS = 12_000;
 export const SCHEMA_INLINE_CHARS = 2_000;
@@ -35,35 +34,18 @@ export function scoreTokens(tokens: string[], name: string, haystack: string): n
   return score;
 }
 
-export function compactToolFromCatalog(tool: {
-  opaqueId: string;
-  serverId: string;
-  pluginName: string;
-  pluginId?: string;
-  name: string;
-  description: string;
-  annotations?: JsonRecord;
-  enabled?: boolean;
-  inputSchema?: JsonRecord;
-}, options?: { card?: boolean }): CompactTool {
-  const schema = tool.inputSchema ?? { type: "object" };
-  const card = options?.card ? callCard(schema) : undefined;
-  const schemaRequired = /"(?:oneOf|anyOf|allOf|\$ref|if|dependentRequired)"\s*:/.test(JSON.stringify(schema));
+export function compactToolFromCatalog(tool: CatalogTool, options?: { card?: boolean }): CompactTool {
+  const card = options?.card ? callCard(tool.inputSchema) : undefined;
+  const schemaRequired = card !== undefined && /"(?:oneOf|anyOf|allOf|\$ref|if|dependentRequired)"\s*:/.test(JSON.stringify(tool.inputSchema));
   return {
-    opaqueId: tool.opaqueId,
-    ...(tool.pluginId ? { pluginId: tool.pluginId } : {}),
-    serverId: tool.serverId,
-    serverName: tool.pluginName,
+    id: tool.id,
+    sourceId: tool.sourceId,
+    handle: tool.handle,
     name: tool.name,
     description: clip(tool.description),
     risk: classifyTool(tool.annotations),
-    enabled: tool.enabled !== false,
     ...(card ? { card, ...(schemaRequired ? { schemaRequired: true } : {}) } : {}),
   };
-}
-
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
 }
 
 export function compactIfJson(text: string): string {
@@ -129,22 +111,6 @@ export function formatMcpResult(value: unknown): { text: string; isError: boolea
   const pretty = JSON.stringify(value);
   if (pretty.length <= AGENT_OUTPUT_CHARS) return { text: pretty, isError };
   return { text: JSON.stringify(value), isError };
-}
-
-export function packSearchResult(result: ToolSearchHits, maxChars = AGENT_OUTPUT_CHARS): ToolSearchHits {
-  const unavailable = [...result.unavailable];
-  const tools = result.tools.map((tool) => ({
-    ...tool,
-    ...(tool.card ? { card: { ...tool.card, fields: [...tool.card.fields], example: { ...tool.card.example } } } : {}),
-  }));
-  const pack = () => JSON.stringify({ tools, unavailable });
-  while (pack().length > maxChars && tools.length > 0) {
-    const last = tools[tools.length - 1]!;
-    if (last.card?.fields.length) last.card = { ...last.card, fields: [] };
-    else if (last.card) delete last.card;
-    else tools.pop();
-  }
-  return { tools, unavailable };
 }
 
 export async function boundText(text: string, options: {

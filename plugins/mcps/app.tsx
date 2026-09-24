@@ -48,7 +48,6 @@ type ServerRow = {
   type: string;
   status: string;
   sourceKind: string;
-  approved: boolean;
   enabled: boolean;
   authStatus: string;
   lastError: string | null;
@@ -61,18 +60,10 @@ type ServerRow = {
 };
 
 type CompactTool = {
-  opaqueId: string;
-  serverId: string;
-  serverName: string;
+  id: string;
   name: string;
   description: string;
   risk: "read" | "write" | "destructive";
-  enabled: boolean;
-  card?: {
-    shape: string;
-    fields: Array<{ name: string; type: string; required: boolean; enum?: string[] }>;
-    example: Record<string, unknown>;
-  };
 };
 
 type TypeFilter = "http" | "sse" | "stdio";
@@ -691,7 +682,7 @@ function DetailPage({
           <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5">
             <ul className="divide-y divide-border">
               {tools.slice(toolPage * 50, (toolPage + 1) * 50).map((tool) => (
-                <li key={tool.opaqueId} className="flex min-w-0 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <li key={tool.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <p className="truncate text-sm font-medium">{tool.name}</p>

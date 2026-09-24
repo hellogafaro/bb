@@ -1,4 +1,6 @@
-import type { ConnectedSource } from "./store.js";
+import type { McpSource } from "./types.js";
+
+type ConnectedSource = Pick<McpSource, "id" | "handle" | "description" | "guide">;
 
 export const INSTRUCTIONS_MAX_CHARS = 4096;
 export const GUIDE_MAX_CHARS = 600;

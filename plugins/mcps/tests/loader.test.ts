@@ -3,7 +3,7 @@ import { parseHeaderLines, validateMcpServer } from "../src/loader.js";
 
 describe("direct MCP configs", () => {
   it("allows absolute command and PLUGIN_DATA cwd", () => {
-    const result = validateMcpServer("mcp", {
+    const result = validateMcpServer({
       type: "stdio",
       command: "/usr/bin/npx",
       args: ["-y", "demo"],
@@ -13,7 +13,7 @@ describe("direct MCP configs", () => {
   });
 
   it("rejects shell metacharacters", () => {
-    expect(validateMcpServer("mcp", { type: "stdio", command: "npx; rm" }).valid).toBe(false);
+    expect(validateMcpServer({ type: "stdio", command: "npx; rm" }).valid).toBe(false);
   });
 
   it("parses and validates cloud HTTP headers", () => {
@@ -22,7 +22,7 @@ describe("direct MCP configs", () => {
       "X-API-Key": "abc",
     });
     expect(() => parseHeaderLines(["Authorization Bearer"])).toThrow(/Name: value/);
-    const result = validateMcpServer("mcp", {
+    const result = validateMcpServer({
       type: "streamable-http",
       url: "https://mcp.example/mcp",
       headers: { Authorization: "Bearer tok" },

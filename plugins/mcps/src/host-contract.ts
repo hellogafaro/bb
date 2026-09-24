@@ -11,17 +11,17 @@ const catalogSchema = z.object({
   resourceTemplates: z.array(jsonRecordSchema),
 }).strict();
 
-const serverKeySchema = z.string().min(1).max(512);
+const sourceIdSchema = z.string().min(1).max(128);
 
 const stdioConfigSchema = z.object({
-  key: serverKeySchema,
+  id: sourceIdSchema,
   command: z.string().min(1).max(16_384),
   args: z.array(z.string().max(16_384)).max(256),
   cwd: z.string().min(1).max(16_384),
   env: z.record(z.string(), z.string().max(16_384)),
 }).strict();
 
-const operationSchema = z.object({ key: serverKeySchema }).strict();
+const operationSchema = z.object({ id: sourceIdSchema }).strict();
 
 const providerMcpEntrySchema = z.object({ name: z.string(), file: z.string(), scope: z.string() }).strict();
 
@@ -52,7 +52,7 @@ export const mcpHostContract = defineRpcContract({
   },
   callTool: {
     input: z.object({
-      key: serverKeySchema,
+      id: sourceIdSchema,
       name: z.string().min(1).max(512),
       args: jsonRecordSchema,
       toolDefinition: jsonRecordSchema.optional(),
@@ -60,28 +60,12 @@ export const mcpHostContract = defineRpcContract({
     output: jsonRecordSchema,
   },
   getPrompt: {
-    input: z.object({ key: serverKeySchema, name: z.string().min(1).max(512), args: jsonRecordSchema }).strict(),
+    input: z.object({ id: sourceIdSchema, name: z.string().min(1).max(512), args: jsonRecordSchema }).strict(),
     output: jsonRecordSchema,
   },
   readResource: {
-    input: z.object({ key: serverKeySchema, uri: z.string().min(1).max(16_384) }).strict(),
+    input: z.object({ id: sourceIdSchema, uri: z.string().min(1).max(16_384) }).strict(),
     output: jsonRecordSchema,
-  },
-  complete: {
-    input: z.object({ key: serverKeySchema, ref: jsonRecordSchema, argument: jsonRecordSchema }).strict(),
-    output: jsonRecordSchema,
-  },
-  subscribeResource: {
-    input: z.object({ key: serverKeySchema, uri: z.string().min(1).max(16_384) }).strict(),
-    output: z.object({ subscribed: z.boolean() }).strict(),
-  },
-  unsubscribeResource: {
-    input: z.object({ key: serverKeySchema, uri: z.string().min(1).max(16_384) }).strict(),
-    output: z.object({ unsubscribed: z.boolean() }).strict(),
-  },
-  setLoggingLevel: {
-    input: z.object({ key: serverKeySchema, level: z.string().min(1).max(32) }).strict(),
-    output: z.object({ updated: z.boolean() }).strict(),
   },
   providerMcpStatus: {
     input: z.object({ projectPath: z.string().min(1).max(16_384).optional() }).strict(),
@@ -96,14 +80,14 @@ export const mcpHostContract = defineRpcContract({
 export const mcpHostSignals = {
   catalogChanged: {
     payload: z.object({
-      key: serverKeySchema,
+      id: sourceIdSchema,
       kind: z.enum(["tools", "prompts", "resources"]),
       error: z.string().nullable(),
     }).strict(),
   },
   connectionChanged: {
     payload: z.object({
-      key: serverKeySchema,
+      id: sourceIdSchema,
       status: z.enum(["closed", "error"]),
       error: z.string().nullable(),
     }).strict(),

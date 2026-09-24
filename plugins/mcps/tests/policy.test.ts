@@ -1,13 +1,12 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Database from "better-sqlite3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
 import plugin from "../server";
 import { McpGateway, type McpStdioHost } from "../src/gateway.js";
 import { effectivePolicy } from "../src/policy.js";
-import { McpsStore } from "../src/store.js";
+import { addSource, memoryStore, serverDirs, silent, stdioHost } from "./helpers.js";
 
 const catalog = {
   tools: [
@@ -30,33 +29,12 @@ afterEach(async () => {
   await Promise.all(temps.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-function memoryStore() {
-  const db = new Database(":memory:");
-  const store = new McpsStore(db, (target, statements) => statements.forEach((statement) => target.exec(statement)));
-  return { db, store };
-}
-
-function addSource(store: McpsStore, id: string, enabled = 1) {
-  store.upsertSource({ id, name: id, description: null, sourceKind: "manual", sourceRef: null, registryName: null, registryVersion: null, pluginRoot: "/tmp", pluginData: "/tmp", createdAt: 0, updatedAt: 0 });
-  store.upsertMcpServer({ pluginId: id, serverId: "mcp", type: "stdio", configJson: JSON.stringify({ type: "stdio", command: "node", args: [], cwd: "/tmp" }), status: "idle", lastError: null, approved: 1, enabled });
-}
-
 function fakeStdioHost(started: string[]): McpStdioHost {
-  return {
-    async start(config) { started.push(config.key); return structuredClone(catalog) as never; },
-    async refresh() { return structuredClone(catalog) as never; },
-    async close() {},
-    async callTool() { return { content: [] }; },
-    async getPrompt() { return {}; },
-    async readResource() { return {}; },
-    async complete() { return {}; },
-    async subscribeResource() {},
-    async unsubscribeResource() {},
-    async setLoggingLevel() {},
-  };
+  const host = stdioHost(() => structuredClone(catalog) as never);
+  const start = host.start;
+  host.start = async (config, signal) => { started.push(config.id); return start(config, signal); };
+  return host;
 }
-
-const silent = { info() {}, warn() {}, error() {} };
 
 describe("tool policies", () => {
   it("resolves inherit from risk and keeps explicit modes", () => {
@@ -69,37 +47,37 @@ describe("tool policies", () => {
   });
 
   it("seeds risk from annotations on catalog load and keeps a chosen mode when the risk changes", async () => {
-    const { db, store } = memoryStore();
-    addSource(store, "notes");
-    const gateway = new McpGateway(store, silent, { stdioHost: fakeStdioHost([]) });
+    const store = memoryStore();
+    const { id } = addSource(store, { name: "notes" });
+    const gateway = new McpGateway(store, silent, { serverDirs, stdioHost: fakeStdioHost([]) });
     try {
-      await gateway.inspectServer("notes");
-      expect(store.listToolPolicies("notes", "mcp")).toEqual([
+      await gateway.inspectServer(id);
+      expect(store.listToolPolicies(id)).toEqual([
         { toolName: "drop_notes", risk: "destructive", mode: "inherit" },
         { toolName: "read_notes", risk: "read", mode: "inherit" },
         { toolName: "write_note", risk: "write", mode: "inherit" },
       ]);
-      store.setToolPolicyMode("notes", "mcp", "write_note", "deny");
-      store.seedToolPolicies("notes", "mcp", [{ name: "write_note", risk: "destructive" }]);
-      expect(store.getToolPolicy("notes", "mcp", "write_note")).toEqual({ toolName: "write_note", risk: "destructive", mode: "deny" });
-      store.deleteSource("notes");
-      expect(store.listToolPolicies("notes", "mcp")).toEqual([]);
-    } finally { await gateway.close(); db.close(); }
+      store.setToolPolicyMode(id, "write_note", "deny");
+      store.seedToolPolicies(id, [{ name: "write_note", risk: "destructive" }]);
+      expect(store.getToolPolicy(id, "write_note")).toEqual({ toolName: "write_note", risk: "destructive", mode: "deny" });
+      store.delete(id);
+      expect(store.listToolPolicies(id)).toEqual([]);
+    } finally { await gateway.close(); store.db.close(); }
   });
 
   it("warms catalogs only for enabled servers and skips ones already cached", async () => {
-    const { db, store } = memoryStore();
-    addSource(store, "on");
-    addSource(store, "off", 0);
+    const store = memoryStore();
+    const on = addSource(store, { name: "on" });
+    addSource(store, { name: "off" }, false);
     const started: string[] = [];
-    const gateway = new McpGateway(store, silent, { stdioHost: fakeStdioHost(started) });
+    const gateway = new McpGateway(store, silent, { serverDirs, stdioHost: fakeStdioHost(started) });
     try {
       await gateway.warm();
-      expect(started).toEqual(["on:mcp"]);
-      expect((await gateway.compactServers()).find((row) => row.id === "on")?.toolCount).toBe(3);
+      expect(started).toEqual([on.id]);
+      expect(gateway.catalogCounts(on.id)?.tools).toBe(3);
       await gateway.warm();
-      expect(started).toEqual(["on:mcp"]);
-    } finally { await gateway.close(); db.close(); }
+      expect(started).toEqual([on.id]);
+    } finally { await gateway.close(); store.db.close(); }
   });
 });
 
@@ -146,12 +124,12 @@ describe("policy enforcement in mcp_call", () => {
       const interaction = harness.inspection.pendingInteractions[0]!;
       expect(interaction).toMatchObject({ threadId: "thr_1", rendererId: "mcp-approval", payload: { kind: "tool", server: "notes", tool: "write_note", risk: "write", truncated: false } });
       expect(ran).toEqual(["read_notes"]);
-      harness.behavior.submitInteraction(interaction.id, { approved: true });
+      harness.behavior.submitInteraction(interaction.id, { allowed: true });
       expect((await pending).content[0]!.text).toBe("ran write_note");
 
       const denied = call(writeId);
       await vi.waitFor(() => expect(harness.inspection.pendingInteractions).toHaveLength(1));
-      harness.behavior.submitInteraction(harness.inspection.pendingInteractions[0]!.id, { approved: false });
+      harness.behavior.submitInteraction(harness.inspection.pendingInteractions[0]!.id, { allowed: false });
       const refused = await denied;
       expect(refused.isError).toBe(true);
       expect(refused.content[0]!.text).toContain("denied");

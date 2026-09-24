@@ -19,7 +19,7 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function useToolPolicies(serverId: string, refreshKey: unknown) {
+export function useToolPolicies(id: string, refreshKey: unknown) {
   const rpc = useRpc<typeof rpcContract>();
   const [policies, setPolicies] = useState<ReadonlyMap<string, ToolPolicy>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -27,20 +27,20 @@ export function useToolPolicies(serverId: string, refreshKey: unknown) {
   useEffect(() => {
     let live = true;
     setPolicies(new Map());
-    rpc.call("listToolPolicies", { id: serverId }).then(
+    rpc.call("listToolPolicies", { id }).then(
       (result) => { if (live) setPolicies(new Map(result.tools.map((row) => [row.tool, row]))); },
       (cause) => { if (live) setError(errorText(cause)); },
     );
     return () => { live = false; };
-  }, [rpc, serverId, refreshKey]);
+  }, [rpc, id, refreshKey]);
 
   const setMode = useCallback(async (tool: string, mode: Mode) => {
     setError(null);
     try {
-      const row = await rpc.call("setToolPolicy", { id: serverId, tool, mode });
+      const row = await rpc.call("setToolPolicy", { id, tool, mode });
       setPolicies((current) => new Map(current).set(row.tool, row));
     } catch (cause) { setError(errorText(cause)); }
-  }, [rpc, serverId]);
+  }, [rpc, id]);
 
   return { policies, error, setMode };
 }

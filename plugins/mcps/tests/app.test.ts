@@ -7,9 +7,9 @@ import { buildMcpEditThreadPrompt, CREATE_MCP_PROMPT } from '../lib/prompts';
 
 const app = await loadPluginApp(() => import('../app'));
 const panel = app.navPanels[0]!;
-const rows = ['alpha', 'beta'].map(id => ({ id, handle: id, name: id, type: 'stdio', enabled: true, approved: true, status: 'ready', authStatus: 'not-applicable', configJson: '{}', sourceKind: 'manual' }));
+const rows = ['alpha', 'beta'].map(id => ({ id, handle: id, name: id, type: 'stdio', enabled: true, status: 'ready', authStatus: 'not-applicable', configJson: '{}', sourceKind: 'manual' }));
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r; }); return { promise, resolve }; }
-const catalog = (name: string, count = 1) => ({ tools: Array.from({length: count}, (_, i) => ({ opaqueId: `${name}-${i}`, name: `${name}-${i}`, risk: 'read', description: '' })), error: null });
+const catalog = (name: string, count = 1) => ({ tools: Array.from({length: count}, (_, i) => ({ id: `${name}-${i}`, name: `${name}-${i}`, risk: 'read', description: '' })), error: null });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 function mount(subPath: string, handlers: Record<string, (input: any) => any>) {
   vi.stubGlobal('fetch', vi.fn(async (url, init) => {

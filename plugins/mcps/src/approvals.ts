@@ -89,7 +89,7 @@ export function validElicitationContent(fields: ElicitationField[], content: Rec
 }
 
 export class McpApprovals {
-  private readonly scope = new AsyncLocalStorage<CallScope & { serverKey: string }>();
+  private readonly scope = new AsyncLocalStorage<CallScope & { sourceId: string }>();
   private readonly active = new Map<string, Array<CallScope>>();
 
   constructor(
@@ -98,15 +98,15 @@ export class McpApprovals {
     private readonly timeoutMs = APPROVAL_TIMEOUT_MS,
   ) {}
 
-  async runCall<T>(serverKey: string, scope: CallScope, operation: () => Promise<T>): Promise<T> {
-    const list = this.active.get(serverKey) ?? [];
+  async runCall<T>(sourceId: string, scope: CallScope, operation: () => Promise<T>): Promise<T> {
+    const list = this.active.get(sourceId) ?? [];
     list.push(scope);
-    this.active.set(serverKey, list);
-    try { return await this.scope.run({ ...scope, serverKey }, operation); }
+    this.active.set(sourceId, list);
+    try { return await this.scope.run({ ...scope, sourceId }, operation); }
     finally {
       const index = list.indexOf(scope);
       if (index >= 0) list.splice(index, 1);
-      if (list.length === 0) this.active.delete(serverKey);
+      if (list.length === 0) this.active.delete(sourceId);
     }
   }
 
@@ -133,7 +133,7 @@ export class McpApprovals {
         },
         describeSubmission: (value) => {
           const parsed = toolApprovalResponseSchema.safeParse(value);
-          return { title: clamp(`${parsed.success && parsed.data.approved ? "Approved" : "Denied"} ${label}`, ROW_LABEL_MAX) };
+          return { title: clamp(`${parsed.success && parsed.data.allowed ? "Approved" : "Denied"} ${label}`, ROW_LABEL_MAX) };
         },
       }, input.scope.signal ? { signal: input.scope.signal } : undefined);
     } catch (error) {
@@ -145,25 +145,25 @@ export class McpApprovals {
         : `Approval for ${label} was cancelled (${result.reason}); the tool was not run.`;
     }
     const parsed = toolApprovalResponseSchema.safeParse(result.value);
-    if (!parsed.success || !parsed.data.approved) return `The user denied ${label}; the tool was not run.`;
-    this.log.info(`[mcps] approved ${label} in thread ${input.scope.threadId}`);
+    if (!parsed.success || !parsed.data.allowed) return `The user denied ${label}; the tool was not run.`;
+    this.log.info(`[mcps] allowed ${label} in thread ${input.scope.threadId}`);
     return null;
   }
 
-  private scopeFor(serverKey: string): CallScope | null {
+  private scopeFor(sourceId: string): CallScope | null {
     const current = this.scope.getStore();
-    if (current?.serverKey === serverKey && current.threadId) return current;
-    const candidates = (this.active.get(serverKey) ?? []).filter((scope) => scope.threadId);
+    if (current?.sourceId === sourceId && current.threadId) return current;
+    const candidates = (this.active.get(sourceId) ?? []).filter((scope) => scope.threadId);
     const threads = new Set(candidates.map((scope) => scope.threadId));
     return threads.size === 1 ? candidates[candidates.length - 1]! : null;
   }
 
-  async elicit(request: unknown, serverKey: string, server: string): Promise<ElicitResult> {
+  async elicit(request: unknown, sourceId: string, server: string): Promise<ElicitResult> {
     const params = isRecord(request) && isRecord(request.params) ? request.params : null;
     const message = optionalText(params?.message);
     if (!params || !message || (params.mode !== undefined && params.mode !== "form")) return { action: "decline" };
     const fields = elicitationFields(params.requestedSchema);
-    const scope = this.scopeFor(serverKey);
+    const scope = this.scopeFor(sourceId);
     if (!fields || !scope?.threadId) {
       this.log.info(`[mcps] declined elicitation from ${server}: ${fields ? "no thread to ask in" : "unsupported form"}`);
       return { action: "decline" };

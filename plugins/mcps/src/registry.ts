@@ -1,4 +1,4 @@
-import type { McpServerType } from "./loader.js";
+import type { McpServerType } from "./types.js";
 
 export const OFFICIAL_REGISTRY = "https://registry.modelcontextprotocol.io";
 

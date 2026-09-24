@@ -14,11 +14,7 @@ const labelListeners = new Set<(label: string | null) => void>();
 
 export function parseRoute(subPath: string): Route {
   const path = subPath.replace(/^\/+|\/+$/g, "");
-  if (path === "" || path === "installed" || path === "browse") return { detailId: null };
-  if (path.startsWith("installed/")) {
-    return { detailId: decodeUriSegment(path.slice("installed/".length)) };
-  }
-  return { detailId: decodeUriSegment(path) };
+  return { detailId: path.startsWith("installed/") ? decodeUriSegment(path.slice("installed/".length)) : null };
 }
 
 export function detailPath(id: string): string {

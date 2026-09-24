@@ -19,7 +19,6 @@ const CLOSE_TIMEOUT_MS = 2_000;
 const MCP_CLIENT_INFO = { name: "bb-mcps-stdio", version: "0.1.0" };
 
 type HostConnection = {
-  key: string;
   client: Client;
   transport: StdioClientTransport;
   catalog: McpHostCatalog;
@@ -133,15 +132,15 @@ async function refresh(connection: HostConnection, signal: AbortSignal): Promise
   return connection.catalog;
 }
 
-function createClient(key: string, context: ExperimentalHostRpcContext<typeof mcpHostSignals>): Client {
+function createClient(id: string, context: ExperimentalHostRpcContext<typeof mcpHostSignals>): Client {
   const capabilities: ClientCapabilities = {};
   const clientOptions: ClientOptions = {
     capabilities,
     versionNegotiation: { mode: "auto" },
     listChanged: {
-      tools: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, key, "tools", error) },
-      prompts: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, key, "prompts", error) },
-      resources: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, key, "resources", error) },
+      tools: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, id, "tools", error) },
+      prompts: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, id, "prompts", error) },
+      resources: { autoRefresh: true, onChanged: (error) => void emitCatalogChanged(context, id, "resources", error) },
     },
   };
   return new Client(MCP_CLIENT_INFO, clientOptions);
@@ -149,42 +148,35 @@ function createClient(key: string, context: ExperimentalHostRpcContext<typeof mc
 
 async function emitCatalogChanged(
   context: ExperimentalHostRpcContext<typeof mcpHostSignals>,
-  key: string,
+  id: string,
   kind: "tools" | "prompts" | "resources",
   error: Error | null,
 ): Promise<void> {
-  await context.experimental_emitSignal("catalogChanged", { key, kind, error: error ? errorText(error) : null }).catch(() => {});
+  await context.experimental_emitSignal("catalogChanged", { id, kind, error: error ? errorText(error) : null }).catch(() => {});
 }
 
-async function connectionFor(key: string, signal: AbortSignal): Promise<HostConnection> {
-  throwIfAborted(signal);
-  const connection = connections.get(key);
-  if (!connection) throw new Error(`MCP stdio connection not found: ${key}`);
-  return connection;
-}
-
-async function closeKey(key: string, signal?: AbortSignal): Promise<boolean> {
+async function closeConnection(id: string, signal?: AbortSignal): Promise<boolean> {
   if (signal) throwIfAborted(signal);
-  const connection = connections.get(key);
+  const connection = connections.get(id);
   if (!connection) return false;
-  connections.delete(key);
+  connections.delete(id);
   await closeWithTimeout(connection, signal);
   return true;
 }
 
 async function start(input: {
-  key: string;
+  id: string;
   command: string;
   args: string[];
   cwd: string;
   env: Record<string, string>;
 }, context: ExperimentalHostRpcContext<typeof mcpHostSignals>): Promise<McpHostCatalog> {
   throwIfAborted(context.signal);
-  const existing = connections.get(input.key);
+  const existing = connections.get(input.id);
   if (existing) return existing.catalog;
 
   const lease = context.experimental_retainWorker();
-  const client = createClient(input.key, context);
+  const client = createClient(input.id, context);
   const transport = new StdioClientTransport({
     command: input.command,
     args: input.args,
@@ -194,23 +186,22 @@ async function start(input: {
   });
   transport.stderr?.on("data", (chunk: Buffer) => {
     const message = chunk.toString("utf8").trim();
-    if (message) console.warn(`[agent-plugins] MCP ${input.key} stderr: ${message.slice(0, 2000)}`);
+    if (message) console.warn(`[mcps] MCP ${input.id} stderr: ${message.slice(0, 2000)}`);
   });
 
   const connection: HostConnection = {
-    key: input.key,
     client,
     transport,
     catalog: { tools: [], prompts: [], resources: [], resourceTemplates: [] },
     expectedClose: false,
     lease,
   };
-  connections.set(input.key, connection);
+  connections.set(input.id, connection);
   transport.onclose = () => {
-    if (connection.expectedClose || connections.get(input.key) !== connection) return;
-    connections.delete(input.key);
+    if (connection.expectedClose || connections.get(input.id) !== connection) return;
+    connections.delete(input.id);
     void context.experimental_emitSignal("connectionChanged", {
-      key: input.key,
+      id: input.id,
       status: "closed",
       error: "MCP stdio transport closed unexpectedly",
     }).catch(() => {});
@@ -218,7 +209,7 @@ async function start(input: {
   };
   transport.onerror = (error) => {
     void context.experimental_emitSignal("connectionChanged", {
-      key: input.key,
+      id: input.id,
       status: "error",
       error: errorText(error),
     }).catch(() => {});
@@ -232,18 +223,20 @@ async function start(input: {
     );
     return await refresh(connection, context.signal);
   } catch (error) {
-    connections.delete(input.key);
+    connections.delete(input.id);
     await closeWithTimeout(connection);
     throw new Error(errorText(error));
   }
 }
 
 async function withConnection<T>(
-  input: { key: string },
+  id: string,
   context: ExperimentalHostRpcContext<typeof mcpHostSignals>,
   operation: (connection: HostConnection) => Promise<T>,
 ): Promise<T> {
-  const connection = await connectionFor(input.key, context.signal);
+  throwIfAborted(context.signal);
+  const connection = connections.get(id);
+  if (!connection) throw new Error(`MCP stdio connection not found: ${id}`);
   return operation(connection);
 }
 
@@ -258,38 +251,22 @@ export default experimental_defineHostEntry({
   experimental_signals: mcpHostSignals,
   handlers: {
     start: (input, context) => start(input, context),
-    refresh: async ({ key }, context) => withConnection({ key }, context, (connection) => refresh(connection, context.signal)),
-    close: async ({ key }, context) => ({ closed: await closeKey(key, context.signal) }),
-    callTool: async ({ key, name, args, toolDefinition }, context) => withConnection({ key }, context, async (connection) => {
+    refresh: async ({ id }, context) => withConnection(id, context, (connection) => refresh(connection, context.signal)),
+    close: async ({ id }, context) => ({ closed: await closeConnection(id, context.signal) }),
+    callTool: async ({ id, name, args, toolDefinition }, context) => withConnection(id, context, async (connection) => {
       const result = await connection.client.callTool(
         { name, arguments: args },
         { signal: context.signal, timeout: REQUEST_TIMEOUT_MS, ...(toolDefinition ? { toolDefinition: toolDefinition as Tool } : {}) },
       );
       return asRecord(result) ?? {};
     }),
-    getPrompt: async ({ key, name, args }, context) => withConnection({ key }, context, async (connection) => {
+    getPrompt: async ({ id, name, args }, context) => withConnection(id, context, async (connection) => {
       const result = await connection.client.getPrompt({ name, arguments: Object.fromEntries(Object.entries(args).map(([arg, value]) => [arg, String(value)])) }, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
       return asRecord(result) ?? {};
     }),
-    readResource: async ({ key, uri }, context) => withConnection({ key }, context, async (connection) => {
+    readResource: async ({ id, uri }, context) => withConnection(id, context, async (connection) => {
       const result = await connection.client.readResource({ uri }, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS, cacheMode: "bypass" });
       return asRecord(result) ?? {};
-    }),
-    complete: async ({ key, ref, argument }, context) => withConnection({ key }, context, async (connection) => {
-      const result = await connection.client.complete({ ref: ref as never, argument: argument as never }, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
-      return asRecord(result) ?? {};
-    }),
-    subscribeResource: async ({ key, uri }, context) => withConnection({ key }, context, async (connection) => {
-      await connection.client.subscribeResource({ uri }, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
-      return { subscribed: true };
-    }),
-    unsubscribeResource: async ({ key, uri }, context) => withConnection({ key }, context, async (connection) => {
-      await connection.client.unsubscribeResource({ uri }, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
-      return { unsubscribed: true };
-    }),
-    setLoggingLevel: async ({ key, level }, context) => withConnection({ key }, context, async (connection) => {
-      await connection.client.setLoggingLevel(level as never, { signal: context.signal, timeout: REQUEST_TIMEOUT_MS });
-      return { updated: true };
     }),
     providerMcpStatus: async ({ projectPath }) => readProviderMcpStatus(projectPath ? { projectPath } : {}),
     providerMcpFix: async ({ projectPath }) => {

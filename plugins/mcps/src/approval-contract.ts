@@ -30,7 +30,7 @@ export const elicitationPayloadSchema = z.object({
 
 export const approvalPayloadSchema = z.discriminatedUnion("kind", [toolApprovalPayloadSchema, elicitationPayloadSchema]);
 
-export const toolApprovalResponseSchema = z.object({ approved: z.boolean() }).strict();
+export const toolApprovalResponseSchema = z.object({ allowed: z.boolean() }).strict();
 
 export const elicitationValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 
@@ -40,5 +40,3 @@ export const elicitationResponseSchema = z.discriminatedUnion("action", [
 ]);
 
 export type ElicitationField = z.infer<typeof elicitationFieldSchema>;
-export type ApprovalPayload = z.infer<typeof approvalPayloadSchema>;
-export type ElicitationResponse = z.infer<typeof elicitationResponseSchema>;

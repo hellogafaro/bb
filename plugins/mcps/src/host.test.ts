@@ -53,7 +53,7 @@ describe("isolated MCPs stdio host", () => {
   it("owns stdio MCP connections and exposes their catalog and calls", async () => {
     const harness = createHarness();
     const input = {
-      key: "plugin:fixture",
+      id: "mcp_fixture000",
       command: process.execPath,
       args: ["-e", FIXTURE],
       cwd: "/tmp",
@@ -62,19 +62,19 @@ describe("isolated MCPs stdio host", () => {
     const catalog = await harness.experimental_call("start", input);
     expect(catalog.tools).toEqual([expect.objectContaining({ name: "echo" })]);
     const result = await harness.experimental_call("callTool", {
-      key: input.key,
+      id: input.id,
       name: "echo",
       args: {},
     });
     expect(result).toEqual(expect.objectContaining({ content: [{ type: "text", text: "host" }] }));
-    await expect(harness.experimental_call("close", { key: input.key })).resolves.toEqual({ closed: true });
+    await expect(harness.experimental_call("close", { id: input.id })).resolves.toEqual({ closed: true });
   }, 15_000);
 
   it("cancels a stalled stdio handshake and leaves no live connection", async () => {
     const harness = createHarness();
     const controller = new AbortController();
     const call = harness.experimental_call("start", {
-      key: "plugin:stalled",
+      id: "mcp_stalled000",
       command: process.execPath,
       args: ["-e", "process.stdin.resume()"],
       cwd: "/tmp",
@@ -82,6 +82,6 @@ describe("isolated MCPs stdio host", () => {
     }, { signal: controller.signal });
     setTimeout(() => controller.abort(), 40);
     await expect(call).rejects.toThrow();
-    await expect(harness.experimental_call("close", { key: "plugin:stalled" })).resolves.toEqual({ closed: false });
+    await expect(harness.experimental_call("close", { id: "mcp_stalled000" })).resolves.toEqual({ closed: false });
   }, 5_000);
 });

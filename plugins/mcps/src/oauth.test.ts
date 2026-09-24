@@ -14,13 +14,13 @@ describe("McpOAuthProvider", () => {
     const provider = new McpOAuthProvider(
       "plugin:server",
       new URL("https://mcp.example.test/mcp"),
-      new URL("http://127.0.0.1:4000/callback?pluginId=plugin&serverId=server"),
+      new URL("http://127.0.0.1:4000/callback?id=mcp_fixture000"),
       secrets,
     );
     expect(provider.clientMetadata).toEqual(expect.objectContaining({
       client_name: "BB",
       token_endpoint_auth_method: "none",
-      redirect_uris: ["http://127.0.0.1:4000/callback?pluginId=plugin&serverId=server"],
+      redirect_uris: ["http://127.0.0.1:4000/callback?id=mcp_fixture000"],
     }));
     expect(provider.clientMetadata).not.toHaveProperty("client_uri");
     expect(await provider.status()).toBe("unauthenticated");
@@ -35,7 +35,7 @@ describe("McpOAuthProvider", () => {
     const reloadedProvider = new McpOAuthProvider(
       "plugin:server",
       new URL("https://mcp.example.test/mcp"),
-      new URL("http://127.0.0.1:4000/callback?pluginId=plugin&serverId=server"),
+      new URL("http://127.0.0.1:4000/callback?id=mcp_fixture000"),
       secrets,
     );
     expect(await reloadedProvider.authorizationUrlValue()).toContain("auth.example.test");
@@ -54,7 +54,7 @@ describe("McpOAuthProvider", () => {
     const provider = new McpOAuthProvider(
       "plugin:server",
       new URL("https://mcp.notion.com/mcp"),
-      new URL("https://g4f4r0.getbb.app/api/v1/plugins/mcps/http/oauth/callback?pluginId=com_notion_mcp&serverId=mcp"),
+      new URL("https://g4f4r0.getbb.app/api/v1/plugins/mcps/http/oauth/callback?id=mcp_notion0000"),
       new MemorySecrets(),
     );
     expect(provider.clientMetadata).toEqual(expect.objectContaining({
