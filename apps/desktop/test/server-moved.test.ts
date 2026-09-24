@@ -579,7 +579,9 @@ describe("createServerMovedWatcher", () => {
     await writeServerMovedFile(harness.dataDir, movedFile());
     harness.watcher.start();
     await harness.timers.flush();
-    expect(harness.confirmMove).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(harness.confirmMove).toHaveBeenCalledOnce();
+    });
 
     await writeServerMovedFile(
       harness.dataDir,
@@ -596,11 +598,13 @@ describe("createServerMovedWatcher", () => {
     expect(harness.timers.pendingCount()).toBe(1);
     await harness.timers.flush();
 
-    expect(harness.confirmMove).toHaveBeenCalledTimes(2);
-    expect(harness.onMove).toHaveBeenCalledExactlyOnceWith({
-      ...CONNECT_MOVE,
-      moveId: "move-3",
+    await vi.waitFor(() => {
+      expect(harness.onMove).toHaveBeenCalledExactlyOnceWith({
+        ...CONNECT_MOVE,
+        moveId: "move-3",
+      });
     });
+    expect(harness.confirmMove).toHaveBeenCalledTimes(2);
     harness.watcher.stop();
   });
 
