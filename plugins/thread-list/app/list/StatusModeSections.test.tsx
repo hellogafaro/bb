@@ -134,6 +134,18 @@ describe("status organization", () => {
     ).toBeNull();
   });
 
+  it("counts pinned threads beside the Pinned label", async () => {
+    renderStatusList([
+      thread("thr_pinned", { isPinned: true, pinnedAt: 100 }),
+      thread("thr_done"),
+    ]);
+    await screen.findByRole("link", { name: "Open thr_pinned" });
+    const header = screen.getByRole("button", {
+      name: "Collapse Pinned section",
+    }).parentElement!;
+    expect(header.textContent).toBe("Pinned1");
+  });
+
   it("moves a snoozed thread into the collapsed Snoozed section", async () => {
     renderStatusList(
       [thread("thr_quiet"), thread("thr_done")],

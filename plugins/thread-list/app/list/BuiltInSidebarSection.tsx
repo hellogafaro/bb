@@ -26,6 +26,7 @@ export interface BuiltInSidebarSectionOptions {
   collapsedThreads?: readonly ThreadSplitIndicatorTarget[];
   content: ReactNode;
   label: string;
+  labelAccessory?: ReactNode;
 }
 
 interface BuiltInSidebarSectionProps extends BuiltInSidebarSectionOptions {
@@ -90,12 +91,14 @@ function BuiltInSidebarSection({
   id,
   isCollapsed,
   label,
+  labelAccessory,
   onToggleCollapsed,
 }: BuiltInSidebarSectionProps) {
   return (
     <SortableSidebarSection
       id={id}
       label={label}
+      labelAccessory={labelAccessory}
       stickyHeader={id !== "pinned"}
       disabled={disabled}
       actions={actions}

@@ -89,6 +89,10 @@ function familyComparator(families: readonly StatusFamily[]): ThreadComparator {
   };
 }
 
+function SectionCount({ count }: { count: number }) {
+  return <span className="shrink-0 tabular-nums opacity-70">{count}</span>;
+}
+
 function StatusSection({
   id,
   label,
@@ -118,11 +122,7 @@ function StatusSection({
     <TopLevelSidebarSection
       label={label}
       sectionId={sectionKey}
-      labelAccessory={
-        <span className="shrink-0 tabular-nums opacity-70">
-          {families.length}
-        </span>
-      }
+      labelAccessory={<SectionCount count={families.length} />}
       collapsedActivity={getCollapsedChildActivity(threads, draftThreadIds)}
       collapsedThreads={threads}
       collapseControl={{ isCollapsed: collapsed, onToggleCollapsed: onToggle }}
@@ -323,6 +323,9 @@ export function StatusModeSections({
                 sections: {
                   pinned: {
                     ...pinnedSection,
+                    labelAccessory: (
+                      <SectionCount count={pinnedRootNodes.length} />
+                    ),
                     actions: undefined,
                     actionsOpen: false,
                   },
