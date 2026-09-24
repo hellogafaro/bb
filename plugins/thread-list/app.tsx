@@ -4,6 +4,10 @@ import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { PreferencesSync } from "./app/preferences/PreferencesSync.js";
 import { ProjectList } from "./app/list/ProjectList.js";
 import { useSidebarThreadReveal } from "./app/list/useSidebarThreadReveal.js";
+import {
+  isSnoozeAvailable,
+  requestCustomSnooze,
+} from "./app/snooze/snooze-state.js";
 
 function ThreadList({
   activeThreadId,
@@ -31,5 +35,13 @@ export default definePluginApp((app) => {
     description:
       "Pinned threads, custom sections, projects, machines, and nested threads.",
     component: ThreadList,
+  });
+  app.commands.register({
+    id: "snooze-thread",
+    title: "Snooze thread…",
+    isAvailable: ({ threadId }) => threadId !== null && isSnoozeAvailable(),
+    run: ({ threadId }) => {
+      if (threadId) requestCustomSnooze(threadId);
+    },
   });
 });

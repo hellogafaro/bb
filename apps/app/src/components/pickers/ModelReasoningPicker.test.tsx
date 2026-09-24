@@ -368,7 +368,7 @@ describe("ModelReasoningPicker", () => {
     expect(trigger.classList).toContain("font-normal");
   });
 
-  it("gives a non-SVG provider mark the same 16px trigger size as button SVGs", () => {
+  it("gives a non-SVG provider mark the same 14px trigger size as button SVGs", () => {
     renderPicker({
       pickerProviderOptions: [
         { ...providerOptions[0], icon: ProviderMaskIcon },
@@ -377,7 +377,7 @@ describe("ModelReasoningPicker", () => {
     });
 
     expect(screen.getByTestId("provider-mask-icon").classList).toContain(
-      "size-4",
+      "size-3.5",
     );
   });
 

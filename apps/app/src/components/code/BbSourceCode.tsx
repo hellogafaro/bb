@@ -51,7 +51,8 @@ const SOURCE_LINE_HEIGHT_PX = 18;
 const SOURCE_GAP_BLOCK_PX = 16;
 
 const SOURCE_VIEW_STYLE = {
-  "--diffs-font-size": "12px",
+  "--diffs-font-family": "var(--font-mono)",
+  "--diffs-font-size": "13px",
   "--diffs-line-height": `${SOURCE_LINE_HEIGHT_PX}px`,
   "--diffs-gap-block": `${SOURCE_GAP_BLOCK_PX}px`,
 } as CSSProperties;

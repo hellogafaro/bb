@@ -60,7 +60,9 @@ const { useSidebarModeSectionOrder } = await import(
 
 const mockBuildMachineThreadGroups = vi.mocked(buildMachineThreadGroups);
 
-function getModeOrderProbeConfig(mode: SidebarOrganizationMode): {
+type OrderedMode = Exclude<SidebarOrganizationMode, "status">;
+
+function getModeOrderProbeConfig(mode: OrderedMode): {
   entitySectionIds: SidebarSectionId[];
   hasThreadsSection?: boolean;
 } {
@@ -74,7 +76,7 @@ function getModeOrderProbeConfig(mode: SidebarOrganizationMode): {
   }
 }
 
-function ModeOrderProbe({ mode }: { mode: SidebarOrganizationMode }) {
+function ModeOrderProbe({ mode }: { mode: OrderedMode }) {
   const config = getModeOrderProbeConfig(mode);
   const { order } = useSidebarModeSectionOrder({
     mode,
@@ -91,6 +93,7 @@ interface ActiveModeOrderProbeProps {
   renderChronological?: () => ReactNode;
   renderMachine?: () => ReactNode;
   renderProject?: () => ReactNode;
+  renderStatus?: () => ReactNode;
 }
 
 function ActiveModeOrderProbe({
@@ -100,6 +103,7 @@ function ActiveModeOrderProbe({
   ),
   renderMachine = () => <ModeOrderProbe key="machine" mode="machine" />,
   renderProject = () => <ModeOrderProbe key="project" mode="project" />,
+  renderStatus = () => <div data-testid="status-order" />,
 }: ActiveModeOrderProbeProps) {
   return (
     <ActiveSidebarModeSections
@@ -107,6 +111,7 @@ function ActiveModeOrderProbe({
       renderChronological={renderChronological}
       renderMachine={renderMachine}
       renderProject={renderProject}
+      renderStatus={renderStatus}
     />
   );
 }
@@ -288,6 +293,8 @@ describe("sidebar organization mode sections", () => {
     expect(await screen.findByTestId("chronological-order")).not.toBeNull();
     act(() => store.set(sidebarOrganizationModeAtom, "machine"));
     expect(await screen.findByTestId("machine-order")).not.toBeNull();
+    act(() => store.set(sidebarOrganizationModeAtom, "status"));
+    expect(await screen.findByTestId("status-order")).not.toBeNull();
     act(() => store.set(sidebarOrganizationModeAtom, "project"));
     expect(await screen.findByTestId("project-order")).not.toBeNull();
 

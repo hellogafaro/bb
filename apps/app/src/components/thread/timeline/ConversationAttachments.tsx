@@ -138,9 +138,9 @@ export function ConversationAttachments({
               type="button"
               key={`${imageItem.src}-${index}`}
               className={cn(
-                "cursor-zoom-in overflow-hidden rounded-md border",
+                "cursor-zoom-in overflow-hidden rounded-md border focus-visible:outline-none",
                 align === "end"
-                  ? "border-surface-selected-border bg-surface-raised"
+                  ? "border-border bg-surface-raised"
                   : "border-border bg-surface-recessed",
               )}
               onClick={() => setExpandedImageIndex(index)}

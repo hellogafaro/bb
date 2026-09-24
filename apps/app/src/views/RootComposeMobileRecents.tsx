@@ -6,13 +6,8 @@ import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
 import { getSidebarThreadRowPaddingLeft } from "@/components/sidebar/sidebarRowClasses";
 import { SIDEBAR_WORKING_STATUS_COLOR_CLASS } from "@/components/sidebar/sidebarRowClasses";
 import { CHROME_SECTION_LABEL_CLASS } from "@bb/shared-ui/chrome-style-tokens";
-import {
-  COARSE_POINTER_ICON_SIZE_CLASS,
-  COARSE_POINTER_TEXT_BASE_CLASS,
-  COARSE_POINTER_TEXT_SM_CLASS,
-} from "@bb/shared-ui/coarse-pointer-sizing";
+import { COARSE_POINTER_ICON_SIZE_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { Icon } from "@bb/shared-ui/icon";
-import { OverflowFade } from "@/components/ui/overflow-fade";
 import { getThreadRoutePath, isProjectlessProjectId } from "@/lib/route-paths";
 import {
   getThreadListIndicatorLabel,
@@ -43,7 +38,7 @@ import { collapsedThreadIdsAtom } from "@/components/sidebar/sidebarCollapsedAto
 export const MOBILE_RECENT_ROW_HEIGHT_PX = 60;
 export const MOBILE_RECENT_LABEL_HEIGHT_PX = 24;
 
-const MOBILE_RECENT_ROW_HEIGHT_CLASS = "h-15";
+const MOBILE_RECENT_ROW_HEIGHT_CLASS = "min-h-12";
 
 type ThreadListEntryComparator = (
   left: ThreadListEntry,
@@ -292,8 +287,9 @@ function MobileRecentThreadRow({
   const ProviderMark = providerIcon?.icon;
   const providerTile = (
     <span
+      data-mobile-recent-provider-tile=""
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-md border border-border-seam bg-surface-raised",
+        "flex size-4 shrink-0 items-center justify-center",
         depth > 0 && "opacity-60",
       )}
     >
@@ -321,9 +317,12 @@ function MobileRecentThreadRow({
       }}
       style={{ paddingLeft: getSidebarThreadRowPaddingLeft(depth) }}
       className={cn(
-        "flex items-center gap-2.5 rounded-md pr-2",
+        "mb-0.5 flex items-center gap-2 rounded-md pr-2 [contain-intrinsic-size:auto_48px] [content-visibility:auto] hover:bg-sidebar-accent",
         MOBILE_RECENT_ROW_HEIGHT_CLASS,
         highlighted && "bg-surface-selected",
+        hasUnsubmittedDraft &&
+          !highlighted &&
+          "[background-image:linear-gradient(var(--surface-draft),var(--surface-draft))] hover:[background-image:none]",
       )}
     >
       {hasChildren ? (
@@ -370,32 +369,24 @@ function MobileRecentThreadRow({
           }
         }}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           MOBILE_RECENT_ROW_HEIGHT_CLASS,
         )}
       >
-        <span className="min-w-0 flex-1 space-y-0.5">
+        <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span
-              className={cn(
-                "min-w-0 truncate font-medium",
-                COARSE_POINTER_TEXT_BASE_CLASS,
-              )}
-            >
+            <span className="w-full min-w-0 overflow-hidden whitespace-nowrap text-sm leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-12px),transparent)]">
               {threadTitle}
             </span>
           </span>
           <span
-            className={cn(
-              "flex min-w-0 items-center gap-1.5 leading-4 text-muted-foreground",
-              COARSE_POINTER_TEXT_SM_CLASS,
-            )}
+            className="flex min-w-0 items-center gap-1 text-meta text-subtle-foreground"
             title={metadataText}
           >
             {workspaceIconName ? (
               <Icon
                 name={workspaceIconName}
-                className="size-3.5 shrink-0"
+                className="size-3 shrink-0"
                 aria-hidden="true"
               />
             ) : null}
@@ -469,14 +460,13 @@ export function RootComposeMobileRecents({
       aria-labelledby="root-compose-mobile-recents"
       className="md:hidden"
     >
-      <div className="sticky top-0 z-10 mb-1 bg-background px-2">
+      <div className="mb-1 px-2">
         <h2
           id="root-compose-mobile-recents"
-          className={CHROME_SECTION_LABEL_CLASS}
+          className={cn(CHROME_SECTION_LABEL_CLASS, "text-sm leading-5")}
         >
           Recent
         </h2>
-        <OverflowFade placement="below" tone="background" size="sm" />
       </div>
       {showCreatingRow ? (
         <div

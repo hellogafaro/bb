@@ -77,6 +77,14 @@ import {
   readGlobalCliSkillStatus,
 } from "../services/skills/global-skill-install.js";
 import { DEFAULT_APP_KEYBINDINGS } from "../services/system/app-keybindings.js";
+import {
+  clearWallpaper,
+  decodeWallpaperDataUrl,
+  readWallpaper,
+  readWallpaperInfo,
+  WallpaperValidationError,
+  writeWallpaper,
+} from "../services/system/wallpaper.js";
 import { resolvePrimaryHostId } from "../services/hosts/primary-host.js";
 import {
   environmentProviderMatchesContext,
@@ -205,6 +213,7 @@ export function registerSystemRoutes(
         getStoredThemeId(deps.db),
         getStoredFaviconColor(deps.db),
       ),
+      wallpaper: readWallpaperInfo(deps.config.dataDir),
       customThemes: listCustomThemeNames(themeRoot),
       pluginThemes: pluginService.listThemes(),
       featureFlags: deps.config.featureFlags,
@@ -357,6 +366,41 @@ export function registerSystemRoutes(
     setStoredAppearance(deps.db, { themeId, faviconColor });
     deps.hub.notifySystem(["config-changed"]);
     return context.json(await resolveSelectedTheme(themeId, faviconColor));
+  });
+
+  get(routes.wallpaper, (context) => {
+    const wallpaper = readWallpaper(deps.config.dataDir);
+    if (!wallpaper) {
+      throw new ApiError(404, "wallpaper_not_found", "No wallpaper is set.");
+    }
+    return context.body(new Uint8Array(wallpaper.bytes), 200, {
+      "content-type": wallpaper.info.contentType,
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'",
+      "cache-control": "private, no-cache",
+      etag: `"${wallpaper.info.updatedAt}-${wallpaper.info.bytes}"`,
+    });
+  });
+
+  put(routes.setWallpaper, (context, payload) => {
+    let bytes: Uint8Array;
+    try {
+      bytes = decodeWallpaperDataUrl(payload.dataUrl);
+    } catch (error) {
+      if (error instanceof WallpaperValidationError) {
+        throw new ApiError(400, "invalid_request", error.message);
+      }
+      throw error;
+    }
+    const wallpaper = writeWallpaper(deps.config.dataDir, bytes);
+    deps.hub.notifySystem(["config-changed"]);
+    return context.json({ wallpaper });
+  });
+
+  del(routes.clearWallpaper, (context) => {
+    clearWallpaper(deps.config.dataDir);
+    deps.hub.notifySystem(["config-changed"]);
+    return context.json({ wallpaper: null });
   });
 
   get(routes.resolveTheme, async (context) => {

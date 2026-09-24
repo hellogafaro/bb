@@ -17,6 +17,7 @@ import { blurActiveKeyboardInputWithin } from "@bb/shared-ui/overlay-trigger";
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import {
   OPTION_BASE_CLASS_NAME,
+  OPTION_FOOTER_TRIGGER_CLASS_NAME,
   OPTION_INTERACTIVE_CLASS_NAME,
   OPTION_MUTED_CLASS_NAME,
   OPTION_TRIGGER_CONTENT_CLASS_NAME,
@@ -345,7 +346,11 @@ export function BranchPicker({
               muted &&
               "text-muted-foreground hover:text-foreground",
             variant === "option" &&
-              cn(OPTION_BASE_CLASS_NAME, OPTION_INTERACTIVE_CLASS_NAME),
+              cn(
+                OPTION_BASE_CLASS_NAME,
+                OPTION_FOOTER_TRIGGER_CLASS_NAME,
+                OPTION_INTERACTIVE_CLASS_NAME,
+              ),
             variant === "option" && muted && OPTION_MUTED_CLASS_NAME,
             className,
           )}

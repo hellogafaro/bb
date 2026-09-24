@@ -5,7 +5,9 @@ import { getStoredFaviconColor, getStoredThemeId } from "@bb/db";
 import {
   appThemeSchema,
   builtInPaletteCodeThemes,
+  DEFAULT_CODE_THEME_LIGHT,
   defaultAppTheme,
+  defaultResolvedCodeTheme,
   formatPluginThemeId,
   resolveCodeTheme,
 } from "@bb/domain";
@@ -343,8 +345,12 @@ describe("appearance settings", () => {
         customCss: ":root {}",
         resolvedCodeTheme: {
           dark: "bb:ocean:dark",
-          light: "pierre-light",
-          files: { "bb:ocean:dark": { ...darkTheme, name: "bb:ocean:dark" } },
+          light: DEFAULT_CODE_THEME_LIGHT,
+          files: {
+            "bb:ocean:dark": { ...darkTheme, name: "bb:ocean:dark" },
+            [DEFAULT_CODE_THEME_LIGHT]:
+              defaultResolvedCodeTheme.files[DEFAULT_CODE_THEME_LIGHT]!,
+          },
         },
       });
     });

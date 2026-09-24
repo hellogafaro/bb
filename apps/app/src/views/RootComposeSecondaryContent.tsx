@@ -3,6 +3,7 @@ import { Skeleton } from "@bb/shared-ui/skeleton";
 import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { PluginHomepageSections } from "@/components/plugin/PluginHomepageSections";
+import { HomeWallpaper } from "@/components/wallpaper/HomeWallpaper";
 import { usePluginComposerHost } from "@/components/plugin/plugin-composer-host";
 import { SecondaryPanelLayout } from "@/components/secondary-panel/SecondaryPanelLayout";
 import { LazyThreadSecondaryPanel } from "@/components/secondary-panel/lazySecondaryPanelComponents";
@@ -81,7 +82,8 @@ export function RootComposeSecondaryContent({
   const { renderBrowserDeck, ...threadSecondaryPanelProps } = secondaryPanel;
 
   const mainContent = (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="relative isolate flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <HomeWallpaper />
       {rendersWindowDragStrip ? (
         <div
           data-testid="root-compose-main-window-drag-strip"

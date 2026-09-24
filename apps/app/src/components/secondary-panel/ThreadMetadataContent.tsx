@@ -48,9 +48,7 @@ import {
   DetailRowIconLabel,
 } from "@/components/ui/detail-card.js";
 import { CHROME_SECTION_LABEL_CLASS } from "@bb/shared-ui/chrome-style-tokens";
-import { useCreateThreadInEnvironment } from "@/hooks/useCreateThreadInEnvironment";
 import { Icon } from "@bb/shared-ui/icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import {
   BranchPicker,
   getMergeBaseBranchCandidateGroups,
@@ -238,11 +236,6 @@ export function EnvironmentRow({
   environment,
   environmentDisplayHost,
 }: EnvironmentRowProps) {
-  const createThreadInEnvironment = useCreateThreadInEnvironment({
-    projectId: thread.projectId,
-    environmentId: environment?.id ?? "",
-    sectionId: thread.sectionId,
-  });
   const { providers } = useSystemEnvironmentProviders();
   const { providers: machineProviders } = useSystemMachineProviders();
   const hosts = useHosts();
@@ -274,7 +267,6 @@ export function EnvironmentRow({
     type: "persistent" as const,
     machineProviderId: null,
   };
-  const showCreateThreadButton = isReusableEnvironment(environment);
   return (
     <DetailRow
       label={
@@ -318,21 +310,6 @@ export function EnvironmentRow({
             )}
           </span>
         ) : null}
-        {showCreateThreadButton ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="New thread in this environment"
-                onClick={createThreadInEnvironment}
-                className="inline-flex shrink-0 items-center justify-center rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground"
-              >
-                <Icon name="MessageSquarePlus" className="size-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>New thread in this environment</TooltipContent>
-          </Tooltip>
-        ) : null}
       </span>
     </DetailRow>
   );
@@ -365,10 +342,6 @@ export function EnvironmentProvisioningFailureRow({
 
 interface WorkspacePathRowProps {
   environment: Environment | null;
-}
-
-function isReusableEnvironment(environment: Environment): boolean {
-  return environment.status === "ready" && environment.path !== null;
 }
 
 export function WorkspacePathRow({ environment }: WorkspacePathRowProps) {

@@ -27,7 +27,8 @@ export const sidebarEnvironmentGroupingAtom = createSyncedPreferenceAtom(
 export const sidebarGroupThreadsByEnvironmentAtom = atom((get) => {
   const grouping = get(sidebarEnvironmentGroupingAtom);
   if (grouping !== "auto") return grouping;
-  return get(sidebarOrganizationModeAtom) !== "chronological";
+  const mode = get(sidebarOrganizationModeAtom);
+  return mode !== "chronological" && mode !== "status";
 });
 export const sidebarChronologicalSortAtom =
   createSyncedPreferenceAtom("chronologicalSort");
@@ -38,6 +39,9 @@ export const sidebarCollapsedThreadSectionsAtom = createSyncedPreferenceAtom(
 );
 export const sidebarCollapsedMachinesAtom =
   createSyncedPreferenceAtom("collapsedMachines");
+export const sidebarCollapsedStatusSectionsAtom = createSyncedPreferenceAtom(
+  "collapsedStatusSections",
+);
 
 export const sidebarThreadLifecyclesAtom =
   createSyncedPreferenceAtom("threadLifecycles");

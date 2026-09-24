@@ -1,5 +1,8 @@
-import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
-import { describe, expect, it } from "vitest";
+import {
+  createFakePluginHost,
+  makeThreadResponse,
+} from "@get-bb/plugin-sdk/testing";
+import { describe, expect, it, vi } from "vitest";
 import plugin, { migrateFromUiPreferences } from "./server.js";
 import { defaultPreferences } from "./shared/preferences.js";
 
@@ -167,7 +170,7 @@ describe("bb thread-list prefs", () => {
     const reset = await harness.behavior.runCli(["prefs", "reset", "organizationMode", "--json"]);
     expect(JSON.parse(reset.stdout)).toEqual({
       key: "organizationMode",
-      value: "chronological",
+      value: "status",
     });
   });
 });
@@ -183,5 +186,95 @@ it("validates lifecycle selection through CLI and RPC and broadcasts it", async 
   await expect(bb.storage.kv.get("preference:threadLifecycles")).resolves.toEqual(["archived"]);
   expect(harness.realtimeSignals).toContainEqual({
     channel: "preferences", payload: { key: "threadLifecycles", value: ["archived"] },
+  });
+});
+
+describe("thread-list snoozes", () => {
+  it("snoozes, lists, and wakes a thread through rpc", async () => {
+    const { bb, harness } = setup();
+    await plugin(bb);
+    const until = Date.now() + 60 * 60_000;
+    const snoozed = (await harness.behavior.callRpc("snooze", {
+      threadId: "thr_one",
+      until,
+    })) as { snoozes: { threadId: string; until: number }[] };
+    expect(snoozed.snoozes).toEqual([
+      expect.objectContaining({ threadId: "thr_one", until }),
+    ]);
+    await expect(harness.behavior.callRpc("listSnoozes", null)).resolves.toEqual(
+      snoozed,
+    );
+    expect(harness.realtimeSignals).toContainEqual({ channel: "snoozes", payload: {} });
+    await expect(
+      harness.behavior.callRpc("unsnooze", { threadId: "thr_one" }),
+    ).resolves.toEqual({ snoozes: [] });
+  });
+
+  it("rejects a wake time in the past and keeps storage unchanged", async () => {
+    const { bb, harness } = setup();
+    await plugin(bb);
+    await expect(
+      harness.behavior.callRpc("snooze", { threadId: "thr_one", until: 1 }),
+    ).rejects.toThrow(/future/);
+    await expect(bb.storage.kv.get("snoozes")).resolves.toBeUndefined();
+  });
+
+  it("drops expired snoozes when listing", async () => {
+    const { bb, harness } = setup();
+    await plugin(bb);
+    await bb.storage.kv.set("snoozes", [
+      { threadId: "thr_old", until: 1, at: 1 },
+      { threadId: "thr_new", until: Date.now() + 60_000, at: 1 },
+    ]);
+    const listed = (await harness.behavior.callRpc("listSnoozes", null)) as {
+      snoozes: { threadId: string }[];
+    };
+    expect(listed.snoozes.map(({ threadId }) => threadId)).toEqual(["thr_new"]);
+  });
+
+  it("wakes a thread when it is archived", async () => {
+    const { bb, harness } = setup();
+    await plugin(bb);
+    await harness.behavior.callRpc("snooze", {
+      threadId: "thr_one",
+      until: Date.now() + 60_000,
+    });
+    await harness.behavior.emitThreadEvent("thread.archived", {
+      thread: makeThreadResponse({ id: "thr_one" }),
+    });
+    await vi.waitFor(async () =>
+      expect(await harness.behavior.callRpc("listSnoozes", null)).toEqual({
+        snoozes: [],
+      }),
+    );
+  });
+
+  it("sets, lists, and clears snoozes through the CLI", async () => {
+    const { bb, harness } = setup();
+    await plugin(bb);
+    const set = await harness.behavior.runCli([
+      "snooze",
+      "set",
+      "thr_one",
+      "3h",
+      "--json",
+    ]);
+    expect(set.exitCode).toBe(0);
+    const snooze = JSON.parse(set.stdout) as { threadId: string; until: number };
+    expect(snooze.threadId).toBe("thr_one");
+    expect(snooze.until).toBeGreaterThan(Date.now() + 2 * 3_600_000);
+
+    const listed = await harness.behavior.runCli(["snooze", "list"]);
+    expect(listed.stdout).toMatch(/^thr_one\t\d{4}-/);
+
+    const bad = await harness.behavior.runCli(["snooze", "set", "thr_one", "soonish"]);
+    expect(bad.exitCode).not.toBe(0);
+    expect(bad.stderr).toMatch(/Could not read a wake time/);
+
+    const cleared = await harness.behavior.runCli(["snooze", "clear", "thr_one"]);
+    expect(cleared.stdout).toBe("thr_one is awake");
+    await expect(harness.behavior.callRpc("listSnoozes", null)).resolves.toEqual({
+      snoozes: [],
+    });
   });
 });

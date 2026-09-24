@@ -93,13 +93,11 @@ import {
   type ThreadActionsMenuResponsiveAction,
 } from "@/components/thread/ThreadActionsMenu";
 import { PluginThreadHeaderActions } from "@/components/plugin/PluginThreadHeaderActions";
-import { ThreadWorkspaceOpenButton } from "@/components/thread/ThreadWorkspaceOpenButton";
 import {
   formatEnvironmentDisplay,
   type EnvironmentDisplayHostContext,
 } from "@bb/core-ui";
 import { assertNever } from "@bb/thread-view";
-import { useCreateThreadInEnvironment } from "@/hooks/useCreateThreadInEnvironment";
 import { useHostDaemon } from "@/hooks/useHostDaemon";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { selectHosts, useHosts } from "@/hooks/queries/host-queries";
@@ -1210,11 +1208,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     thread?.environmentId !== undefined &&
     environment?.status === "ready" &&
     connectedHostIds.has(environment.hostId);
-  const createThreadInEnvironment = useCreateThreadInEnvironment({
-    projectId,
-    environmentId: thread?.environmentId ?? "",
-    sectionId: thread?.sectionId ?? null,
-  });
   const { providers: registeredEnvironmentProviders } =
     useSystemEnvironmentProviders();
   const { providers: registeredMachineProviders } = useSystemMachineProviders();
@@ -2400,14 +2393,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         machineProviders: registeredMachineProviders,
       })
     : undefined;
-  const isThreadOnReusableEnvironment =
-    environment !== undefined &&
-    environment.status === "ready" &&
-    environment.path !== null;
-  const onCreateNewThreadInEnvironment =
-    isThreadOnReusableEnvironment && projectId && thread.environmentId !== null
-      ? createThreadInEnvironment
-      : undefined;
   const promptBannerMergeBaseBranch = effectiveMergeBaseBranch;
   const threadBranchName = workspaceBranch?.currentBranch ?? undefined;
   const threadCheckoutDisplay = workspaceStatus
@@ -2463,27 +2448,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     ...responsiveWorkspaceActions,
     ...responsiveGitActions,
   ];
-  const workspaceOpenButton =
-    workspaceOpenPath && preferredDirectoryTarget ? (
-      <ThreadWorkspaceOpenButton
-        preferredTarget={preferredDirectoryTarget}
-        targets={directoryOpenTargets}
-        onOpenPreferredTarget={async () => {
-          await openPathInPreferredDirectoryTarget({
-            lineNumber: null,
-            path: workspaceOpenPath,
-          });
-        }}
-        onOpenTarget={async (targetId) => {
-          await openPathInDirectoryTarget({
-            lineNumber: null,
-            path: workspaceOpenPath,
-            rememberTarget: true,
-            targetId,
-          });
-        }}
-      />
-    ) : undefined;
   const timelineHeader = (
     <ThreadDetailHeader
       actionsMenu={(includeResponsiveActions) => (
@@ -2511,7 +2475,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       threadHeaderGitActions={gitActions.threadHeaderGitActions}
       threadId={thread.id}
       threadTitle={threadTitle}
-      workspaceOpenButton={workspaceOpenButton}
     />
   );
   const composerFooter = (
@@ -2535,7 +2498,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       environmentGoneStatus={threadEnvironmentGoneStatus}
       environmentHostId={environment?.hostId}
       isEnvironmentActionPending={requestEnvironmentAction.isPending}
-      onCreateNewThreadInEnvironment={onCreateNewThreadInEnvironment}
       onPullRequestMerge={handlePullRequestMerge}
       onPullRequestDraft={handlePullRequestDraft}
       onPullRequestReady={handlePullRequestReady}

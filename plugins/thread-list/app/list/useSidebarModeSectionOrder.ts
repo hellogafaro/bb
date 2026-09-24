@@ -15,8 +15,10 @@ import {
   type SidebarSectionId,
 } from "@bb/client-core";
 
+type OrderedOrganizationMode = Exclude<SidebarOrganizationMode, "status">;
+
 const MODE_SECTION_ORDER_CONFIG: Record<
-  SidebarOrganizationMode,
+  OrderedOrganizationMode,
   {
     atom: typeof sidebarSectionOrderAtom;
     entityKind: "project" | "section" | "machine";
@@ -43,7 +45,7 @@ const MODE_SECTION_ORDER_CONFIG: Record<
 interface UseSidebarModeSectionOrderArgs {
   entitySectionIds: readonly SidebarSectionId[];
   hasThreadsSection?: boolean;
-  mode: SidebarOrganizationMode;
+  mode: OrderedOrganizationMode;
   showPinnedSection: boolean;
 }
 

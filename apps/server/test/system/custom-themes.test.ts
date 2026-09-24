@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   CUSTOM_THEME_CSS_MAX_LENGTH,
+  DEFAULT_CODE_THEME_LIGHT,
   defaultAppTheme,
+  defaultResolvedCodeTheme,
   resolveCodeTheme,
 } from "@bb/domain";
 import {
@@ -101,8 +103,12 @@ describe("custom themes service", () => {
       customCss: ":root {}",
       resolvedCodeTheme: {
         dark: "bb:ocean:dark",
-        light: "pierre-light",
-        files: { "bb:ocean:dark": { ...darkTheme, name: "bb:ocean:dark" } },
+        light: DEFAULT_CODE_THEME_LIGHT,
+        files: {
+          "bb:ocean:dark": { ...darkTheme, name: "bb:ocean:dark" },
+          [DEFAULT_CODE_THEME_LIGHT]:
+            defaultResolvedCodeTheme.files[DEFAULT_CODE_THEME_LIGHT]!,
+        },
       },
     });
   });

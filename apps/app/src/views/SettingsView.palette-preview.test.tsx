@@ -6,6 +6,10 @@ import { defaultAppTheme } from "@bb/domain";
 import { CompactViewportOverrideProvider } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { AppearanceSettingsSection } from "./SettingsView";
 
+vi.mock("@/components/wallpaper/WallpaperSetting", () => ({
+  WallpaperSetting: () => null,
+}));
+
 afterEach(cleanup);
 
 function CompactViewport({ children }: { children: ReactNode }) {

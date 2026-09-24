@@ -112,7 +112,7 @@ function PromptBoxWithScrollAnchor({
   );
 }
 
-const FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT = 68;
+const FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT = 64;
 const FOLLOW_UP_PROMPT_BOX_ELASTIC_TARGET_HEIGHT =
   FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT + PROMPT_STACK_CARD_ROW_HEIGHT;
 const COMPOSER_CONTROL_SELECTOR = "button, [role='button'], [aria-haspopup]";
@@ -752,7 +752,6 @@ function FollowUpPromptBoxWithComposer({
         }
         compact={compactConfig}
         editorLayout="thread"
-        onCollapse={isCompactViewport ? undefined : collapseWidePromptBox}
         modeHeader={
           execution.handoff?.active ? (
             <div className="flex min-h-7 items-center gap-1.5 text-xs text-subtle-foreground">
@@ -781,7 +780,7 @@ function FollowUpPromptBoxWithComposer({
       {!isPromptBoxCompact ? (
         <div
           data-follow-up-composer-footer=""
-          className="mt-1 flex min-h-6 max-h-6 select-none items-center justify-between gap-2 overflow-hidden pl-[15px] pr-3.5 opacity-100 transition-[max-height,min-height,margin-top,opacity] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+          className="mt-1 flex min-h-6 max-h-6 select-none items-center justify-between gap-2 overflow-hidden pl-[13px] pr-[9px] opacity-100 transition-[max-height,min-height,margin-top,opacity] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
             {environmentSummary}

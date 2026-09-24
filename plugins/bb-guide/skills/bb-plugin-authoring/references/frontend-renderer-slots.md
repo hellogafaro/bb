@@ -85,7 +85,7 @@ openWorkspaceFile }` — register a leaf
   `useBbNavigate().openThreadPanel`. Errors from `run` (sync or
   async) are contained and
   logged, never breaking the timeline.
-- `app.commands.register` → a row in bb's quick palette (Mod+Shift+P), listed
+- `app.commands.register` → a row in bb's quick palette (Mod+K), listed
   under "Plugins" beside bb's own commands. Host-rendered chrome, no plugin
   component — registration: `{ id, title, defaultShortcut?, isAvailable?, run }`. Both callbacks
   receive `{ threadId, projectId, openPanel }`, where `threadId` and

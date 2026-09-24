@@ -8,7 +8,10 @@ import {
 } from "./api/machine-environment.js";
 import {
   machineEnvironmentReplaceSchema,
+  setWallpaperRequestSchema,
   type MachineEnvironmentReplace,
+  type SetWallpaperRequest,
+  type WallpaperStatusResponse,
 } from "./api/system.js";
 import {
   desktopBrowserHostRequestSchema,
@@ -1764,6 +1767,26 @@ export const publicApiRoutes = {
         appThemeSelectionSchema,
       ),
       response: jsonResponse<AppTheme>(),
+    }),
+    wallpaper: defineRoute({
+      path: "/settings/appearance/wallpaper",
+      method: "get",
+      request: noRequest(),
+      response: binaryResponse<Uint8Array>(),
+    }),
+    setWallpaper: defineRoute({
+      path: "/settings/appearance/wallpaper",
+      method: "put",
+      request: jsonRequest<EmptyInput, SetWallpaperRequest>(
+        setWallpaperRequestSchema,
+      ),
+      response: jsonResponse<WallpaperStatusResponse>(),
+    }),
+    clearWallpaper: defineRoute({
+      path: "/settings/appearance/wallpaper",
+      method: "delete",
+      request: noRequest(),
+      response: jsonResponse<WallpaperStatusResponse>(),
     }),
     uiPreferences: defineRoute({
       path: "/preferences/ui",

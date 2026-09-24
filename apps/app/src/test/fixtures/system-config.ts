@@ -23,6 +23,7 @@ export function makeSystemConfig(
     keybindingOverrides: [],
     experiments: defaultExperiments,
     appearance: defaultAppTheme,
+    wallpaper: null,
     customThemes: [],
     pluginThemes: [],
     featureFlags: defaultFeatureFlags,

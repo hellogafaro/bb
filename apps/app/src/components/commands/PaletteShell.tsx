@@ -17,7 +17,7 @@ export function PaletteShortcut({ children }: { children: string }) {
   return (
     <kbd
       aria-hidden="true"
-      className="pointer-events-none inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm bg-state-hover/50 px-1.5 py-1 font-sans text-xs font-normal leading-none tabular-nums text-subtle-foreground"
+      className="pointer-events-none inline-flex h-4 shrink-0 items-center justify-center whitespace-nowrap rounded-[3px] bg-state-hover/50 px-[3px] font-sans text-2xs font-normal leading-3 tabular-nums text-subtle-foreground"
     >
       {children}
     </kbd>
@@ -82,7 +82,7 @@ export function PaletteShell({
   return (
     <TooltipProvider>
       <div
-        className="rounded-t-[inherit] border-b border-border bg-background px-3 py-1"
+        className="rounded-t-[inherit] border-b border-border bg-sidebar px-3 py-1"
         data-palette-input-band
       >
         <div className="flex h-10 items-center gap-2" data-palette-input-frame>
@@ -111,7 +111,7 @@ export function PaletteShell({
         </div>
       </div>
       <div
-        className="relative min-h-0 overflow-hidden rounded-b-[inherit] bg-background"
+        className="relative min-h-0 overflow-hidden rounded-b-[inherit] bg-sidebar"
         data-palette-results-clip
       >
         <div

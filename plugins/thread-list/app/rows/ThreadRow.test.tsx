@@ -60,7 +60,6 @@ function activity(
 
 interface HarnessProps {
   thread: PluginSidebarThread;
-  crossProjectId?: string | null;
   isActive?: boolean;
   options?: ThreadRowOptions;
   onRowEvent?: () => void;
@@ -69,7 +68,6 @@ interface HarnessProps {
 
 function ThreadRowHarness({
   thread,
-  crossProjectId = null,
   isActive = false,
   options = DEFAULT_OPTIONS,
   onRowEvent,
@@ -79,7 +77,6 @@ function ThreadRowHarness({
     <ThreadRow
       projectId={thread.projectId}
       thread={toSidebarThread(thread)}
-      crossProjectId={crossProjectId}
       isActive={isActive}
       options={options}
     />
@@ -274,6 +271,68 @@ describe("ThreadRow", () => {
     await waitFor(() => expect(restore.disabled).toBe(false));
     fireEvent.click(restore);
     expect(unarchive).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { thread: createThread(), name: "Pin thread", pinned: true },
+    {
+      thread: createThread({ pinnedAt: 3, isPinned: true }),
+      name: "Unpin thread",
+      pinned: false,
+    },
+  ])(
+    "toggles the pin through the host action from the $name hover control",
+    async ({ thread, name, pinned }) => {
+      const slot = renderThreadRow({ thread });
+      fireEvent.click(screen.getByRole("button", { name }));
+      await waitFor(() =>
+        expect(slot.inspection.sidebarActionCalls).toEqual([
+          { method: "setPinned", threadId: "thr_test", pinned },
+        ]),
+      );
+    },
+  );
+
+  it("shows the branch and last activity on the second line", () => {
+    vi.useFakeTimers({ now: 10 * 60_000 });
+    try {
+      const { container } = renderThreadRow({
+        thread: createThread({
+          environment: {
+            id: "env_1",
+            name: "fix-login",
+            branchName: "bb/fix-login",
+            path: null,
+            isWorktree: true,
+            providerId: null,
+            workspaceDisplayKind: null,
+          },
+          updatedAt: 5 * 60_000,
+          latestAttentionAt: 7 * 60_000,
+        }),
+      });
+      const meta = container.querySelector("[data-sidebar-thread-meta]");
+      expect(meta?.querySelector('[data-icon="GitBranch"]')).not.toBeNull();
+      expect(meta?.textContent).toBe("bb/fix-login·3m");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("tints a row that holds an unsubmitted draft until it is selected", () => {
+    const idle = renderThreadRow({ hasComposerDraft: true });
+    const idleRow = idle.container.querySelector("[data-sidebar-rename-row]");
+    expect(idleRow?.className).toContain("var(--surface-draft)");
+    idle.unmount();
+
+    const selected = renderThreadRow({
+      hasComposerDraft: true,
+      isActive: true,
+    });
+    const selectedRow = selected.container.querySelector(
+      "[data-sidebar-rename-row]",
+    );
+    expect(selectedRow?.className).not.toContain("var(--surface-draft)");
   });
 
   it("archives through the host action from the hover control", () => {
@@ -569,13 +628,13 @@ describe("ThreadRow", () => {
     },
   );
 
-  it("puts the draft icon in the trailing status slot", () => {
+  it("puts the draft ring in the trailing status slot", () => {
     const { container } = renderThreadRow({
       hasComposerDraft: true,
       thread: createThread({ lastReadAt: 1, latestAttentionAt: 1 }),
     });
 
-    const draftIcon = container.querySelector('[data-icon="Edit"]');
+    const draftIcon = container.querySelector('[data-status-ring="draft"]');
     expect(draftIcon).not.toBeNull();
     expect(
       draftIcon?.closest("[data-sidebar-thread-trailing-indicator]"),
@@ -601,7 +660,7 @@ describe("ThreadRow", () => {
     ).toBe("Zap");
   });
 
-  it("replaces the draft icon with a plugin status and restores it without one", () => {
+  it("replaces the draft ring with a plugin status and restores it without one", () => {
     const withStatus = renderThreadRow({
       hasComposerDraft: true,
       pluginStatus: {
@@ -613,7 +672,9 @@ describe("ThreadRow", () => {
 
     const runningIcon = screen.getByLabelText("Plugin improving draft");
     expect(runningIcon.getAttribute("data-icon")).toBe("AiContentGenerator01");
-    expect(withStatus.container.querySelector('[data-icon="Edit"]')).toBeNull();
+    expect(
+      withStatus.container.querySelector('[data-status-ring="draft"]'),
+    ).toBeNull();
     withStatus.unmount();
 
     const withoutStatus = renderThreadRow({
@@ -622,7 +683,7 @@ describe("ThreadRow", () => {
     });
     expect(screen.queryByLabelText("Plugin improving draft")).toBeNull();
     expect(
-      withoutStatus.container.querySelector('[data-icon="Edit"]'),
+      withoutStatus.container.querySelector('[data-status-ring="draft"]'),
     ).not.toBeNull();
   });
 
@@ -703,18 +764,6 @@ describe("ThreadRow", () => {
     expect(Array.from(errorIcon.classList)).not.toContain("animate-shine-icon");
   });
 
-  it("disables runtime glyph rotation when reduced motion is requested", () => {
-    renderThreadRow({
-      thread: createThread({ status: "active", runtimeStatus: "active" }),
-    });
-
-    const runningIcon = screen.getByLabelText("Thread working");
-    expect(runningIcon.getAttribute("data-icon")).toBe("Loading");
-    expect(Array.from(runningIcon.classList)).toContain(
-      "motion-reduce:animate-none",
-    );
-  });
-
   it("keeps the runtime spinner ahead of a plugin status", () => {
     const { container } = renderThreadRow({
       pluginStatus: {
@@ -725,8 +774,7 @@ describe("ThreadRow", () => {
     });
 
     const runningIcon = screen.getByLabelText("Thread working");
-    expect(runningIcon.getAttribute("data-icon")).toBe("Loading");
-    expect(Array.from(runningIcon.classList)).toContain("animate-spin");
+    expect(runningIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Plugin improving draft")).toBeNull();
     expect(
       container.querySelector("[data-sidebar-thread-trailing-indicator]"),
@@ -734,7 +782,7 @@ describe("ThreadRow", () => {
   });
 
   it.each([true, false] as const)(
-    "keeps the working-draft pencil ahead of the runtime spinner when isActive=%s",
+    "keeps the working draft ahead of the runtime when isActive=%s",
     (isActive) => {
       renderThreadRow({
         hasComposerDraft: true,
@@ -745,11 +793,7 @@ describe("ThreadRow", () => {
       const draftIcon = screen.getByLabelText(
         "Thread working with unsubmitted draft",
       );
-      expect(draftIcon.getAttribute("data-icon")).toBe("Edit");
-      expect(Array.from(draftIcon.classList)).toContain("animate-shine-icon");
-      expect(Array.from(draftIcon.classList)).toContain(
-        SIDEBAR_WORKING_STATUS_COLOR_CLASS,
-      );
+      expect(draftIcon.getAttribute("data-status-ring")).toBe("working");
       expect(screen.queryByLabelText("Thread working")).toBeNull();
     },
   );
@@ -760,19 +804,17 @@ describe("ThreadRow", () => {
     "backgroundCommands",
     "planMode",
     "goals",
-  ] as const)("uses the shimmering draft pencil with %s", (activityKey) => {
+  ] as const)("shows a working draft with %s", (activityKey) => {
     renderThreadRow({
       hasComposerDraft: true,
       thread: createThread({ activity: activity({ [activityKey]: 1 }) }),
     });
 
-    const draftIcon = screen.getByLabelText(
-      "Thread working with unsubmitted draft",
-    );
-    expect(Array.from(draftIcon.classList)).toContain("animate-shine-icon");
-    expect(Array.from(draftIcon.classList)).toContain(
-      SIDEBAR_WORKING_STATUS_COLOR_CLASS,
-    );
+    expect(
+      screen
+        .getByLabelText("Thread working with unsubmitted draft")
+        .getAttribute("data-status-ring"),
+    ).toBe("working");
   });
 
   it("renders the host title component and labels the row with the resolved display title", () => {
@@ -798,77 +840,7 @@ describe("ThreadRow", () => {
     expect(screen.queryByText(/@thread:thr_mentioned/)).toBeNull();
   });
 
-  it("marks a child from another project with the project name", () => {
-    const { container } = renderThreadRow({
-      crossProjectId: "proj_other",
-      projects: [
-        {
-          id: "proj_other",
-          name: "Web App",
-          isPersonal: false,
-          href: "/projects/proj_other",
-          settingsHref: "/projects/proj_other/settings",
-        },
-      ],
-      thread: createThread({
-        parentThreadId: "thr_parent",
-        projectId: "proj_other",
-      }),
-    });
-
-    const marker = container.querySelector(
-      "[data-sidebar-thread-cross-project]",
-    );
-    expect(marker?.getAttribute("aria-label")).toBe("In project Web App");
-    expect(marker?.querySelector('[data-icon="FolderExport"]')).not.toBeNull();
-    expect(
-      marker?.closest("[data-sidebar-thread-trailing-indicator]"),
-    ).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Open Thread" }).getAttribute("href"),
-    ).toBe("/projects/proj_other/threads/thr_test");
-  });
-
-  it("falls back to a generic label when the other project is unknown", () => {
-    const { container } = renderThreadRow({
-      crossProjectId: "proj_unknown",
-      thread: createThread({ parentThreadId: "thr_parent", projectId: "proj_unknown" }),
-    });
-
-    expect(
-      container
-        .querySelector("[data-sidebar-thread-cross-project]")
-        ?.getAttribute("aria-label"),
-    ).toBe("In another project");
-  });
-
-  it("opens the thread when the cross-project marker is clicked", () => {
-    const { container } = renderThreadRow({
-      crossProjectId: "proj_other",
-      thread: createThread({
-        parentThreadId: "thr_parent",
-        projectId: "proj_other",
-      }),
-    });
-    const link = screen.getByRole("link", { name: "Open Thread" });
-    const onLinkClick = vi.fn();
-    link.addEventListener("click", onLinkClick);
-
-    fireEvent.click(
-      container.querySelector("[data-sidebar-thread-cross-project]")!,
-    );
-
-    expect(onLinkClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("omits the cross-project marker for same-project rows", () => {
-    const { container } = renderThreadRow({});
-    expect(
-      container.querySelector("[data-sidebar-thread-cross-project]"),
-    ).toBeNull();
-  });
-
-  it("uses the circle-question glyph when the thread needs user input", () => {
+  it("uses the waiting ring when the thread needs user input", () => {
     renderThreadRow({
       thread: createThread({ hasPendingInteraction: true }),
     });
@@ -876,11 +848,11 @@ describe("ThreadRow", () => {
     expect(
       screen
         .getByLabelText("Thread needs user input")
-        .getAttribute("data-icon"),
-    ).toBe("CircleQuestion");
+        .getAttribute("data-status-ring"),
+    ).toBe("waiting");
   });
 
-  it("clocks a thread with queued work, and drops the clock once it runs", () => {
+  it("marks a thread with queued work, and drops the mark once it runs", () => {
     const { rerenderThreadRow } = renderThreadRow({
       thread: createThread({
         lastReadAt: 1,
@@ -892,8 +864,8 @@ describe("ThreadRow", () => {
     expect(
       screen
         .getByLabelText("Thread has a message waiting to send")
-        .getAttribute("data-icon"),
-    ).toBe("Clock");
+        .getAttribute("data-status-ring"),
+    ).toBe("scheduled");
 
     rerenderThreadRow(
       createThread({
@@ -907,8 +879,8 @@ describe("ThreadRow", () => {
       screen.queryByLabelText("Thread has a message waiting to send"),
     ).toBeNull();
     expect(
-      screen.getByLabelText("Thread working").getAttribute("data-icon"),
-    ).toBe("Loading");
+      screen.getByLabelText("Thread working").getAttribute("data-status-ring"),
+    ).toBe("working");
   });
 
   it("shows unread success instead of queued work", () => {
@@ -947,9 +919,9 @@ describe("ThreadRow", () => {
     });
     const threadFailure = screen.getByLabelText("Unread thread failed");
 
-    expect(queueFailure.getAttribute("data-icon")).toBe("CircleX");
-    expect(threadFailure.getAttribute("data-icon")).toBe(
-      queueFailure.getAttribute("data-icon"),
+    expect(queueFailure.getAttribute("data-status-ring")).toBe("failed");
+    expect(threadFailure.getAttribute("data-status-ring")).toBe(
+      queueFailure.getAttribute("data-status-ring"),
     );
     expect(queueFailure.getAttribute("class")).toBe(
       threadFailure.getAttribute("class"),
@@ -988,11 +960,15 @@ describe("ThreadRow", () => {
       expect(
         titleContainer?.classList.contains("bb-sidebar-hover-actions-inset"),
       ).toBe(false);
-      expect(titleContainer?.classList.contains("pr-7.5")).toBe(true);
+      expect(
+        titleContainer?.classList.contains(
+          "pr-(--bb-sidebar-row-actions-extra)",
+        ),
+      ).toBe(true);
       expect(
         titleContainer?.classList.contains("max-md:pointer-coarse:pr-0"),
       ).toBe(true);
-      expect(navigationTarget?.classList.contains("flex-1")).toBe(true);
+      expect(navigationTarget?.classList.contains("col-start-1")).toBe(true);
       expect(titleWrapper?.classList.contains("flex-1")).toBe(false);
       fireEvent.click(toggle);
       expect(onToggleCollapsed).toHaveBeenCalledWith("thr_test");
@@ -1077,8 +1053,8 @@ describe("ThreadRow", () => {
     });
 
     const shortcut = screen.getByText("⌘3");
-    expect(shortcut.className).toContain("px-1.5");
-    expect(shortcut.className).toContain("py-1");
+    expect(shortcut.className).toContain("px-[3px]");
+    expect(shortcut.className).toContain("h-4");
     expect(shortcut.className).toContain("opacity-60");
     expect(screen.queryByLabelText("Thread working")).toBeNull();
     expect(
@@ -1115,18 +1091,16 @@ describe("ThreadRow", () => {
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Background agent running")).toBeNull();
     expect(screen.queryByLabelText("Background command running")).toBeNull();
-    expect(document.querySelector('[data-icon="Edit"]')).toBeNull();
+    expect(document.querySelector('[data-status-ring="draft"]')).toBeNull();
   });
 
-  it("shows an animated working-colored workflow glyph for an idle thread with an active workflow", () => {
+  it("shows the working ring for an idle thread with an active workflow", () => {
     renderThreadRow({
       thread: createThread({ activity: activity({ workflows: 1 }) }),
     });
 
     const workflowIcon = screen.getByLabelText("Workflow running");
-    const workflowIconClasses = Array.from(workflowIcon.classList);
-    expect(workflowIconClasses).toContain("animate-shine-icon");
-    expect(workflowIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(workflowIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Agent working")).toBeNull();
   });
 
@@ -1173,38 +1147,30 @@ describe("ThreadRow", () => {
     {
       activityKey: "backgroundAgents" as const,
       label: "Background agent running",
-      icon: "UserRoundPlus",
       absent: ["Background command running", "Workflow running"],
     },
     {
       activityKey: "backgroundCommands" as const,
       label: "Background command running",
-      icon: "Terminal",
       absent: ["Workflow running", "Agent working"],
     },
     {
       activityKey: "planMode" as const,
       label: "Plan mode active",
-      icon: "ListTodo",
       absent: ["Background command running", "Workflow running"],
     },
     {
       activityKey: "goals" as const,
       label: "Goal active",
-      icon: "Target",
       absent: ["Plan mode active", "Workflow running"],
     },
-  ])("shows an animated $label glyph", ({ activityKey, label, icon, absent }) => {
+  ])("shows the working ring for $label", ({ activityKey, label, absent }) => {
     renderThreadRow({
       thread: createThread({ activity: activity({ [activityKey]: 1 }) }),
     });
 
     const glyph = screen.getByLabelText(label);
-    expect(glyph.getAttribute("data-icon")).toBe(icon);
-    expect(Array.from(glyph.classList)).toContain("animate-shine-icon");
-    expect(Array.from(glyph.classList)).toContain(
-      SIDEBAR_WORKING_STATUS_COLOR_CLASS,
-    );
+    expect(glyph.getAttribute("data-status-ring")).toBe("working");
     for (const missing of absent) {
       expect(screen.queryByLabelText(missing)).toBeNull();
     }
@@ -1243,22 +1209,20 @@ describe("ThreadRow", () => {
   });
 
   it.each([
-    { flag: "workflow" as const, label: "Workflow running", icon: "Workflow" },
+    { flag: "workflow" as const, label: "Workflow running" },
     {
       flag: "backgroundAgent" as const,
       label: "Background agent running",
-      icon: "UserRoundPlus",
     },
     {
       flag: "backgroundCommand" as const,
       label: "Background command running",
-      icon: "Terminal",
     },
-    { flag: "planMode" as const, label: "Plan mode active", icon: "ListTodo" },
-    { flag: "goal" as const, label: "Goal active", icon: "Target" },
+    { flag: "planMode" as const, label: "Plan mode active" },
+    { flag: "goal" as const, label: "Goal active" },
   ])(
     "shows the $label glyph for collapsed parent rows with hidden child activity",
-    ({ flag, icon, label }) => {
+    ({ flag, label }) => {
       renderThreadRow({
         thread: createThread({ lastReadAt: 1, latestAttentionAt: 1 }),
         options: {
@@ -1276,7 +1240,9 @@ describe("ThreadRow", () => {
         },
       });
 
-      expect(screen.getByLabelText(label).getAttribute("data-icon")).toBe(icon);
+      expect(
+        screen.getByLabelText(label).getAttribute("data-status-ring"),
+      ).toBe("working");
       expect(screen.queryByLabelText("Thread working")).toBeNull();
     },
   );

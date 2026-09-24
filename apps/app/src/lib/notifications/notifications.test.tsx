@@ -76,14 +76,34 @@ describe("truncated toast descriptions", () => {
     );
   }
 
-  it("offers Show more only when the description does not fit", () => {
+  it("offers Show more for a text description and for a title that does not fit", () => {
     mockWidths(300, 300);
     renderToast();
+    expect(screen.queryByRole("button", { name: "Show more" })).not.toBeNull();
+
+    cleanup();
+    render(
+      <AppToastContent
+        title="Installed"
+        tone="success"
+        notificationId="notification-8"
+      />,
+    );
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
 
     cleanup();
-    mockWidths(600, 300);
-    renderToast();
+    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.dataset.testid === "app-toast-title" ? 600 : 300;
+      },
+    );
+    render(
+      <AppToastContent
+        title="Installing the plugin with a very long name finished"
+        tone="success"
+        notificationId="notification-9"
+      />,
+    );
     expect(screen.queryByRole("button", { name: "Show more" })).not.toBeNull();
   });
 

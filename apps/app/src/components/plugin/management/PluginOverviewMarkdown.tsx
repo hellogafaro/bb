@@ -72,7 +72,7 @@ function OverviewHeading({
 const OVERVIEW_COMPONENTS: Components = {
   a: OverviewLink,
   blockquote: ({ children }) => (
-    <blockquote className="my-2 border-l-2 border-surface-selected-border pl-3">
+    <blockquote className="my-2 border-l-2 border-quote-border pl-3">
       {children}
     </blockquote>
   ),

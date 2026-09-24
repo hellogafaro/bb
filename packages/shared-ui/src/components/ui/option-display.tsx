@@ -3,7 +3,9 @@ import { cn } from "../../lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 export const OPTION_BASE_CLASS_NAME =
-  "h-8 w-fit max-w-full min-w-0 items-center justify-start gap-1 px-1 text-xs leading-tight";
+  "h-8 w-fit max-w-full min-w-0 items-center justify-start gap-1.5 px-2 text-xs leading-tight [&>[data-icon=ChevronDown]]:-mr-[3px] [&>[data-icon=ChevronDown]]:size-3";
+export const OPTION_FOOTER_TRIGGER_CLASS_NAME =
+  "h-6 min-h-6 py-0 max-md:pointer-coarse:h-8 max-md:pointer-coarse:min-h-8 [&_[data-icon-root]]:size-3 [&_[data-icon-root]]:min-w-3";
 export const OPTION_INTERACTIVE_CLASS_NAME =
   "border-none bg-transparent shadow-none";
 export const OPTION_CONTENT_CLASS_NAME = "flex min-w-0 items-center gap-1.5";

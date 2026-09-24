@@ -141,6 +141,10 @@ vi.mock("@/components/secondary-panel/ThreadSecondaryPanel", async () => {
   return { ThreadSecondaryPanel };
 });
 
+vi.mock("@/components/wallpaper/HomeWallpaper", () => ({
+  HomeWallpaper: () => null,
+}));
+
 vi.mock("@/components/plugin/PluginHomepageSections", async () => {
   const React = await import("react");
   return {

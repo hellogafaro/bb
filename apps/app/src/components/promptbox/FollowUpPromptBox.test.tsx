@@ -376,7 +376,7 @@ describe("FollowUpPromptBox", () => {
     expect(onRender).toHaveBeenCalledTimes(2);
     expect(onRender.mock.calls[0]?.[1]).toBe("mount");
     expect(onRender.mock.calls[1]?.[1]).toBe("update");
-    expect(screen.getByTestId("prompt-box").dataset.minHeight).toBe("76");
+    expect(screen.getByTestId("prompt-box").dataset.minHeight).toBe("72");
   });
 
   it("includes expanding plugin banners in measured stack compensation", () => {
@@ -442,8 +442,8 @@ describe("FollowUpPromptBox", () => {
       resizeObserverCallback?.([], {} as ResizeObserver);
     });
 
-    expect(initialMinHeight).toBe(100);
-    expect(promptBox.getAttribute("data-min-height")).toBe("76");
+    expect(initialMinHeight).toBe(96);
+    expect(promptBox.getAttribute("data-min-height")).toBe("72");
   });
 
   it("renders plugin banners above native stack content", () => {
@@ -920,12 +920,16 @@ describe("FollowUpPromptBox", () => {
   it("collapses a wide composer until the user focuses it again", () => {
     const props = createFollowUpPromptBoxProps({ kind: "ready" });
     props.environmentSummary = <span>Local environment</span>;
-    render(<FollowUpPromptBox {...props} />);
+    render(
+      <AppCommandProvider>
+        <FollowUpPromptBox {...props} />
+      </AppCommandProvider>,
+    );
 
     expect(screen.getByText("Local environment")).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse prompt box" }),
-    );
+    const input = screen.getByRole("textbox", { name: "Follow-up prompt" });
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: "c", metaKey: true, shiftKey: true });
 
     expect(screen.getByTestId("prompt-box").getAttribute("data-compact")).toBe(
       "true",
@@ -944,10 +948,14 @@ describe("FollowUpPromptBox", () => {
 
   it("keeps a collapsed composer steady while a pointer focuses an action", () => {
     const props = createFollowUpPromptBoxProps({ kind: "ready" });
-    render(<FollowUpPromptBox {...props} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse prompt box" }),
+    render(
+      <AppCommandProvider>
+        <FollowUpPromptBox {...props} />
+      </AppCommandProvider>,
     );
+    const input = screen.getByRole("textbox", { name: "Follow-up prompt" });
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: "c", metaKey: true, shiftKey: true });
     const submit = screen.getByRole("button", { name: "Submit" });
 
     fireEvent.pointerDown(submit, { button: 0, pointerType: "mouse" });

@@ -18,7 +18,8 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import type { BbDiffProps } from "./code-rendering";
 
 const DIFF_VIEW_STYLE = {
-  "--diffs-font-size": "12px",
+  "--diffs-font-family": "var(--font-mono)",
+  "--diffs-font-size": "13px",
   "--diffs-line-height": "18px",
 } as CSSProperties;
 

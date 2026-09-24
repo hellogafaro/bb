@@ -10,8 +10,7 @@ interface VoiceRecordingBarProps {
   onCancel: () => void;
 }
 
-const CONTROL_BUTTON_CLASS =
-  "size-8 rounded-full p-0 max-md:pointer-coarse:size-10";
+const CONTROL_BUTTON_CLASS = "size-8 rounded-md p-0";
 
 export function VoiceRecordingBar({
   state,
@@ -48,7 +47,7 @@ export function VoiceRecordingBar({
       <Button
         type="button"
         size="icon"
-        variant="default"
+        variant="primary"
         aria-label={
           isTranscribing
             ? "Transcribing voice input"
@@ -56,7 +55,7 @@ export function VoiceRecordingBar({
         }
         disabled={isTranscribing}
         onClick={onConfirm}
-        className={CONTROL_BUTTON_CLASS}
+        className={cn(CONTROL_BUTTON_CLASS, "disabled:opacity-100")}
       >
         {isTranscribing ? (
           <Icon name="Spinner" className="size-4 animate-spin" />

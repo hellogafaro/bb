@@ -72,6 +72,7 @@ import { ProjectsSettingsSection } from "@/components/settings/ProjectsSettingsS
 import { ArchivedThreadsSettingsSection } from "@/components/settings/ArchivedThreadsSettingsSection";
 import { CliSkillsSettingsSection } from "@/components/settings/CliSkillsSettingsSection";
 import { MarketplacesSettingsSection } from "@/components/settings/MarketplacesSettingsSection";
+import { WallpaperSetting } from "@/components/wallpaper/WallpaperSetting";
 import {
   useUpdateGeneralSettings,
   useUpdateAppearance,
@@ -827,6 +828,7 @@ export function AppearanceSettingsSection({
           faviconColor={faviconColor}
           onFaviconColorChange={onFaviconColorChange}
         />
+        <WallpaperSetting />
         <SplitDimmingSetting />
         <SidebarFooterSettings />
       </div>

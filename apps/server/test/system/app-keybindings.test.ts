@@ -275,7 +275,7 @@ describe("app keybindings", () => {
       ).toMatchObject([
         {
           desktopOnly: false,
-          shortcut: { key: "Enter", mod: true, shift: true },
+          shortcut: { key: "j", mod: true, shift: false },
         },
       ]);
       expect(
@@ -401,7 +401,7 @@ describe("app keybindings", () => {
             desktopOnly: binding.desktopOnly,
             key: binding.shortcut.key,
           })),
-      ).toEqual([{ desktopOnly: false, key: "Enter" }]);
+      ).toEqual([{ desktopOnly: false, key: "j" }]);
       expect(
         assignedDefaultKeybindings.find(
           (binding) => binding.command === "composer.focus",
@@ -479,6 +479,7 @@ describe("app keybindings", () => {
             shift: binding.shortcut.shift,
           })),
       ).toEqual([
+        { command: "panel.toggle", shift: false },
         { command: "modelPicker.cycleModel", shift: false },
         { command: "modelPicker.cycleModelBackward", shift: true },
         { command: "modelPicker.cycleProvider", shift: false },

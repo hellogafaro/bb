@@ -26,6 +26,16 @@ app uses ~/.bb/theme/…). The folder name is the theme id.
   bb theme reset                 Back to the default theme; preserve favicon color
   bb theme favicon set <color>   Set favicon color; preserve the active theme
   bb theme favicon reset         Reset favicon color; preserve the active theme
+  bb theme wallpaper show        Show whether a wallpaper image is set
+  bb theme wallpaper set <image> Set the wallpaper from a PNG, JPEG, or WebP file
+                                 (up to 4 MB)
+  bb theme wallpaper clear       Remove it and return to the ambient background
+
+The wallpaper sits behind the welcome and New thread screens. It is stored at
+<bb-data-dir>/appearance/wallpaper.<ext> and applied live to every window.
+Without an image, bb draws a quiet animated pattern in the palette's primary
+color. Settings → Appearance → Wallpaper resizes uploads to WebP in the browser
+first.
 
 To author a custom theme, run `bb theme dir`, write <that-dir>/<name>/theme.css,
 then `bb theme set <name>`. Optional `pierre-dark.json` / `pierre-light.json`
@@ -336,12 +346,19 @@ the existing title and conversation search behavior. Archived fetches bounded re
 selected.
 
 Every thread-list header's actions menu offers New project, New section,
-Organize, Sort by, and Filter. Organize selects By project,
-By machine, or Custom and retains Groups → By environment.
+Organize, Sort by, and Filter. Organize selects By status (the Thread list
+default), By project, By machine, or Custom and retains Groups → By environment.
+By status groups threads under Pinned, Waiting, Ready, Working, Done, and
+Snoozed, with each row showing its project and last update. A family takes its
+most urgent state. Snooze a quiet thread from its row's clock or menu, or with
+`bb thread-list snooze set <thread-id> <1h|3h|tomorrow|week|45m|2d|ISO date>`;
+`bb thread-list snooze list` and `bb thread-list snooze clear <thread-id>`
+inspect and wake it. A snooze ends at its time or when the thread gets new
+activity, and working or asking threads cannot be snoozed.
 The separate `sidebar.threadGrouping.environment` preference
 decides whether sibling threads sharing one worktree collapse into a single row.
 It defaults to `auto`, which groups them
-everywhere except Custom: `bb settings ui set sidebar.threadGrouping.environment
+everywhere except Custom and By status: `bb settings ui set sidebar.threadGrouping.environment
 false` keeps every thread on its own row, and `true` groups them in every mode.
 Sort by selects a field, and selecting it again reverses its arrow/direction.
 `sidebar.sortDirection` accepts `ascending`, `descending`, or `default`.

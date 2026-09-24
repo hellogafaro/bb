@@ -20,6 +20,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-state-hover hover:text-foreground aria-pressed:bg-state-active aria-pressed:text-foreground aria-pressed:hover:bg-state-active data-[state=open]:bg-state-active data-[state=open]:text-foreground data-[state=open]:hover:bg-state-active",
         link: "text-primary underline-offset-4 hover:underline",
+        primary:
+          "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary)_90%,var(--foreground))]",
+        stop: "bg-stop text-white hover:bg-[color-mix(in_oklch,var(--stop)_90%,var(--foreground))]",
       },
       size: {
         default: "h-9 px-4 py-2",

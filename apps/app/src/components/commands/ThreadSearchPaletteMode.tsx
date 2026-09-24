@@ -398,7 +398,7 @@ export function ThreadSearchPaletteMode({
                     }
                     className={cn(
                       "flex min-w-0 items-center rounded-md",
-                      index === activeIndex && "bg-state-hover text-foreground",
+                      index === activeIndex && "bg-sidebar-accent text-foreground",
                     )}
                     onPointerMove={() => highlightOption(index)}
                   >
@@ -414,10 +414,10 @@ export function ThreadSearchPaletteMode({
                             : "Show more threads"
                       }
                       className={cn(
-                        "flex min-w-0 flex-1 cursor-pointer items-center rounded-md px-2 py-1.5",
+                        "relative flex min-w-0 flex-1 cursor-pointer items-center rounded-md px-2 py-1.5",
                         option.row === null
                           ? "gap-1.5 text-xs text-subtle-foreground"
-                          : "min-h-11 gap-3 text-left text-sm",
+                          : "min-h-12 gap-3 text-left text-sm",
                       )}
                       onClick={() => selectOption(option, index)}
                     >
@@ -431,7 +431,10 @@ export function ThreadSearchPaletteMode({
                           />
                         </>
                       ) : (
-                        <ThreadSearchPaletteRow row={option.row} />
+                        <ThreadSearchPaletteRow
+                          row={option.row}
+                          isActive={index === activeIndex}
+                        />
                       )}
                     </div>
                     {index === activeIndex && canSplit ? (
@@ -466,8 +469,19 @@ export function ThreadSearchPaletteMode({
   );
 }
 
-function ThreadSearchPaletteRow({ row }: { row: PaletteThreadSearchRow }) {
+function ThreadSearchPaletteRow({
+  row,
+  isActive,
+}: {
+  row: PaletteThreadSearchRow;
+  isActive: boolean;
+}) {
   const primaryRef = useRef<HTMLSpanElement | null>(null);
+  const hasUnsubmittedDraft = usePromptDraftHasInput({
+    kind: "thread",
+    projectId: row.projectId,
+    threadId: row.threadId,
+  });
   const matchKey = `${row.primaryText}\u0000${row.highlightRanges
     .map((range) => `${range.start}:${range.end}`)
     .join(",")}`;
@@ -501,7 +515,16 @@ function ThreadSearchPaletteRow({ row }: { row: PaletteThreadSearchRow }) {
     .join(" · ");
   return (
     <span className="min-w-0 flex-1">
-      <span ref={primaryRef} className="block min-w-0 truncate text-foreground">
+      {hasUnsubmittedDraft && !isActive ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-md bg-surface-draft"
+        />
+      ) : null}
+      <span
+        ref={primaryRef}
+        className="relative block min-w-0 overflow-hidden whitespace-nowrap leading-5 text-foreground [mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)]"
+      >
         <HighlightedText text={primary.text} ranges={primary.highlightRanges} />
       </span>
       <span
@@ -510,7 +533,7 @@ function ThreadSearchPaletteRow({ row }: { row: PaletteThreadSearchRow }) {
       >
         {metadata.length === 0 ? null : (
           <span
-            className="min-w-0 truncate text-xs leading-4 text-subtle-foreground"
+            className="min-w-0 truncate text-meta text-subtle-foreground"
             data-palette-thread-metadata
             title={metadata}
           >
@@ -519,7 +542,7 @@ function ThreadSearchPaletteRow({ row }: { row: PaletteThreadSearchRow }) {
               <>
                 <Icon
                   name="Folder"
-                  className="mr-1 inline-block size-3.5 align-text-bottom"
+                  className="mr-1 inline-block size-3 align-text-bottom"
                   aria-hidden
                 />
                 {`${row.projectName} · `}
@@ -568,6 +591,7 @@ function ThreadSearchPaletteStatus({ row }: { row: PaletteThreadSearchRow }) {
               {...state}
               pluginStatus={pluginStatus}
               size="compact"
+              decorative
             />
           </span>
         </TooltipTrigger>

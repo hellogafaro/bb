@@ -24,6 +24,7 @@ import {
 } from "../preferences/atoms.js";
 
 const SIDEBAR_ORGANIZE_OPTIONS = [
+  { label: "By status", mode: "status" },
   { label: "By project", mode: "project" },
   { label: "By machine", mode: "machine" },
   { label: "Custom", mode: "chronological" },

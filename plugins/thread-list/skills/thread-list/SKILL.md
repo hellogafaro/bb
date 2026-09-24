@@ -1,6 +1,6 @@
 ---
 name: thread-list
-description: "Inspect or change the sidebar thread list's layout preferences: organization mode, sort, section order, hidden groups, and collapsed groups."
+description: "Inspect or change the sidebar thread list's layout preferences (organization mode, sort, section order, hidden and collapsed groups) and snoozed threads."
 ---
 
 # Thread list preferences
@@ -11,7 +11,8 @@ The Thread list plugin owns the sidebar's layout state. Read it with
 `manualSectionOrder`, `machineSectionOrder`, `hiddenGroups` (including the
 built-in `threads` group),
 `collapsedSections`, `collapsedProjects`, `collapsedThreads`,
-`collapsedEnvironments`, `collapsedThreadSections`, and `collapsedMachines`.
+`collapsedEnvironments`, `collapsedThreadSections`, `collapsedMachines`, and
+`collapsedStatusSections` (defaults to `["snoozed"]`).
 
 ```sh
 bb thread-list prefs list [--json]
@@ -36,3 +37,27 @@ remain selected. `bb thread-list prefs set threadLifecycles '["archived"]'`
 shows archived threads, and `'["active","archived"]'` shows both. The default
 is `'["active"]'`. Archived results load in pages; use Show more at the end
 of the list. The same preference is available through `setPreference` RPC.
+
+## Organized by status
+
+`organizationMode` defaults to `status`: Pinned, then Waiting (a question,
+approval, unread failure, or failed queued message), Ready (unread results),
+Working, Done, and Snoozed. Child threads stay under their parent, and a family
+takes its most urgent state. Opening an unread thread keeps it in place for five
+seconds; leaving sooner marks it unread again. Other values are `project`,
+`chronological` (Custom), and `machine`.
+
+## Snoozes
+
+```sh
+bb thread-list snooze list [--json]
+bb thread-list snooze set <thread-id> <until> [--json]
+bb thread-list snooze clear <thread-id> [--json]
+```
+
+`<until>` accepts `1h`, `3h`, `tomorrow` (9:00), `week` (next Monday 9:00), a
+duration such as `45m` or `2d`, an ISO date, or epoch milliseconds. A snoozed
+thread wakes at that time or as soon as it gets new activity; archiving or
+deleting it clears the snooze. Working threads and threads waiting on input
+cannot be snoozed from the list. The app uses the plugin's `listSnoozes`,
+`snooze`, and `unsnooze` RPCs.

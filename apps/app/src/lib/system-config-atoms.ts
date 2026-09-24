@@ -37,6 +37,7 @@ const unavailableSystemConfig: SystemConfigResponse = {
     timelineWindowing: false,
   },
   appearance: defaultAppTheme,
+  wallpaper: null,
   customThemes: [],
   pluginThemes: [],
   featureFlags: { placeholder: false, timelineWindowEventBudget: 1_500 },

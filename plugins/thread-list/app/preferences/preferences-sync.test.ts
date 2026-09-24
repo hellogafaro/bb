@@ -134,7 +134,7 @@ describe("preferences sync", () => {
     await hydratePreferences(rpc);
     const store = getDefaultStore();
     const modeAtom = createSyncedPreferenceAtom("organizationMode");
-    store.set(modeAtom, "chronological");
+    store.set(modeAtom, "status");
     vi.advanceTimersByTime(200);
     await flushPreferenceWritesForTest();
     expect(rpc.calls.filter((call) => call.method === "setPreference")).toHaveLength(0);

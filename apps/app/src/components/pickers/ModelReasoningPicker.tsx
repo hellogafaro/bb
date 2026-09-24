@@ -976,7 +976,7 @@ export function ModelReasoningPicker({
             className="size-3.5 shrink-0 fill-current text-subtle-foreground"
           />
         ) : TriggerIcon ? (
-          <TriggerIcon className="size-4 shrink-0" />
+          <TriggerIcon className="size-3.5 shrink-0" />
         ) : null}
         {modelIsLoading ? null : (
           <>
@@ -1341,7 +1341,7 @@ function MenuSectionLabel({
   return (
     <div
       className={cn(
-        "sticky top-0 z-10 bg-background px-2 text-xs font-medium text-muted-foreground",
+        "sticky top-0 z-10 bg-popover px-2 text-xs font-medium text-muted-foreground",
         isCompactViewport ? "pb-1.5 pt-2" : "pb-[0.3125rem] pt-2",
         className,
       )}

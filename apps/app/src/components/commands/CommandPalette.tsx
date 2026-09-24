@@ -363,7 +363,7 @@ export function CommandPalette({ threadId, projectId }: CommandPaletteProps) {
       <DialogContent
         hideCloseButton
         aria-describedby={undefined}
-        className="top-[12%] max-w-[640px] translate-y-0 gap-0 p-0 shadow-lg sm:rounded-xl"
+        className="top-[12%] max-w-[640px] translate-y-0 gap-0 bg-sidebar p-0 text-sidebar-foreground shadow-lg sm:rounded-xl"
         onAfterCloseAutoFocus={handleAfterCloseAutoFocus}
         onKeyDownCapture={(event) => {
           if (
@@ -527,7 +527,7 @@ function PaletteRow({
       data-palette-action-kind={isDrillIn ? "drill-in" : "terminal"}
       className={cn(
         "flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm outline-none",
-        isActive && "bg-state-hover text-foreground",
+        isActive && "bg-sidebar-accent text-foreground",
       )}
       onPointerMove={onActivate}
       onClick={onSelect}

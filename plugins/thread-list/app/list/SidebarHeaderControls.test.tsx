@@ -95,13 +95,13 @@ describe("sidebar header controls", () => {
     fireEvent.keyDown(newSection.closest('[role="menu"]')!, { key: "Home" });
     await waitFor(() => expect(document.activeElement).toBe(newSection));
     await openSubmenu("Organize");
-    const project = await screen.findByRole("menuitemradio", {
-      name: "By project",
+    const status = await screen.findByRole("menuitemradio", {
+      name: "By status",
     });
-    fireEvent.keyDown(project.closest('[role="menu"]')!, { key: "ArrowDown" });
-    await waitFor(() => expect(document.activeElement).toBe(project));
-    fireEvent.keyDown(project, { key: "Enter" });
-    expect(store.get(sidebarOrganizationModeAtom)).toBe("project");
+    fireEvent.keyDown(status.closest('[role="menu"]')!, { key: "ArrowDown" });
+    await waitFor(() => expect(document.activeElement).toBe(status));
+    fireEvent.keyDown(status, { key: "Enter" });
+    expect(store.get(sidebarOrganizationModeAtom)).toBe("status");
   });
 
   it("dismisses on the first outside click after toggling environment grouping", async () => {

@@ -47,6 +47,8 @@ const SIDEBAR_CONTROL_BUTTON_BASE_CLASS = `${SIDEBAR_CONTROL_STATE_CLASS} relati
 
 export const SIDEBAR_CONTROL_BUTTON_CLASS = `${COARSE_POINTER_ROW_ACTION_SIZE_CLASS} ${SIDEBAR_CONTROL_BUTTON_BASE_CLASS}`;
 
+export const SIDEBAR_ROW_ACTION_BUTTON_CLASS = `${COARSE_POINTER_ROW_ACTION_SIZE_CLASS} relative m-0 shrink-0 cursor-pointer rounded-md bg-transparent p-0 text-subtle-foreground outline-none hover:bg-transparent hover:text-foreground focus-visible:text-foreground active:bg-transparent data-[state=open]:bg-transparent data-[state=open]:text-foreground dark:hover:text-white dark:focus-visible:text-white dark:data-[state=open]:text-white`;
+
 export const SIDEBAR_CONTROL_PRIMARY_BUTTON_CLASS = `h-7 w-7 max-md:pointer-coarse:h-9 max-md:pointer-coarse:w-8 ${SIDEBAR_CONTROL_BUTTON_BASE_CLASS}`;
 
 export const SIDEBAR_CONTROL_PAIR_GAP_CLASS = `${SIDEBAR_HOVER_ACTIONS_GAP_CLASS} max-md:pointer-coarse:gap-0`;
@@ -100,5 +102,5 @@ export const PROJECT_LIST_ACTION_BUTTON_CLASS = cn(
   SIDEBAR_STANDARD_ROW_PADDING_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
   COARSE_POINTER_ROW_HEIGHT_CLASS,
-  "min-w-0 cursor-pointer justify-start overflow-hidden font-normal ring-sidebar-ring focus-visible:ring-2 disabled:cursor-default disabled:opacity-70 max-md:pointer-coarse:[&_[data-icon-root]]:size-5",
+  "min-w-0 cursor-pointer justify-start overflow-hidden pr-2 font-normal ring-sidebar-ring focus-visible:ring-2 disabled:cursor-default disabled:opacity-70 max-md:pointer-coarse:[&_[data-icon-root]]:size-5",
 );

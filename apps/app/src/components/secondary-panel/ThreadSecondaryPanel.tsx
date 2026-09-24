@@ -465,8 +465,7 @@ function ThreadSecondaryPanelContent({
         renderAsDrawer
           ? PANEL_TAB_CONTROL_CLASS
           : SECONDARY_PANEL_HIDE_ICON_BUTTON_CLASS,
-        CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS,
-        "relative",
+        "relative text-foreground",
         usesDesktopChrome && MACOS_WINDOW_NO_DRAG_CLASS,
       )}
       onClick={onClose}

@@ -11,14 +11,30 @@ function LoadingRow({ textWidthClassName }: { textWidthClassName: string }) {
   return (
     <div
       data-sidebar="navigation-loading-row"
-      className="flex h-7 items-center rounded-md"
+      className="grid h-[var(--bb-sidebar-thread-row-height)] grid-rows-[20px_16px] content-center items-center rounded-md py-1.5 pl-2 pr-2"
     >
       <Skeleton
         className={cn(
-          "h-3 rounded-sm bg-sidebar-border/50",
+          "h-2.5 rounded-sm bg-sidebar-border/60",
           textWidthClassName,
         )}
       />
+      <Skeleton className="h-1.5 w-16 rounded-sm bg-sidebar-border/40" />
+    </div>
+  );
+}
+
+function LoadingSection({ rowWidths }: { rowWidths: readonly string[] }) {
+  return (
+    <div>
+      <div className="flex h-6 items-center pl-2">
+        <Skeleton className="h-2 w-14 rounded-sm bg-sidebar-border/50" />
+      </div>
+      <div className="mt-1 space-y-0.5">
+        {rowWidths.map((width, index) => (
+          <LoadingRow key={index} textWidthClassName={width} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -33,10 +49,10 @@ export function ThreadListPlaceholder({
       <div
         aria-label="Loading sidebar navigation"
         data-thread-list-placeholder="loading"
-        className="space-y-1.5 px-2 pt-1"
+        className="space-y-4 px-2 pt-2"
       >
-        <LoadingRow textWidthClassName="w-2/3" />
-        <LoadingRow textWidthClassName="w-1/2" />
+        <LoadingSection rowWidths={["w-3/4", "w-1/2"]} />
+        <LoadingSection rowWidths={["w-2/3", "w-3/4", "w-1/2", "w-2/3"]} />
       </div>
     );
   }

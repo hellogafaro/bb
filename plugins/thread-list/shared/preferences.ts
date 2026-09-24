@@ -7,6 +7,7 @@ const listItemSchema = z.string().min(1).max(STRING_MAX_LENGTH);
 const stringListSchema = z.array(listItemSchema).max(LIST_MAX_LENGTH);
 
 export const organizationModeSchema = z.enum([
+  "status",
   "project",
   "chronological",
   "machine",
@@ -68,14 +69,14 @@ export const preferenceDefinitions = {
   ),
   organizationMode: definePreference(
     organizationModeSchema,
-    "chronological",
-    "How the list groups threads: by project, chronologically with custom sections, or by machine.",
+    "status",
+    "How the list groups threads: by status (Pinned, Waiting, Ready, Working, Done, Snoozed), by project, chronologically with custom sections, or by machine.",
     "sidebar.organizationMode",
   ),
   environmentGrouping: definePreference(
     environmentGroupingSchema,
     "auto",
-    "Whether sibling threads sharing a worktree collapse into one row. auto groups them in every organization except chronological.",
+    "Whether sibling threads sharing a worktree collapse into one row. auto groups them in every organization except chronological and status.",
     "sidebar.threadGrouping.environment",
   ),
   chronologicalSort: definePreference(
@@ -149,6 +150,15 @@ export const preferenceDefinitions = {
     [],
     "Machine ids whose rows are collapsed.",
     "sidebar.collapsedMachines",
+  ),
+  collapsedStatusSections: definePreference(
+    z
+      .array(z.enum(["waiting", "ready", "working", "done", "snoozed"]))
+      .max(5)
+      .transform((value) => [...new Set(value)]),
+    ["snoozed"],
+    "Status sections (waiting, ready, working, done, snoozed) that are collapsed when organized by status.",
+    null,
   ),
 } as const;
 

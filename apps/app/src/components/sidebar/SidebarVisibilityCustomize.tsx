@@ -250,7 +250,7 @@ function SidebarCustomizeItem({
         }
       >
         {item.icon ? (
-          <span className="flex size-4 shrink-0 items-center justify-center">
+          <span className="flex size-4 shrink-0 items-center justify-center [&>[data-icon-root]]:size-4 [&>[data-icon-root]]:min-h-0 [&>[data-icon-root]]:min-w-0">
             {item.icon}
           </span>
         ) : null}

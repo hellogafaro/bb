@@ -327,9 +327,18 @@ Always end font stacks with a generic fallback such as `sans-serif` or
 `monospace`. The complete theme token reference is in the bb-cli skill's
 `references/theming.md`.
 
+The wallpaper behind the welcome and New thread screens lives at
+`<bb-data-dir>/appearance/wallpaper.<webp|png|jpg>`. Set it in Settings →
+Appearance → Wallpaper, with `bb theme wallpaper set <image>` (PNG, JPEG, or
+WebP up to 4 MB), or with SDK `theme.setWallpaper({ dataUrl })`; clear it with
+`bb theme wallpaper clear` or `theme.clearWallpaper()`. `system.config` reports
+`wallpaper` as `{ contentType, bytes, updatedAt }` or `null`. Without an image,
+bb draws an animated dithered pattern in the palette's primary color; both
+pause while the page is hidden and honor reduced motion.
+
 ## Keyboard Shortcuts
 
-`Mod+Shift+P` opens the quick palette: type to filter, then run a command with
+`Mod+K` opens the quick palette: type to filter, then run a command with
 Enter. It lists only commands that apply on the current surface, shows each
 one's shortcut, and offers recently run commands first. The numbered
 accelerator families and the relative cycle commands stay rebindable but
@@ -391,9 +400,9 @@ delayed shortcut badges without disabling any shortcuts.
 
 | Area      | Command                                   | Default                           | Availability             |
 | --------- | ----------------------------------------- | --------------------------------- | ------------------------ |
-| Palette   | Quick palette                             | `Mod+Shift+P`                     | All clients              |
+| Palette   | Quick palette                             | `Mod+K`                           | All clients              |
 | Threads   | New thread                                | `Mod+N` / `Mod+Shift+O`           | Desktop / web            |
-| Threads   | Search threads                            | `Mod+K`                           | All clients              |
+| Threads   | Search threads                            | `Mod+Shift+K`                     | All clients              |
 | Threads   | Rename focused thread                     | Unassigned                        | Thread view              |
 | Threads   | Archive focused thread                    | Unassigned                        | Thread view              |
 | Threads   | Previous / next thread                    | Surface defaults above            | Desktop / web            |
@@ -404,10 +413,10 @@ delayed shortcut badges without disabling any shortcuts.
 | Layout    | Close focused chat pane                   | `Mod+Shift+X`                     | While split              |
 | Window    | New window                                | `Mod+Shift+N`                     | Desktop                  |
 | Window    | Settings                                  | `Mod+,`                           | All clients              |
-| Layout    | Toggle sidebar                            | `Mod+\`                           | All clients              |
-| Panel     | New tab / close tab / toggle              | `Mod+T` / `Mod+W` / `Mod+J`       | All clients              |
+| Layout    | Toggle sidebar                            | `Mod+B`                           | All clients              |
+| Panel     | New tab / close tab / toggle              | `Mod+T` / `Mod+W` / `Mod+Alt+B`   | All clients              |
 | Workspace | Quick open file / toggle diff             | `Mod+P` / `Mod+D`                 | All clients              |
-| Workspace | Open terminal                             | `Mod+Shift+Enter` / `Mod+Shift+T` | Web / desktop            |
+| Workspace | Open terminal                             | `Mod+J` / `Mod+Shift+T`           | Web / desktop            |
 | Workspace | Open in preferred app                     | `Mod+O`                           | All clients              |
 | Composer  | Focus composer                            | `Mod+Shift+C`                     | All clients              |
 | Composer  | Toggle model picker                       | `Mod+Shift+M`                     | All clients              |

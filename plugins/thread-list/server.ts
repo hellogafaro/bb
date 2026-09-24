@@ -19,9 +19,17 @@ import {
   type PreferenceValue,
   type PreferenceValues,
 } from "./shared/preferences.js";
+import {
+  parseSnoozeUntil,
+  SNOOZES_CHANGED_CHANNEL,
+  snoozeListSchema,
+  snoozeThreadIdSchema,
+  type Snooze,
+} from "./shared/snoozes.js";
 
 const PREFERENCE_KV_PREFIX = "preference:";
 const MIGRATION_KV_KEY = "migration:ui-preferences:v1";
+const SNOOZES_KV_KEY = "snoozes";
 
 const preferenceKeySchema = z.enum(
   PREFERENCE_KEYS as [PreferenceKey, ...PreferenceKey[]],
@@ -50,7 +58,86 @@ export const threadListRpcContract = defineRpcContract({
       .object({ key: preferenceKeySchema, value: z.unknown() })
       .strict(),
   },
+  listSnoozes: {
+    input: z.null(),
+    output: z.object({ snoozes: snoozeListSchema }).strict(),
+  },
+  snooze: {
+    input: z
+      .object({
+        threadId: snoozeThreadIdSchema,
+        until: z.number().int().positive(),
+      })
+      .strict(),
+    output: z.object({ snoozes: snoozeListSchema }).strict(),
+  },
+  unsnooze: {
+    input: z.object({ threadId: snoozeThreadIdSchema }).strict(),
+    output: z.object({ snoozes: snoozeListSchema }).strict(),
+  },
 });
+
+export class SnoozeValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SnoozeValidationError";
+  }
+}
+
+export function createSnoozeStore(
+  bb: BbPluginApi,
+  now: () => number = Date.now,
+) {
+  let writes: Promise<unknown> = Promise.resolve();
+
+  async function list(): Promise<Snooze[]> {
+    const stored = await bb.storage.kv.get<unknown>(SNOOZES_KV_KEY);
+    if (stored === undefined) return [];
+    const parsed = snoozeListSchema.safeParse(stored);
+    if (!parsed.success) {
+      bb.log.warn("stored snoozes are invalid; ignoring them");
+      return [];
+    }
+    const current = now();
+    return parsed.data.filter((snooze) => snooze.until > current);
+  }
+
+  function update(change: (snoozes: Snooze[]) => Snooze[]): Promise<Snooze[]> {
+    const next = writes.then(async () => {
+      const snoozes = change(await list());
+      await bb.storage.kv.set(SNOOZES_KV_KEY, snoozes);
+      bb.realtime.publish(SNOOZES_CHANGED_CHANNEL, {});
+      return snoozes;
+    });
+    writes = next.catch(() => undefined);
+    return next;
+  }
+
+  function snooze(threadId: string, until: number): Promise<Snooze[]> {
+    const at = now();
+    if (until <= at) {
+      return Promise.reject(
+        new SnoozeValidationError("Choose a time in the future."),
+      );
+    }
+    return update((snoozes) => [
+      ...snoozes.filter((snooze) => snooze.threadId !== threadId),
+      { threadId, until, at },
+    ]);
+  }
+
+  function unsnooze(threadId: string): Promise<Snooze[]> {
+    return update((snoozes) =>
+      snoozes.filter((snooze) => snooze.threadId !== threadId),
+    );
+  }
+
+  return { list, snooze, unsnooze };
+}
+
+function formatSnooze(snooze: Snooze): string {
+  return `${snooze.threadId}\t${new Date(snooze.until).toISOString()}`;
+}
 
 function kvKey(key: PreferenceKey): string {
   return `${PREFERENCE_KV_PREFIX}${key}`;
@@ -181,6 +268,13 @@ const JSON_OPTION = {
 
 export default async function threadListPlugin(bb: BbPluginApi) {
   const store = createPreferenceStore(bb);
+  const snoozes = createSnoozeStore(bb);
+  bb.events.on("thread.archived", ({ thread }) => {
+    void snoozes.unsnooze(thread.id);
+  });
+  bb.events.on("thread.deleted", ({ thread }) => {
+    void snoozes.unsnooze(thread.id);
+  });
 
   bb.rpc.register(threadListRpcContract, {
     async listPreferences() {
@@ -192,15 +286,108 @@ export default async function threadListPlugin(bb: BbPluginApi) {
     async resetPreference({ key }) {
       return { key, value: await store.reset(key) };
     },
+    async listSnoozes() {
+      return { snoozes: await snoozes.list() };
+    },
+    async snooze({ threadId, until }) {
+      return { snoozes: await snoozes.snooze(threadId, until) };
+    },
+    async unsnooze({ threadId }) {
+      return { snoozes: await snoozes.unsnooze(threadId) };
+    },
   });
 
   bb.cli.register(
     defineCli({
       name: "thread-list",
-      summary: "Inspect and change the sidebar thread list's layout preferences",
+      summary:
+        "Inspect and change the sidebar thread list's layout preferences and snoozes",
       description:
-        "Organization mode, sort, section order, hidden groups, and collapsed groups for bb's sidebar thread list. Values are JSON; a bare word is read as a string.",
+        "Organization mode, sort, section order, hidden groups, and collapsed groups for bb's sidebar thread list, plus snoozed threads. Preference values are JSON; a bare word is read as a string.",
       commands: {
+        "snooze list": cliCommand({
+          summary: "List snoozed threads and when they wake",
+          options: { json: JSON_OPTION },
+          async run(input) {
+            const listed = await snoozes.list();
+            return {
+              exitCode: 0,
+              stdout: input.options.json
+                ? JSON.stringify({ snoozes: listed })
+                : listed.map(formatSnooze).join("\n"),
+            };
+          },
+        }),
+        "snooze set": cliCommand({
+          summary: "Snooze a thread until a time",
+          positionals: [
+            { name: "threadId", description: "Thread id", required: true },
+            {
+              name: "until",
+              description:
+                "1h, 3h, tomorrow, week, a duration such as 45m or 2d, an ISO date, or epoch milliseconds",
+              required: true,
+            },
+          ],
+          options: { json: JSON_OPTION },
+          async run(input) {
+            const threadId = snoozeThreadIdSchema.safeParse(
+              input.positionals.threadId,
+            );
+            if (!threadId.success) {
+              throw new PluginCliError(
+                `Invalid thread id: ${input.positionals.threadId}`,
+                { code: "invalid_thread_id" },
+              );
+            }
+            const until = parseSnoozeUntil(input.positionals.until, new Date());
+            if (until === null) {
+              throw new PluginCliError(
+                `Could not read a wake time from: ${input.positionals.until}`,
+                {
+                  code: "invalid_snooze_time",
+                  hint: "Use 1h, 3h, tomorrow, week, 45m, 2d, an ISO date, or epoch milliseconds.",
+                },
+              );
+            }
+            try {
+              const listed = await snoozes.snooze(threadId.data, until);
+              const snooze = listed.find(
+                (candidate) => candidate.threadId === threadId.data,
+              )!;
+              return {
+                exitCode: 0,
+                stdout: input.options.json
+                  ? JSON.stringify(snooze)
+                  : formatSnooze(snooze),
+              };
+            } catch (error) {
+              if (error instanceof SnoozeValidationError) {
+                throw new PluginCliError(error.message, {
+                  code: "invalid_snooze_time",
+                });
+              }
+              throw error;
+            }
+          },
+        }),
+        "snooze clear": cliCommand({
+          summary: "Wake a snoozed thread now",
+          positionals: [
+            { name: "threadId", description: "Thread id", required: true },
+          ],
+          options: { json: JSON_OPTION },
+          async run(input) {
+            const threadId = input.positionals.threadId;
+            await snoozes.unsnooze(threadId);
+            return {
+              exitCode: 0,
+              stdout: input.options.json
+                ? JSON.stringify({ threadId, snoozed: false })
+                : `${threadId} is awake`,
+            };
+          },
+        }),
         "prefs list": cliCommand({
           summary: "List every preference and its current value",
           options: { json: JSON_OPTION },

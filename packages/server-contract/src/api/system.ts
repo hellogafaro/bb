@@ -177,6 +177,65 @@ export const serverAccessStatusSchema = z.object({
 });
 export type ServerAccessStatus = z.infer<typeof serverAccessStatusSchema>;
 
+export const WALLPAPER_MAX_BYTES = 4 * 1024 * 1024;
+
+export const wallpaperContentTypeSchema = z.enum([
+  "image/webp",
+  "image/png",
+  "image/jpeg",
+]);
+export type WallpaperContentType = z.infer<typeof wallpaperContentTypeSchema>;
+
+export function sniffWallpaperContentType(
+  bytes: Uint8Array,
+): WallpaperContentType | null {
+  const ascii = (start: number, end: number) =>
+    String.fromCharCode(...bytes.subarray(start, end));
+  if (bytes.length >= 12 && ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") {
+    return "image/webp";
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    ascii(1, 4) === "PNG" &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+  return null;
+}
+
+export const wallpaperInfoSchema = z.object({
+  contentType: wallpaperContentTypeSchema,
+  bytes: z.number().int().positive(),
+  updatedAt: z.number().int(),
+});
+export type WallpaperInfo = z.infer<typeof wallpaperInfoSchema>;
+
+export const wallpaperStatusResponseSchema = z.object({
+  wallpaper: wallpaperInfoSchema.nullable(),
+});
+export type WallpaperStatusResponse = z.infer<
+  typeof wallpaperStatusResponseSchema
+>;
+
+export const setWallpaperRequestSchema = z.object({
+  dataUrl: z
+    .string()
+    .max(Math.ceil((WALLPAPER_MAX_BYTES * 4) / 3) + 64)
+    .regex(/^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/),
+});
+export type SetWallpaperRequest = z.infer<typeof setWallpaperRequestSchema>;
+
 export const systemConfigResponseSchema = z.object({
   serverAccess: serverAccessStatusSchema,
   generalSettings: appSettingsSchema.extend({
@@ -187,6 +246,7 @@ export const systemConfigResponseSchema = z.object({
   keybindingOverrides: appKeybindingOverridesSchema,
   experiments: experimentsSchema,
   appearance: appThemeSchema,
+  wallpaper: wallpaperInfoSchema.nullable(),
   customThemes: z.array(z.string()),
   pluginThemes: z.array(pluginThemeMetaSchema),
   featureFlags: featureFlagsSchema,

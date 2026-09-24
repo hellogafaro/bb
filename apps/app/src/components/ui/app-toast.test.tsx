@@ -9,40 +9,52 @@ afterEach(() => {
 });
 
 describe("AppToastContent", () => {
-  it("wraps titles and descriptions while keeping actions available", () => {
+  it("keeps text details behind Show more on a single row with actions", () => {
     render(
       <AppToastContent
         action={{ label: "View log", onClick: vi.fn() }}
         cancel={{ label: "Dismiss", onClick: vi.fn() }}
-        description="A deliberately long detail that can wrap"
-        title="A deliberately long visual bell title that can wrap"
+        description="A deliberately long detail"
+        notificationId="notification-1"
+        title="A deliberately long visual bell title"
         tone="error"
       />,
     );
 
     expect(
-      screen
-        .getByText("A deliberately long visual bell title that can wrap")
-        .classList.contains("line-clamp-4"),
+      screen.getByTestId("app-toast-title").classList.contains("truncate"),
     ).toBe(true);
-    expect(
-      screen
-        .getByText("A deliberately long detail that can wrap")
-        .classList.contains("line-clamp-4"),
-    ).toBe(true);
-    expect(
-      screen
-        .getByRole("button", { name: "View log" })
-        .parentElement?.classList.contains("flex-wrap"),
-    ).toBe(true);
-    expect(
-      screen
-        .getByRole("button", { name: "View log" })
-        .classList.contains("underline"),
-    ).toBe(true);
+    expect(screen.queryByText("A deliberately long detail")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show more" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "View log" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeDefined();
     expect(
       screen.getByRole("button", { name: "Dismiss notification" }),
     ).toBeDefined();
+  });
+
+  it("shows a custom description inline after the title", () => {
+    const onOpen = vi.fn();
+    render(
+      <AppToastContent
+        description={
+          <button type="button" onClick={onOpen}>
+            Archived thread
+          </button>
+        }
+        notificationId="notification-2"
+        title="Thread Archived"
+        tone="success"
+      />,
+    );
+
+    const description = screen.getByTestId("app-toast-description");
+    expect(
+      description.contains(
+        screen.getByRole("button", { name: "Archived thread" }),
+      ),
+    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 
   it("uses the working-status loading glyph", () => {

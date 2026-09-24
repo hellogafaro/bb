@@ -9,6 +9,11 @@ import {
   type AppTheme,
   type FaviconColorPreference,
 } from "@bb/domain";
+import { readFileSync } from "node:fs";
+import {
+  sniffWallpaperContentType,
+  type WallpaperInfo,
+} from "@bb/server-contract";
 import { action } from "../action.js";
 import { createCliBbSdk } from "../client.js";
 import { outputJson, type JsonOutputOptions } from "./helpers.js";
@@ -45,6 +50,13 @@ function describeTheme(theme: AppTheme): string {
 function describeCodeTheme(theme: AppTheme): string {
   const { dark, light } = theme.resolvedCodeTheme;
   return dark === light ? dark : `${dark} / ${light}`;
+}
+
+function describeWallpaper(wallpaper: WallpaperInfo | null): string {
+  if (wallpaper === null) return "No wallpaper set (ambient background)";
+  return `Wallpaper: ${wallpaper.contentType}, ${wallpaper.bytes} bytes, updated ${new Date(
+    wallpaper.updatedAt,
+  ).toISOString()}`;
 }
 
 export function registerThemeCommands(
@@ -182,6 +194,58 @@ export function registerThemeCommands(
         });
         if (outputJson(opts, updated)) return;
         console.log(`Favicon color reset to ${updated.faviconColor}`);
+      }),
+    );
+
+  const wallpaper = theme
+    .command("wallpaper")
+    .description(
+      "Manage the wallpaper behind the welcome and New thread screens",
+    );
+
+  wallpaper
+    .command("show")
+    .description("Show whether a wallpaper is set")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (opts: JsonOutputOptions) => {
+        const sdk = createCliBbSdk(getUrl());
+        const status = await sdk.theme.wallpaper();
+        if (outputJson(opts, status)) return;
+        console.log(describeWallpaper(status.wallpaper));
+      }),
+    );
+
+  wallpaper
+    .command("set <image>")
+    .description("Set the wallpaper from a PNG, JPEG, or WebP file up to 4 MB")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (image: string, opts: JsonOutputOptions) => {
+        const bytes = readFileSync(image);
+        const contentType = sniffWallpaperContentType(bytes);
+        if (contentType === null) {
+          throw new Error(`${image} is not a PNG, JPEG, or WebP image.`);
+        }
+        const sdk = createCliBbSdk(getUrl());
+        const status = await sdk.theme.setWallpaper({
+          dataUrl: `data:${contentType};base64,${bytes.toString("base64")}`,
+        });
+        if (outputJson(opts, status)) return;
+        console.log(describeWallpaper(status.wallpaper));
+      }),
+    );
+
+  wallpaper
+    .command("clear")
+    .description("Remove the wallpaper and return to the ambient background")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (opts: JsonOutputOptions) => {
+        const sdk = createCliBbSdk(getUrl());
+        const status = await sdk.theme.clearWallpaper();
+        if (outputJson(opts, status)) return;
+        console.log(describeWallpaper(status.wallpaper));
       }),
     );
 

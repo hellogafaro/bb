@@ -327,7 +327,7 @@ describe("mobile recents hierarchy interaction", () => {
     });
     expect(collapse.getAttribute("aria-expanded")).toBe("true");
 
-    const providerTile = collapse.querySelector("span.size-7");
+    const providerTile = collapse.querySelector("[data-mobile-recent-provider-tile]");
     if (!(providerTile instanceof HTMLElement)) {
       throw new Error("Expected provider tile inside the disclosure button");
     }
@@ -477,8 +477,8 @@ describe("mobile recents hierarchy interaction", () => {
     renderTree();
 
     const [parentRow, childRow] = screen.getAllByRole("listitem");
-    const parentTile = parentRow?.querySelector("span.size-7");
-    const childTile = childRow?.querySelector("span.size-7");
+    const parentTile = parentRow?.querySelector("[data-mobile-recent-provider-tile]");
+    const childTile = childRow?.querySelector("[data-mobile-recent-provider-tile]");
     if (
       !(parentTile instanceof HTMLElement) ||
       !(childTile instanceof HTMLElement)
@@ -490,13 +490,8 @@ describe("mobile recents hierarchy interaction", () => {
     expect(childTile.className).toContain("opacity-60");
 
     for (const tile of [parentTile, childTile]) {
-      expect(tile.className).toContain("border-border-seam");
-      expect(tile.className).toContain("bg-surface-raised");
-    }
-
-    for (const tile of [parentTile, childTile]) {
-      expect(tile.className).toContain("size-7");
-      expect(tile.className).toContain("border");
+      expect(tile.className).toContain("size-4");
+      expect(tile.className).not.toContain("border");
     }
   });
 
@@ -505,7 +500,7 @@ describe("mobile recents hierarchy interaction", () => {
 
     const rows = screen.getAllByRole("listitem");
     for (const row of rows) {
-      const tile = row.querySelector("span.size-7");
+      const tile = row.querySelector("[data-mobile-recent-provider-tile]");
       if (!(tile instanceof HTMLElement)) {
         throw new Error("Expected a leading provider tile");
       }
@@ -529,7 +524,7 @@ describe("mobile recents hierarchy interaction", () => {
 });
 
 describe("mobile recents section", () => {
-  it("keeps the Recent label pinned while the list scrolls under it", () => {
+  it("scrolls the Recent label with the list like a sidebar heading", () => {
     render(
       <TestProviders>
         <RootComposeMobileRecents
@@ -546,10 +541,8 @@ describe("mobile recents section", () => {
     if (!(label instanceof HTMLElement)) {
       throw new Error("Expected a Recent label wrapper");
     }
-    expect(label.className).toContain("sticky");
-    expect(label.className).toContain("top-0");
-    expect(label.className).toContain("bg-background");
-    expect(label.querySelector('[data-overflow-fade="below"]')).not.toBeNull();
+    expect(label.className).not.toContain("sticky");
+    expect(label.querySelector('[data-overflow-fade="below"]')).toBeNull();
   });
 });
 

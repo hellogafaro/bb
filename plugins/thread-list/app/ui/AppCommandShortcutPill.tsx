@@ -7,7 +7,7 @@ interface AppCommandShortcutPillProps {
 }
 
 const APP_COMMAND_SHORTCUT_HINT_CLASS =
-  "pointer-events-none inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm bg-state-hover px-1.5 py-1 font-sans text-xs font-normal leading-none tabular-nums text-subtle-foreground opacity-60";
+  "pointer-events-none inline-flex h-4 shrink-0 items-center justify-center whitespace-nowrap rounded-[3px] bg-state-hover px-[3px] font-sans text-2xs font-normal leading-3 tabular-nums text-subtle-foreground opacity-60";
 
 export function AppCommandShortcutPill({
   ariaHidden = true,

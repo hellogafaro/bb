@@ -3,7 +3,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultResolvedCodeTheme } from "@bb/domain";
-import { applyResolvedCodeTheme } from "@/lib/code-theme";
+import {
+  applyResolvedCodeTheme,
+  publishableCodeTheme,
+} from "@/lib/code-theme";
 import { parseGitDiffFiles } from "@/components/git-diff/git-diff-parsing";
 import BbDiff from "./BbDiff";
 
@@ -116,7 +119,9 @@ describe("BbDiff", () => {
       />,
     );
     await screen.findByTestId("pierre-file-diff");
-    expect(pierre.lastOptions?.theme.dark).toBe(defaultResolvedCodeTheme.dark);
+    expect(pierre.lastOptions?.theme.dark).toBe(
+      publishableCodeTheme(defaultResolvedCodeTheme).dark,
+    );
 
     act(() => {
       applyResolvedCodeTheme({

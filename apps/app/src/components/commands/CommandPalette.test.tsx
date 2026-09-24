@@ -738,7 +738,7 @@ describe("CommandPalette", () => {
     expectClasses(
       searchField().closest("[data-palette-input-band]"),
       "border-b",
-      "bg-background",
+      "bg-sidebar",
       "px-3",
       "py-1",
     );
@@ -748,7 +748,7 @@ describe("CommandPalette", () => {
       "placeholder:font-light",
       "placeholder:opacity-70",
     );
-    expectClasses(commandList().parentElement, "bg-background");
+    expectClasses(commandList().parentElement, "bg-sidebar");
     expect(
       commandList().querySelectorAll("[data-palette-scroll-sentinel]"),
     ).toHaveLength(2);
@@ -792,14 +792,14 @@ describe("CommandPalette", () => {
       expectClasses(row, "px-2", "py-1.5", "min-h-8");
     }
     expect(commandList().querySelector("[data-icon]")).toBeNull();
-    expectClasses(threadRows[0], "bg-state-hover", "text-foreground");
+    expectClasses(threadRows[0], "bg-sidebar-accent", "text-foreground");
     expectAttribute(actionRows[0], "data-palette-action-kind", "terminal");
     expect(
       actionRows[0]?.querySelector('[data-icon="ChevronRight"]'),
     ).toBeNull();
 
     fireEvent.keyDown(searchField(), { key: "ArrowDown" });
-    expectClasses(searchThreadsRow, "bg-state-hover", "text-foreground");
+    expectClasses(searchThreadsRow, "bg-sidebar-accent", "text-foreground");
   });
 
   it("enters thread mode from its existing command and pops one level per Escape", async () => {
@@ -1050,7 +1050,7 @@ describe("CommandPalette", () => {
         name: "Thread has unsubmitted draft",
       }),
     ).toBeTruthy();
-    expect(rows[0].querySelector('[data-icon="Edit"]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-status-ring="draft"]')).not.toBeNull();
     expect(results.querySelectorAll('[data-icon="Folder"]')).toHaveLength(3);
     expectClasses(results, "p-1");
     expectClasses(within(results).getByText("Active"), "px-2", "py-1");
@@ -1058,7 +1058,7 @@ describe("CommandPalette", () => {
       const metadata = row.querySelector("[data-palette-thread-metadata]");
       expectText(metadata, "Palette project");
       expectClasses(metadata, "min-w-0", "truncate", "text-subtle-foreground");
-      expectClasses(row, "px-2", "py-1.5", "min-h-11");
+      expectClasses(row, "px-2", "py-1.5", "min-h-12");
     }
   });
 
@@ -1287,7 +1287,7 @@ describe("CommandPalette", () => {
     expect(more.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     for (let index = 0; index < 3; index++)
       fireEvent.keyDown(input, { key: "ArrowDown" });
-    expectClasses(more.parentElement, "bg-state-hover", "text-foreground");
+    expectClasses(more.parentElement, "bg-sidebar-accent", "text-foreground");
     expect(input.getAttribute("aria-activedescendant")).toBe(more.id);
     fireEvent.keyDown(input, { key: "Enter" });
     expect(within(activeGroup).getAllByRole("option")).toHaveLength(8);
@@ -1466,10 +1466,10 @@ describe("CommandPalette", () => {
         idleRow.querySelector("[data-palette-thread-details]")?.children,
       ).toHaveLength(1);
       for (const [title, label, icon] of [
-        ["Title working", "Thread working", "Loading"],
-        ["Title draft", "Thread has unsubmitted draft", "Edit"],
-        ["Title waiting", "Thread needs user input", "CircleQuestion"],
-        ["Title workflow", "Workflow running", "Workflow"],
+        ["Title working", "Thread working", "working"],
+        ["Title draft", "Thread has unsubmitted draft", "draft"],
+        ["Title waiting", "Thread needs user input", "waiting"],
+        ["Title workflow", "Workflow running", "working"],
       ]) {
         const row = within(results).getByRole("option", {
           name: new RegExp(title),
@@ -1489,7 +1489,7 @@ describe("CommandPalette", () => {
         expect(separator?.nextElementSibling).toBe(status);
         expectClasses(status, "size-3.5", "shrink-0", "cursor-default");
         expectClasses(
-          status.querySelector(`[data-icon="${icon}"]`),
+          status.querySelector(`[data-status-ring="${icon}"]`),
           "size-3.5",
         );
         expect(status.hasAttribute("tabindex")).toBe(false);
@@ -1500,7 +1500,7 @@ describe("CommandPalette", () => {
             ?.closest('[aria-hidden="true"]') ?? null,
         ).toBeNull();
         const projectIcon = metadata?.querySelector('[data-icon="Folder"]');
-        expectClasses(projectIcon, "size-3.5");
+        expectClasses(projectIcon, "size-3");
         expect(projectIcon?.getAttribute("aria-hidden")).toBe("true");
         expect(
           row.querySelector("[data-palette-thread-metadata]")?.textContent,

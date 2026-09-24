@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ThreadTimelineSurfaceProps } from "@/components/thread/timeline/ThreadTimelineSurface";
 
@@ -17,23 +17,11 @@ vi.mock("@/components/thread/timeline/ThreadTimelineSurface", () => ({
   ),
 }));
 
-vi.mock("@/components/thread/toc/ThreadTableOfContents", () => ({
-  ThreadTableOfContents: ({
-    onNavigateToRow,
-  }: {
-    onNavigateToRow?: (rowId: string) => void;
-  }) => (
-    <button type="button" onClick={() => onNavigateToRow?.("row-target")}>
-      Jump to row
-    </button>
-  ),
-}));
-
 const { ThreadTimelinePane } = await import("./ThreadTimelinePane");
 
 afterEach(cleanup);
 
-it("forwards pane callbacks to the timeline and conversation outline", () => {
+it("forwards pane callbacks to the timeline without an outline", () => {
   render(
     <ThreadTimelinePane
       activeThinking={null}
@@ -64,8 +52,5 @@ it("forwards pane callbacks to the timeline and conversation outline", () => {
     "available",
   );
   expect(screen.getByTestId("navigation-target").textContent).toBe("none");
-  fireEvent.click(screen.getByRole("button", { name: "Jump to row" }));
-  expect(screen.getByTestId("navigation-target").textContent).toBe(
-    "row-target",
-  );
+  expect(document.querySelector("[data-thread-toc]")).toBeNull();
 });

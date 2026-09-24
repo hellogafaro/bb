@@ -1,4 +1,5 @@
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
 @import "@/components/ui/theme.css";
 
 @layer base {
@@ -74,6 +75,14 @@
     padding-bottom: 0.5rem;
   }
 
+  code,
+  samp,
+  pre,
+  .cm-scroller {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
   * {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklab, var(--foreground) 20%, transparent)
@@ -145,6 +154,11 @@
    * when selected (mention icons are SVG and never take the native highlight,
    * so pills can't rely on `::selection` — see PromptMentionPillNodeView).
    */
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 20%, transparent);
+    color: var(--primary);
+  }
+
   .ProseMirror ::selection {
     background-color: var(--surface-selected);
   }

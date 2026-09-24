@@ -30,6 +30,12 @@
     `blue`, `purple`, `pink`.
   - `bb theme favicon reset` — reset the favicon color to `default` while
     preserving the active theme.
+  - `bb theme wallpaper show` — report whether a wallpaper image is set.
+  - `bb theme wallpaper set <image>` — set the wallpaper behind the welcome
+    and New thread screens from a PNG, JPEG, or WebP file of up to 4 MB. It is
+    stored at `<bb-data-dir>/appearance/wallpaper.<ext>`.
+  - `bb theme wallpaper clear` — remove the image; bb returns to its animated
+    ambient background in the palette's primary color.
 
 ### Creating or editing a custom theme
 

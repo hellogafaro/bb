@@ -470,7 +470,7 @@ describe("ThreadRow", () => {
       thread: createThread({ lastReadAt: 1, latestAttentionAt: 1 }),
     });
 
-    const draftIcon = container.querySelector('[data-icon="Edit"]');
+    const draftIcon = container.querySelector('[data-status-ring="draft"]');
     expect(draftIcon).not.toBeNull();
     expect(
       draftIcon?.closest("[data-sidebar-thread-trailing-indicator]"),
@@ -535,14 +535,14 @@ describe("ThreadRow", () => {
 
     const runningIcon = screen.getByLabelText("Plugin improving draft");
     expect(runningIcon.getAttribute("data-icon")).toBe("AiContentGenerator01");
-    expect(container.querySelector('[data-icon="Edit"]')).toBeNull();
+    expect(container.querySelector('[data-status-ring="draft"]')).toBeNull();
 
     act(() => {
       setPluginThreadRowStatus("thr_test", "composer-status-test", null);
     });
 
     expect(screen.queryByLabelText("Plugin improving draft")).toBeNull();
-    expect(container.querySelector('[data-icon="Edit"]')).not.toBeNull();
+    expect(container.querySelector('[data-status-ring="draft"]')).not.toBeNull();
   });
 
   it("shows a keyboard shortcut in place of a plugin status", () => {
@@ -592,7 +592,6 @@ describe("ThreadRow", () => {
 
     const runningIcon = screen.getByLabelText("Plugin running");
     expect(runningIcon.getAttribute("data-icon")).toBe("AiContentGenerator01");
-    expect(Array.from(runningIcon.classList)).toContain("animate-shine-icon");
     expect(Array.from(runningIcon.parentElement?.classList ?? [])).toContain(
       "text-success",
     );
@@ -615,25 +614,6 @@ describe("ThreadRow", () => {
     expect(Array.from(errorIcon.classList)).not.toContain("animate-shine-icon");
   });
 
-  it("disables runtime glyph rotation when reduced motion is requested", () => {
-    renderThreadRow({
-      hasComposerDraft: false,
-      thread: createThread({
-        status: "active",
-        runtime: {
-          displayStatus: "active",
-          hostReconnectGraceExpiresAt: null,
-        },
-      }),
-    });
-
-    const runningIcon = screen.getByLabelText("Thread working");
-    expect(runningIcon.getAttribute("data-icon")).toBe("Loading");
-    expect(Array.from(runningIcon.classList)).toContain(
-      "motion-reduce:animate-none",
-    );
-  });
-
   it("keeps the runtime spinner ahead of a plugin status", () => {
     setPluginThreadRowStatus("thr_test", "composer-status-test", {
       icon: "AiContentGenerator01",
@@ -651,8 +631,7 @@ describe("ThreadRow", () => {
     });
 
     const runningIcon = screen.getByLabelText("Thread working");
-    expect(runningIcon.getAttribute("data-icon")).toBe("Loading");
-    expect(Array.from(runningIcon.classList)).toContain("animate-spin");
+    expect(runningIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Plugin improving draft")).toBeNull();
     expect(
       container.querySelector("[data-sidebar-thread-trailing-indicator]"),
@@ -677,11 +656,7 @@ describe("ThreadRow", () => {
       const draftIcon = screen.getByLabelText(
         "Thread working with unsubmitted draft",
       );
-      expect(draftIcon.getAttribute("data-icon")).toBe("Edit");
-      expect(Array.from(draftIcon.classList)).toContain("animate-shine-icon");
-      expect(Array.from(draftIcon.classList)).toContain(
-        SIDEBAR_WORKING_STATUS_COLOR_CLASS,
-      );
+      expect(draftIcon.getAttribute("data-status-ring")).toBe("working");
       expect(screen.queryByLabelText("Thread working")).toBeNull();
     },
   );
@@ -708,13 +683,11 @@ describe("ThreadRow", () => {
       }),
     });
 
-    const draftIcon = screen.getByLabelText(
-      "Thread working with unsubmitted draft",
-    );
-    expect(Array.from(draftIcon.classList)).toContain("animate-shine-icon");
-    expect(Array.from(draftIcon.classList)).toContain(
-      SIDEBAR_WORKING_STATUS_COLOR_CLASS,
-    );
+    expect(
+      screen
+        .getByLabelText("Thread working with unsubmitted draft")
+        .getAttribute("data-status-ring"),
+    ).toBe("working");
   });
 
   it("renders serialized title mentions as non-interactive pills", () => {
@@ -982,8 +955,8 @@ describe("ThreadRow", () => {
     expect(
       screen
         .getByLabelText("Thread needs user input")
-        .getAttribute("data-icon"),
-    ).toBe("CircleQuestion");
+        .getAttribute("data-status-ring"),
+    ).toBe("waiting");
   });
 
   it("clocks a thread with queued work, and drops the clock once it runs", () => {
@@ -998,8 +971,8 @@ describe("ThreadRow", () => {
     expect(
       screen
         .getByLabelText("Thread has a message waiting to send")
-        .getAttribute("data-icon"),
-    ).toBe("Clock");
+        .getAttribute("data-status-ring"),
+    ).toBe("scheduled");
 
     rerenderThreadRow(
       createThread({
@@ -1013,8 +986,8 @@ describe("ThreadRow", () => {
       screen.queryByLabelText("Thread has a message waiting to send"),
     ).toBeNull();
     expect(
-      screen.getByLabelText("Thread working").getAttribute("data-icon"),
-    ).toBe("Loading");
+      screen.getByLabelText("Thread working").getAttribute("data-status-ring"),
+    ).toBe("working");
   });
 
   it("shows unread success instead of queued work", () => {
@@ -1053,9 +1026,9 @@ describe("ThreadRow", () => {
     });
     const threadFailure = screen.getByLabelText("Unread thread failed");
 
-    expect(queueFailure.getAttribute("data-icon")).toBe("CircleX");
-    expect(threadFailure.getAttribute("data-icon")).toBe(
-      queueFailure.getAttribute("data-icon"),
+    expect(queueFailure.getAttribute("data-status-ring")).toBe("failed");
+    expect(threadFailure.getAttribute("data-status-ring")).toBe(
+      queueFailure.getAttribute("data-status-ring"),
     );
     expect(queueFailure.getAttribute("class")).toBe(
       threadFailure.getAttribute("class"),
@@ -1177,8 +1150,8 @@ describe("ThreadRow", () => {
     });
 
     const shortcut = screen.getByText("⌘3");
-    expect(shortcut.className).toContain("px-1.5");
-    expect(shortcut.className).toContain("py-1");
+    expect(shortcut.className).toContain("px-[3px]");
+    expect(shortcut.className).toContain("h-4");
     expect(shortcut.className).toContain("opacity-60");
     expect(screen.queryByLabelText("Thread working")).toBeNull();
     expect(
@@ -1227,7 +1200,7 @@ describe("ThreadRow", () => {
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Background agent running")).toBeNull();
     expect(screen.queryByLabelText("Background command running")).toBeNull();
-    expect(document.querySelector('[data-icon="Edit"]')).toBeNull();
+    expect(document.querySelector('[data-status-ring="draft"]')).toBeNull();
   });
 
   it("shows an animated working-colored workflow glyph for an idle thread with an active workflow", () => {
@@ -1245,9 +1218,7 @@ describe("ThreadRow", () => {
     });
 
     const workflowIcon = screen.getByLabelText("Workflow running");
-    const workflowIconClasses = Array.from(workflowIcon.classList);
-    expect(workflowIconClasses).toContain("animate-shine-icon");
-    expect(workflowIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(workflowIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Agent working")).toBeNull();
   });
 
@@ -1325,10 +1296,7 @@ describe("ThreadRow", () => {
     });
 
     const agentIcon = screen.getByLabelText("Background agent running");
-    const agentIconClasses = Array.from(agentIcon.classList);
-    expect(agentIcon.getAttribute("data-icon")).toBe("UserRoundPlus");
-    expect(agentIconClasses).toContain("animate-shine-icon");
-    expect(agentIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(agentIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Background command running")).toBeNull();
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Agent working")).toBeNull();
@@ -1386,10 +1354,7 @@ describe("ThreadRow", () => {
     });
 
     const terminalIcon = screen.getByLabelText("Background command running");
-    const terminalIconClasses = Array.from(terminalIcon.classList);
-    expect(terminalIcon.getAttribute("data-icon")).toBe("Terminal");
-    expect(terminalIconClasses).toContain("animate-shine-icon");
-    expect(terminalIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(terminalIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Agent working")).toBeNull();
   });
@@ -1409,10 +1374,7 @@ describe("ThreadRow", () => {
     });
 
     const planIcon = screen.getByLabelText("Plan mode active");
-    const planIconClasses = Array.from(planIcon.classList);
-    expect(planIcon.getAttribute("data-icon")).toBe("ListTodo");
-    expect(planIconClasses).toContain("animate-shine-icon");
-    expect(planIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(planIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Background command running")).toBeNull();
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Agent working")).toBeNull();
@@ -1433,10 +1395,7 @@ describe("ThreadRow", () => {
     });
 
     const goalIcon = screen.getByLabelText("Goal active");
-    const goalIconClasses = Array.from(goalIcon.classList);
-    expect(goalIcon.getAttribute("data-icon")).toBe("Target");
-    expect(goalIconClasses).toContain("animate-shine-icon");
-    expect(goalIconClasses).toContain(SIDEBAR_WORKING_STATUS_COLOR_CLASS);
+    expect(goalIcon.getAttribute("data-status-ring")).toBe("working");
     expect(screen.queryByLabelText("Plan mode active")).toBeNull();
     expect(screen.queryByLabelText("Workflow running")).toBeNull();
     expect(screen.queryByLabelText("Agent working")).toBeNull();
@@ -1518,7 +1477,9 @@ describe("ThreadRow", () => {
         },
       });
 
-      expect(screen.getByLabelText(label).getAttribute("data-icon")).toBe(icon);
+      expect(screen.getByLabelText(label).getAttribute("data-status-ring")).toBe(
+        "working",
+      );
       expect(screen.queryByLabelText("Thread working")).toBeNull();
     },
   );

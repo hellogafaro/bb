@@ -30,6 +30,7 @@ import { formatHostUpdateStatus } from "@/lib/host-update-status";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
   OPTION_BASE_CLASS_NAME,
+  OPTION_FOOTER_TRIGGER_CLASS_NAME,
   OPTION_INTERACTIVE_CLASS_NAME,
   OPTION_MUTED_CLASS_NAME,
   OPTION_TRIGGER_CONTENT_CLASS_NAME,
@@ -394,6 +395,7 @@ export function EnvironmentPickerUI({
           data-promptbox-shrinkable-control=""
           className={cn(
             OPTION_BASE_CLASS_NAME,
+            OPTION_FOOTER_TRIGGER_CLASS_NAME,
             !disabled && OPTION_INTERACTIVE_CLASS_NAME,
             !disabled && LIST_HOVER_TRANSITION,
             muted && OPTION_MUTED_CLASS_NAME,

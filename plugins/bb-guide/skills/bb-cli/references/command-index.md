@@ -248,6 +248,10 @@ server.
 - `bb theme favicon`
 - `bb theme favicon set`
 - `bb theme favicon reset`
+- `bb theme wallpaper`
+- `bb theme wallpaper show`
+- `bb theme wallpaper set`
+- `bb theme wallpaper clear`
 - `bb theme show`
 - `bb theme reset`
 

@@ -36,6 +36,7 @@ import { CompactLongPressMenu } from "../ui/compact-long-press-menu.js";
 import { copyToClipboardWithToast } from "../ui/clipboard.js";
 import type { SidebarThread } from "../model/sidebar-thread.js";
 import { useThreadSectionMove } from "./ThreadSectionMoveProvider.js";
+import { ThreadSnoozeMenuItem } from "../snooze/SnoozeControls.js";
 
 interface ThreadActionsMenuBaseProps {
   thread: SidebarThread;
@@ -288,6 +289,7 @@ function ThreadActionsMenuItems({
       >
         {isPinned ? "Unpin" : "Pin"}
       </ActionMenuItem>
+      <ThreadSnoozeMenuItem threadId={thread.id} surface={surface} />
       <ThreadSectionMoveMenu
         isDrawer={isDrawer}
         onOpenDrawerStep={() => onCompactStepChange?.("move")}
@@ -388,6 +390,53 @@ export function ThreadArchiveQuickAction({
         >
           <Icon
             name={isArchived ? "ArchiveRestore" : "Archive"}
+            className={COARSE_POINTER_ICON_SIZE_CLASS}
+          />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function ThreadPinQuickAction({
+  thread,
+  className,
+}: {
+  thread: SidebarThread;
+  className?: string;
+}) {
+  const actions = experimental_useSidebarThreadActions();
+  const [isPending, setIsPending] = useState(false);
+  const isPinned = thread.pinnedAt !== null;
+  const label = isPinned ? "Unpin" : "Pin";
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("rounded-md p-0", className)}
+          aria-label={`${label} thread`}
+          aria-pressed={isPinned}
+          disabled={isPending}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsPending(true);
+            void actions
+              .setPinned(thread.id, !isPinned)
+              .catch(() => {
+                toast.error("Could not update the pin. Try again.");
+              })
+              .finally(() => {
+                setIsPending(false);
+              });
+          }}
+        >
+          <Icon
+            name={isPinned ? "PinOff" : "Pin"}
             className={COARSE_POINTER_ICON_SIZE_CLASS}
           />
         </Button>

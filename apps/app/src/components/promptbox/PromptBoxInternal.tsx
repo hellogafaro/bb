@@ -142,10 +142,11 @@ import {
 
 import { ComposerSendMenu } from "./ComposerSendMenu";
 
-const PROMPTBOX_MIN_HEIGHT = 68;
+const PROMPTBOX_MIN_HEIGHT = 64;
 const PROMPTBOX_SELECTION_REVEAL_MARGIN = 12;
 const COMPACT_PROMPT_ACTION_BUTTON_CLASS =
   "size-8 p-0 transition-all [&_[data-icon-root]]:size-4";
+const PROMPT_SQUARE_ACTION_CLASS = "size-8 min-w-8 shrink-0 p-0";
 const RICH_PASTE_BLOCK_TAGS = new Set([
   "ADDRESS",
   "ARTICLE",
@@ -280,7 +281,7 @@ function PromptSubmitButton({
       data-promptbox-submit-action=""
       type="submit"
       size={isCompact ? "icon" : "sm"}
-      variant={hasInput ? "default" : "ghost"}
+      variant={hasInput ? "primary" : "ghost"}
       aria-label={title}
       aria-busy={isBusy}
       disabled={!canSubmit}
@@ -337,6 +338,7 @@ function PromptSubmitButton({
         className,
         !hasInput &&
           "border border-border text-muted-foreground/50 disabled:opacity-100",
+        label === undefined && !isCompact && PROMPT_SQUARE_ACTION_CLASS,
         label !== undefined && !isCompact && "size-auto h-8 gap-1.5 px-2.5",
       )}
     >
@@ -3154,7 +3156,7 @@ export function PromptBoxInternal({
         emitAttachmentFiles(Array.from(event.dataTransfer.files));
       }}
       className={cn(
-        "group/promptbox relative w-full rounded-xl border border-border bg-background shadow-lift",
+        "group/promptbox relative w-full rounded-xl border border-border bg-background shadow-lift dark:bg-card has-[.ProseMirror-focused]:outline-2 has-[.ProseMirror-focused]:-outline-offset-1 has-[.ProseMirror-focused]:outline-primary",
         showCompactLayout && "overflow-hidden",
       )}
     >
@@ -3315,7 +3317,7 @@ export function PromptBoxInternal({
             <div
               data-promptbox-action-row=""
               className={cn(
-                "relative flex shrink-0 select-none flex-row items-center gap-3 pb-2 pl-3.5 pr-[13px] pt-1.5",
+                "relative flex shrink-0 select-none flex-row items-center gap-1 pb-2 pl-3.5 pr-2 pt-1.5",
                 showCompactLayout && "absolute inset-y-0 right-2 gap-0 p-0",
               )}
             >
@@ -3408,7 +3410,7 @@ export function PromptBoxInternal({
                           className={
                             showCompactLayout
                               ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                              : COARSE_POINTER_PROMPT_ICON_ACTION_BUTTON_CLASS
+                              : PROMPT_SQUARE_ACTION_CLASS
                           }
                         >
                           <Icon name="Mic" className="size-4" />
@@ -3418,21 +3420,21 @@ export function PromptBoxInternal({
                   ) : null}
                   <div
                     data-promptbox-submit-group=""
-                    className="flex shrink-0 flex-row items-center"
+                    className="flex shrink-0 flex-row items-center gap-1"
                   >
                     {showStop ? (
                       <Button
                         data-promptbox-submit-action=""
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant="stop"
                         aria-label="Stop run"
                         onPointerDown={handleStopPointerDown}
                         onClick={handleStopClick}
                         className={
                           showCompactLayout
                             ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                            : COARSE_POINTER_PROMPT_ICON_ACTION_BUTTON_CLASS
+                            : PROMPT_SQUARE_ACTION_CLASS
                         }
                       >
                         <Icon
@@ -3445,18 +3447,15 @@ export function PromptBoxInternal({
                         data-promptbox-submit-action=""
                         type="button"
                         size={showCompactLayout ? "icon" : "sm"}
-                        variant="default"
+                        variant="ghost"
                         aria-label="Start voice input"
                         onPointerDown={handleVoicePointerDown}
                         onClick={handleVoiceClick}
                         className={cn(
                           showCompactLayout
                             ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                            : [
-                                "ml-1",
-                                COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
-                              ],
-                          "transition-colors",
+                            : PROMPT_SQUARE_ACTION_CLASS,
+                          "text-foreground transition-colors disabled:text-muted-foreground",
                         )}
                       >
                         <Icon name="Mic" className="size-4" />
@@ -3484,10 +3483,7 @@ export function PromptBoxInternal({
                           className={cn(
                             showCompactLayout
                               ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                              : [
-                                  "ml-1",
-                                  COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
-                                ],
+                              : COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
                             "transition-colors",
                           )}
                           disabledReason={

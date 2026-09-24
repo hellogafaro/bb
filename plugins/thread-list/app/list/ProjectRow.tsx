@@ -69,7 +69,6 @@ import {
 import { Icon } from "@bb/shared-ui/icon";
 import { ThreadListEmptyState } from "../ui/ThreadListEmptyState.js";
 import {
-  SidebarMenuSkeleton,
   SidebarStickyGroup,
   SidebarStickyTier,
 } from "../ui/sidebar.js";
@@ -123,6 +122,7 @@ import {
   type ThreadComparator,
 } from "@bb/client-core";
 import { SidebarWindowedItems } from "./SidebarWindowedItems.js";
+import { ThreadListSkeleton } from "../ui/ThreadRowSkeleton.js";
 import { SidebarSectionRow } from "./SidebarSectionRow.js";
 import { TopLevelSidebarSection } from "./TopLevelSidebarSection.js";
 import {
@@ -1606,7 +1606,6 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
     ],
   );
   const rowProjectId = node.thread.projectId;
-  const crossProjectId = rowProjectId !== projectId ? rowProjectId : null;
   const { itemKeys, estimateRows, getNavigationEntries, alwaysMountedKeys } =
     useWindowedThreadItems({
       items: node.children,
@@ -1618,7 +1617,6 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
     <ThreadRow
       projectId={rowProjectId}
       thread={asSidebarThread(node.thread)}
-      crossProjectId={crossProjectId}
       isActive={selectedThreadId === node.thread.id}
       onProjectSelect={onProjectSelect}
       options={options}
@@ -1695,11 +1693,7 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
 });
 
 function ThreadTreeLoadingSkeleton() {
-  return (
-    <div>
-      <SidebarMenuSkeleton />
-    </div>
-  );
+  return <ThreadListSkeleton rows={2} />;
 }
 
 interface SectionThreadTreeItemsProps {

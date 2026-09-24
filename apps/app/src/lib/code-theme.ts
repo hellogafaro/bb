@@ -8,7 +8,6 @@ import {
 const CODE_THEME_DARK_DATASET = "bbCodeThemeDark";
 const CODE_THEME_LIGHT_DATASET = "bbCodeThemeLight";
 
-let currentResolvedCodeTheme: ResolvedCodeTheme = defaultResolvedCodeTheme;
 const subscribers = new Set<() => void>();
 
 function publish(): void {
@@ -46,7 +45,9 @@ function versionedThemeName(
   return `${name}:${fileFingerprint(file)}`;
 }
 
-function publishableCodeTheme(resolved: ResolvedCodeTheme): ResolvedCodeTheme {
+export function publishableCodeTheme(
+  resolved: ResolvedCodeTheme,
+): ResolvedCodeTheme {
   const files: Record<string, JsonObject> = {};
   for (const [name, file] of Object.entries(resolved.files)) {
     files[versionedThemeName(name, file)] = file;
@@ -57,6 +58,9 @@ function publishableCodeTheme(resolved: ResolvedCodeTheme): ResolvedCodeTheme {
     files,
   };
 }
+
+const publishedDefaultCodeTheme = publishableCodeTheme(defaultResolvedCodeTheme);
+let currentResolvedCodeTheme: ResolvedCodeTheme = publishedDefaultCodeTheme;
 
 export function getResolvedCodeTheme(): ResolvedCodeTheme {
   return currentResolvedCodeTheme;
@@ -69,7 +73,7 @@ function subscribeResolvedCodeTheme(callback: () => void): () => void {
   };
 }
 
-let committedResolvedCodeTheme: ResolvedCodeTheme = defaultResolvedCodeTheme;
+let committedResolvedCodeTheme: ResolvedCodeTheme = publishedDefaultCodeTheme;
 let previewedResolvedCodeTheme: ResolvedCodeTheme | null = null;
 
 function renderResolvedCodeTheme(published: ResolvedCodeTheme): void {

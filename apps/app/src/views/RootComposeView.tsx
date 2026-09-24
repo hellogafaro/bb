@@ -192,6 +192,8 @@ import {
 } from "./RootComposePanelTabContent";
 
 const ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS = "pt-14";
+const ROOT_COMPOSE_BOTTOM_ANCHORED_CONTENT_CLASS =
+  "min-h-full justify-end pt-14";
 
 const ROOT_COMPOSE_EMPTY_WELCOME_CONTENT_CLASS =
   "min-h-full flex-1 items-center justify-center pb-12";
@@ -294,7 +296,7 @@ export function RootComposeRightPanelToggle({
       type="button"
       variant="ghost"
       size="icon"
-      className={`${HEADER_ICON_BUTTON_CLASS} relative`}
+      className={`${HEADER_ICON_BUTTON_CLASS} relative text-foreground`}
       aria-label={
         shortcut ? `${rightPanelLabel} (${shortcut.label})` : rightPanelLabel
       }
@@ -1946,7 +1948,7 @@ function RootComposeSurface({
     id: "root-compose-prompt",
     autoFocus: !isProviderCliVersionBlocked,
     allowSoftKeyboardAutoFocus: isCompactViewport,
-    mentionMenuPlacement: isCompactHomeLayout ? "top" : "bottom",
+    mentionMenuPlacement: "top",
     banner: promptBanner,
     header: promptHeader,
     blockedReason: isProviderCliVersionBlocked
@@ -1992,7 +1994,9 @@ function RootComposeSurface({
               contentClassName={
                 showEmptyWelcome
                   ? ROOT_COMPOSE_EMPTY_WELCOME_CONTENT_CLASS
-                  : ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS
+                  : isCompactViewport
+                    ? ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS
+                    : ROOT_COMPOSE_BOTTOM_ANCHORED_CONTENT_CLASS
               }
               isCompactHomeLayout={isCompactHomeLayout}
               compactScrollContent={

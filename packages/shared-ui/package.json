@@ -29,6 +29,11 @@
       "types": "./src/components/ui/button.tsx",
       "default": "./src/components/ui/button.tsx"
     },
+    "./calendar": {
+      "source": "./src/components/ui/calendar.tsx",
+      "types": "./src/components/ui/calendar.tsx",
+      "default": "./src/components/ui/calendar.tsx"
+    },
     "./carousel": {
       "source": "./src/components/ui/carousel.tsx",
       "types": "./src/components/ui/carousel.tsx",
@@ -193,6 +198,11 @@
       "source": "./src/components/ui/skeleton.tsx",
       "types": "./src/components/ui/skeleton.tsx",
       "default": "./src/components/ui/skeleton.tsx"
+    },
+    "./status-ring": {
+      "source": "./src/components/ui/status-ring.tsx",
+      "types": "./src/components/ui/status-ring.tsx",
+      "default": "./src/components/ui/status-ring.tsx"
     },
     "./switch": {
       "source": "./src/components/ui/switch.tsx",

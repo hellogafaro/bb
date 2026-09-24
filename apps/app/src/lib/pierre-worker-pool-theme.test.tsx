@@ -3,7 +3,9 @@ import { act, render } from "@testing-library/react";
 import type { WorkerPoolManager } from "@pierre/diffs/worker";
 import { defaultResolvedCodeTheme } from "@bb/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyResolvedCodeTheme } from "./code-theme";
+import { applyResolvedCodeTheme, publishableCodeTheme } from "./code-theme";
+
+const publishedDefaultCodeTheme = publishableCodeTheme(defaultResolvedCodeTheme);
 import {
   useSyncPierreWorkerPoolTheme,
   type CodeThemePair,
@@ -34,8 +36,8 @@ describe("useSyncPierreWorkerPoolTheme", () => {
   it("does not call setRenderOptions when the pool already has the current theme", () => {
     const { pool, setRenderOptions } = createFakePool();
     const constructedTheme = {
-      dark: defaultResolvedCodeTheme.dark,
-      light: defaultResolvedCodeTheme.light,
+      dark: publishedDefaultCodeTheme.dark,
+      light: publishedDefaultCodeTheme.light,
     };
 
     render(<ThemeSync pool={pool} constructedTheme={constructedTheme} />);
@@ -46,8 +48,8 @@ describe("useSyncPierreWorkerPoolTheme", () => {
   it("pushes a theme change once, then stays quiet until the next change", () => {
     const { pool, setRenderOptions } = createFakePool();
     const constructedTheme = {
-      dark: defaultResolvedCodeTheme.dark,
-      light: defaultResolvedCodeTheme.light,
+      dark: publishedDefaultCodeTheme.dark,
+      light: publishedDefaultCodeTheme.light,
     };
     const { rerender } = render(
       <ThemeSync pool={pool} constructedTheme={constructedTheme} />,
@@ -82,8 +84,8 @@ describe("useSyncPierreWorkerPoolTheme", () => {
     expect(setRenderOptions).toHaveBeenCalledTimes(1);
     expect(setRenderOptions).toHaveBeenCalledWith({
       theme: {
-        dark: defaultResolvedCodeTheme.dark,
-        light: defaultResolvedCodeTheme.light,
+        dark: publishedDefaultCodeTheme.dark,
+        light: publishedDefaultCodeTheme.light,
       },
     });
   });

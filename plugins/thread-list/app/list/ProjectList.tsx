@@ -47,7 +47,6 @@ import {
   ConfirmDeleteDialogContent,
 } from "../ui/ConfirmDeleteDialog.js";
 import { Button } from "@bb/shared-ui/button";
-import { Skeleton } from "@bb/shared-ui/skeleton";
 import {
   SidebarContentElementProvider,
   SidebarGroupContent,
@@ -120,6 +119,8 @@ import {
   type SidebarProject,
 } from "../model/use-sidebar-data.js";
 import { getSidebarThreadDisplayTitle } from "../model/sidebar-thread.js";
+import { ThreadListSectionSkeleton } from "../ui/ThreadRowSkeleton.js";
+import { StatusModeSections } from "./StatusModeSections.js";
 
 export interface ProjectListProps {
   activeThreadId: string | null;
@@ -128,10 +129,6 @@ export interface ProjectListProps {
 
 interface ProjectListShellProps {
   children: ReactNode;
-}
-
-interface ProjectListNavigationLoadingRowProps {
-  textWidthClassName: string;
 }
 
 export { PROJECT_LIST_ACTION_BUTTON_CLASS } from "../rows/sidebarRowClasses.js";
@@ -336,31 +333,9 @@ function getSectionMutationErrorMessage(
 
 export function ProjectListNavigationLoadingState() {
   return (
-    <div
-      aria-label="Loading sidebar navigation"
-      className="space-y-1.5 px-2 pt-1"
-    >
-      <ProjectListNavigationLoadingRow textWidthClassName="w-2/3" />
-      <ProjectListNavigationLoadingRow textWidthClassName="w-1/2" />
-    </div>
-  );
-}
-
-function ProjectListNavigationLoadingRow({
-  textWidthClassName,
-}: ProjectListNavigationLoadingRowProps) {
-  return (
-    <div
-      data-sidebar="navigation-loading-row"
-      className="flex h-7 items-center gap-2 rounded-md"
-    >
-      <Skeleton className="size-4 shrink-0 rounded-md bg-sidebar-border/60" />
-      <Skeleton
-        className={cn(
-          "h-3 rounded-sm bg-sidebar-border/50",
-          textWidthClassName,
-        )}
-      />
+    <div aria-label="Loading sidebar navigation" className="space-y-4">
+      <ThreadListSectionSkeleton rows={2} />
+      <ThreadListSectionSkeleton rows={4} />
     </div>
   );
 }
@@ -386,6 +361,7 @@ interface ActiveSidebarModeSectionsProps {
   renderChronological: () => ReactNode;
   renderMachine: () => ReactNode;
   renderProject: () => ReactNode;
+  renderStatus: () => ReactNode;
 }
 
 export function ActiveSidebarModeSections({
@@ -393,13 +369,15 @@ export function ActiveSidebarModeSections({
   renderChronological,
   renderMachine,
   renderProject,
+  renderStatus,
 }: ActiveSidebarModeSectionsProps) {
+  if (mode === "status") return renderStatus();
   if (mode === "machine") return renderMachine();
   if (mode === "chronological") return renderChronological();
   return renderProject();
 }
 
-interface GroupedModePinnedProps {
+export interface GroupedModePinnedProps {
   pinnedReorderPending: boolean;
   pinnedRootNodes: readonly ProjectThreadNode[];
   pinnedThreads: readonly ThreadListEntry[];
@@ -436,7 +414,7 @@ function buildGroupSectionItem(
   };
 }
 
-function useGroupedModeThreadDnd({
+export function useGroupedModeThreadDnd({
   collapsedThreadIds,
   compareThreads,
   draftThreadIds,
@@ -1667,6 +1645,32 @@ function ProjectListComponent({
       <ProjectListShell>
         <ActiveSidebarModeSections
           mode={organizationMode}
+          renderStatus={() => (
+            <StatusModeSections
+              threads={threads}
+              draftThreadIds={draftThreadIds}
+              effectivePinnedThreadIds={
+                pinnedSidebarState.effectivePinnedThreadIds
+              }
+              status={threadListStatus}
+              showPinnedSection={hasPinnedSection}
+              pinnedSection={pinnedSection}
+              pinnedReorderPending={isPinnedReorderPending}
+              pinnedRootNodes={pinnedSidebarState.rootNodes}
+              pinnedThreads={pinnedRootThreads}
+              onReorderPinnedThread={handleReorderPinnedRoot}
+              selectedThreadId={selectedThreadId}
+              collapsedSectionIds={collapsedSidebarSectionIds}
+              collapsedThreadIds={collapsedThreadIds}
+              collapsedEnvironmentIds={collapsedEnvironmentIds}
+              renderSectionActions={renderSectionDisplayOptions}
+              isSectionActionsOpen={isSectionDisplayOptionsOpen}
+              onProjectSelect={onProjectSelect}
+              onToggleCollapsed={toggleSidebarSectionCollapsed}
+              onToggleThreadCollapsed={toggleThreadCollapsed}
+              onToggleEnvironmentCollapsed={toggleEnvironmentCollapsed}
+            />
+          )}
           renderMachine={() => (
             <MachineModeSections
               threads={threads}

@@ -12,6 +12,7 @@ import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
   OPTION_BASE_CLASS_NAME,
+  OPTION_FOOTER_TRIGGER_CLASS_NAME,
   OPTION_INTERACTIVE_CLASS_NAME,
   OPTION_MUTED_CLASS_NAME,
   OPTION_TRIGGER_CONTENT_CLASS_NAME,
@@ -129,6 +130,7 @@ export function ProjectSelector({
           data-promptbox-project-control=""
           className={cn(
             OPTION_BASE_CLASS_NAME,
+            OPTION_FOOTER_TRIGGER_CLASS_NAME,
             !disabled && OPTION_INTERACTIVE_CLASS_NAME,
             disabled && "cursor-default disabled:opacity-100",
             OPTION_MUTED_CLASS_NAME,

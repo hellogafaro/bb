@@ -10,12 +10,25 @@ import {
 } from "../src/code-theme.js";
 
 describe("code theme resolution", () => {
-  it("falls back to Pierre defaults when nothing is declared", () => {
-    expect(resolveCodeTheme(null)).toEqual({
-      dark: DEFAULT_CODE_THEME_DARK,
-      light: DEFAULT_CODE_THEME_LIGHT,
-      files: {},
+  it("falls back to the bundled default code themes when nothing is declared", () => {
+    const resolved = resolveCodeTheme(null);
+    expect(resolved.dark).toBe(DEFAULT_CODE_THEME_DARK);
+    expect(resolved.light).toBe(DEFAULT_CODE_THEME_LIGHT);
+    expect(resolved.files[DEFAULT_CODE_THEME_DARK]).toMatchObject({
+      name: DEFAULT_CODE_THEME_DARK,
+      type: "dark",
     });
+    expect(resolved.files[DEFAULT_CODE_THEME_LIGHT]).toMatchObject({
+      name: DEFAULT_CODE_THEME_LIGHT,
+      type: "light",
+    });
+  });
+
+  it("ships the default code themes with a custom palette that declares none", () => {
+    const resolved = resolveCodeTheme(null, "midnight");
+    expect(Object.keys(resolved.files).sort()).toEqual(
+      [DEFAULT_CODE_THEME_DARK, DEFAULT_CODE_THEME_LIGHT].sort(),
+    );
   });
 
   it("uses a built-in palette's matching Shiki pair", () => {

@@ -5,7 +5,6 @@ import {
   cleanup,
   fireEvent,
   render,
-  screen,
 } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
@@ -24,7 +23,6 @@ import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { focusWithKeyboard } from "@/test/keyboard-focus";
 import {
   makeEnvironment,
   makeHost,
@@ -247,65 +245,10 @@ describe("EnvironmentRow", () => {
     expect(markup).not.toContain("Modal machine");
   });
 
-  it("shows the create-thread action for a ready environment", () => {
-    expect(renderEnvironmentRow(makeEnvironment())).toContain(
+  it("does not offer a create-thread action in the environment row", () => {
+    expect(renderEnvironmentRow(makeEnvironment())).not.toContain(
       'aria-label="New thread in this environment"',
     );
-  });
-
-  it("explains the create-thread action in a tooltip", async () => {
-    render(
-      withQueryClient(
-        <TooltipProvider delayDuration={0}>
-          <MemoryRouter>
-            <EnvironmentRow
-              thread={makeThread()}
-              environment={makeEnvironment()}
-              environmentDisplayHost={localHost}
-            />
-          </MemoryRouter>
-        </TooltipProvider>,
-      ),
-    );
-
-    focusWithKeyboard(
-      screen.getByRole("button", {
-        name: "New thread in this environment",
-      }),
-    );
-
-    expect((await screen.findByRole("tooltip")).textContent).toBe(
-      "New thread in this environment",
-    );
-  });
-
-  it("hides the create-thread action while an environment is provisioning", () => {
-    const markup = renderEnvironmentRow(
-      makeEnvironment({
-        status: "provisioning",
-        path: null,
-      }),
-    );
-
-    expect(markup).not.toContain('aria-label="New thread in this environment"');
-  });
-
-  it("hides the create-thread action before an environment has a path", () => {
-    const markup = renderEnvironmentRow(
-      makeEnvironment({
-        path: null,
-      }),
-    );
-
-    expect(markup).not.toContain('aria-label="New thread in this environment"');
-  });
-
-  it("offers the create-thread action on a project's own checkout", () => {
-    const markup = renderEnvironmentRow(
-      makeEnvironment({ environmentProviderId: null }),
-    );
-
-    expect(markup).toContain('aria-label="New thread in this environment"');
   });
 
   it("shows a custom provider label with its machine", () => {

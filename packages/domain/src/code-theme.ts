@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { draculaLightCodeTheme } from "./code-themes/dracula-light.js";
+import { duskDarkCodeTheme } from "./code-themes/dusk-dark.js";
+import { duskLightCodeTheme } from "./code-themes/dusk-light.js";
 import { nordLightCodeTheme } from "./code-themes/nord-light.js";
 import { jsonObjectSchema, type JsonObject } from "./json-value.js";
 
-export const DEFAULT_CODE_THEME_DARK = "pierre-dark";
-export const DEFAULT_CODE_THEME_LIGHT = "pierre-light";
+export const DEFAULT_CODE_THEME_DARK = "bb:default:dark";
+export const DEFAULT_CODE_THEME_LIGHT = "bb:default:light";
 
 export const codeThemeNameSchema = z
   .string()
@@ -38,10 +40,21 @@ export const resolvedCodeThemeSchema = z
   .strict();
 export type ResolvedCodeTheme = z.infer<typeof resolvedCodeThemeSchema>;
 
+const defaultCodeThemeFiles: Record<string, JsonObject> = {
+  [DEFAULT_CODE_THEME_DARK]: {
+    ...duskDarkCodeTheme,
+    name: DEFAULT_CODE_THEME_DARK,
+  },
+  [DEFAULT_CODE_THEME_LIGHT]: {
+    ...duskLightCodeTheme,
+    name: DEFAULT_CODE_THEME_LIGHT,
+  },
+};
+
 export const defaultResolvedCodeTheme: ResolvedCodeTheme = {
   dark: DEFAULT_CODE_THEME_DARK,
   light: DEFAULT_CODE_THEME_LIGHT,
-  files: {},
+  files: defaultCodeThemeFiles,
 };
 
 export const uiCodeThemeDeclarationSchema = z
@@ -126,6 +139,7 @@ function paletteCodeThemeFallback(paletteId: string): CodeThemePair {
 const builtInPaletteCodeThemeFiles: Partial<
   Record<keyof typeof builtInPaletteCodeThemes, Record<string, JsonObject>>
 > = {
+  default: defaultCodeThemeFiles,
   nord: { "bb:nord:light": nordLightCodeTheme },
   dracula: { "bb:dracula:light": draculaLightCodeTheme },
 };
@@ -146,17 +160,17 @@ export function resolveCodeTheme(
   const dark = declared?.dark?.name ?? fallback.dark;
   const light = declared?.light?.name ?? fallback.light;
   const files: Record<string, JsonObject> = {};
-  const builtInFiles =
-    paletteId in builtInPaletteCodeThemeFiles
+  const builtInFiles = {
+    ...defaultCodeThemeFiles,
+    ...(paletteId in builtInPaletteCodeThemeFiles
       ? builtInPaletteCodeThemeFiles[
           paletteId as keyof typeof builtInPaletteCodeThemeFiles
         ]
-      : undefined;
-  if (builtInFiles !== undefined) {
-    for (const [name, file] of Object.entries(builtInFiles)) {
-      if (name === dark || name === light) {
-        files[name] = stampRegisteredThemeName(name, file);
-      }
+      : undefined),
+  };
+  for (const [name, file] of Object.entries(builtInFiles)) {
+    if (name === dark || name === light) {
+      files[name] = stampRegisteredThemeName(name, file);
     }
   }
   if (declared?.dark?.file !== undefined) {

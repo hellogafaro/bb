@@ -1,5 +1,8 @@
 import type { AppTheme, AppThemeSelection } from "@bb/domain";
-import type { ThemeCatalogResponse } from "@bb/server-contract";
+import type {
+  ThemeCatalogResponse,
+  WallpaperStatusResponse,
+} from "@bb/server-contract";
 import { signalRequestArgs, type CreateSdkAreaArgs } from "./common.js";
 
 export type ThemeGetResult = AppTheme;
@@ -7,6 +10,15 @@ export type ThemeCatalogResult = ThemeCatalogResponse;
 export type ThemeSetInput = AppThemeSelection;
 export type ThemeSetResult = AppTheme;
 export type ThemeResolveResult = AppTheme;
+export type ThemeWallpaperResult = WallpaperStatusResponse;
+
+export interface ThemeWallpaperArgs {
+  signal?: AbortSignal;
+}
+
+export interface ThemeSetWallpaperArgs {
+  dataUrl: string;
+}
 
 export interface ThemeCatalogArgs {
   signal?: AbortSignal;
@@ -27,6 +39,9 @@ export interface ThemeArea {
   resolve(args: ThemeResolveArgs): Promise<ThemeResolveResult>;
   set(selection: ThemeSetInput): Promise<ThemeSetResult>;
   set(themeId: string): Promise<ThemeSetResult>;
+  wallpaper(args?: ThemeWallpaperArgs): Promise<ThemeWallpaperResult>;
+  setWallpaper(args: ThemeSetWallpaperArgs): Promise<ThemeWallpaperResult>;
+  clearWallpaper(): Promise<ThemeWallpaperResult>;
 }
 
 export function createThemeArea(args: CreateSdkAreaArgs): ThemeArea {
@@ -73,6 +88,27 @@ export function createThemeArea(args: CreateSdkAreaArgs): ThemeArea {
       }
       return transport.readJson(
         transport.api.v1.settings.appearance.$put({ json: input }),
+      );
+    },
+    async wallpaper(input = {}) {
+      const config = await transport.readJson(
+        transport.api.v1.system.config.$get(
+          {},
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+      return { wallpaper: config.wallpaper };
+    },
+    async setWallpaper(input) {
+      return transport.readJson(
+        transport.api.v1.settings.appearance.wallpaper.$put({
+          json: { dataUrl: input.dataUrl },
+        }),
+      );
+    },
+    async clearWallpaper() {
+      return transport.readJson(
+        transport.api.v1.settings.appearance.wallpaper.$delete(),
       );
     },
   };

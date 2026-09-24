@@ -256,10 +256,7 @@ export function ThreadDetailHeader({
               type="button"
               variant="ghost"
               size="icon"
-              className={cn(
-                HEADER_ICON_BUTTON_CLASS,
-                CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS,
-              )}
+              className={cn(HEADER_ICON_BUTTON_CLASS, "text-foreground")}
               aria-label={
                 panelShortcut
                   ? `${rightPanelLabel} (${panelShortcut.label})`

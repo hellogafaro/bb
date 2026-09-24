@@ -3,7 +3,10 @@ import {
   applyAppKeybindingOverrides,
   type AppKeybindingOverrides,
 } from "@bb/domain";
-import type { SystemConfigResponse } from "@bb/server-contract";
+import type {
+  SystemConfigResponse,
+  WallpaperInfo,
+} from "@bb/server-contract";
 import { systemConfigQueryKey } from "../queries/query-keys";
 
 interface KeyboardSettingsCacheTransaction {
@@ -16,6 +19,16 @@ export function markSystemConfigStale(queryClient: QueryClient): void {
     queryKey: systemConfigQueryKey(),
     refetchType: "none",
   });
+}
+
+export function applyWallpaperToSystemConfig(
+  queryClient: QueryClient,
+  wallpaper: WallpaperInfo | null,
+): void {
+  queryClient.setQueryData<SystemConfigResponse>(
+    systemConfigQueryKey(),
+    (previous) => (previous ? { ...previous, wallpaper } : previous),
+  );
 }
 
 interface BeginKeyboardSettingsCacheTransactionArgs {

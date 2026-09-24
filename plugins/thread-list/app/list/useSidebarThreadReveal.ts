@@ -66,6 +66,10 @@ export function getThreadSidebarExpansion({
     return { sidebarSectionId: "pinned" };
   }
 
+  if (organizationMode === "status") {
+    return {};
+  }
+
   if (organizationMode === "machine") {
     return {
       machineKey: thread.environmentHostId ?? NO_MACHINE_GROUP_KEY,

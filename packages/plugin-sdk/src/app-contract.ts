@@ -1584,7 +1584,7 @@ export interface PluginCommandShortcut {
 
 /**
  * A command registered with `app.commands.register`, listed in bb's quick
- * palette (Mod+Shift+P) under the plugin's name
+ * palette (Mod+K) under the plugin's name
  * beside bb's own commands. Host-rendered: the plugin supplies a title and
  * `run`, and the host owns matching, ordering, and recency.
  */

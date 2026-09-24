@@ -369,7 +369,14 @@ type ExpectedSystemKey =
 
 type ExpectedSystemUiPreferencesKey = "list" | "reset" | "set";
 
-type ExpectedThemeKey = "catalog" | "get" | "resolve" | "set";
+type ExpectedThemeKey =
+  | "catalog"
+  | "clearWallpaper"
+  | "get"
+  | "resolve"
+  | "set"
+  | "setWallpaper"
+  | "wallpaper";
 
 type ExpectedThreadSectionsKey = "create" | "delete" | "list" | "update";
 

@@ -33,7 +33,6 @@ const REQUIRED_RAMP_TOKENS = [
   "border-hairline",
   "border-seam",
   "input",
-  "sidebar",
   "sidebar-accent",
   "sidebar-border",
 ] as const;
@@ -238,11 +237,14 @@ describe("theme.css neutral ramp", () => {
         );
       });
 
-      it("keeps card and popover flush with the background", () => {
+      it("keeps card and popover on one surface token", () => {
         expect(steps.has("card")).toBe(false);
         expect(steps.has("popover")).toBe(false);
-        expect(block).toMatch(/--card:\s*var\(--canvas\);/);
-        expect(block).toMatch(/--popover:\s*var\(--canvas\);/);
+        const surface = mode === "light" ? "canvas" : "surface-raised-solid";
+        expect(block).toMatch(new RegExp(`--card:\\s*var\\(--${surface}\\);`));
+        expect(block).toMatch(
+          new RegExp(`--popover:\\s*var\\(--${surface}\\);`),
+        );
       });
 
       it("orders fills below borders below input", () => {
@@ -254,19 +256,28 @@ describe("theme.css neutral ramp", () => {
 
       it("makes the pressed/selected fill stronger than hover", () => {
         expect(step("state-active")).toBeGreaterThan(step("state-hover"));
-        expect(step("sidebar-accent")).toBeGreaterThan(step("sidebar"));
       });
 
-      it("keeps the sidebar a quiet chrome lift below the fills", () => {
-        expect(step("sidebar")).toBeLessThan(step("secondary"));
+      it("keeps the sidebar a quiet chrome step below the fills", () => {
+        if (mode === "light") {
+          expect(step("sidebar")).toBeLessThan(step("secondary"));
+          expect(step("sidebar-accent")).toBeGreaterThan(step("sidebar"));
+        } else {
+          expect(variableValue(block, "sidebar")).toMatch(
+            /^color-mix\(in oklch, var\(--canvas\) [\d.]+%, black\)$/,
+          );
+        }
       });
     });
   }
 
   it("defines the same ramp tokens in light and dark", () => {
-    const light = [...rampSteps(modeBlock("light")).keys()].sort();
-    const dark = [...rampSteps(modeBlock("dark")).keys()].sort();
-    expect(light).toEqual(dark);
+    const modeSpecific = new Set(["sidebar", "sidebar-foreground"]);
+    const tokens = (scheme: "light" | "dark") =>
+      [...rampSteps(modeBlock(scheme)).keys()]
+        .filter((token) => !modeSpecific.has(token))
+        .sort();
+    expect(tokens("light")).toEqual(tokens("dark"));
   });
 
   it("derives translucent (transparent-mixed) tokens in oklab, not oklch", () => {

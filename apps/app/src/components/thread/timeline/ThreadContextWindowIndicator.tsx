@@ -174,7 +174,7 @@ export function ThreadContextWindowIndicator({
   const usedPercent = calculateContextWindowUsagePercent(usage);
   const visualPercent = Math.min(Math.max(usedPercent, 0), 100);
 
-  const radius = 6.5;
+  const radius = 6;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - visualPercent / 100);
 
@@ -193,7 +193,7 @@ export function ThreadContextWindowIndicator({
         <button
           type="button"
           {...triggerHoverProps}
-          className="-m-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-state-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md hover:bg-state-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-state-active max-md:pointer-coarse:size-8"
           aria-label={`Context window ${usedPercent}% used`}
         >
           <svg
@@ -206,7 +206,7 @@ export function ThreadContextWindowIndicator({
               cy="8"
               r={radius}
               fill="none"
-              strokeWidth="3"
+              strokeWidth="1.5"
               className="stroke-border-hairline"
             />
             <circle
@@ -215,7 +215,7 @@ export function ThreadContextWindowIndicator({
               r={radius}
               fill="none"
               stroke="currentColor"
-              strokeWidth="3"
+              strokeWidth="1.5"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}

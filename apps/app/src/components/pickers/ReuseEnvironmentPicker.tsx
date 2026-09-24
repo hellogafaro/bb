@@ -28,6 +28,7 @@ import { resolveEnvironmentDisplayName } from "@bb/core-ui";
 import type { SystemEnvironmentProvider } from "@bb/server-contract";
 import {
   OPTION_BASE_CLASS_NAME,
+  OPTION_FOOTER_TRIGGER_CLASS_NAME,
   OPTION_INTERACTIVE_CLASS_NAME,
   OPTION_MENU_CONTENT_CLASS_NAME,
   OPTION_MUTED_CLASS_NAME,
@@ -154,6 +155,7 @@ export function ReuseEnvironmentPicker({
           data-promptbox-icon-only-control=""
           className={cn(
             OPTION_BASE_CLASS_NAME,
+            OPTION_FOOTER_TRIGGER_CLASS_NAME,
             !disabled && OPTION_INTERACTIVE_CLASS_NAME,
             !disabled && LIST_HOVER_TRANSITION,
             muted && OPTION_MUTED_CLASS_NAME,

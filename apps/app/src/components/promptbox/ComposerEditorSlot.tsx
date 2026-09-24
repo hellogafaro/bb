@@ -45,7 +45,7 @@ export function ComposerEditorSlot({
       data-promptbox-editor-scroll=""
       aria-busy={inputLocked || undefined}
       className={cn(
-        "w-full overflow-y-auto bg-transparent px-4 pb-1 pr-14 pt-3 outline-none",
+        "w-full overflow-y-auto bg-transparent px-4 pb-1 pt-3 outline-none",
         COARSE_POINTER_TEXT_BASE_CLASS,
         "leading-relaxed",
         isCompactLayout && "h-12 overflow-hidden pb-0 pr-14 pt-0",
@@ -74,7 +74,7 @@ export function ComposerEditorSlot({
             isCompactLayout && "flex items-center",
             "[&_.ProseMirror]:min-h-full [&_.ProseMirror]:leading-[1.7] [&_.ProseMirror]:outline-none",
             "[&_.ProseMirror_p]:m-0",
-            "[&_.ProseMirror_blockquote]:my-1 [&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-surface-selected-border [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground",
+            "[&_.ProseMirror_blockquote]:my-1 [&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-quote-border [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground",
             "[&_.ProseMirror_h1]:my-1 [&_.ProseMirror_h1]:text-lg [&_.ProseMirror_h1]:font-semibold",
             "[&_.ProseMirror_h2]:my-1 [&_.ProseMirror_h2]:text-base [&_.ProseMirror_h2]:font-semibold",
             "[&_.ProseMirror_h3]:my-1 [&_.ProseMirror_h3]:text-sm [&_.ProseMirror_h3]:font-semibold",

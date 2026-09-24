@@ -69,7 +69,7 @@ import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { useSystemMachineProviders } from "@/hooks/queries/machine-provider-queries";
 import { useHostDaemon } from "@/hooks/useHostDaemon";
 
-const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 80;
+const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 64;
 
 export interface NewThreadEnvironmentConfig {
   value: string;
@@ -335,7 +335,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         header={modeConfig.header}
         footerStart={<ExecutionControls {...execution} />}
       />
-      <div className="mt-1 flex select-none items-center justify-between gap-2 px-3.5">
+      <div className="mt-1 flex select-none items-center justify-between gap-2 px-[9px]">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {project ? (
             <ProjectSelector

@@ -1,4 +1,5 @@
 import {
+  isValidElement,
   useLayoutEffect,
   useRef,
   useState,
@@ -56,14 +57,6 @@ interface AppToastContentProps {
   tone: AppToastTone;
 }
 
-interface AppToastOverflowTextProps {
-  className?: string;
-  content: ReactNode;
-  notificationId: string | null;
-  onShowMore: () => void;
-  testId: string;
-}
-
 interface ShowAppToastParams {
   options?: AppToastOptions;
   title: ReactNode;
@@ -118,71 +111,63 @@ function AppToastActionButton({
     dismissToast(id);
   };
 
+  return <AppToastButton onClick={handleClick}>{action.label}</AppToastButton>;
+}
+
+function AppToastButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
   return (
     <Button
       type="button"
-      variant="link"
+      variant="outline"
       size="sm"
-      className="h-auto shrink-0 px-0 py-0 text-xs text-muted-foreground underline underline-offset-4"
-      onClick={handleClick}
+      className="block h-7 max-w-[min(25vw,120px)] shrink-0 truncate rounded-sm px-2 text-xs font-normal leading-4 text-muted-foreground shadow-none hover:bg-state-hover hover:text-foreground"
+      onClick={onClick}
     >
-      {action.label}
+      {children}
     </Button>
   );
 }
 
-function AppToastOverflowText({
-  className,
-  content,
-  notificationId,
-  onShowMore,
-  testId,
-}: AppToastOverflowTextProps) {
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+function toneIconClassName(tone: AppToastTone): string | null {
+  switch (tone) {
+    case "success":
+      return "text-success";
+    case "warning":
+      return "text-warning";
+    case "error":
+      return "text-destructive";
+    case "loading":
+      return "animate-spin text-muted-foreground motion-reduce:animate-none";
+    case "message":
+      return null;
+  }
+}
+
+function useIsTruncated(content: ReactNode) {
+  const ref = useRef<HTMLDivElement | null>(null);
   const [truncated, setTruncated] = useState(false);
 
   useLayoutEffect(() => {
-    const body = bodyRef.current;
-    if (body === null) {
+    const element = ref.current;
+    if (element === null) {
       return;
     }
     const measure = () => {
-      setTruncated(
-        body.scrollHeight - body.clientHeight > 1 ||
-          body.scrollWidth - body.clientWidth > 1,
-      );
+      setTruncated(element.scrollWidth - element.clientWidth > 1);
     };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(body);
+    observer.observe(element);
     return () => observer.disconnect();
   }, [content]);
 
-  return (
-    <div className="min-w-0 w-full">
-      <div
-        ref={bodyRef}
-        data-testid={testId}
-        className={cn(
-          "line-clamp-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
-          className,
-        )}
-      >
-        {content}
-      </div>
-      {truncated && notificationId !== null ? (
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          className="h-auto shrink-0 px-0 py-0 text-xs text-muted-foreground underline underline-offset-4"
-          onClick={onShowMore}
-        >
-          Show more
-        </Button>
-      ) : null}
-    </div>
-  );
+  return { ref, truncated };
 }
 
 export function AppToastContent({
@@ -196,65 +181,69 @@ export function AppToastContent({
   title,
   tone,
 }: AppToastContentProps) {
-  const hasActions = action !== undefined || cancel !== undefined;
+  const titleOverflow = useIsTruncated(title);
   const showNotification = () => {
     dismissToast(id);
     openNotificationCenter(notificationId);
   };
-  const actions = hasActions ? (
-    <>
-      {action ? (
-        <AppToastActionButton action={action} id={id} priority="primary" />
-      ) : null}
-      {cancel ? (
-        <AppToastActionButton action={cancel} id={id} priority="secondary" />
-      ) : null}
-    </>
-  ) : null;
+  const iconClassName = toneIconClassName(tone);
+  const inlineDescription = isValidElement(description) ? description : null;
+  const hasTextDescription =
+    description !== undefined &&
+    description !== null &&
+    inlineDescription === null;
+  const canShowMore =
+    notificationId !== null && (titleOverflow.truncated || hasTextDescription);
 
   return (
-    <div className="w-[var(--width,356px)] max-w-[calc(100vw-32px)] shrink-0 rounded-md border border-border bg-popover px-4 py-3 text-popover-foreground shadow-sm max-[600px]:w-[calc(100vw-32px)]">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground">
+    <div className="w-[var(--width,356px)] max-w-[calc(100vw-32px)] shrink-0 rounded-md border border-border bg-popover py-2 pr-2 pl-3 text-popover-foreground shadow-sm max-[600px]:w-[calc(100vw-32px)]">
+      <div className="flex min-h-7 min-w-0 items-center gap-2">
+        {iconClassName !== null ? (
           <Icon
             name={iconForTone(tone)}
-            className={cn("size-4", tone === "loading" && "animate-spin")}
+            className={cn("size-4 shrink-0", iconClassName)}
             style={{ margin: 0 }}
             aria-hidden
           />
+        ) : null}
+        <div
+          ref={titleOverflow.ref}
+          data-testid="app-toast-title"
+          className={cn(
+            "min-w-0 truncate text-sm font-medium leading-5",
+            inlineDescription === null
+              ? "max-w-[60ch] flex-1"
+              : "max-w-[50%] shrink-0",
+          )}
+        >
+          {title}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <AppToastOverflowText
-              className="text-sm font-medium leading-5"
-              content={title}
-              notificationId={notificationId}
-              onShowMore={showNotification}
-              testId="app-toast-title"
-            />
+        {inlineDescription !== null ? (
+          <div
+            data-testid="app-toast-description"
+            className="flex min-w-0 flex-1 items-center gap-1 text-sm leading-5 text-muted-foreground"
+          >
+            <span aria-hidden className="shrink-0">
+              ·
+            </span>
+            <span className="min-w-0 flex-1 truncate">{inlineDescription}</span>
           </div>
-          {description || hasActions ? (
-            <div className="mt-0.5 flex min-w-0 flex-col items-start gap-2 text-xs leading-5 text-muted-foreground">
-              {description ? (
-                <AppToastOverflowText
-                  content={description}
-                  notificationId={notificationId}
-                  onShowMore={showNotification}
-                  testId="app-toast-description"
-                />
-              ) : null}
-              {hasActions ? (
-                <div className="flex flex-wrap gap-2">{actions}</div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
+        {canShowMore ? (
+          <AppToastButton onClick={showNotification}>Show more</AppToastButton>
+        ) : null}
+        {action ? (
+          <AppToastActionButton action={action} id={id} priority="primary" />
+        ) : null}
+        {cancel ? (
+          <AppToastActionButton action={cancel} id={id} priority="secondary" />
+        ) : null}
         {dismissible ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="-mr-1 -mt-1 size-6 shrink-0 text-muted-foreground"
+            className="size-7 shrink-0 rounded-sm text-muted-foreground"
             aria-label="Dismiss notification"
             onClick={() => (onDismiss ? onDismiss() : dismissToast(id))}
           >

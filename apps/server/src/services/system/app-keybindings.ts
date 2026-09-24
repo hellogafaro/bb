@@ -150,7 +150,7 @@ const splitWithoutModal = {
 } as const;
 
 export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
-  binding("palette.open", "p", { mod: true, shift: true }, mainWithoutModal),
+  binding("palette.open", "k", { mod: true }, mainWithoutModal),
   binding("thread.new", "o", { mod: true, shift: true }, mainWithoutModal),
   binding(
     "thread.new",
@@ -161,12 +161,12 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
       desktopOnly: true,
     },
   ),
-  binding("thread.search", "k", { mod: true }, mainWithoutModal),
+  binding("thread.search", "k", { mod: true, shift: true }, mainWithoutModal),
   unassignedBinding("thread.rename", mainWithoutModal),
   unassignedBinding("thread.archive", mainWithoutModal),
   binding("app.back", "Escape", {}, mainWithoutModal),
   binding("settings.open", ",", { mod: true }, mainWithoutModal),
-  binding("sidebar.toggle", "\\", { mod: true }, mainWithoutModal),
+  binding("sidebar.toggle", "b", { mod: true }, mainWithoutModal),
   unassignedBinding("notifications.open", mainWithoutModal),
   binding(
     "thread.previous",
@@ -254,7 +254,7 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
     },
   ),
   binding("panel.close", "w", { mod: true }, mainWithoutModal),
-  binding("panel.toggle", "j", { mod: true }, mainWithoutModal),
+  binding("panel.toggle", "b", { mod: true, alt: true }, mainWithoutModal),
   binding("file.quickOpen", "p", { mod: true }, mainWithoutModal),
   binding(
     "diff.toggle",
@@ -265,12 +265,7 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
       none: ["modalOpen", "editableFocus", "terminalFocus", "browserFocus"],
     },
   ),
-  binding(
-    "terminal.open",
-    "Enter",
-    { mod: true, shift: true },
-    mainWithoutModal,
-  ),
+  binding("terminal.open", "j", { mod: true }, mainWithoutModal),
   binding(
     "composer.focus",
     "c",
