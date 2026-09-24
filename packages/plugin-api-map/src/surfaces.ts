@@ -326,7 +326,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginFileOpenerProps",
           "PluginFileOpenerSource",
         ],
-        firstParty: ["Docs", "File Editor"],
+        firstParty: ["Docs"],
       },
       {
         id: "app-overlay",
