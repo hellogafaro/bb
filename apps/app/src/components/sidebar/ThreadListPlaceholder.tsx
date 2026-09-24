@@ -15,11 +15,11 @@ function LoadingRow({ textWidthClassName }: { textWidthClassName: string }) {
     >
       <Skeleton
         className={cn(
-          "h-2.5 rounded-sm bg-sidebar-border/60",
+          "h-2.5 animate-none rounded-sm bg-sidebar-border/60",
           textWidthClassName,
         )}
       />
-      <Skeleton className="h-1.5 w-16 rounded-sm bg-sidebar-border/40" />
+      <Skeleton className="h-1.5 w-16 animate-none rounded-sm bg-sidebar-border/40" />
     </div>
   );
 }
@@ -28,7 +28,7 @@ function LoadingSection({ rowWidths }: { rowWidths: readonly string[] }) {
   return (
     <div>
       <div className="flex h-6 items-center pl-2">
-        <Skeleton className="h-2 w-14 rounded-sm bg-sidebar-border/50" />
+        <Skeleton className="h-2 w-14 animate-none rounded-sm bg-sidebar-border/50" />
       </div>
       <div className="mt-1 space-y-0.5">
         {rowWidths.map((width, index) => (
@@ -52,7 +52,7 @@ export function ThreadListPlaceholder({
         className="space-y-4 px-2 pt-2"
       >
         <LoadingSection rowWidths={["w-3/4", "w-1/2"]} />
-        <LoadingSection rowWidths={["w-2/3", "w-3/4", "w-1/2", "w-2/3"]} />
+        <LoadingSection rowWidths={["w-3/4", "w-1/2", "w-2/3", "w-3/4"]} />
       </div>
     );
   }

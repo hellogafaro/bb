@@ -45,7 +45,8 @@ approval, unread failure, or failed queued message), Ready (unread results),
 Working, Done, and Snoozed. Child threads stay under their parent, and a family
 takes its most urgent state. Opening an unread thread keeps it in place for five
 seconds; leaving sooner marks it unread again. Other values are `project`,
-`chronological` (Custom), and `machine`.
+`chronological` (Custom), and `machine`. Status section headers carry only a count; Organize and the
+Active/Archived filter live in Settings → Thread list as well as these prefs.
 
 ## Snoozes
 

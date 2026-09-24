@@ -4,6 +4,7 @@ import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { PreferencesSync } from "./app/preferences/PreferencesSync.js";
 import { ProjectList } from "./app/list/ProjectList.js";
 import { useSidebarThreadReveal } from "./app/list/useSidebarThreadReveal.js";
+import { ThreadListSettings } from "./app/settings/ThreadListSettings.js";
 import {
   isSnoozeAvailable,
   requestCustomSnooze,
@@ -35,6 +36,12 @@ export default definePluginApp((app) => {
     description:
       "Pinned threads, custom sections, projects, machines, and nested threads.",
     component: ThreadList,
+  });
+  app.slots.settingsSection({
+    id: "layout",
+    title: "Sidebar",
+    description: "How the sidebar thread list is organized and filtered.",
+    component: ThreadListSettings,
   });
   app.commands.register({
     id: "snooze-thread",

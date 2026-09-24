@@ -519,12 +519,7 @@ function ThreadRowComponent({
           aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
           className="absolute inset-0 rounded-md outline-none"
         />
-        <span
-          className={cn(
-            "pointer-events-none relative flex min-w-0 items-center self-stretch",
-            (!parentOptions || !hasChildren || isEditing) && "flex-1",
-          )}
-        >
+        <span className="pointer-events-none relative flex min-w-0 flex-1 items-center self-stretch">
           {isEditing ? (
             <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
               {editor}
@@ -588,7 +583,7 @@ function ThreadRowComponent({
             <ThreadRestoreStatusAction thread={thread} />
           </span>
         ) : shortcut ? (
-          <AppCommandShortcutPill shortcut={shortcut} />
+          <AppCommandShortcutPill shortcut={shortcut} className="mr-2" />
         ) : (
           <span
             className={cn(

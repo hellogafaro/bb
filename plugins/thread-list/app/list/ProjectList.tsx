@@ -40,7 +40,6 @@ import {
   getErrorCode,
   getMutationErrorMessage,
 } from "../ui/mutation-errors.js";
-import { cn } from "@bb/shared-ui/lib/utils";
 import { ThreadSectionCreateDialog } from "./ThreadSectionCreateDialog.js";
 import {
   ConfirmDeleteDialog,
@@ -1663,8 +1662,6 @@ function ProjectListComponent({
               collapsedSectionIds={collapsedSidebarSectionIds}
               collapsedThreadIds={collapsedThreadIds}
               collapsedEnvironmentIds={collapsedEnvironmentIds}
-              renderSectionActions={renderSectionDisplayOptions}
-              isSectionActionsOpen={isSectionDisplayOptionsOpen}
               onProjectSelect={onProjectSelect}
               onToggleCollapsed={toggleSidebarSectionCollapsed}
               onToggleThreadCollapsed={toggleThreadCollapsed}

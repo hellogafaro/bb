@@ -65,11 +65,6 @@ export interface StatusModeSectionsProps extends GroupedModePinnedProps {
   onToggleEnvironmentCollapsed: ToggleCollapsedId;
   onToggleThreadCollapsed: ToggleCollapsedId;
   pinnedSection: BuiltInSidebarSectionOptions;
-  renderSectionActions: (
-    sectionId: SidebarSectionId,
-    label: string,
-  ) => ReactNode;
-  isSectionActionsOpen: (sectionId: SidebarSectionId) => boolean;
   selectedThreadId?: string;
   showPinnedSection: boolean;
   status: "loading" | "ready" | "unavailable";
@@ -101,8 +96,6 @@ function StatusSection({
   collapsed,
   onToggle,
   draftThreadIds,
-  renderSectionActions,
-  isSectionActionsOpen,
   tree,
 }: {
   id: StatusSectionId;
@@ -111,8 +104,6 @@ function StatusSection({
   collapsed: boolean;
   onToggle: () => void;
   draftThreadIds: ReadonlySet<string>;
-  renderSectionActions: StatusModeSectionsProps["renderSectionActions"];
-  isSectionActionsOpen: StatusModeSectionsProps["isSectionActionsOpen"];
   tree: (
     threads: readonly ThreadListEntry[],
     families: readonly StatusFamily[],
@@ -127,14 +118,11 @@ function StatusSection({
     <TopLevelSidebarSection
       label={label}
       sectionId={sectionKey}
-      status={
-        <span className="px-1 text-meta tabular-nums text-subtle-foreground">
+      labelAccessory={
+        <span className="shrink-0 tabular-nums opacity-70">
           {families.length}
         </span>
       }
-      actions={renderSectionActions(sectionKey, label)}
-      actionsOpen={isSectionActionsOpen(sectionKey)}
-      actionsMobileAlways
       collapsedActivity={getCollapsedChildActivity(threads, draftThreadIds)}
       collapsedThreads={threads}
       collapseControl={{ isCollapsed: collapsed, onToggleCollapsed: onToggle }}
@@ -150,7 +138,6 @@ export function StatusModeSections({
   collapsedThreadIds,
   draftThreadIds,
   effectivePinnedThreadIds,
-  isSectionActionsOpen,
   onProjectSelect,
   onReorderPinnedThread,
   onToggleCollapsed,
@@ -160,7 +147,6 @@ export function StatusModeSections({
   pinnedRootNodes,
   pinnedSection,
   pinnedThreads,
-  renderSectionActions,
   selectedThreadId,
   showPinnedSection,
   status,
@@ -335,7 +321,11 @@ export function StatusModeSections({
               return renderBuiltInSidebarSection({
                 sectionId,
                 sections: {
-                  pinned: pinnedSection,
+                  pinned: {
+                    ...pinnedSection,
+                    actions: undefined,
+                    actionsOpen: false,
+                  },
                   threads: { label: "Threads", content: null },
                 },
                 disabled: true,
@@ -358,8 +348,6 @@ export function StatusModeSections({
                 collapsed={collapsedStatus.has(section.id)}
                 onToggle={() => toggleStatus(section.id)}
                 draftThreadIds={draftThreadIds}
-                renderSectionActions={renderSectionActions}
-                isSectionActionsOpen={isSectionActionsOpen}
                 tree={renderTree}
               />
             );

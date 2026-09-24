@@ -354,7 +354,9 @@ most urgent state. Snooze a quiet thread from its row's clock or menu, or with
 `bb thread-list snooze set <thread-id> <1h|3h|tomorrow|week|45m|2d|ISO date>`;
 `bb thread-list snooze list` and `bb thread-list snooze clear <thread-id>`
 inspect and wake it. A snooze ends at its time or when the thread gets new
-activity, and working or asking threads cannot be snoozed.
+activity, and working or asking threads cannot be snoozed. By status section
+headers show only their count, with no actions; change Organize and the
+Active/Archived filter in Settings → Thread list or with `bb thread-list prefs`.
 The separate `sidebar.threadGrouping.environment` preference
 decides whether sibling threads sharing one worktree collapse into a single row.
 It defaults to `auto`, which groups them

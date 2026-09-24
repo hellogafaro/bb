@@ -969,7 +969,7 @@ describe("ThreadRow", () => {
         titleContainer?.classList.contains("max-md:pointer-coarse:pr-0"),
       ).toBe(true);
       expect(navigationTarget?.classList.contains("col-start-1")).toBe(true);
-      expect(titleWrapper?.classList.contains("flex-1")).toBe(false);
+      expect(titleWrapper?.classList.contains("flex-1")).toBe(true);
       fireEvent.click(toggle);
       expect(onToggleCollapsed).toHaveBeenCalledWith("thr_test");
     },

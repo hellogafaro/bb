@@ -15,11 +15,11 @@ export function ThreadRowSkeleton({
     >
       <Skeleton
         className={cn(
-          "h-2.5 rounded-sm bg-sidebar-border/60",
+          "h-2.5 animate-none rounded-sm bg-sidebar-border/60",
           titleWidthClassName,
         )}
       />
-      <Skeleton className="h-1.5 w-16 rounded-sm bg-sidebar-border/40" />
+      <Skeleton className="h-1.5 w-16 animate-none rounded-sm bg-sidebar-border/40" />
     </div>
   );
 }
@@ -43,7 +43,7 @@ export function ThreadListSectionSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div>
       <div className="flex h-6 items-center pl-2">
-        <Skeleton className="h-2 w-14 rounded-sm bg-sidebar-border/50" />
+        <Skeleton className="h-2 w-14 animate-none rounded-sm bg-sidebar-border/50" />
       </div>
       <div className="mt-1">
         <ThreadListSkeleton rows={rows} />

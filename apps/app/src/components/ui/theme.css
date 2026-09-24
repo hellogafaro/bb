@@ -978,6 +978,8 @@ body.sidebar-resizing [data-sidebar="panel"] {
   /* Sidebar titles fade out instead of truncating with an ellipsis. The fade
      ends where the row's hover actions begin, so the title never moves. */
   .bb-sidebar-thread-title {
+    flex: 1 1 0%;
+    min-width: 0;
     --bb-sidebar-thread-title-fade-end: max(
       0px,
       calc(100% - var(--bb-sidebar-thread-title-cover, 0px))

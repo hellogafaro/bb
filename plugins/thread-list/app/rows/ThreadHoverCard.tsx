@@ -193,7 +193,7 @@ function ThreadHoverCardBody({
             <span
               role="status"
               aria-label="Loading model"
-              className="inline-block h-3 w-20 shrink-0 animate-pulse rounded-sm bg-muted motion-reduce:animate-none"
+              className="inline-block h-3 w-20 shrink-0 rounded-sm bg-muted"
             />
           ) : details.model ? (
             <>

@@ -121,6 +121,19 @@ describe("status organization", () => {
     expect(screen.queryByText("Snoozed")).toBeNull();
   });
 
+  it("shows each count beside its label without header actions", async () => {
+    renderStatusList([thread("thr_done"), thread("thr_also_done")]);
+    await screen.findByRole("link", { name: "Open thr_done" });
+    const header = screen.getByRole("button", {
+      name: "Collapse Done section",
+    }).parentElement!;
+    expect(header.textContent).toBe("Done2");
+    expect(screen.queryByRole("button", { name: "Done actions" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "New thread in Done" }),
+    ).toBeNull();
+  });
+
   it("moves a snoozed thread into the collapsed Snoozed section", async () => {
     renderStatusList(
       [thread("thr_quiet"), thread("thr_done")],
