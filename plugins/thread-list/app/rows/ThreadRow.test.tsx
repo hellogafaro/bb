@@ -929,7 +929,7 @@ describe("ThreadRow", () => {
   });
 
   it.each([true, false])(
-    "reserves a stable action slot beside a parent disclosure (collapsed: %s)",
+    "reserves the action slot beside a parent disclosure only on hover (collapsed: %s)",
     (isCollapsed) => {
       const onToggleCollapsed = vi.fn();
       renderThreadRow({
@@ -961,13 +961,9 @@ describe("ThreadRow", () => {
         titleContainer?.classList.contains("bb-sidebar-hover-actions-inset"),
       ).toBe(false);
       expect(
-        titleContainer?.classList.contains(
-          "pr-(--bb-sidebar-row-actions-extra)",
-        ),
+        titleContainer?.classList.contains("bb-sidebar-thread-disclosure-row"),
       ).toBe(true);
-      expect(
-        titleContainer?.classList.contains("max-md:pointer-coarse:pr-0"),
-      ).toBe(true);
+      expect(titleContainer?.className).not.toMatch(/(?:^|\s)pr-/);
       expect(navigationTarget?.classList.contains("col-start-1")).toBe(true);
       expect(titleWrapper?.classList.contains("flex-1")).toBe(true);
       fireEvent.click(toggle);

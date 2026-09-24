@@ -1011,6 +1011,26 @@ body.sidebar-resizing [data-sidebar="panel"] {
         0px
       );
     }
+
+    .bb-sidebar-hover-actions-row:not(
+        :hover,
+        :has(:focus-visible),
+        :has([data-sidebar-hover-actions-open="true"])
+      )
+      .bb-sidebar-thread-disclosure-row
+      > .bb-sidebar-hover-actions {
+      position: absolute;
+      right: 0;
+    }
+
+    .bb-sidebar-hover-actions-row:is(
+        :hover,
+        :has(:focus-visible),
+        :has([data-sidebar-hover-actions-open="true"])
+      )
+      .bb-sidebar-thread-disclosure-row {
+      padding-right: var(--bb-sidebar-row-actions-extra);
+    }
   }
 
   .bb-thread-title .prompt-mention-pill {

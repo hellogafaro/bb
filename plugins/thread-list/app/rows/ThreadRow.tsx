@@ -481,8 +481,7 @@ function ThreadRowComponent({
       <span
         className={cn(
           "col-start-1 row-start-1 flex min-w-0 items-center gap-1.5 self-stretch",
-          reservesActionsBesideDisclosure &&
-            "pr-(--bb-sidebar-row-actions-extra) max-md:pointer-coarse:pr-0",
+          reservesActionsBesideDisclosure && "bb-sidebar-thread-disclosure-row",
         )}
         style={
           {
