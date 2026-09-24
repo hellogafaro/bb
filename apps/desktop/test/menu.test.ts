@@ -14,6 +14,7 @@ import {
   SET_SERVER_URL_MENU_LABEL,
   type InstallApplicationMenuArgs,
 } from "../src/menu.js";
+import { BUILTIN_SERVER_NAME } from "../src/server-target.js";
 
 function menuArgs(
   reloadWindow: InstallApplicationMenuArgs["reloadWindow"],
@@ -42,7 +43,7 @@ function menuArgs(
     zoomFocusedPage: () => {},
     selectServer: () => {},
     serverDaemonLogsMenuEnabled: false,
-    servers: [{ checked: true, id: "builtin", name: "This Mac" }],
+    servers: [{ checked: true, id: "builtin", name: BUILTIN_SERVER_NAME }],
     setServerUrl: () => {},
     addServer: () => {},
     ...overrides,
@@ -179,7 +180,7 @@ describe("application menu", () => {
       menuArgs(() => {}, {
         selectServer,
         servers: [
-          { checked: false, id: "builtin", name: "This Mac" },
+          { checked: false, id: "builtin", name: BUILTIN_SERVER_NAME },
           {
             checked: true,
             id: "custom:https://first.example",
@@ -275,7 +276,7 @@ describe("application menu", () => {
       menuArgs(() => {}, {
         connectServersSkipReason: "no-credential",
         servers: [
-          { checked: false, id: "builtin", name: "This Mac" },
+          { checked: false, id: "builtin", name: BUILTIN_SERVER_NAME },
           {
             checked: true,
             id: "custom",
@@ -288,7 +289,7 @@ describe("application menu", () => {
 
     expect(serverSubmenu.map((item) => item.label ?? `<${item.type}>`)).toEqual(
       [
-        "This Mac",
+        BUILTIN_SERVER_NAME,
         "old-host.tailnet.ts.net:38886",
         CONNECT_SERVERS_SKIPPED_MENU_LABELS["no-credential"],
         "<separator>",

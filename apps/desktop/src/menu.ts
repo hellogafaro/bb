@@ -7,6 +7,7 @@ import {
 import type { BbDesktopZoomCommand } from "@bb/desktop-contract";
 import type { ApplicationMenuAccelerators } from "./desktop-menu-shortcuts.js";
 import type { ConnectServerSyncSkipReason } from "./connect-server-sync.js";
+import { BUILTIN_SERVER_NAME } from "./server-target.js";
 
 const SERVER_DAEMON_LOGS_MENU_LABEL = "Server & Daemon Logs";
 const OPEN_NEW_TAB_MENU_LABEL = "New Tab";
@@ -33,7 +34,7 @@ export const CONNECT_SERVERS_SKIPPED_MENU_LABELS: Record<
   string
 > = {
   "no-credential": "No Connect servers — sign in to bb Connect",
-  "not-paired": "No Connect servers — Connect not paired on This Mac",
+  "not-paired": `No Connect servers — Connect not paired on ${BUILTIN_SERVER_NAME}`,
   "plugin-disabled": "No Connect servers — Connect plugin disabled",
   unauthorized: "No Connect servers — sign in to bb Connect again",
   unavailable: "No Connect servers — could not reach bb Connect",
@@ -85,8 +86,17 @@ function createServerDaemonLogsMenuItems(
   ];
 }
 
-function createServerMenuItems(
-  args: InstallApplicationMenuArgs,
+export type ServerMenuArgs = Pick<
+  InstallApplicationMenuArgs,
+  | "addServer"
+  | "connectServersSkipReason"
+  | "selectServer"
+  | "servers"
+  | "setServerUrl"
+>;
+
+export function createServerMenuItems(
+  args: ServerMenuArgs,
 ): MenuItemConstructorOptions[] {
   const serverItems: MenuItemConstructorOptions[] = args.servers.map(
     (server) => ({
