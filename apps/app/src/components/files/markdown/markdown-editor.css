@@ -1,0 +1,51 @@
+.bb-file-markdown {
+  --font-heading: inherit;
+}
+
+.bb-file-markdown .cn-editor,
+.bb-file-markdown .cn-editor > div:last-child {
+  height: 100%;
+  min-height: 0;
+}
+
+.bb-file-markdown .tiptap,
+.bb-file-markdown .ProseMirror {
+  min-height: 100%;
+  outline: none;
+  caret-color: var(--bb-file-sel-fg, var(--primary));
+}
+
+.bb-file-markdown .ProseMirror ::selection,
+.bb-file-markdown .ProseMirror *::selection {
+  background: var(
+    --bb-file-sel-bg,
+    color-mix(in oklab, var(--primary) 20%, transparent)
+  ) !important;
+  color: var(--bb-file-sel-fg, var(--primary)) !important;
+  -webkit-text-fill-color: var(--bb-file-sel-fg, var(--primary)) !important;
+}
+
+.bb-file-markdown .ProseMirror ::-moz-selection,
+.bb-file-markdown .ProseMirror *::-moz-selection {
+  background: var(
+    --bb-file-sel-bg,
+    color-mix(in oklab, var(--primary) 20%, transparent)
+  ) !important;
+  color: var(--bb-file-sel-fg, var(--primary)) !important;
+}
+
+.bb-file-markdown .cn-editor .tiptap .selectedCell::selection,
+.bb-file-markdown .cn-editor .tiptap .selectedCell *::selection {
+  background: var(
+    --bb-file-sel-bg,
+    color-mix(in oklab, var(--primary) 20%, transparent)
+  ) !important;
+  color: var(--bb-file-sel-fg, var(--primary)) !important;
+}
+
+.bb-file-markdown [data-raw-markdown-html] {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--muted-foreground);
+  white-space: pre-wrap;
+}
