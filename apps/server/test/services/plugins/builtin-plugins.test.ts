@@ -295,6 +295,7 @@ describe("builtin plugin reconciliation", () => {
       ["plugin-api-tester", "Beaker"],
       ["inline-vis", "AppWindow"],
       ["keep-awake", "Coffee"],
+      ["mcps", "Layers"],
       ["pdf-preview", "FileText"],
       ["environment-project-checkout", "Laptop"],
       ["environment-personal-workspace", "Folder"],
