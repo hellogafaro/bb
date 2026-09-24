@@ -230,7 +230,6 @@ function PluginThreadChatBody({
     const chrome = getEnvironmentSummaryChrome({
       display,
       providerLookup,
-      environmentName: environment.name,
       hasMultipleMachines,
       host: environmentHost,
       machineProviders,
