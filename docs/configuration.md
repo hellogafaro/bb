@@ -12,9 +12,8 @@ Use `bb-app config` for non-secret bb settings:
 
 ```bash
 npx bb-app config set BB_APP_URL https://<machine>.<tailnet>.ts.net
-npx bb-app config set BB_INFERENCE codex/gpt-5.6-luna
-npx bb-app config set BB_INFERENCE_FALLBACK codex/gpt-5.4-mini
-npx bb-app config set BB_TRANSCRIPTION codex/gpt-transcribe
+npx bb-app config set BB_INFERENCE openai/gpt-5.4-mini
+npx bb-app config set BB_TRANSCRIPTION mistralai/voxtral-mini-transcribe
 npx bb-app config list
 npx bb-app config unset BB_APP_URL
 npx bb-app config refresh
@@ -23,9 +22,9 @@ npx bb-app config refresh
 Use `bb-app env` for provider credentials and provider-specific environment:
 
 ```bash
-npx bb-app env set OPENAI_API_KEY <key>
+npx bb-app env set OPENROUTER_API_KEY <key>
 npx bb-app env list
-npx bb-app env unset OPENAI_API_KEY
+npx bb-app env unset OPENROUTER_API_KEY
 ```
 
 ## Repository worktree hooks
@@ -91,8 +90,8 @@ running, the new values apply on the next start. If you edit either file by
 hand, run `npx bb-app config refresh` to apply the files to a running server.
 
 The live reload applies config keys such as `BB_APP_URL`, `BB_INFERENCE`,
-`BB_INFERENCE_FALLBACK`, and `BB_TRANSCRIPTION`, plus env values explicitly
-consumed at runtime such as `OPENAI_API_KEY`. If one of those config keys is
+and `BB_TRANSCRIPTION`, plus env values explicitly
+consumed at runtime such as `OPENROUTER_API_KEY`. If one of those config keys is
 stored with `bb-app env` instead, it is startup-only; use `bb-app config` when
 you need a live change.
 
@@ -101,8 +100,7 @@ set of startup-only server or launcher env entries is:
 
 - `BB_APP_SURFACE`, `BB_APP_URL`, `BB_DATA_DIR`, `BB_DEV_APP_PORT`, and
   `BB_EXTERNAL_URL`
-- `BB_HOST_DAEMON_PORT`, `BB_INFERENCE`,
-  `BB_INFERENCE_FALLBACK`, and `BB_INHERITED_SKILLS_ROOTS`
+- `BB_HOST_DAEMON_PORT`, `BB_INFERENCE`, and `BB_INHERITED_SKILLS_ROOTS`
 - `BB_LOG_LEVEL`, `BB_MANAGED_DEV_BUILTIN_PLUGIN_HOT_RELOAD`,
   `BB_MARKETPLACE_URL`, `BB_POSTHOG_API_KEY`, and `BB_TELEMETRY`
 - `BB_SERVER_BIND_HOST`, `BB_SERVER_PORT`, `BB_TRANSCRIPTION`, and all
@@ -142,9 +140,8 @@ signal it, so a stale file left by a crash cannot stop an unrelated process.
 | Key                            | Command                                            | When to set             | Used for                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------------ | -------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BB_APP_URL`                   | `bb-app config`                                    | Optional for remote use | Human-facing app URL used for generated links and allowed browser origins. Leave empty for local-only use.                                                                                                                                                                                                                                                                                                     |
-| `BB_INFERENCE`                 | `bb-app config`                                    | Optional                | Primary server-side helper model in `<service>/<model>` format, where `<service>` is an AI service a loaded plugin registers (`bb settings ai-services` lists them; `codex` comes with the codex plugin and uses the codex CLI's credentials with no reasoning) or a pi-ai provider the server calls directly with its API key. Defaults to `codex/gpt-5.6-luna`.                                              |
-| `BB_INFERENCE_FALLBACK`        | `bb-app config`                                    | Optional                | Helper model used after a transient primary timeout, rate limit, or service-unavailable failure. Defaults to `codex/gpt-5.4-mini`.                                                                                                                                                                                                                                                                             |
-| `BB_TRANSCRIPTION`             | `bb-app config`                                    | Optional                | Voice transcription model in `<service>/<model>` format: a plugin-registered AI service (`codex` with the codex plugin; audio up to 5MB) or `openai/<model>` with `OPENAI_API_KEY`. Defaults to `codex/gpt-transcribe`.                                                                                                                                                                                        |
+| `BB_INFERENCE`                 | `bb-app config`                                    | Optional                | OpenRouter model id for server-side helper inference (thread titles, commit messages), without a service prefix, for example `openai/gpt-5.4-mini`. Requires `OPENROUTER_API_KEY`. Defaults to `openai/gpt-5.4-mini`.                                                                                                                                                                                              |
+| `BB_TRANSCRIPTION`             | `bb-app config`                                    | Optional                | OpenRouter speech-to-text model id for voice transcription, without a service prefix, for example `mistralai/voxtral-mini-transcribe` or `openai/gpt-4o-mini-transcribe` (the Models page lists them under the transcription output modality). Requires `OPENROUTER_API_KEY`; audio up to 25MB. Defaults to `mistralai/voxtral-mini-transcribe`.                                                            |
 | `BB_MARKETPLACE_URL`           | `bb-app env`, or environment                       | Startup-only testing    | Manifest URL of the reserved `bb-community` plugin marketplace. It defaults to `https://getbb.app/marketplace/v2/marketplace.json`. If the default v2 request returns 404, the server requests v1. Set another URL to test catalog refreshes. The server requests that URL without fallback. It changes only `bb-community`. Add other marketplaces with `bb marketplace add`. Restart the app after a change. |
 | `BB_SERVER_URL`                | `bb-app config`                                    | Remote CLI/host use     | Server URL for standalone `bb` CLI and `host-daemon` commands on the current machine. The CLI defaults to `http://127.0.0.1:38886` when unset.                                                                                                                                                                                                                                                                 |
 | `BB_SERVER_BIND_HOST`          | `bb-app env`, environment, or `--server-bind-host` | Startup-only            | Server listener host. Defaults to `127.0.0.1`; accepts only `127.0.0.1` or `0.0.0.0`. A full launcher or desktop app restart is required; until then, a previous `0.0.0.0` listener remains exposed. This is not a `bb-app config` key.                                                                                                                                                                        |
@@ -153,7 +150,7 @@ signal it, so a stale file left by a crash cannot stop an unrelated process.
 | `BB_LOG_LEVEL`                 | `bb-app config`                                    | Startup-only debugging  | Log level: `trace`, `debug`, `info`, `warn`, `error`, or `fatal`. A full launcher or desktop app restart is required.                                                                                                                                                                                                                                                                                          |
 | `BB_ACCOUNT_POOL_PARENT_URL`   | Set automatically by a parent bb server            | Nested bb servers       | Account Pooler hub of the bb server whose thread launched this one. When present the Account Pooler plugin is enabled on first run and defaults to proxying to that parent; `bb pool parent isolate` opts out. Not a `bb-app config` key.                                                                                                                                                                      |
 | `BB_ACCOUNT_POOL_PARENT_TOKEN` | Set automatically by a parent bb server            | Nested bb servers       | Machine token this nested server presents to the parent Account Pooler hub. Paired with `BB_ACCOUNT_POOL_PARENT_URL`; both must be well formed or proxying stays off. Not a `bb-app config` key.                                                                                                                                                                                                               |
-| `OPENAI_API_KEY`               | `bb-app env`                                       | OpenAI opt-in routes    | Required only when selecting explicit OpenAI provider routes such as `openai/gpt-4o-mini` or `openai/gpt-transcribe`.                                                                                                                                                                                                                                                                                          |
+| `OPENROUTER_API_KEY`           | `bb-app env`                                       | Helper inference, voice | OpenRouter API key. Required for helper inference (`BB_INFERENCE`) and voice transcription (`BB_TRANSCRIPTION`); bb calls no other inference provider itself. Voice input is hidden in the app while it is unset.                                                                                                                                                                                              |
 
 The `bb` CLI records each failed invocation on the machine that ran it, in
 `<data dir>/logs/cli-errors.jsonl`: the time, CLI version, command path, error
@@ -167,13 +164,18 @@ By default, helper inference and voice transcription use Codex credentials from
 the host daemon. Run `codex login` on the host for the default path. Set
 provider env keys only when opting into a non-Codex provider route.
 
-With a ChatGPT subscription login, `codex/` voice transcription posts to a
-`chatgpt.com` endpoint that sits behind Cloudflare bot protection. On some
-networks Cloudflare challenges that request; bb retries, then reports
-"Voice transcription is temporarily unavailable" and logs the Cloudflare
-challenge on the server. If that happens often, route transcription through an
-API key instead: `codex login --with-api-key`, or set `BB_TRANSCRIPTION` to
-`openai/gpt-transcribe` with `OPENAI_API_KEY`.
+Voice transcription always goes through OpenRouter's
+`/api/v1/audio/transcriptions` endpoint with `OPENROUTER_API_KEY`; it does not
+use any agent provider's credentials. The server keeps its OpenRouter
+connections alive and the app warms one when recording starts
+(`POST /system/voice-transcription/warmup`, `sdk.system.warmVoiceTranscription()`),
+so the upload after you stop talking reuses an open socket. A request that has not answered after
+1.5 seconds is hedged with a second identical request and the first answer
+wins; a fast rate-limit or provider failure retries once; both attempts time
+out at 20 seconds, after which bb reports "Voice transcription is temporarily
+unavailable" or "Voice transcription timed out". Pick another model with
+`bb-app config set BB_TRANSCRIPTION <model>` if a provider stays slow; `usage`
+cost and seconds are logged at debug level per request.
 
 The microphone picker in Settings → Voice Input is client-local. It stores the
 selected browser `MediaDevices` device id in localStorage as

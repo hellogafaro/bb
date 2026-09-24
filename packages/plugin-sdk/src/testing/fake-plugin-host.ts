@@ -13,9 +13,7 @@ import { Hono } from "hono";
 import { deepFreezePluginMetadata, validatePluginMetadata } from "@bb/domain";
 import {
   adoptHttpRouteResponse,
-  aiServiceAlreadyRegisteredMessage,
   pluginHookAlreadyRegisteredMessage,
-  assertAiServiceRegistrable,
   coerceStoredPluginSettingValue,
   enforcePluginCliOutputLimit,
   isStandardSchema,
@@ -44,7 +42,6 @@ import {
   runPluginStorageMigrations,
   undeclaredIconProblem,
   validateBackgroundServiceRegistration,
-  validatePluginAiServiceDeclaration,
   validatePluginProviderDeclaration,
   validatePluginProviderEnvEntries,
   validateProviderEnvContribution,
@@ -86,8 +83,6 @@ import type {
   PluginMentionProviderRegistration,
   PluginMentionSearchContext,
   PluginMentionTrigger,
-  PluginAiServiceDeclaration,
-  PluginAiServices,
   PluginProviderDeclaration,
   ExperimentalPluginProviderEnvContext,
   ExperimentalPluginProviderEnvEntry,
@@ -316,9 +311,6 @@ export interface FakePluginRegistrations {
       | null
       | Promise<ExperimentalPluginProviderEnvHealth | null>
   >;
-  /** Live AI-service registrations from `experimental_aiServices.register`
-   * (normalized declarations, registration order; dispose removes). */
-  aiServiceRegistrations: PluginAiServiceDeclaration[];
 }
 
 /** Read-only state for assertions after a plugin registers or handles work. */
@@ -522,8 +514,7 @@ export interface CreateFakePluginHostOptions {
   /**
    * Whether the plugin's manifest declares a `bb.host` entry. Production
    * refuses `bb.providers.register` (the provider would have no bridge to
-   * run on) and `experimental_aiServices.register` (the service would have
-   * nothing to run on) without one; the fake applies the same rules.
+   * run on) without one; the fake applies the same rules.
    * Defaults to true.
    */
   experimental_hostEntry?: boolean;
@@ -969,37 +960,6 @@ function createFakePluginHostInternal(
     disposeHooks.push(dispose);
     return { dispose };
   }
-
-  const aiServiceRegistrations: PluginAiServiceDeclaration[] = [];
-  const experimental_aiServices: PluginAiServices = {
-    register(declaration) {
-      assertLive();
-      const normalized = validatePluginAiServiceDeclaration(declaration);
-      // The same refusals production makes at the register call. The fake
-      // host builds no artifact; the declared entry stands in for it.
-      assertAiServiceRegistrable({
-        id: normalized.id,
-        hostArtifact:
-          options.experimental_hostEntry === false ? null : "declared",
-        hostArtifactProblem: null,
-      });
-      if (
-        aiServiceRegistrations.some((existing) => existing.id === normalized.id)
-      ) {
-        throw new Error(aiServiceAlreadyRegisteredMessage(normalized.id));
-      }
-      aiServiceRegistrations.push(normalized);
-      let disposed = false;
-      const dispose = (): void => {
-        if (disposed) return;
-        disposed = true;
-        const index = aiServiceRegistrations.indexOf(normalized);
-        if (index !== -1) aiServiceRegistrations.splice(index, 1);
-      };
-      disposeHooks.push(dispose);
-      return { dispose };
-    },
-  };
 
   const agents: PluginAgents = {
     configure(provider) {
@@ -1511,7 +1471,6 @@ function createFakePluginHostInternal(
     status,
     server,
     hosts,
-    experimental_aiServices,
     get sdk() {
       assertLive();
       return sdk;
@@ -1643,7 +1602,6 @@ function createFakePluginHostInternal(
       providerRegistrations,
       providerEnvResolvers,
       providerEnvHealthResolvers,
-      aiServiceRegistrations,
     },
     get pendingInteractions() {
       return [...pendingInteractions].map(([id, pending]) => ({

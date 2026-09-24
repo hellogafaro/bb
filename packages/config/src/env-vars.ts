@@ -11,10 +11,9 @@ import {
   type AppSurface,
 } from "./app-surface.js";
 import {
-  validateInferenceFallbackModel,
   validateInferenceModel,
   validateTranscriptionModel,
-} from "./inference-model.js";
+} from "./openrouter-model.js";
 import { validateLogLevel } from "./log-level.js";
 import { validateOptionalUrl, validateRequiredUrl } from "./public-url.js";
 import { BB_LOOPBACK_HOST, parsePortValue } from "./runtime.js";
@@ -132,10 +131,6 @@ function parseInferenceModelValue(args: EnvVarParseArgs): string {
   return validateInferenceModel(args.value);
 }
 
-function parseInferenceFallbackModelValue(args: EnvVarParseArgs): string {
-  return validateInferenceFallbackModel(args.value);
-}
-
 function parseTranscriptionModelValue(args: EnvVarParseArgs): string {
   return validateTranscriptionModel(args.value);
 }
@@ -213,28 +208,23 @@ export const BB_MARKETPLACE_URL_ENV = defineEnvVar<string>({
 });
 
 export const BB_INFERENCE_ENV = defineEnvVar<string>({
-  description: "Inference model used for server-side completions",
+  description:
+    "OpenRouter model id used for server-side helper inference such as thread titles and commit messages",
   name: "BB_INFERENCE",
   parse: parseInferenceModelValue,
 });
 
-export const BB_INFERENCE_FALLBACK_ENV = defineEnvVar<string>({
-  description:
-    "Fallback inference model used after a transient server-side completion failure",
-  name: "BB_INFERENCE_FALLBACK",
-  parse: parseInferenceFallbackModelValue,
-});
-
 export const BB_TRANSCRIPTION_ENV = defineEnvVar<string>({
-  description: "Speech-to-text model used for voice transcription",
+  description:
+    "OpenRouter speech-to-text model id used for voice transcription (no service prefix)",
   name: "BB_TRANSCRIPTION",
   parse: parseTranscriptionModelValue,
 });
 
-export const OPENAI_API_KEY_ENV = defineEnvVar<string>({
+export const OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
   description:
-    "OpenAI API key used when an explicit OpenAI provider route is configured",
-  name: "OPENAI_API_KEY",
+    "OpenRouter API key used for voice transcription and openrouter/* helper inference",
+  name: "OPENROUTER_API_KEY",
   parse: parseStringEnvValue,
 });
 
@@ -356,7 +346,7 @@ export const DEFAULT_BB_APP_SURFACE = APP_SURFACE_WEB;
 export const DEFAULT_BB_APP_URL = "";
 export const DEFAULT_BB_SERVER_BIND_HOST: ServerBindHost = BB_LOOPBACK_HOST;
 export const DEFAULT_BB_EXTERNAL_URL = "";
-export const DEFAULT_OPENAI_API_KEY = "";
+export const DEFAULT_OPENROUTER_API_KEY = "";
 export const DEFAULT_BB_POSTHOG_API_KEY =
   "phc_tejoYoNLV6vG8QAd5eYXXvcsENFYnP4brpZDGqG7zvpy";
 export const DEFAULT_BB_TELEMETRY = true;
@@ -364,7 +354,6 @@ export const DEFAULT_BB_DEV_APP_HOST = "";
 export const DEFAULT_BB_MARKETPLACE_URL =
   "https://getbb.app/marketplace/v2/marketplace.json";
 export const DEFAULT_BB_INFERENCE = DEFAULTS.inferenceModel;
-export const DEFAULT_BB_INFERENCE_FALLBACK = DEFAULTS.inferenceFallbackModel;
 export const DEFAULT_BB_TRANSCRIPTION = DEFAULTS.transcriptionModel;
 export const DEFAULT_BB_FF_PLACEHOLDER = defaultFeatureFlags.placeholder;
 export const DEFAULT_BB_FF_TIMELINE_WINDOW_EVENT_BUDGET =

@@ -346,7 +346,6 @@ export class PendingInteractionLifecycle {
       machineAuth: args.machineAuth,
       providerRegistry: args.providerRegistry,
       pluginHostArtifacts: args.pluginHostArtifacts,
-      aiServices: args.aiServices,
       skillTreeRegistry: args.skillTreeRegistry,
       telemetry: args.telemetry,
       terminalSessions: args.terminalSessions,

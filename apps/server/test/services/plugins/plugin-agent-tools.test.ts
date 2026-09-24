@@ -7,7 +7,6 @@ import { createConnection, migrate, type DbConnection } from "@bb/db";
 import { encodeClientTurnRequestIdNumber } from "@bb/domain";
 import type { Logger } from "@bb/logger";
 import { RESERVED_AGENT_TOOL_NAMES } from "@get-bb/plugin-sdk/internal/host-policy";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import {
   createPluginService,
   type PluginService,
@@ -70,7 +69,6 @@ describe("bb.agents.registerTool", () => {
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-tools-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -573,7 +571,6 @@ describe("bb.agents.experimental_registerProvider (removed in SDK 0.4.16)", () =
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-old-provider-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -652,7 +649,6 @@ describe("bb.agents.contributeInstructions", () => {
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-instr-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {

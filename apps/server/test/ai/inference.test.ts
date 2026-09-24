@@ -1,11 +1,17 @@
 import { Type } from "@earendil-works/pi-ai";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   InferenceTimeoutError,
   inferenceComplete,
+  inferenceCompleteWithRetry,
 } from "../../src/services/ai/inference.js";
-import { registerFakeAiService } from "../helpers/ai-services.js";
-import { seedHostSession, seedPrimaryHost } from "../helpers/seed.js";
+import {
+  httpErrorReply,
+  hangReply,
+  noToolCallReply,
+  stubOpenRouterChat,
+  toolCallReply,
+} from "../helpers/openrouter.js";
 import { withTestHarness } from "../helpers/test-app.js";
 
 const titleSchema = Type.Object({
@@ -13,91 +19,16 @@ const titleSchema = Type.Object({
 });
 
 describe("inferenceComplete", () => {
-  it("surfaces missing host for a plugin-served service", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        registerFakeAiService(harness.deps.aiServices);
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).rejects.toMatchObject({
-          body: {
-            code: "host_unavailable",
-          },
-          status: 502,
-        });
-      },
-    );
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
-  it("refuses a configured service no plugin registers", async () => {
+  it("posts a forced result tool call to OpenRouter and validates the arguments", async () => {
+    const stub = stubOpenRouterChat(toolCallReply({ title: "Generated title" }));
     await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
+      { inferenceModel: "openai/gpt-5.4-mini" },
       async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).resolves.toBeNull();
-      },
-    );
-  });
-
-  it("routes a server-direct provider id past a registered service of the same id", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "openai/no-such-model",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        const fake = registerFakeAiService(harness.deps.aiServices, {
-          id: "openai",
-          completeInference: () => ({
-            ok: true,
-            model: "x",
-            value: { title: "captured" },
-          }),
-        });
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).resolves.toBeNull();
-        expect(fake.inferenceCalls).toHaveLength(0);
-      },
-    );
-  });
-
-  it("routes inference to the registered service and validates structured output", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        const fake = registerFakeAiService(harness.deps.aiServices, {
-          completeInference: (input) => ({
-            ok: true,
-            model: input.model,
-            value: { title: "Generated title" },
-          }),
-        });
         await expect(
           inferenceComplete(harness.deps, {
             prompt: "Generate a title",
@@ -105,128 +36,138 @@ describe("inferenceComplete", () => {
             timeoutMs: 5000,
           }),
         ).resolves.toEqual({ title: "Generated title" });
-        expect(fake.inferenceCalls).toHaveLength(1);
-        expect(fake.inferenceCalls[0]?.input).toMatchObject({
-          serviceId: "codex",
-          model: "gpt-5.6-luna",
-          reasoningEffort: "none",
-          prompt: "Generate a title",
-          timeoutMs: 5000,
+        expect(stub.requests).toHaveLength(1);
+        const request = stub.requests[0];
+        expect(request?.url).toBe(
+          "https://openrouter.ai/api/v1/chat/completions",
+        );
+        expect(request?.init?.headers).toMatchObject({
+          authorization: "Bearer test-openrouter-key",
+          "content-type": "application/json",
         });
-        expect(fake.inferenceCalls[0]?.options).toMatchObject({
-          hostId: host.id,
-          timeoutMs: 6000,
+        expect(request?.body).toMatchObject({
+          model: "openai/gpt-5.4-mini",
+          messages: [{ role: "user", content: "Generate a title" }],
+          tool_choice: { type: "function", function: { name: "result" } },
+          reasoning: { effort: "low" },
+          provider: { sort: "latency" },
         });
       },
     );
   });
 
-  it("routes an explicit fallback model instead of the configured primary", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        const fake = registerFakeAiService(harness.deps.aiServices, {
-          completeInference: (input) => ({
-            ok: true,
-            model: input.model,
-            value: { title: "Fallback title" },
-          }),
-        });
-        await expect(
-          inferenceComplete(harness.deps, {
-            model: "codex/gpt-5.4-mini",
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).resolves.toEqual({ title: "Fallback title" });
-        expect(fake.inferenceCalls[0]?.input.model).toBe("gpt-5.4-mini");
-      },
-    );
+  it("reports not_configured without an OpenRouter key", async () => {
+    const stub = stubOpenRouterChat(toolCallReply({ title: "unused" }));
+    await withTestHarness({ openRouterApiKey: "" }, async (harness) => {
+      await expect(
+        inferenceComplete(harness.deps, {
+          prompt: "Generate a title",
+          schema: titleSchema,
+        }),
+      ).rejects.toMatchObject({ status: 501, body: { code: "not_configured" } });
+      expect(stub.requests).toHaveLength(0);
+    });
+  });
+
+  it("returns null when the model answers without the result tool call", async () => {
+    stubOpenRouterChat(noToolCallReply());
+    await withTestHarness(async (harness) => {
+      await expect(
+        inferenceComplete(harness.deps, {
+          prompt: "Generate a title",
+          schema: titleSchema,
+        }),
+      ).resolves.toBeNull();
+    });
   });
 
   it("rejects a structured result that does not satisfy the schema", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        registerFakeAiService(harness.deps.aiServices, {
-          completeInference: (input) => ({
-            ok: true,
-            model: input.model,
-            value: { headline: "not a title" },
-          }),
-        });
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).rejects.toThrow();
-      },
-    );
+    stubOpenRouterChat(toolCallReply({ wrong: "shape" }));
+    await withTestHarness(async (harness) => {
+      await expect(
+        inferenceComplete(harness.deps, {
+          prompt: "Generate a title",
+          schema: titleSchema,
+        }),
+      ).rejects.toThrow();
+    });
   });
 
-  it("converts a service timeout into an inference timeout", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        registerFakeAiService(harness.deps.aiServices, {
-          completeInference: () => ({
-            ok: false,
-            code: "timeout",
-            message: "Codex request timed out after 5000ms",
-          }),
-        });
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).rejects.toBeInstanceOf(InferenceTimeoutError);
-      },
-    );
+  it("converts a request timeout into an inference timeout", async () => {
+    stubOpenRouterChat(hangReply());
+    vi.useFakeTimers();
+    await withTestHarness(async (harness) => {
+      const pending = inferenceComplete(harness.deps, {
+        prompt: "Generate a title",
+        schema: titleSchema,
+        timeoutMs: 1_000,
+      }).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(pending).resolves.toBeInstanceOf(InferenceTimeoutError);
+    });
   });
 
-  it("surfaces a service auth failure as a non-retryable error", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        const { host } = seedHostSession(harness.deps);
-        seedPrimaryHost(harness.deps, host.id);
-        registerFakeAiService(harness.deps.aiServices, {
-          completeInference: () => ({
-            ok: false,
-            code: "auth_required",
-            message: "Codex auth file not found",
-          }),
-        });
-        await expect(
-          inferenceComplete(harness.deps, {
-            prompt: "Generate a title",
-            schema: titleSchema,
-            timeoutMs: 5000,
-          }),
-        ).rejects.toMatchObject({
-          body: { code: "ai_service_auth_required", retryable: false },
-          status: 502,
-        });
-      },
-    );
+  it("surfaces an auth failure as a non-retryable error", async () => {
+    stubOpenRouterChat(httpErrorReply(401, "Invalid API key"));
+    await withTestHarness(async (harness) => {
+      await expect(
+        inferenceComplete(harness.deps, {
+          prompt: "Generate a title",
+          schema: titleSchema,
+        }),
+      ).rejects.toMatchObject({
+        status: 502,
+        body: {
+          code: "openrouter_auth_required",
+          message: "Invalid API key",
+          retryable: false,
+        },
+      });
+    });
+  });
+});
+
+describe("inferenceCompleteWithRetry", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("retries once on a transient provider failure", async () => {
+    const stub = stubOpenRouterChat();
+    stub.reply
+      .mockReturnValueOnce(httpErrorReply(503, "overloaded"))
+      .mockReturnValueOnce(toolCallReply({ title: "Second try" }));
+    await withTestHarness(async (harness) => {
+      await expect(
+        inferenceCompleteWithRetry(harness.deps, {
+          label: "Test inference",
+          maxAttempts: 2,
+          prompt: "Generate a title",
+          retryDelayMs: 0,
+          schema: titleSchema,
+          timeoutMs: 5000,
+        }),
+      ).resolves.toEqual({ title: "Second try" });
+      expect(stub.requests).toHaveLength(2);
+    });
+  });
+
+  it("does not retry a request the provider rejected", async () => {
+    const stub = stubOpenRouterChat(httpErrorReply(400, "bad model"));
+    await withTestHarness(async (harness) => {
+      await expect(
+        inferenceCompleteWithRetry(harness.deps, {
+          label: "Test inference",
+          maxAttempts: 2,
+          prompt: "Generate a title",
+          retryDelayMs: 0,
+          schema: titleSchema,
+          timeoutMs: 5000,
+        }),
+      ).rejects.toMatchObject({
+        body: { code: "openrouter_request_failed", message: "bad model" },
+      });
+      expect(stub.requests).toHaveLength(1);
+    });
   });
 });

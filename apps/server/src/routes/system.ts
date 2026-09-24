@@ -54,6 +54,7 @@ import {
 import type { ServerAppDeps, ServerRuntimeConfig } from "../types.js";
 import type { PluginService } from "../services/plugins/plugin-service.js";
 import { ApiError } from "../errors.js";
+import { warmOpenRouterConnection } from "../services/ai/openrouter.js";
 import {
   resolveVoiceTranscriptionEnabled,
   transcribeVoiceInput,
@@ -228,14 +229,7 @@ export function registerSystemRoutes(
       voiceTranscriptionEnabled: resolveVoiceTranscriptionEnabled(deps),
       aiServices: {
         inference: deps.config.inferenceModel,
-        inferenceFallback: deps.config.inferenceFallbackModel,
         transcription: deps.config.transcriptionModel,
-        services: deps.aiServices.list().map((service) => ({
-          id: service.id,
-          displayName: service.displayName,
-          kinds: [...service.kinds],
-          pluginId: service.pluginId,
-        })),
       },
       dataDir: deps.config.dataDir,
     };
@@ -660,6 +654,10 @@ export function registerSystemRoutes(
     context.json(await resolveSystemExecutionOptions(deps, query)),
   );
 
+  post(routes.voiceTranscriptionWarmup, async (context) =>
+    context.json({ warmed: await warmOpenRouterConnection(deps) }),
+  );
+
   post(routes.voiceTranscription, async (context) => {
     const formData = await context.req.formData();
     const file = formData.get("file");
@@ -667,13 +665,7 @@ export function registerSystemRoutes(
       throw new ApiError(400, "invalid_request", "Audio file is required");
     }
     return context.json({
-      text: await transcribeVoiceInput(deps, {
-        file,
-        prompt:
-          typeof formData.get("prompt") === "string"
-            ? String(formData.get("prompt"))
-            : undefined,
-      }),
+      text: await transcribeVoiceInput(deps, { file }),
     });
   });
 

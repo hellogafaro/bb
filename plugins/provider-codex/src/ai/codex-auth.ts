@@ -7,7 +7,6 @@ import {
   type JsonObject,
 } from "@get-bb/plugin-sdk/provider-bridge";
 import { resolveCodexHome } from "../codex-home.js";
-import { AiServiceFailure } from "./failure.js";
 
 const CODEX_AUTH_FILE_NAME = "auth.json";
 const CHATGPT_AUTH_CLAIM_PATH = "https://api.openai.com/auth";
@@ -181,45 +180,4 @@ export async function readCodexAuthFile(): Promise<CodexAuthFile> {
     return { state: "malformed", authPath, error: toError(error) };
   }
   return { ...classifyAuthJson(value), authPath };
-}
-
-const UNUSABLE_AUTH_MESSAGES: Record<
-  CodexAuthUnusableReason,
-  (authPath: string) => string
-> = {
-  not_object: (authPath) =>
-    `Codex auth file at ${authPath} is not valid JSON. Run codex login on this host.`,
-  api_key: (authPath) =>
-    `Codex auth file at ${authPath} does not contain a usable API key. Run codex login on this host.`,
-  access_token: (authPath) =>
-    `Codex auth file at ${authPath} does not contain a usable access token. Run codex login on this host.`,
-  account_id: () =>
-    "Codex auth tokens do not include a ChatGPT account id. Run codex login on this host.",
-};
-
-export async function readCodexAuthCredentials(): Promise<CodexAuthCredentials> {
-  const auth = await readCodexAuthFile();
-  switch (auth.state) {
-    case "ok":
-      return auth.credentials;
-    case "missing":
-    case "unreadable":
-      throw new AiServiceFailure(
-        "auth_required",
-        "codex_auth_missing",
-        `Codex auth file not found at ${auth.authPath}. Run codex login on this host.`,
-      );
-    case "malformed":
-      throw new AiServiceFailure(
-        "auth_required",
-        "codex_auth_invalid",
-        UNUSABLE_AUTH_MESSAGES.not_object(auth.authPath),
-      );
-    case "unusable":
-      throw new AiServiceFailure(
-        "auth_required",
-        "codex_auth_invalid",
-        UNUSABLE_AUTH_MESSAGES[auth.reason](auth.authPath),
-      );
-  }
 }

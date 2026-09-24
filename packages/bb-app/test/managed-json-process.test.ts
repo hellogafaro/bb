@@ -217,7 +217,7 @@ describe("managed JSON CLI process transactions", options, () => {
           const keep =
             kind === "env"
               ? { KEEP: "preserved" }
-              : { BB_INFERENCE: "codex/synthetic" };
+              : { BB_INFERENCE: "openai/synthetic" };
           const path = seed(dir, kind, {
             ...extras,
             [kind]: { ...keep, ...(operation === "unset" ? { [a]: va } : {}) },

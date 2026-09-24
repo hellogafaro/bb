@@ -1,68 +1,27 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { SERVER_DIRECT_AI_SERVICE_IDS } from "@get-bb/plugin-sdk/internal/host-policy";
 import { jsonObjectSchema, type JsonObject, type JsonValue } from "@bb/domain";
-import {
-  parseProviderModelConfig,
-  type ProviderModelInfo,
-} from "@bb/config/inference-model";
 import { validateToolCall } from "@earendil-works/pi-ai";
 import type { Static, TSchema, Tool, ToolCall } from "@earendil-works/pi-ai";
-import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import type { AppDeps, LoggedWorkSessionDeps } from "../../types.js";
-import { ApiError } from "../../errors.js";
-import { requireConnectedPrimaryHostId } from "../hosts/primary-host.js";
+import type { LoggedWorkSessionDeps } from "../../types.js";
 import { runtimeErrorLogFields } from "../lib/error-log-fields.js";
 import {
-  AI_SERVICE_ERROR_CODES,
-  AiServiceCallError,
-  isTransientAiServiceError,
-} from "./ai-service-call.js";
-
-type BaseInferenceDeps = Pick<AppDeps, "config" | "logger">;
-
-type InferenceModels = ReturnType<typeof builtinModels>;
-
-let inferenceModelsInstance: InferenceModels | undefined;
-
-function getInferenceModels(): InferenceModels {
-  inferenceModelsInstance ??= builtinModels();
-  return inferenceModelsInstance;
-}
-
-export function isServerDirectAiServiceId(id: string): boolean {
-  return SERVER_DIRECT_AI_SERVICE_IDS.includes(id);
-}
-
-function getInferenceModel(
-  deps: BaseInferenceDeps,
-  modelInfo: ProviderModelInfo,
-): ReturnType<InferenceModels["getModel"]> | null {
-  const model = getInferenceModels().getModel(
-    modelInfo.provider,
-    modelInfo.modelId,
-  );
-  if (!model) {
-    deps.logger.warn(
-      { provider: modelInfo.provider },
-      "Unsupported inference provider",
-    );
-    return null;
-  }
-  return model;
-}
+  OpenRouterRequestError,
+  isTransientOpenRouterError,
+  jsonObjectFromValue,
+  jsonNumberProperty,
+  jsonStringProperty,
+  openRouterRequest,
+} from "./openrouter.js";
 
 const RESULT_TOOL_NAME = "result";
 const DEFAULT_INFERENCE_TIMEOUT_MS = 30_000;
 
 export const INFERENCE_POLICY = {
-  hostRpcGraceMs: 1_000,
   commitMessage: { maxAttempts: 2, retryDelayMs: 0, timeoutMs: 5_000 },
   threadMetadata: { maxAttempts: 2, retryDelayMs: 250, timeoutMs: 5_000 },
-  voiceTranscription: { maxAttempts: 2, retryDelayMs: 250, timeoutMs: 10_000 },
 } as const;
 
 interface InferenceCompleteArgs<T extends TSchema> {
-  model?: string;
   prompt: string;
   schema: T;
   timeoutMs?: number;
@@ -102,7 +61,7 @@ function validateStructuredResult<T extends TSchema>(
   ];
   const toolCall: ToolCall = {
     type: "toolCall",
-    id: "codex_result",
+    id: "openrouter_result",
     name: RESULT_TOOL_NAME,
     arguments: toToolCallArguments(value),
   };
@@ -112,48 +71,42 @@ function validateStructuredResult<T extends TSchema>(
 
 function isTransientInferenceError(error: Error): boolean {
   return (
-    error instanceof InferenceTimeoutError || isTransientAiServiceError(error)
+    error instanceof InferenceTimeoutError || isTransientOpenRouterError(error)
   );
 }
 
-interface InferenceCompleteWithFallbackArgs<T extends TSchema> {
-  complete?: (
-    model: string,
-    prompt: string,
-    timeoutMs: number,
-  ) => Promise<Static<T> | null>;
-  fallbackModel?: string;
+interface InferenceCompleteWithRetryArgs<T extends TSchema> {
   label: string;
   logContext?: JsonObject;
   maxAttempts: number;
-  primaryModel?: string;
   prompt: string;
   retryDelayMs: number;
   schema: T;
   timeoutMs: number;
 }
 
-export async function inferenceCompleteWithFallback<T extends TSchema>(
+export async function inferenceCompleteWithRetry<T extends TSchema>(
   deps: LoggedWorkSessionDeps,
-  args: InferenceCompleteWithFallbackArgs<T>,
+  args: InferenceCompleteWithRetryArgs<T>,
 ): Promise<Static<T> | null> {
   const startedAt = Date.now();
   const maxAttempts = Math.max(1, args.maxAttempts);
-  const primaryModel = args.primaryModel ?? deps.config.inferenceModel;
-  const fallbackModel =
-    args.fallbackModel ?? deps.config.inferenceFallbackModel;
+  const model = deps.config.inferenceModel;
+  if (deps.config.openRouterApiKey.length === 0) {
+    deps.logger.info(
+      { model, reason: "not-configured", ...args.logContext },
+      `${args.label} skipped: OPENROUTER_API_KEY is not set`,
+    );
+    return null;
+  }
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const model = attempt === 1 ? primaryModel : fallbackModel;
     try {
-      const value = args.complete
-        ? await args.complete(model, args.prompt, args.timeoutMs)
-        : await inferenceComplete(deps, {
-            model,
-            prompt: args.prompt,
-            schema: args.schema,
-            timeoutMs: args.timeoutMs,
-          });
+      const value = await inferenceComplete(deps, {
+        prompt: args.prompt,
+        schema: args.schema,
+        timeoutMs: args.timeoutMs,
+      });
       if (attempt > 1) {
         deps.logger.info(
           {
@@ -165,7 +118,7 @@ export async function inferenceCompleteWithFallback<T extends TSchema>(
             timeoutMs: args.timeoutMs,
             ...args.logContext,
           },
-          `${args.label} completed with fallback model`,
+          `${args.label} completed after retry`,
         );
       }
       if (value === null) {
@@ -191,12 +144,7 @@ export async function inferenceCompleteWithFallback<T extends TSchema>(
           {
             attempt,
             errorCode:
-              err instanceof ApiError
-                ? err.body.code
-                : err instanceof AiServiceCallError
-                  ? AI_SERVICE_ERROR_CODES[err.code]
-                  : "timeout",
-            fallbackModel,
+              err instanceof OpenRouterRequestError ? err.body.code : "timeout",
             maxAttempts,
             model,
             reason: "transient-failure",
@@ -205,7 +153,7 @@ export async function inferenceCompleteWithFallback<T extends TSchema>(
               : {}),
             ...args.logContext,
           },
-          `${args.label} failed transiently; using fallback model`,
+          `${args.label} failed transiently; retrying`,
         );
         if (args.retryDelayMs > 0) {
           await delay(args.retryDelayMs);
@@ -238,118 +186,94 @@ export async function inferenceCompleteWithFallback<T extends TSchema>(
     }
   }
 
-  throw new Error("Inference fallback loop completed without an outcome");
+  throw new Error("Inference retry loop completed without an outcome");
 }
 
-async function completeWithAiService<T extends TSchema>(
-  deps: LoggedWorkSessionDeps,
-  modelInfo: ProviderModelInfo,
-  args: InferenceCompleteArgs<T>,
-): Promise<Static<T> | null> {
-  const service = deps.aiServices.get(modelInfo.provider);
-  if (service === null || !service.kinds.includes("inference")) {
-    throw new ApiError(
-      501,
-      "not_configured",
-      `No loaded plugin registers AI service "${modelInfo.provider}" for inference`,
+function toolCallArgumentsFromResponse(response: JsonObject): JsonValue | null {
+  const choices = response.choices;
+  const choice = Array.isArray(choices) ? choices[0] : null;
+  const message = jsonObjectFromValue(choice)?.message;
+  const toolCalls = jsonObjectFromValue(message)?.tool_calls;
+  const toolCall = Array.isArray(toolCalls)
+    ? toolCalls.find(
+        (candidate) =>
+          jsonStringProperty(
+            jsonObjectFromValue(candidate)?.function,
+            "name",
+          ) === RESULT_TOOL_NAME,
+      )
+    : undefined;
+  const rawArguments = jsonStringProperty(
+    jsonObjectFromValue(toolCall)?.function,
+    "arguments",
+  );
+  if (rawArguments === null) {
+    return null;
+  }
+  try {
+    return JSON.parse(rawArguments) as JsonValue;
+  } catch {
+    throw new OpenRouterRequestError(
+      "invalid_response",
+      "Inference result tool call carried invalid JSON arguments",
     );
   }
-  const hostId = requireConnectedPrimaryHostId(deps);
-  const timeoutMs = args.timeoutMs ?? DEFAULT_INFERENCE_TIMEOUT_MS;
-  const result = await service.completeInference(
-    {
-      serviceId: service.id,
-      model: modelInfo.modelId,
-      reasoningEffort: "none",
-      prompt: args.prompt,
-      outputSchema: jsonObjectSchema.parse(args.schema),
-      timeoutMs,
-    },
-    { hostId, timeoutMs: timeoutMs + INFERENCE_POLICY.hostRpcGraceMs },
-  );
-  if (!result.ok) {
-    if (result.code === "timeout") {
-      throw new InferenceTimeoutError({ timeoutMs });
-    }
-    throw new AiServiceCallError(service.id, result.code, result.message);
-  }
-  return validateStructuredResult(
-    args.schema,
-    jsonObjectSchema.parse(result.value),
-  );
 }
 
 export async function inferenceComplete<T extends TSchema>(
   deps: LoggedWorkSessionDeps,
   args: InferenceCompleteArgs<T>,
 ): Promise<Static<T> | null> {
-  const configuredModel = args.model ?? deps.config.inferenceModel;
-  const modelInfo = parseProviderModelConfig({
-    name:
-      args.model === undefined ? "BB_INFERENCE" : "inference model override",
-    value: configuredModel,
-  });
-  if (
-    !isServerDirectAiServiceId(modelInfo.provider) &&
-    deps.aiServices.get(modelInfo.provider) !== null
-  ) {
-    return completeWithAiService(deps, modelInfo, args);
-  }
-
-  const model = getInferenceModel(deps, modelInfo);
-  if (!model) {
-    return null;
-  }
-
-  const tools: Tool<T>[] = [
-    {
-      name: RESULT_TOOL_NAME,
-      description: "Return the result as structured JSON.",
-      parameters: args.schema,
-    },
-  ];
-
-  const timeoutMs = args.timeoutMs;
-  const abortController = timeoutMs ? new AbortController() : null;
-  const completionPromise = getInferenceModels().complete(
-    model,
-    {
-      messages: [
-        {
-          role: "user",
-          content: args.prompt,
-          timestamp: Date.now(),
+  const model = deps.config.inferenceModel;
+  const timeoutMs = args.timeoutMs ?? DEFAULT_INFERENCE_TIMEOUT_MS;
+  let response: JsonObject;
+  try {
+    response = await openRouterRequest(deps, {
+      label: "Inference",
+      path: "/chat/completions",
+      timeoutMs,
+      body: {
+        model,
+        messages: [{ role: "user", content: args.prompt }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: RESULT_TOOL_NAME,
+              description: "Return the result as structured JSON.",
+              parameters: jsonObjectSchema.parse(args.schema),
+            },
+          },
+        ],
+        tool_choice: {
+          type: "function",
+          function: { name: RESULT_TOOL_NAME },
         },
-      ],
-      tools,
-    },
-    abortController ? { signal: abortController.signal } : undefined,
-  );
-
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const response = timeoutMs
-    ? await Promise.race([
-        completionPromise,
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            reject(new InferenceTimeoutError({ timeoutMs }));
-            abortController?.abort();
-          }, timeoutMs);
-          timer.unref();
-        }),
-      ]).finally(() => {
-        if (timer) {
-          clearTimeout(timer);
-        }
-      })
-    : await completionPromise;
-
-  const toolCall = response.content.find(
-    (item) => item.type === "toolCall" && item.name === RESULT_TOOL_NAME,
-  );
-  if (!toolCall || toolCall.type !== "toolCall") {
-    return null;
+        reasoning: { effort: "low" },
+        provider: { sort: "latency" },
+        usage: { include: true },
+      },
+    });
+  } catch (error) {
+    if (error instanceof OpenRouterRequestError && error.code === "timeout") {
+      throw new InferenceTimeoutError({ timeoutMs });
+    }
+    throw error;
   }
 
-  return validateToolCall(tools, toolCall) as Static<T>;
+  const usage = jsonObjectFromValue(response.usage);
+  deps.logger.debug(
+    {
+      model: jsonStringProperty(response, "model") ?? model,
+      cost: jsonNumberProperty(usage, "cost"),
+      totalTokens: jsonNumberProperty(usage, "total_tokens"),
+    },
+    "Inference completed",
+  );
+
+  const value = toolCallArgumentsFromResponse(response);
+  if (value === null) {
+    return null;
+  }
+  return validateStructuredResult(args.schema, value);
 }

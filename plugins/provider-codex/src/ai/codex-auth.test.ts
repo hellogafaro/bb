@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { readCodexAuthCredentials } from "./codex-auth.js";
+import { readCodexAuthFile } from "./codex-auth.js";
 
 const tempDirs: string[] = [];
 
@@ -39,29 +39,27 @@ it("reads auth.json from CODEX_HOME when configured", async () => {
   vi.stubEnv("HOME", homeDir);
   vi.stubEnv("CODEX_HOME", configuredCodexHome);
 
-  await expect(readCodexAuthCredentials()).resolves.toEqual({
-    type: "apiKey",
-    apiKey: "configured-api-key",
+  await expect(readCodexAuthFile()).resolves.toMatchObject({
+    state: "ok",
+    credentials: { type: "apiKey", apiKey: "configured-api-key" },
   });
 });
 
-it("reports a missing auth.json as codex_auth_missing and an unparsable one as codex_auth_invalid", async () => {
+it("reports a missing auth.json as missing and an unparsable one as malformed", async () => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "bb-codex-home-"));
   tempDirs.push(homeDir);
   vi.stubEnv("HOME", homeDir);
   vi.stubEnv("CODEX_HOME", "");
 
-  await expect(readCodexAuthCredentials()).rejects.toMatchObject({
-    code: "auth_required",
-    detailCode: "codex_auth_missing",
+  await expect(readCodexAuthFile()).resolves.toMatchObject({
+    state: "missing",
   });
 
   const codexHome = path.join(homeDir, ".codex");
   await fs.mkdir(codexHome, { recursive: true });
   await fs.writeFile(path.join(codexHome, "auth.json"), "{not json");
-  await expect(readCodexAuthCredentials()).rejects.toMatchObject({
-    code: "auth_required",
-    detailCode: "codex_auth_invalid",
+  await expect(readCodexAuthFile()).resolves.toMatchObject({
+    state: "malformed",
   });
 });
 
@@ -90,12 +88,15 @@ it("reads ChatGPT credentials with the account id from the access token claims",
     }),
   );
 
-  await expect(readCodexAuthCredentials()).resolves.toEqual({
-    type: "chatgpt",
-    accessToken,
-    accountId: "account-123",
-    accountEmail: "codex@example.com",
-    expired: false,
-    isFedrampAccount: true,
+  await expect(readCodexAuthFile()).resolves.toMatchObject({
+    state: "ok",
+    credentials: {
+      type: "chatgpt",
+      accessToken,
+      accountId: "account-123",
+      accountEmail: "codex@example.com",
+      expired: false,
+      isFedrampAccount: true,
+    },
   });
 });

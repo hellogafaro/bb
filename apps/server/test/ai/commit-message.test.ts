@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerFakeAiService } from "../helpers/ai-services.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateCommitMessage } from "../../src/services/ai/commit-message.js";
-import { AiServiceCallError } from "../../src/services/ai/ai-service-call.js";
+import { OpenRouterRequestError } from "../../src/services/ai/openrouter.js";
 import { InferenceTimeoutError } from "../../src/services/ai/inference.js";
 import type { AppDeps, LoggedWorkSessionDeps } from "../../src/types.js";
 import {
@@ -14,12 +13,10 @@ import {
   seedHostSession,
   seedProjectWithSource,
 } from "../helpers/seed.js";
+import { installOpenRouterChatCompat } from "../helpers/openrouter.js";
 import { createTestAppHarness, withTestHarness } from "../helpers/test-app.js";
 
-const piAiMocks = vi.hoisted(() => ({
-  complete: vi.fn(),
-  getModel: vi.fn(),
-}));
+const openRouter = installOpenRouterChatCompat();
 
 interface TestCommitMessageDeps {
   cleanup: () => Promise<void>;
@@ -38,14 +35,6 @@ const commitMessageArgs = {
     "diff --git a/file.ts b/file.ts\n@@ -1 +1,2 @@\n export {}\n+export const changed = true;\n",
   shortstat: "1 file changed, 1 insertion(+)\n",
 };
-
-vi.mock("@earendil-works/pi-ai/providers/all", () => ({
-  builtinModels: () => ({
-    complete: piAiMocks.complete,
-    getModel: piAiMocks.getModel,
-    getProviders: () => [],
-  }),
-}));
 
 async function createCommitMessageDeps(): Promise<TestCommitMessageDeps> {
   const harness = await createTestAppHarness({
@@ -101,13 +90,15 @@ function mockNoResultCompletion() {
 
 describe("commit message generation", () => {
   beforeEach(() => {
-    piAiMocks.complete.mockReset();
-    piAiMocks.getModel.mockReset();
-    piAiMocks.getModel.mockReturnValue({ provider: "test" });
+    openRouter.complete.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("retries once when commit message inference times out", async () => {
-    piAiMocks.complete
+    openRouter.complete
       .mockRejectedValueOnce(new InferenceTimeoutError({ timeoutMs: 5_000 }))
       .mockResolvedValueOnce(
         mockCommitMessageCompletion({
@@ -115,49 +106,40 @@ describe("commit message generation", () => {
         }),
       );
     const { cleanup, deps, logger } = await createCommitMessageDeps();
+    vi.useFakeTimers();
     try {
-      const message = await generateCommitMessage(deps, commitMessageArgs);
+      const pending = generateCommitMessage(deps, commitMessageArgs);
+      await vi.advanceTimersByTimeAsync(5_000);
+      const message = await pending;
 
       expect(message).toBe("fix: recover commit message");
-      expect(piAiMocks.complete).toHaveBeenCalledTimes(2);
-      expect(piAiMocks.getModel).toHaveBeenNthCalledWith(
-        1,
-        "test",
-        "mock-model",
-      );
-      expect(piAiMocks.getModel).toHaveBeenNthCalledWith(
-        2,
-        "test",
-        "mock-fallback-model",
-      );
+      expect(openRouter.complete).toHaveBeenCalledTimes(2);
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({
           attempt: 1,
-          fallbackModel: "test/mock-fallback-model",
           maxAttempts: 2,
           reason: "transient-failure",
           timeoutMs: 5_000,
         }),
-        "Commit message inference failed transiently; using fallback model",
+        "Commit message inference failed transiently; retrying",
       );
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({
           attempts: 2,
-          model: "test/mock-fallback-model",
+          model: "test/mock-model",
           reason: "transient-failure",
         }),
-        "Commit message inference completed with fallback model",
+        "Commit message inference completed after retry",
       );
     } finally {
       await cleanup();
     }
   });
 
-  it("uses the fallback model after transient service unavailability", async () => {
-    piAiMocks.complete
+  it("retries after transient service unavailability", async () => {
+    openRouter.complete
       .mockRejectedValueOnce(
-        new AiServiceCallError(
-          "codex",
+        new OpenRouterRequestError(
           "service_unavailable",
           "Our servers are currently overloaded. Please try again later.",
         ),
@@ -172,17 +154,11 @@ describe("commit message generation", () => {
       await expect(
         generateCommitMessage(deps, commitMessageArgs),
       ).resolves.toBe("fix: recover with fallback model");
-      expect(piAiMocks.getModel).toHaveBeenNthCalledWith(
-        2,
-        "test",
-        "mock-fallback-model",
-      );
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          errorCode: "ai_service_unavailable",
-          fallbackModel: "test/mock-fallback-model",
+          errorCode: "openrouter_unavailable",
         }),
-        "Commit message inference failed transiently; using fallback model",
+        "Commit message inference failed transiently; retrying",
       );
     } finally {
       await cleanup();
@@ -190,15 +166,19 @@ describe("commit message generation", () => {
   });
 
   it("returns a timeout outcome after exhausting commit message retries", async () => {
-    piAiMocks.complete.mockRejectedValue(
+    openRouter.complete.mockRejectedValue(
       new InferenceTimeoutError({ timeoutMs: 5_000 }),
     );
     const { cleanup, deps, logger } = await createCommitMessageDeps();
+    vi.useFakeTimers();
     try {
-      const message = await generateCommitMessage(deps, commitMessageArgs);
+      const pending = generateCommitMessage(deps, commitMessageArgs);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(5_000);
+      const message = await pending;
 
       expect(message).toBeNull();
-      expect(piAiMocks.complete).toHaveBeenCalledTimes(2);
+      expect(openRouter.complete).toHaveBeenCalledTimes(2);
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({
           attempts: 2,
@@ -213,13 +193,13 @@ describe("commit message generation", () => {
   });
 
   it("returns no-result without retrying when inference completes without a result tool call", async () => {
-    piAiMocks.complete.mockResolvedValue(mockNoResultCompletion());
+    openRouter.complete.mockResolvedValue(mockNoResultCompletion());
     const { cleanup, deps, logger } = await createCommitMessageDeps();
     try {
       const message = await generateCommitMessage(deps, commitMessageArgs);
 
       expect(message).toBeNull();
-      expect(piAiMocks.complete).toHaveBeenCalledTimes(1);
+      expect(openRouter.complete).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           attempts: 1,
@@ -233,13 +213,13 @@ describe("commit message generation", () => {
   });
 
   it("does not retry non-timeout failures", async () => {
-    piAiMocks.complete.mockResolvedValue(mockInvalidCommitMessageCompletion());
+    openRouter.complete.mockResolvedValue(mockInvalidCommitMessageCompletion());
     const { cleanup, deps, logger } = await createCommitMessageDeps();
     try {
       const message = await generateCommitMessage(deps, commitMessageArgs);
 
       expect(message).toBeNull();
-      expect(piAiMocks.complete).toHaveBeenCalledTimes(1);
+      expect(openRouter.complete).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           attempts: 1,
@@ -253,44 +233,21 @@ describe("commit message generation", () => {
     }
   });
 
-  it("returns null for Codex inference setup failures", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        await expect(
-          generateCommitMessage(harness.deps, commitMessageArgs),
-        ).resolves.toBeNull();
-      },
+  it("returns null when OpenRouter rejects the request", async () => {
+    openRouter.complete.mockRejectedValue(
+      new OpenRouterRequestError("request_failed", "Unsupported model"),
     );
+    await withTestHarness(async (harness) => {
+      await expect(
+        generateCommitMessage(harness.deps, commitMessageArgs),
+      ).resolves.toBeNull();
+      expect(openRouter.complete).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it("returns null for a failed plugin-served inference", async () => {
-    await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
-      async (harness) => {
-        seedHostSession(harness.deps);
-        registerFakeAiService(harness.deps.aiServices, {
-          completeInference: () => ({
-            ok: false,
-            code: "request_failed",
-            message: "Codex request failed",
-          }),
-        });
-
-        await expect(
-          generateCommitMessage(harness.deps, commitMessageArgs),
-        ).resolves.toBeNull();
-      },
-    );
-  });
-
-  it("uses the route fallback message only after commit message timeout retries are exhausted", async () => {
-    piAiMocks.complete.mockRejectedValue(
-      new InferenceTimeoutError({ timeoutMs: 5_000 }),
+  it("uses the route fallback message only after commit message retries are exhausted", async () => {
+    openRouter.complete.mockRejectedValue(
+      new OpenRouterRequestError("service_unavailable", "overloaded"),
     );
     await withTestHarness(async (harness) => {
       const { host } = seedHostSession(harness.deps);
@@ -371,7 +328,7 @@ describe("commit message generation", () => {
       expect(commitCommand.command).toMatchObject({
         message: "bb: automated commit",
       });
-      expect(piAiMocks.complete).toHaveBeenCalledTimes(2);
+      expect(openRouter.complete).toHaveBeenCalledTimes(2);
       await reportQueuedCommandSuccess(harness, commitCommand, {
         commitSha: "abc123",
         commitSubject: "bb: automated commit",
@@ -387,11 +344,12 @@ describe("commit message generation", () => {
     });
   });
 
-  it("uses the route fallback message when Codex commit-message inference fails", async () => {
+  it("uses the route fallback message when commit-message inference fails", async () => {
+    openRouter.complete.mockRejectedValue(
+      new OpenRouterRequestError("request_failed", "Unsupported model"),
+    );
     await withTestHarness(
-      {
-        inferenceModel: "codex/gpt-5.6-luna",
-      },
+      {},
       async (harness) => {
         const { host } = seedHostSession(harness.deps);
         const { project } = seedProjectWithSource(harness.deps, {

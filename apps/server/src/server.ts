@@ -642,7 +642,6 @@ export function createApp(
     sharedPorts: deps.sharedPorts,
     providerRegistry: deps.providerRegistry,
     pluginHostArtifacts: deps.pluginHostArtifacts,
-    aiServices: deps.aiServices,
     ensureSharedPortTunnel: (hostId) =>
       deps.sharedPorts.ensureTunnelIdentity(hostId, () =>
         callHostRetryableOnlineRpcForWork(deps, {

@@ -21,7 +21,6 @@ import {
 } from "@bb/db";
 import { PLUGIN_SDK_MAJOR, PLUGIN_SDK_VERSION } from "@bb/domain";
 import type { Logger } from "@bb/logger";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import {
   createPluginService,
   dispatchPluginSourceWatchChange,
@@ -176,7 +175,6 @@ function createService(args: {
   watchBuiltinPluginSources?: boolean;
 }): PluginService {
   return createPluginService({
-    aiServices: createAiServiceRegistry(),
     telemetry: createNoopTelemetryService(),
     db: args.db,
     hub: {

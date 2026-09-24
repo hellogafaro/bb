@@ -19,7 +19,11 @@ vi.mock("@/lib/audio-input-device-preference", () => ({
 
 class Recorder {
   static isTypeSupported = () => true;
+  static lastOptions: MediaRecorderOptions | undefined;
   mimeType = "audio/webm";
+  constructor(_stream: MediaStream, options?: MediaRecorderOptions) {
+    Recorder.lastOptions = options;
+  }
   state = "inactive";
   onstart = () => {};
   ondataavailable = (_event: { data: Blob }) => {};
@@ -55,9 +59,48 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("keeps the transcription connection warm while recording", async () => {
+  const keepWarm = vi.fn();
+  const { result } = renderHook(() =>
+    useVoiceInput({
+      onTranscribe: vi.fn().mockResolvedValue("hello"),
+      onTranscript: vi.fn(),
+      onRecordingKeepWarm: keepWarm,
+    }),
+  );
+  await act(() => result.current.start());
+  expect(keepWarm).toHaveBeenCalledTimes(1);
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(20_000);
+  });
+  expect(keepWarm).toHaveBeenCalledTimes(2);
+
+  await act(async () => {
+    result.current.stop();
+    await vi.advanceTimersByTimeAsync(40_000);
+  });
+  expect(keepWarm).toHaveBeenCalledTimes(2);
+});
+
+it("records speech-grade audio at 32 kbps in the browser's preferred container", async () => {
+  const { result } = renderHook(() =>
+    useVoiceInput({
+      onTranscribe: vi.fn().mockResolvedValue("ok"),
+      onTranscript: vi.fn(),
+    }),
+  );
+  await act(() => result.current.start());
+
+  expect(Recorder.lastOptions).toEqual({
+    audioBitsPerSecond: 32_000,
+    mimeType: "audio/webm",
+  });
+});
+
 it.each([
   new Error("Upload failed"),
-  new Error("Audio file exceeds the 20MB limit"),
+  new Error("Audio file exceeds 25MB limit"),
 ])("keeps failed audio downloadable after unmount: %s", async (error) => {
   const transcribe = vi.fn().mockRejectedValue(error);
   const transcript = vi.fn();

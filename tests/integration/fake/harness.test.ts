@@ -36,7 +36,7 @@ describe("integration harness", () => {
     await withHarness(async (harness) => {
       await fs.writeFile(
         path.join(harness.server.config.dataDir, "env.json"),
-        `${JSON.stringify({ env: { OPENAI_API_KEY: "stored-openai-key" } })}\n`,
+        `${JSON.stringify({ env: { OPENROUTER_API_KEY: "stored-openrouter-key" } })}\n`,
         "utf8",
       );
 
@@ -44,7 +44,7 @@ describe("integration harness", () => {
 
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({ ok: true });
-      expect(harness.server.config.openAiApiKey).toBe("stored-openai-key");
+      expect(harness.server.config.openRouterApiKey).toBe("stored-openrouter-key");
     });
   });
 });

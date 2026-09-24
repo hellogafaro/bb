@@ -27,6 +27,7 @@ import type {
   SystemVersionQuery,
   SystemVersionResponse,
   SystemVoiceTranscriptionResponse,
+  SystemVoiceTranscriptionWarmupResponse,
   UiPreferenceResponse,
   UiPreferencesResponse,
 } from "@bb/server-contract";
@@ -60,7 +61,6 @@ export interface SystemVersionArgs {
 
 export interface SystemVoiceTranscriptionArgs {
   file: Blob;
-  prompt?: string;
   signal?: AbortSignal;
 }
 
@@ -76,6 +76,8 @@ export interface SystemCliSkillsStatusArgs {
 export type SystemCliSkillsStatusResult = SystemCliSkillsStatusResponse;
 export type SystemInstallCliSkillsResult = SystemInstallCliSkillsResponse;
 export type SystemVoiceTranscriptionResult = SystemVoiceTranscriptionResponse;
+export type SystemVoiceTranscriptionWarmupResult =
+  SystemVoiceTranscriptionWarmupResponse;
 export type SystemUpdateExperimentsResult = Experiments;
 export type SystemUpdateGeneralSettingsResult = AppSettings & {
   showUnhandledProviderEvents?: boolean;
@@ -139,6 +141,7 @@ export interface SystemArea {
   transcribeVoice(
     args: SystemVoiceTranscriptionArgs,
   ): Promise<SystemVoiceTranscriptionResult>;
+  warmVoiceTranscription(): Promise<SystemVoiceTranscriptionWarmupResult>;
   uiPreferences: SystemUiPreferencesArea;
   updateExperiments(args: Experiments): Promise<SystemUpdateExperimentsResult>;
   updateGeneralSettings(
@@ -262,7 +265,6 @@ export function createSystemArea(args: CreateSdkAreaArgs): SystemArea {
       }
       const form = new FormData();
       form.set("file", input.file);
-      if (input.prompt !== undefined) form.set("prompt", input.prompt);
       const baseUrl = transport.baseUrl.replace(/\/$/u, "");
       const response = await transport.resolve(
         transport.fetch(`${baseUrl}/api/v1/system/voice-transcription`, {
@@ -273,6 +275,11 @@ export function createSystemArea(args: CreateSdkAreaArgs): SystemArea {
       );
       return systemVoiceTranscriptionResponseSchema.parse(
         await response.json(),
+      );
+    },
+    async warmVoiceTranscription() {
+      return transport.readJson(
+        transport.api.v1.system["voice-transcription"].warmup.$post(),
       );
     },
     async updateExperiments(input) {

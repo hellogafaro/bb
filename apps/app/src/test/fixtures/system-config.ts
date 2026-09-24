@@ -35,9 +35,7 @@ export function makeSystemConfig(
     voiceTranscriptionEnabled: false,
     aiServices: {
       inference: DEFAULTS.inferenceModel,
-      inferenceFallback: DEFAULTS.inferenceFallbackModel,
       transcription: DEFAULTS.transcriptionModel,
-      services: [],
     },
     dataDir: "/tmp/bb-test",
     ...overrides,

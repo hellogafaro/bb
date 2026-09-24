@@ -3,7 +3,7 @@ import type { LoggedWorkSessionDeps } from "../../types.js";
 import { Type } from "@earendil-works/pi-ai";
 import {
   INFERENCE_POLICY,
-  inferenceCompleteWithFallback,
+  inferenceCompleteWithRetry,
 } from "./inference.js";
 
 const commitMessageSchema = Type.Object({
@@ -29,7 +29,7 @@ export async function generateCommitMessage(
   });
 
   try {
-    const result = await inferenceCompleteWithFallback(deps, {
+    const result = await inferenceCompleteWithRetry(deps, {
       ...INFERENCE_POLICY.commitMessage,
       label: "Commit message inference",
       prompt,

@@ -455,7 +455,6 @@ export interface PromptBoxHandle {
   focusEnd: () => void;
   captureHeightForLayoutChange: () => void;
   insertTextAtCursor: (text: string) => void;
-  getTextBeforeCursor: () => string | undefined;
   playVoiceCompletionTransition: () => Promise<void>;
 }
 
@@ -2631,32 +2630,17 @@ export function PromptBoxInternal({
     ],
   );
 
-  const getTextBeforeCursor = useCallback((): string | undefined => {
-    const currentValue = valueRef.current;
-    const currentEditor = editorRef.current;
-    if (!currentEditor) {
-      const trimmed = currentValue.trim();
-      return trimmed.length > 0 ? trimmed : undefined;
-    }
-    const beforeCursor = currentEditor.state.doc
-      .textBetween(0, currentEditor.state.selection.from, "\n", "\n")
-      .trim();
-    return beforeCursor.length > 0 ? beforeCursor : undefined;
-  }, []);
-
   useImperativeHandle(
     promptBoxRef,
     () => ({
       captureHeightForLayoutChange: capturePromptBoxHeight,
       focusEnd,
       insertTextAtCursor,
-      getTextBeforeCursor,
       playVoiceCompletionTransition,
     }),
     [
       capturePromptBoxHeight,
       focusEnd,
-      getTextBeforeCursor,
       insertTextAtCursor,
       playVoiceCompletionTransition,
     ],

@@ -218,9 +218,8 @@ Use `bb-app config` for persistent non-secret package settings under
 
 ```bash
 npx bb-app config set BB_APP_URL https://<machine>.<tailnet>.ts.net
-npx bb-app config set BB_INFERENCE codex/gpt-5.6-luna
-npx bb-app config set BB_INFERENCE_FALLBACK codex/gpt-5.4-mini
-npx bb-app config set BB_TRANSCRIPTION codex/gpt-transcribe
+npx bb-app config set BB_INFERENCE openai/gpt-5.4-mini
+npx bb-app config set BB_TRANSCRIPTION mistralai/voxtral-mini-transcribe
 npx bb-app config list
 npx bb-app config refresh
 ```
@@ -242,9 +241,9 @@ npx bb-app client ssh-target list
 Use `bb-app env` for provider credentials under `~/.bb/env.json`:
 
 ```bash
-npx bb-app env set OPENAI_API_KEY <key>
+npx bb-app env set OPENROUTER_API_KEY <key>
 npx bb-app env list
-npx bb-app env unset OPENAI_API_KEY
+npx bb-app env unset OPENROUTER_API_KEY
 ```
 
 `env list` redacts all values. Config and env writes ask a running local bb

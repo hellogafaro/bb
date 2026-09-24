@@ -2042,33 +2042,6 @@ describe("providers.experimental_contributeEnv", () => {
   });
 });
 
-describe("experimental_aiServices.register", () => {
-  const declaration = {
-    id: "acme-ai",
-    displayName: "Acme AI",
-    kinds: ["inference" as const],
-  };
-
-  it("refuses the ids the server serves directly, like production", () => {
-    const { bb } = createFakePluginHost();
-    for (const id of ["openai", "anthropic"]) {
-      expect(() =>
-        bb.experimental_aiServices.register({ ...declaration, id }),
-      ).toThrow(/is reserved: the server serves it directly/u);
-    }
-    expect(() =>
-      bb.experimental_aiServices.register(declaration),
-    ).not.toThrow();
-  });
-
-  it("refuses a plugin that declares no bb.host entry, like production", () => {
-    const { bb } = createFakePluginHost({ experimental_hostEntry: false });
-    expect(() => bb.experimental_aiServices.register(declaration)).toThrow(
-      /needs a bb\.host entry to run on: this plugin declares none/u,
-    );
-  });
-});
-
 describe("environment targets", () => {
   it("accepts legacy environment declarations without presentation fields", () => {
     const { bb, harness } = createFakePluginHost();

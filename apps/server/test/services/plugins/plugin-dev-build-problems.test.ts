@@ -1,5 +1,4 @@
 import { mkdtemp } from "node:fs/promises";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -22,7 +21,6 @@ async function createRuntime() {
         notifySystem: () => {},
       },
       logger: testLogger as unknown as Logger,
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       dataDir: await mkdtemp(join(tmpdir(), "bb-dev-build-problems-")),
       appVersion: "0.9.0",

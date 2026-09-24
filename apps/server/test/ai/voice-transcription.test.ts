@@ -1,19 +1,15 @@
 import { Buffer } from "node:buffer";
-import type {
-  ExperimentalAiVoiceTranscribeInput,
-  ExperimentalAiVoiceTranscribeOutput,
-} from "@get-bb/plugin-sdk/ai-services";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../src/errors.js";
 import {
+  VOICE_TRANSCRIPTION_POLICY,
   resolveVoiceTranscriptionEnabled,
   transcribeVoiceInput,
 } from "../../src/services/ai/voice-transcription.js";
 import {
-  registerFakeAiService,
-  type FakeAiServiceCall,
-} from "../helpers/ai-services.js";
-import { seedHostSession, seedPrimaryHost } from "../helpers/seed.js";
+  OPENROUTER_WARMUP_THROTTLE_MS,
+  resetOpenRouterWarmupForTests,
+} from "../../src/services/ai/openrouter.js";
 import {
   createTestAppHarness,
   type TestAppHarness,
@@ -22,13 +18,6 @@ import {
 type FetchInput = Parameters<typeof fetch>[0];
 type FetchInit = Parameters<typeof fetch>[1];
 type FetchResult = ReturnType<typeof fetch>;
-
-interface ServiceTranscriptionHarness {
-  app: TestAppHarness["app"];
-  cleanup: TestAppHarness["cleanup"];
-  deps: TestAppHarness["deps"];
-  calls: FakeAiServiceCall<ExperimentalAiVoiceTranscribeInput>[];
-}
 
 function voiceFile(): File {
   return new File([Buffer.from("audio")], "prompt.webm", {
@@ -40,26 +29,29 @@ function emptyVoiceFile(): File {
   return new File([], "prompt.webm", { type: "audio/webm" });
 }
 
-async function createServiceTranscriptionHarness(
-  transcribe: (
-    input: ExperimentalAiVoiceTranscribeInput,
-  ) => ExperimentalAiVoiceTranscribeOutput,
-): Promise<ServiceTranscriptionHarness> {
-  const harness = await createTestAppHarness({
-    inferenceFallbackModel: "codex/gpt-5.4-mini",
-    transcriptionModel: "codex/gpt-transcribe",
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
   });
-  const { host } = seedHostSession(harness.deps);
-  seedPrimaryHost(harness.deps, host.id);
-  const fake = registerFakeAiService(harness.deps.aiServices, {
-    transcribeVoice: transcribe,
+}
+
+function hangUntilAborted(init?: FetchInit): FetchResult {
+  return new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () =>
+      reject(new DOMException("aborted", "AbortError")),
+    );
   });
-  return {
-    app: harness.app,
-    cleanup: harness.cleanup,
-    deps: harness.deps,
-    calls: fake.voiceCalls,
-  };
+}
+
+async function createHarness(
+  overrides: Parameters<typeof createTestAppHarness>[0] = {},
+): Promise<TestAppHarness> {
+  return createTestAppHarness({
+    openRouterApiKey: "test-openrouter-key",
+    transcriptionModel: "mistralai/voxtral-mini-transcribe",
+    ...overrides,
+  });
 }
 
 function expectRetryableApiError(
@@ -78,10 +70,83 @@ function expectRetryableApiError(
 }
 
 describe("voice transcription", () => {
-  it("rejects empty audio before calling the service", async () => {
-    const harness = await createServiceTranscriptionHarness(() => {
-      throw new Error("Empty audio must not reach the service");
-    });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    resetOpenRouterWarmupForTests();
+  });
+
+  it("warms the OpenRouter connection once per throttle window", async () => {
+    const harness = await createHarness();
+    const requests: { url: FetchInput; init: FetchInit }[] = [];
+    const fetchStub = vi.fn(
+      async (url: FetchInput, init?: FetchInit): FetchResult => {
+        requests.push({ url, init });
+        return jsonResponse({ data: { label: "key" } });
+      },
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    vi.useFakeTimers();
+    try {
+      const first = await harness.app.request(
+        "/api/v1/system/voice-transcription/warmup",
+        { method: "POST" },
+      );
+      expect(first.status).toBe(200);
+      await expect(first.json()).resolves.toEqual({ warmed: true });
+      const second = await harness.app.request(
+        "/api/v1/system/voice-transcription/warmup",
+        { method: "POST" },
+      );
+      await expect(second.json()).resolves.toEqual({ warmed: true });
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe("https://openrouter.ai/api/v1/auth/key");
+      expect(requests[0]?.init?.method).toBe("GET");
+      expect(requests[0]?.init?.headers).toMatchObject({
+        authorization: "Bearer test-openrouter-key",
+      });
+
+      await vi.advanceTimersByTimeAsync(OPENROUTER_WARMUP_THROTTLE_MS);
+      await harness.app.request("/api/v1/system/voice-transcription/warmup", {
+        method: "POST",
+      });
+      expect(requests).toHaveLength(2);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("reports an unwarmed connection without an OpenRouter key", async () => {
+    const harness = await createHarness({ openRouterApiKey: "" });
+    const fetchStub = vi.fn(async (): FetchResult => jsonResponse({}));
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const response = await harness.app.request(
+        "/api/v1/system/voice-transcription/warmup",
+        { method: "POST" },
+      );
+      await expect(response.json()).resolves.toEqual({ warmed: false });
+      expect(fetchStub).not.toHaveBeenCalled();
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("is enabled only while an OpenRouter key is configured", async () => {
+    const harness = await createHarness();
+    try {
+      expect(resolveVoiceTranscriptionEnabled(harness.deps)).toBe(true);
+      harness.deps.config.openRouterApiKey = "";
+      expect(resolveVoiceTranscriptionEnabled(harness.deps)).toBe(false);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("rejects empty audio before calling OpenRouter", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(async (): FetchResult => jsonResponse({ text: "" }));
+    vi.stubGlobal("fetch", fetchStub);
     try {
       const form = new FormData();
       form.set("file", emptyVoiceFile());
@@ -95,233 +160,224 @@ describe("voice transcription", () => {
         code: "invalid_request",
         message: "Audio file must not be empty",
       });
-      expect(harness.calls).toHaveLength(0);
+      expect(fetchStub).not.toHaveBeenCalled();
     } finally {
       await harness.cleanup();
     }
   });
 
-  it("reports openai/* enablement from the API key even when a service registered the openai id", async () => {
-    const harness = await createTestAppHarness({
-      transcriptionModel: "openai/gpt-4o-transcribe",
-      openAiApiKey: "",
-    });
-    try {
-      seedHostSession(harness.deps);
-      registerFakeAiService(harness.deps.aiServices, { id: "openai" });
-      expect(resolveVoiceTranscriptionEnabled(harness.deps)).toBe(false);
-    } finally {
-      await harness.cleanup();
-    }
-  });
-
-  it("accepts plugin-served audio at the 20MB limit", async () => {
-    const harness = await createServiceTranscriptionHarness((input) => ({
-      ok: true,
-      model: input.model,
-      text: "long recording",
-    }));
-    try {
-      const bytes = Buffer.alloc(20 * 1024 * 1024, 7);
-      const file = new File([bytes], "long.webm", { type: "audio/webm" });
-      await expect(transcribeVoiceInput(harness.deps, { file })).resolves.toBe(
-        "long recording",
-      );
-      expect(harness.calls).toHaveLength(1);
-      expect(harness.calls[0]?.input.audioBase64).toBe(
-        bytes.toString("base64"),
-      );
-    } finally {
-      await harness.cleanup();
-    }
-  });
-
-  it("rejects audio above the plugin-served cap before calling the service", async () => {
-    const harness = await createServiceTranscriptionHarness(() => {
-      throw new Error("Oversized audio must not reach the service");
-    });
-    try {
-      const file = new File([Buffer.alloc(20 * 1024 * 1024 + 1)], "long.webm", {
-        type: "audio/webm",
-      });
-      const error = await transcribeVoiceInput(harness.deps, { file }).catch(
-        (caught: unknown) => caught,
-      );
-      expect(error).toBeInstanceOf(ApiError);
-      expect(error).toMatchObject({
-        status: 400,
-        body: {
-          code: "invalid_request",
-          message:
-            "Audio file exceeds the 20MB limit for plugin-served transcription",
-        },
-      });
-      expect(harness.calls).toHaveLength(0);
-    } finally {
-      await harness.cleanup();
-    }
-  });
-
-  it("sends openai/* to OpenAI directly even when a service registered the openai id", async () => {
-    const harness = await createTestAppHarness({
-      transcriptionModel: "openai/gpt-4o-transcribe",
-    });
-    seedHostSession(harness.deps);
-    const fake = registerFakeAiService(harness.deps.aiServices, {
-      id: "openai",
-      transcribeVoice: () => {
-        throw new Error("A registered openai service must not receive audio");
-      },
-    });
-    const fetchStub = vi.fn(
-      async (_input: FetchInput, _init?: FetchInit): FetchResult =>
-        new Response(JSON.stringify({ text: "hello openai" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-    );
+  it("rejects audio above 25MB before calling OpenRouter", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(async (): FetchResult => jsonResponse({ text: "" }));
     vi.stubGlobal("fetch", fetchStub);
     try {
+      const file = new File([Buffer.alloc(25 * 1024 * 1024 + 1)], "long.webm", {
+        type: "audio/webm",
+      });
       await expect(
-        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
-      ).resolves.toBe("hello openai");
-      expect(fetchStub).toHaveBeenCalledTimes(1);
-      expect(fake.voiceCalls).toHaveLength(0);
-    } finally {
-      vi.unstubAllGlobals();
-      await harness.cleanup();
-    }
-  });
-
-  it("retries with the transcription model after service unavailability", async () => {
-    let requestCount = 0;
-    const harness = await createServiceTranscriptionHarness((input) => {
-      requestCount += 1;
-      if (requestCount === 1) {
-        return {
-          ok: false,
-          code: "service_unavailable",
-          message: "Codex transcription service unavailable",
-        };
-      }
-      return { ok: true, model: input.model, text: "hello world" };
-    });
-    try {
-      await expect(
-        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
-      ).resolves.toBe("hello world");
-      expect(harness.calls).toHaveLength(2);
-      expect(harness.calls[0]?.input).toMatchObject({
-        serviceId: "codex",
-        model: "gpt-transcribe",
-        timeoutMs: 10_000,
-        mimeType: "audio/webm",
-        filename: "prompt.webm",
+        transcribeVoiceInput(harness.deps, { file }),
+      ).rejects.toMatchObject({
+        status: 400,
+        body: { code: "invalid_request", message: "Audio file exceeds 25MB limit" },
       });
-      expect(harness.calls[1]?.input).toMatchObject({
-        model: "gpt-transcribe",
-        timeoutMs: 10_000,
-      });
+      expect(fetchStub).not.toHaveBeenCalled();
     } finally {
       await harness.cleanup();
     }
   });
 
-  it("returns retryable unavailable after exhausting rate limit retries", async () => {
-    const harness = await createServiceTranscriptionHarness(() => ({
-      ok: false,
-      code: "rate_limited",
-      message:
-        "Codex transcription request failed with HTTP 429: Transcription is temporarily unavailable. Please try again later.",
-    }));
-    try {
-      let thrown: unknown = null;
-      try {
-        await transcribeVoiceInput(harness.deps, { file: voiceFile() });
-      } catch (error) {
-        thrown = error;
-      }
-
-      expectRetryableApiError(thrown, {
-        code: "transcription_unavailable",
-        status: 503,
-      });
-      expect(harness.calls).toHaveLength(2);
-    } finally {
-      await harness.cleanup();
-    }
-  });
-
-  it("returns retryable timeout after exhausting timeout retries", async () => {
-    const harness = await createServiceTranscriptionHarness(() => ({
-      ok: false,
-      code: "timeout",
-      message: "Timed out waiting for the transcription",
-    }));
-    try {
-      let thrown: unknown = null;
-      try {
-        await transcribeVoiceInput(harness.deps, { file: voiceFile() });
-      } catch (error) {
-        thrown = error;
-      }
-
-      expectRetryableApiError(thrown, {
-        code: "transcription_timeout",
-        status: 504,
-      });
-      expect(harness.calls).toHaveLength(2);
-    } finally {
-      await harness.cleanup();
-    }
-  });
-
-  it("does not retry non-retryable auth failures", async () => {
-    const harness = await createServiceTranscriptionHarness(() => ({
-      ok: false,
-      code: "auth_required",
-      message: "Codex transcription request failed with HTTP 401: Unauthorized",
-    }));
+  it("reports not_configured without an OpenRouter key", async () => {
+    const harness = await createHarness({ openRouterApiKey: "" });
+    const fetchStub = vi.fn(async (): FetchResult => jsonResponse({ text: "" }));
+    vi.stubGlobal("fetch", fetchStub);
     try {
       await expect(
         transcribeVoiceInput(harness.deps, { file: voiceFile() }),
       ).rejects.toMatchObject({
-        body: {
-          code: "ai_service_auth_required",
-          retryable: false,
-        },
-        status: 502,
+        status: 501,
+        body: { code: "not_configured" },
       });
-      expect(harness.calls).toHaveLength(1);
+      expect(fetchStub).not.toHaveBeenCalled();
     } finally {
       await harness.cleanup();
     }
   });
 
-  it("uses the 10 second timeout budget for OpenAI transcription", async () => {
-    const harness = await createTestAppHarness({
-      transcriptionModel: "openai/gpt-4o-transcribe",
-    });
-    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+  it("posts the audio and model to OpenRouter and returns the text", async () => {
+    const harness = await createHarness();
+    const requests: { url: FetchInput; init: FetchInit }[] = [];
     const fetchStub = vi.fn(
-      (_url: FetchInput, init?: FetchInit): FetchResult => {
-        expect(init?.signal).toBeInstanceOf(AbortSignal);
-        return Promise.resolve(
-          new Response(JSON.stringify({ text: "hello openai" }), {
-            status: 200,
-          }),
-        );
+      async (url: FetchInput, init?: FetchInit): FetchResult => {
+        requests.push({ url, init });
+        return jsonResponse({
+          text: "hello openrouter",
+          usage: { seconds: 1.2, cost: 0.00001 },
+        });
       },
     );
     vi.stubGlobal("fetch", fetchStub);
     try {
       await expect(
         transcribeVoiceInput(harness.deps, { file: voiceFile() }),
-      ).resolves.toBe("hello openai");
-      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 10_000);
+      ).resolves.toBe("hello openrouter");
+      expect(requests).toHaveLength(1);
+      const request = requests[0];
+      expect(request?.url).toBe(
+        "https://openrouter.ai/api/v1/audio/transcriptions",
+      );
+      expect(request?.init?.method).toBe("POST");
+      expect(request?.init?.signal).toBeInstanceOf(AbortSignal);
+      expect(request?.init?.headers).toMatchObject({
+        authorization: "Bearer test-openrouter-key",
+        "x-title": "bb",
+      });
+      const body = request?.init?.body;
+      expect(body).toBeInstanceOf(FormData);
+      if (!(body instanceof FormData)) {
+        throw new Error("Expected multipart body.");
+      }
+      expect(body.get("model")).toBe("mistralai/voxtral-mini-transcribe");
+      expect(body.has("prompt")).toBe(false);
+      const file = body.get("file");
+      expect(file).toBeInstanceOf(File);
+      expect((file as File).name).toBe("prompt.webm");
     } finally {
-      vi.unstubAllGlobals();
-      setTimeoutSpy.mockRestore();
+      await harness.cleanup();
+    }
+  });
+
+  it("retries immediately after a fast 5xx response", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi
+      .fn<(url: FetchInput, init?: FetchInit) => FetchResult>()
+      .mockResolvedValueOnce(
+        jsonResponse({ error: { message: "Provider returned 502" } }, 502),
+      )
+      .mockResolvedValueOnce(jsonResponse({ text: "second try" }));
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
+      ).resolves.toBe("second try");
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("hedges a slow first request and returns whichever answers first", async () => {
+    const harness = await createHarness();
+    const signals: AbortSignal[] = [];
+    const fetchStub = vi.fn(
+      (_url: FetchInput, init?: FetchInit): FetchResult => {
+        if (init?.signal) signals.push(init.signal);
+        return fetchStub.mock.calls.length === 1
+          ? hangUntilAborted(init)
+          : Promise.resolve(jsonResponse({ text: "from the hedge" }));
+      },
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    vi.useFakeTimers();
+    try {
+      const pending = transcribeVoiceInput(harness.deps, { file: voiceFile() });
+      await vi.advanceTimersByTimeAsync(VOICE_TRANSCRIPTION_POLICY.hedgeAfterMs);
+      await expect(pending).resolves.toBe("from the hedge");
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+      expect(signals[0]?.aborted).toBe(true);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("returns retryable unavailable after both attempts are rate limited", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(
+      async (): FetchResult =>
+        jsonResponse({ error: { message: "Rate limit exceeded" } }, 429),
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const thrown = await transcribeVoiceInput(harness.deps, {
+        file: voiceFile(),
+      }).catch((error: unknown) => error);
+      expectRetryableApiError(thrown, {
+        code: "transcription_unavailable",
+        status: 503,
+      });
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("returns retryable timeout when both attempts time out", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(
+      (_url: FetchInput, init?: FetchInit): FetchResult => hangUntilAborted(init),
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    vi.useFakeTimers();
+    try {
+      const pending = transcribeVoiceInput(harness.deps, {
+        file: voiceFile(),
+      }).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(
+        VOICE_TRANSCRIPTION_POLICY.timeoutMs +
+          VOICE_TRANSCRIPTION_POLICY.hedgeAfterMs,
+      );
+      expectRetryableApiError(await pending, {
+        code: "transcription_timeout",
+        status: 504,
+      });
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("does not retry auth failures", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(
+      async (): FetchResult =>
+        jsonResponse({ error: { message: "Invalid API key" } }, 401),
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
+      ).rejects.toMatchObject({
+        status: 502,
+        body: {
+          code: "openrouter_auth_required",
+          message: "Invalid API key",
+          retryable: false,
+        },
+      });
+      expect(fetchStub).toHaveBeenCalledTimes(1);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("surfaces provider request errors with their message", async () => {
+    const harness = await createHarness();
+    const fetchStub = vi.fn(
+      async (): FetchResult =>
+        jsonResponse({ error: { message: "Unsupported audio format" } }, 400),
+    );
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
+      ).rejects.toMatchObject({
+        status: 502,
+        body: {
+          code: "openrouter_request_failed",
+          message: "Unsupported audio format",
+        },
+      });
+      expect(fetchStub).toHaveBeenCalledTimes(1);
+    } finally {
       await harness.cleanup();
     }
   });

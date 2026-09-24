@@ -63,7 +63,7 @@ but the CLI identifies server and launcher settings that are startup-only,
 including binding/ports, data and the dev-app port, telemetry, inherited skill
 roots, and `BB_FF_*` flags. `BB_LOG_LEVEL` is also startup-only. Use
 `bb-app config`, not `bb-app env`, to change `BB_APP_URL`, `BB_INFERENCE`,
-`BB_INFERENCE_FALLBACK`, or `BB_TRANSCRIPTION` live. After a startup-only
+or `BB_TRANSCRIPTION` live. After a startup-only
 change, run `bb-app stop && bb-app start` or restart the desktop app. Until
 then, changing or unsetting `BB_SERVER_BIND_HOST` does not close a previous
 `0.0.0.0` listener.
@@ -73,13 +73,12 @@ With `--server-bind-host 0.0.0.0`, the startup listener and `app` rows show
 through loopback; this does not narrow the IPv4 wildcard listener. Containers
 must also publish the port to the host.
 
-Server helper completions use `BB_INFERENCE` first, then
-`BB_INFERENCE_FALLBACK` after a transient timeout, rate limit, or
-service-unavailable failure. Their defaults are `codex/gpt-5.6-luna` and
-`codex/gpt-5.4-mini`, respectively.
+Server helper completions (thread titles, commit messages) call OpenRouter
+with the `BB_INFERENCE` model id and retry once after a transient timeout,
+rate limit, or service-unavailable failure. The default is
+`openai/gpt-5.4-mini`.
 
-  bb-app config set BB_INFERENCE <provider/model>
-  bb-app config set BB_INFERENCE_FALLBACK <provider/model>
+  bb-app config set BB_INFERENCE <vendor/model>
 
 Server-backed General settings
 
@@ -148,9 +147,9 @@ branches bb creates after the change.
   bb settings reload
 
 `bb settings ai-services` shows the helper-inference and voice-transcription
-settings (`BB_INFERENCE`, `BB_INFERENCE_FALLBACK`, `BB_TRANSCRIPTION`, set with
-`bb-app config`) and the plugin-registered AI services they may name as
-`<service>/<model>`.
+models (`BB_INFERENCE`, `BB_TRANSCRIPTION`, set with `bb-app config`). Both
+are OpenRouter model ids such as `openai/gpt-5.4-mini` and are served with
+`OPENROUTER_API_KEY` (set with `bb-app env set`).
 
 `bb settings general` accepts any key from `generalSettings` in
 `bb settings show`. Boolean preferences take `true`, `false`, `on`, or `off`,
@@ -286,14 +285,14 @@ Host files and voice transcription
 `bb file read --if-none-match` prints nothing (and `--json` prints the
 metadata with `notModified: true`) while the file's content hash still
 matches.
-  bb voice transcribe <audio-file> [--prompt <context>]
+  bb voice transcribe <audio-file> [--type <mime>]
 
-Voice transcription uses the `BB_TRANSCRIPTION` model, which defaults to
-`codex/gpt-transcribe`. Override it with
-`bb-app config set BB_TRANSCRIPTION <provider/model>`. Plugin-served audio
-uploads accept up to 20 MB; direct OpenAI uploads accept up to 25 MB. These
-limits apply to the app, SDK, and CLI. If transcription fails in the app,
-the error toast offers a download of the original recording until dismissed.
+Voice transcription runs on OpenRouter with `OPENROUTER_API_KEY` (set with
+`bb-app env set`). `BB_TRANSCRIPTION` is the OpenRouter speech-to-text model
+id without a service prefix and defaults to `mistralai/voxtral-mini-transcribe`;
+override it with `bb-app config set BB_TRANSCRIPTION <model>`. Uploads accept
+up to 25 MB in the app, SDK, and CLI. If transcription fails in the app, the
+error toast offers a download of the original recording until dismissed.
 
 `bb file` supports `--host` for remote machines and `--root` on mutating
 commands to confine access beneath an absolute directory. `bb file list` and

@@ -11,7 +11,7 @@ import {
   loadHostDaemonConnectionConfig,
   loadHostDaemonStartConfig,
 } from "../src/host-daemon.js";
-import { parseProviderModelConfig } from "../src/inference-model.js";
+import { validateOpenRouterModelId } from "../src/openrouter-model.js";
 import { loadLoggerConfig } from "../src/logger.js";
 import {
   resolveConfiguredDataDir,
@@ -49,7 +49,7 @@ function createServerRuntimeEnv(
     BB_HOST_DAEMON_PORT: "5555",
     BB_SERVER_PORT: "4444",
     NODE_ENV: "development",
-    OPENAI_API_KEY: "test-openai-key",
+    OPENROUTER_API_KEY: "test-openrouter-key",
     ...overrides,
   };
 }
@@ -292,7 +292,6 @@ describe("consumer-specific config", () => {
         BB_EXTERNAL_URL: undefined,
         BB_FF_PLACEHOLDER: undefined,
         BB_INFERENCE: undefined,
-        BB_INFERENCE_FALLBACK: undefined,
         BB_TRANSCRIPTION: undefined,
       }),
     });
@@ -304,10 +303,11 @@ describe("consumer-specific config", () => {
     expect(serverConfig.BB_APP_SURFACE).toBe("web");
     expect(serverConfig.BB_APP_VERSION).toBe("0.0.0-dev");
     expect(serverConfig.BB_EXTERNAL_URL).toBe("");
-    expect(serverConfig.BB_INFERENCE).toBe("codex/gpt-5.6-luna");
-    expect(serverConfig.BB_INFERENCE_FALLBACK).toBe("codex/gpt-5.4-mini");
-    expect(serverConfig.BB_TRANSCRIPTION).toBe("codex/gpt-transcribe");
-    expect(serverConfig.OPENAI_API_KEY).toBe("test-openai-key");
+    expect(serverConfig.BB_INFERENCE).toBe("openai/gpt-5.4-mini");
+    expect(serverConfig.BB_TRANSCRIPTION).toBe(
+      "mistralai/voxtral-mini-transcribe",
+    );
+    expect(serverConfig.OPENROUTER_API_KEY).toBe("test-openrouter-key");
     expect(serverConfig.featureFlags).toEqual({
       placeholder: false,
       timelineWindowEventBudget: 1_500,
@@ -483,37 +483,37 @@ describe("consumer-specific config", () => {
     ).toThrow(/BB_INFERENCE/u);
   });
 
-  it("requires provider/model format for BB_INFERENCE_FALLBACK", () => {
-    expect(() =>
-      loadServerConfig({
-        env: createServerRuntimeEnv({
-          BB_INFERENCE_FALLBACK: "gpt-5.4-mini",
-        }),
-      }),
-    ).toThrow(/BB_INFERENCE_FALLBACK/u);
-  });
-
-  it("loads an explicit inference fallback model", () => {
+  it("accepts a bare OpenRouter model id for BB_TRANSCRIPTION", () => {
     const serverConfig = loadServerConfig({
       env: createServerRuntimeEnv({
-        BB_INFERENCE_FALLBACK: "anthropic/claude-haiku-4-5",
+        BB_TRANSCRIPTION: " openai/gpt-4o-mini-transcribe ",
       }),
     });
 
-    expect(serverConfig.BB_INFERENCE_FALLBACK).toBe(
-      "anthropic/claude-haiku-4-5",
-    );
+    expect(serverConfig.BB_TRANSCRIPTION).toBe("openai/gpt-4o-mini-transcribe");
   });
 
-  it("requires provider/model format for BB_TRANSCRIPTION", () => {
-    expect(() =>
-      loadServerConfig({
-        env: createServerRuntimeEnv({
-          BB_TRANSCRIPTION: "gpt-4o-mini-transcribe",
+  it.each(["", "codex/gpt-transcribe", "openrouter/openai/whisper-1"])(
+    "rejects the retired BB_TRANSCRIPTION value %j",
+    (value) => {
+      expect(() =>
+        loadServerConfig({
+          env: createServerRuntimeEnv({ BB_TRANSCRIPTION: value }),
         }),
-      }),
-    ).toThrow(/BB_TRANSCRIPTION/u);
-  });
+      ).toThrow(/BB_TRANSCRIPTION/u);
+    },
+  );
+
+  it.each(["codex/gpt-5.6-luna", "openrouter/openai/gpt-5.5"])(
+    "rejects the retired BB_INFERENCE value %j",
+    (value) => {
+      expect(() =>
+        loadServerConfig({
+          env: createServerRuntimeEnv({ BB_INFERENCE: value }),
+        }),
+      ).toThrow(/BB_INFERENCE/u);
+    },
+  );
 
   it("requires a valid server URL for the daemon and CLI", () => {
     const env = createHostDaemonRuntimeEnv({
@@ -780,27 +780,36 @@ describe("consumer-specific config", () => {
   });
 });
 
-describe("provider model config", () => {
-  it("parses provider/model values", () => {
+describe("OpenRouter model ids", () => {
+  it("returns the trimmed vendor/model id", () => {
     expect(
-      parseProviderModelConfig({
+      validateOpenRouterModelId({
         name: "BB_INFERENCE",
-        value: "codex/gpt-5.4-mini",
+        value: "  openai/gpt-5.4-mini ",
+        example: "openai/gpt-5.4-mini",
       }),
-    ).toEqual({
-      provider: "codex",
-      modelId: "gpt-5.4-mini",
-    });
+    ).toBe("openai/gpt-5.4-mini");
   });
 
-  it("rejects empty or nested provider/model values", () => {
-    for (const value of ["gpt-4o-mini", "/gpt-4o-mini", "openai/", "a/b/c"]) {
+  it("rejects values without a vendor or model segment", () => {
+    for (const value of ["", "gpt-4o-mini", "/gpt-4o-mini", "openai/", "a b/c"]) {
       expect(() =>
-        parseProviderModelConfig({
+        validateOpenRouterModelId({
           name: "BB_INFERENCE",
           value,
+          example: "openai/gpt-5.4-mini",
         }),
       ).toThrow(/BB_INFERENCE/u);
     }
+  });
+
+  it("rejects retired service prefixes with a migration hint", () => {
+    expect(() =>
+      validateOpenRouterModelId({
+        name: "BB_TRANSCRIPTION",
+        value: "codex/gpt-transcribe",
+        example: "mistralai/voxtral-mini-transcribe",
+      }),
+    ).toThrow(/drop the "codex\/" prefix and set OPENROUTER_API_KEY/u);
   });
 });

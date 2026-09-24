@@ -40,7 +40,6 @@ type GlobalSkillInstallDeps = Pick<
   | "logger"
   | "machineAuth"
   | "providerRegistry"
-  | "aiServices"
   | "pluginHostArtifacts"
   | "skillTreeRegistry"
   | "telemetry"

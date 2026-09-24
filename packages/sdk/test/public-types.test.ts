@@ -360,6 +360,7 @@ type ExpectedSystemKey =
   | "installCliSkills"
   | "reloadConfig"
   | "transcribeVoice"
+  | "warmVoiceTranscription"
   | "uiPreferences"
   | "updateExperiments"
   | "updateGeneralSettings"

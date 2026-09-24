@@ -12,7 +12,6 @@ import {
 } from "@bb/db";
 import type { Logger } from "@bb/logger";
 import { derivePluginId } from "@bb/domain";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import {
   createPluginService,
   type PluginService,
@@ -61,7 +60,6 @@ function createService(args: {
   bundled: BundledPluginRegistration[];
 }): PluginService {
   return createPluginService({
-    aiServices: createAiServiceRegistry(),
     telemetry: createNoopTelemetryService(),
     db: args.db,
     hub: {

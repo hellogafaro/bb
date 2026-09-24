@@ -25,13 +25,24 @@ const voiceInput = {
   cancel: vi.fn(),
 };
 
+function createPromptBoxRef(playVoiceCompletionTransition: () => Promise<void>) {
+  return {
+    current: {
+      captureHeightForLayoutChange: vi.fn(),
+      focusEnd: vi.fn(),
+      insertTextAtCursor: vi.fn(),
+      playVoiceCompletionTransition: vi.fn(playVoiceCompletionTransition),
+    } satisfies PromptBoxHandle,
+  };
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 
 describe("usePromptVoice", () => {
-  it("waits for the completion transition after transcription resolves", async () => {
+  it("resolves the transcript without waiting for the completion transition", async () => {
     vi.mocked(useVoiceInput).mockReturnValue({
       ...voiceInput,
       isRecording: false,
@@ -39,24 +50,7 @@ describe("usePromptVoice", () => {
       isListening: false,
     });
     vi.mocked(transcribeVoiceInput).mockResolvedValue({ text: "Transcript" });
-
-    let finishTransition: (() => void) | undefined;
-    const playVoiceCompletionTransition = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finishTransition = resolve;
-        }),
-    );
-    const insertTextAtCursor = vi.fn();
-    const promptBoxRef = {
-      current: {
-        captureHeightForLayoutChange: vi.fn(),
-        focusEnd: vi.fn(),
-        getTextBeforeCursor: vi.fn(),
-        insertTextAtCursor,
-        playVoiceCompletionTransition,
-      } satisfies PromptBoxHandle,
-    };
+    const promptBoxRef = createPromptBoxRef(() => new Promise(() => {}));
 
     renderHook(() => usePromptVoice(promptBoxRef));
     const options = vi.mocked(useVoiceInput).mock.calls[0]?.[0];
@@ -65,19 +59,35 @@ describe("usePromptVoice", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await expect(transcription).resolves.toBe("Transcript");
     });
-    expect(playVoiceCompletionTransition).toHaveBeenCalledOnce();
+    expect(
+      promptBoxRef.current.playVoiceCompletionTransition,
+    ).toHaveBeenCalledOnce();
+  });
 
-    let settled = false;
-    void transcription?.then(() => {
-      settled = true;
+  it("reports an abort instead of animating when the request was cancelled", async () => {
+    vi.mocked(useVoiceInput).mockReturnValue({
+      ...voiceInput,
+      isRecording: false,
+      isProcessing: true,
+      isListening: false,
     });
-    await Promise.resolve();
-    expect(settled).toBe(false);
+    vi.mocked(transcribeVoiceInput).mockResolvedValue({ text: "Transcript" });
+    const promptBoxRef = createPromptBoxRef(() => Promise.resolve());
+    const abortController = new AbortController();
+    abortController.abort();
 
-    finishTransition?.();
-    await expect(transcription).resolves.toBe("Transcript");
-    expect(insertTextAtCursor).not.toHaveBeenCalled();
+    renderHook(() => usePromptVoice(promptBoxRef));
+    const options = vi.mocked(useVoiceInput).mock.calls[0]?.[0];
+    const transcription = options?.onTranscribe({
+      file: new File([], "recording.webm", { type: "audio/webm" }),
+      signal: abortController.signal,
+    });
+
+    await expect(transcription).rejects.toMatchObject({ name: "AbortError" });
+    expect(
+      promptBoxRef.current.playVoiceCompletionTransition,
+    ).not.toHaveBeenCalled();
   });
 });

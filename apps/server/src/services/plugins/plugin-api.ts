@@ -52,8 +52,6 @@ import type {
   PluginMentionSearchContext,
   PluginMentionTrigger,
   PluginMachines,
-  PluginAiServiceDeclaration,
-  PluginAiServices,
   PluginProviderDeclaration,
   ExperimentalPluginProviderEnvContext,
   ExperimentalPluginProviderEnvEntry,
@@ -92,7 +90,6 @@ import {
   registerSettingDescriptors,
   runPluginStorageMigrations,
   isStandardSchema,
-  aiServiceAlreadyRegisteredMessage,
   pluginHookAlreadyRegisteredMessage,
   storePluginHook,
   validateBackgroundServiceRegistration,
@@ -104,11 +101,9 @@ import {
   validateProviderEnvContribution,
   validateScheduleRegistration,
   validateSettingsUpdate,
-  validatePluginAiServiceDeclaration,
   validatePluginProviderDeclaration,
 } from "@get-bb/plugin-sdk/internal/host-policy";
 import type {
-  AiServiceHostBinding,
   NormalizedPluginEnvironmentProvider,
   NormalizedPluginMachineProvider,
   NormalizedPluginProviderDeclaration,
@@ -125,7 +120,6 @@ import { requestServerAccessRecheck } from "./plugin-server-access-registry.js";
 import type { ServerLogger } from "../../types.js";
 import type { PluginInteractionResult } from "../interactions/pending-interactions.js";
 import { appendPluginLogLine } from "./plugin-log.js";
-import type { PluginHostArtifactSnapshot } from "./plugin-service-internal.js";
 import {
   readPluginSettingsValues,
   writePluginSettingsUpdate,
@@ -511,17 +505,7 @@ export function createPluginApi(options: {
   registerProvider: (declaration: NormalizedPluginProviderDeclaration) => {
     dispose(): void;
   };
-  registerAiService: (
-    declaration: PluginAiServiceDeclaration,
-    binding: AiServiceHostBinding<PluginHostArtifactSnapshot>,
-  ) => {
-    dispose(): void;
-  };
   isProviderIdTaken: (providerId: string) => boolean;
-  isAiServiceIdTaken: (serviceId: string) => boolean;
-  assertAiServiceRegistrable: (
-    serviceId: string,
-  ) => AiServiceHostBinding<PluginHostArtifactSnapshot>;
   assertProviderRegistrable: (providerId: string) => void;
 }): PluginApiHandle {
   const {
@@ -547,11 +531,8 @@ export function createPluginApi(options: {
     replaceDeclaredSharedPorts,
     callPluginHost,
     registerProvider,
-    registerAiService,
     isProviderIdTaken,
     assertProviderRegistrable,
-    isAiServiceIdTaken,
-    assertAiServiceRegistrable,
   } = options;
   let invalidated = false;
   let activated = false;
@@ -1291,20 +1272,6 @@ export function createPluginApi(options: {
     },
   };
 
-  const aiServiceRegistrations = createStagedRegistrations({
-    validate: validatePluginAiServiceDeclaration,
-    bind: assertAiServiceRegistrable,
-    isTaken: isAiServiceIdTaken,
-    registerLive: registerAiService,
-    alreadyRegisteredMessage: aiServiceAlreadyRegisteredMessage,
-    assertLive,
-    isActivated: () => activated,
-    disposeHooks,
-  });
-  const experimental_aiServices: PluginAiServices = {
-    register: aiServiceRegistrations.register,
-  };
-
   const api: BbPluginApi = {
     pluginId,
     log,
@@ -1326,7 +1293,6 @@ export function createPluginApi(options: {
     status,
     server,
     hosts,
-    experimental_aiServices,
     get sdk(): PluginBbSdk {
       assertLive();
       const sdk = getSdk();
@@ -1382,7 +1348,6 @@ export function createPluginApi(options: {
         [...pendingSharedPorts].map(([hostId, ports]) => ({ hostId, ports })),
       );
       providerRegistrations.flush();
-      aiServiceRegistrations.flush();
       activated = true;
       const cliWarning = cliRecord.registration
         ? pluginCliCollisionWarning(pluginId, cliRecord.registration.name)

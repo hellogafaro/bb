@@ -173,17 +173,21 @@ async function postMultipart<T>(
   );
 }
 
+export async function warmVoiceTranscription(): Promise<void> {
+  await fetch(
+    toRelativeUrl(apiClient.system["voice-transcription"].warmup.$url()),
+    appSurfaceRequestInit({ method: "POST" }),
+  );
+}
+
 export async function transcribeVoiceInput(
   file: File,
-  prompt?: string,
   signal?: AbortSignal,
 ): Promise<SystemVoiceTranscriptionResponse> {
-  const trimmedPrompt = prompt?.trim();
   return postMultipart<SystemVoiceTranscriptionResponse>(
     apiClient.system["voice-transcription"].$url(),
     file,
     signal,
-    trimmedPrompt ? { prompt: trimmedPrompt } : undefined,
   );
 }
 

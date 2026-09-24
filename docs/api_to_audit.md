@@ -1329,8 +1329,7 @@ before deleting the directory. Confirm the platform coverage (Linux
 10. **Test harness.** Audit both layers: the server harness's
     `experimental_callHostRpc` option, `experimental_hostEntry` option (a
     plugin whose manifest declares no `bb.host` entry, so the fake refuses
-    `bb.providers.register` and `experimental_aiServices.register` the way
-    production does), `experimental_declaredIconNames` option (the names the
+    `bb.providers.register` the way production does), `experimental_declaredIconNames` option (the names the
     manifest declares under `bb.branding.experimental_icons`, so the fake
     refuses a provider `icon` or a tool `presentation.icon.glyph` that names
     another plugin's icon or an undeclared one, with production's messages;
@@ -2301,49 +2300,6 @@ place of a whole sidebar would strand the user) plus one toast.
 5. **Accessibility.** Confirm the host can still guarantee list semantics,
    focus order, and the mobile close behavior when a plugin owns the markup —
    `onNavigate` is currently the plugin's responsibility to call.
-
-## AI services (`bb.experimental_aiServices.register`, `@get-bb/plugin-sdk/ai-services`)
-
-**Kept experimental (2026-08-22).** one consumer (the codex plugin); the 5 MB plugin-served transcription cap (the old direct path allowed 25 MB) and the host-pull alternative are still open; the reserved-id model is now one static SDK list (`SERVER_DIRECT_AI_SERVICE_IDS`), pinned to pi-ai's provider registry by plugin-ai-services.test.ts.
-
-**What it does.** Lets a plugin serve bb's own AI services — server-side
-helper inference (thread titles, commit messages: prompt + JSON Schema in,
-structured value out) and voice transcription — from its `bb.host` entry.
-`bb.experimental_aiServices.register({ id, displayName, kinds })` stages the
-service during the factory and lands it when the load commits; the host entry
-implements `experimental_aiServicesHostContract` (`ai.inference.complete`,
-`ai.voice.transcribe`), both carrying `serviceId`. Core routes the user's
-`BB_INFERENCE` / `BB_TRANSCRIPTION` (`<serviceId>/<model>`) to the plugin
-through the generic host RPC call on the primary host; failures ride the result
-(`{ ok: false, code }`) so core's retry/fallback policy stays generic. Ids the
-server serves itself (`openai` transcription, the builtin inference providers)
-are reserved: they route server-direct before the registry is consulted and a
-plugin cannot register them, so a plugin can never capture that traffic. A
-cross-plugin id collision fails the later plugin's load at the `register`
-call. The
-codex plugin is the first registrant (its ChatGPT client moved out of the
-daemon); `GET /system/config` and `bb settings ai-services` list the registered
-options.
-
-**Audit before stabilizing.**
-
-1. **Chooser.** Confirm `BB_INFERENCE` / `BB_TRANSCRIPTION` strings stay the
-   setting, or move to a structured core setting whose options are the
-   registered services (a picker needs per-service model lists, which the
-   contract does not carry yet).
-2. **Payload cap.** A plugin-served transcription travels as base64 inside one
-   host RPC call (32 MiB JSON input cap → 20 MB audio), below the 25 MB
-   the server-direct path accepts for long recordings. The daemon retains
-   its existing 32 MiB aggregate active-input budget. The alternative is a host
-   pull: the server stores the audio under a short-lived token and the call carries the token, so the host
-   worker fetches the bytes over the internal route instead of receiving
-   them inline; decide whether that or a streamed path replaces the cap.
-3. **Failure vocabulary.** Confirm the six codes are enough for core's policy
-   and whether a service should be able to declare per-call retry hints.
-4. **Multiple services per plugin / per kind.** Confirm the `serviceId`-on-
-   every-call shape and the first-registered-wins collision rule.
-5. **Host choice.** Calls go to the primary host; decide whether a service may
-   declare which host(s) can serve it.
 
 ## `PluginFileOpenerSource.experimental_hostId` (`@get-bb/plugin-sdk/app`)
 

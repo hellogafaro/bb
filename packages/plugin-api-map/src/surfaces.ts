@@ -683,7 +683,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "bb-sdk",
           "thread-plugin-metadata",
           "desktop-browsers",
-          "ai-services",
           "host-components",
         ],
       },
@@ -1158,21 +1157,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "ExperimentalDesktopBrowsersArea.importCookies",
         ],
         firstParty: ["Browser Automation"],
-        experimental: true,
-      },
-      {
-        id: "ai-services",
-        tagline: "Serve bb's helper model from your own machine",
-        title: "AI services",
-        summary:
-          "Lets a plugin answer bb's own helper-model calls — the short model calls behind thread titles and commit messages, and the microphone button's transcription. With this, a plugin can:",
-        bullets: [
-          "Serve those calls from an enrolled machine, so bb's helper model can be one the plugin holds the credentials for",
-          "Serve voice transcription the same way, for the microphone button in the prompt box",
-          "Appear as a choice in the AI-service settings, alongside the models bb reaches itself",
-        ],
-        apiSymbols: ["PluginAiServices", "PluginAiServiceDeclaration"],
-        firstParty: ["Codex provider"],
         experimental: true,
       },
       {

@@ -1874,43 +1874,6 @@ export interface PluginServerApi {
 }
 
 // ---------------------------------------------------------------------------
-// AI services.
-// ---------------------------------------------------------------------------
-
-/**
- * What a plugin's AI service does. `inference` answers bb's server-side helper
- * completions (thread titles, commit messages: a prompt and a JSON Schema in,
- * a structured value out); `voice` transcribes recorded speech.
- */
-export type PluginAiServiceKind = "inference" | "voice";
-
-/**
- * An AI service a plugin offers from its `bb.host` entry, which implements
- * `experimental_aiServicesHostContract` (`@get-bb/plugin-sdk/ai-services`).
- * The user selects it with `BB_INFERENCE` / `BB_TRANSCRIPTION` set to
- * `<id>/<model>`; core calls the plugin's host entry on the primary host with
- * the `id` on every request, so one entry can serve several services.
- */
-export interface PluginAiServiceDeclaration {
-  /** The `<serviceId>` segment of the user's setting; stable, lowercase. */
-  readonly id: string;
-  /** Shown beside the id wherever the setting's options are listed. */
-  readonly displayName: string;
-  /** Which kinds this service answers; a kind it lacks is not offered. */
-  readonly kinds: readonly PluginAiServiceKind[];
-}
-
-export interface PluginAiServices {
-  /**
-   * Register an AI service. Call during the factory; the registration lands
-   * when the plugin load commits and is removed on reload or disable. The
-   * plugin must declare a `bb.host` entry; registering without one fails the
-   * load. A declared entry that fails to build fails the load on the build
-   * error after the factory, with any provider the factory declared listed
-   * as unavailable. Throws on an id another live plugin already serves.
-   */
-  register(declaration: PluginAiServiceDeclaration): { dispose(): void };
-}
 
 // ---------------------------------------------------------------------------
 // Host control plane.
@@ -2051,11 +2014,6 @@ export interface BbPluginApi {
   readonly server: PluginServerApi;
   /** Server-to-daemon host control-plane declarations. */
   readonly hosts: PluginHosts;
-  /**
-   * AI services this plugin serves from its `bb.host` entry (helper
-   * inference, voice transcription). See `@get-bb/plugin-sdk/ai-services`.
-   */
-  readonly experimental_aiServices: PluginAiServices;
   /**
    * The full BB SDK, bound to this server over loopback (design §4.1).
    * Bind-gated: reading this before the host binds the SDK throws. The real

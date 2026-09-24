@@ -7,7 +7,6 @@ import { outputJson } from "./helpers.js";
 
 interface VoiceTranscribeOptions {
   json?: boolean;
-  prompt?: string;
   type?: string;
 }
 
@@ -19,7 +18,6 @@ export function registerVoiceCommands(
   voice
     .command("transcribe <file>")
     .description("Transcribe an audio file with BB's configured voice service")
-    .option("--prompt <text>", "Optional transcription context")
     .option("--type <mime>", "Audio MIME type", "audio/webm")
     .option("--json", "Print machine-readable JSON output")
     .action(
@@ -30,7 +28,6 @@ export function registerVoiceCommands(
         });
         const result = await createCliBbSdk(getUrl()).system.transcribeVoice({
           file: blob,
-          ...(opts.prompt ? { prompt: opts.prompt } : {}),
         });
         if (outputJson(opts, result)) return;
         console.log(result.text);

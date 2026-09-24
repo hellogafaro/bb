@@ -16,7 +16,7 @@ import { Type } from "@earendil-works/pi-ai";
 import {
   INFERENCE_POLICY,
   InferenceTimeoutError,
-  inferenceCompleteWithFallback,
+  inferenceCompleteWithRetry,
 } from "../ai/inference.js";
 
 const MIN_TITLE_GENERATION_WORDS = 5;
@@ -219,7 +219,7 @@ export async function generateThreadMetadataWithOutcome(
   const maxAttempts = Math.max(1, args.timeoutMaxAttempts ?? 1);
 
   try {
-    const inference = await inferenceCompleteWithFallback(deps, {
+    const inference = await inferenceCompleteWithRetry(deps, {
       label: "Thread metadata inference",
       logContext: { threadId: args.threadId },
       maxAttempts,

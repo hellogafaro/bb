@@ -21,7 +21,6 @@ import { buildPluginProviderRegistration } from "../../src/services/providers/pl
 import { SkillTreeRegistry } from "../../src/services/skills/injected-skills.js";
 import { PluginHostArtifactRegistry } from "../../src/services/plugins/plugin-host-artifact-registry.js";
 import { createProviderNativeRootsCache } from "../../src/services/providers/native-roots.js";
-import { createAiServiceRegistry } from "../../src/services/ai/ai-service-registry.js";
 import {
   createAppVersionService,
   type AppVersionService,
@@ -218,10 +217,9 @@ export async function createTestAppHarness(
     hostDaemonPort: 3001,
     marketplaceUrl: "https://marketplace.invalid/marketplace.json",
     inheritedSkillsRootPaths: [],
-    inferenceFallbackModel: "test/mock-fallback-model",
     inferenceModel: "test/mock-model",
     isDevelopment: true,
-    openAiApiKey: "test-openai-key",
+    openRouterApiKey: "test-openrouter-key",
     serverPort: 3334,
     sharedSkillRoots: { user: [], project: [] },
     transcriptionModel: "test/mock-transcription",
@@ -246,7 +244,6 @@ export async function createTestAppHarness(
   });
   const telemetry = createNoopTelemetryService();
   const skillTreeRegistry = new SkillTreeRegistry();
-  const aiServices = createAiServiceRegistry();
   const pendingInteractions = new PendingInteractionLifecycle({
     config,
     db,
@@ -256,7 +253,6 @@ export async function createTestAppHarness(
     machineAuth: testMachineAuth,
     providerRegistry,
     pluginHostArtifacts,
-    aiServices,
     skillTreeRegistry,
     telemetry,
     terminalSessions,
@@ -282,7 +278,6 @@ export async function createTestAppHarness(
     providerRegistry,
     pluginHostArtifacts,
     providerNativeRoots,
-    aiServices,
     skillTreeRegistry,
     telemetry,
     terminalSessions,

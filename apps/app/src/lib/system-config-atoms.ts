@@ -49,9 +49,7 @@ const unavailableSystemConfig: SystemConfigResponse = {
   voiceTranscriptionEnabled: false,
   aiServices: {
     inference: DEFAULTS.inferenceModel,
-    inferenceFallback: DEFAULTS.inferenceFallbackModel,
     transcription: DEFAULTS.transcriptionModel,
-    services: [],
   },
   dataDir: "",
 };

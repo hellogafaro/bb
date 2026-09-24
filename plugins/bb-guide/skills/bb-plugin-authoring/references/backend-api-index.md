@@ -110,9 +110,6 @@ Read the installed declarations for exact current signatures.
 - `PluginAgentToolResult`
 - `PluginAgentToolSelection`
 - `PluginAgents`
-- `PluginAiServiceDeclaration`
-- `PluginAiServiceKind`
-- `PluginAiServices`
 - `PluginAppBuilder`
 - `PluginAppComposer`
 - `PluginAppContentScripts`
@@ -333,21 +330,6 @@ Read the installed declarations for exact current signatures.
 - `PluginMachineProviderProgress`
 - `PluginMachineProviderResourceResult`
 - `PluginMachineProviderRemoveResult`
-
-## `@get-bb/plugin-sdk/ai-services`
-
-- `experimental_aiInferenceCompleteInputSchema`
-- `experimental_aiInferenceCompleteOutputSchema`
-- `experimental_aiServiceErrorCodeSchema`
-- `experimental_aiServicesHostContract`
-- `experimental_aiVoiceTranscribeInputSchema`
-- `experimental_aiVoiceTranscribeOutputSchema`
-- `ExperimentalAiInferenceCompleteInput`
-- `ExperimentalAiInferenceCompleteOutput`
-- `ExperimentalAiServiceErrorCode`
-- `ExperimentalAiServicesHostContract`
-- `ExperimentalAiVoiceTranscribeInput`
-- `ExperimentalAiVoiceTranscribeOutput`
 
 ## `@get-bb/plugin-sdk/host`
 

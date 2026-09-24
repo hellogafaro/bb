@@ -109,7 +109,7 @@ export type SystemUsageLimitsQuery = z.infer<
 >;
 
 export interface SystemVoiceTranscriptionForm {
-  [key: string]: string | Blob;
+  file: Blob;
 }
 
 export { providerInfoSchema as systemProviderInfoSchema } from "@bb/domain";
@@ -120,6 +120,13 @@ export const systemVoiceTranscriptionResponseSchema = z.object({
 });
 export type SystemVoiceTranscriptionResponse = z.infer<
   typeof systemVoiceTranscriptionResponseSchema
+>;
+
+export const systemVoiceTranscriptionWarmupResponseSchema = z.object({
+  warmed: z.boolean(),
+});
+export type SystemVoiceTranscriptionWarmupResponse = z.infer<
+  typeof systemVoiceTranscriptionWarmupResponseSchema
 >;
 
 export const systemProviderStateSchema = providerHealthSchema.extend({
@@ -135,18 +142,9 @@ export type SystemProviderStatesResponse = z.infer<
   typeof systemProviderStatesResponseSchema
 >;
 
-export const systemAiServiceSchema = z.object({
-  id: z.string().min(1),
-  displayName: z.string().min(1),
-  kinds: z.array(z.enum(["inference", "voice"])),
-  pluginId: z.string().min(1),
-});
-
 export const systemAiServicesSchema = z.object({
   inference: z.string().min(1),
-  inferenceFallback: z.string().min(1),
   transcription: z.string().min(1),
-  services: z.array(systemAiServiceSchema),
 });
 
 export const serverAccessStatusSchema = z.object({

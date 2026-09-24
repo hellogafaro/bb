@@ -70,10 +70,8 @@ const SYSTEM_CONFIG = systemConfigResponseSchema.parse({
     ],
   },
   aiServices: {
-    inference: "codex/gpt-5.5",
-    inferenceFallback: "codex/gpt-5.5",
-    transcription: "openai/gpt-4o-transcribe",
-    services: [],
+    inference: "openai/gpt-5.4-mini",
+    transcription: "mistralai/voxtral-mini-transcribe",
   },
 });
 

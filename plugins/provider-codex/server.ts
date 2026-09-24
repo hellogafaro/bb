@@ -5,12 +5,6 @@ import { CODEX_NATIVE_ROOTS_DECLARATION } from "./src/native-roots.js";
 
 export default function plugin(bb: BbPluginApi) {
   registerUsageSource(bb);
-  bb.experimental_aiServices.register({
-    id: "codex",
-    displayName: "Codex (ChatGPT account or API key)",
-    kinds: ["inference", "voice"],
-  });
-
   bb.settings.define({
     memoryEnabled: {
       type: "boolean",

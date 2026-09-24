@@ -209,6 +209,7 @@ import type {
   SystemVersionResponse,
   SystemVoiceTranscriptionForm,
   SystemVoiceTranscriptionResponse,
+  SystemVoiceTranscriptionWarmupResponse,
   TerminalListResponse,
   ThemeCatalogResponse,
   TerminalSession,
@@ -1916,6 +1917,12 @@ export const publicApiRoutes = {
       method: "post",
       request: formRequest<EmptyInput, SystemVoiceTranscriptionForm>(),
       response: jsonResponse<SystemVoiceTranscriptionResponse>(),
+    }),
+    voiceTranscriptionWarmup: defineRoute({
+      path: "/system/voice-transcription/warmup",
+      method: "post",
+      request: noRequest(),
+      response: jsonResponse<SystemVoiceTranscriptionWarmupResponse>(),
     }),
     version: defineRoute({
       path: "/system/version",

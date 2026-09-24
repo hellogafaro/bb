@@ -27,7 +27,6 @@ import {
 import { PLUGIN_SDK_VERSION, type SystemChangeKind } from "@bb/domain";
 import type { Logger } from "@bb/logger";
 import { pluginListResponseSchema } from "@bb/server-contract";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import {
   createPluginService,
   type PluginService,
@@ -118,7 +117,6 @@ describe("plugin service", () => {
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -137,7 +135,6 @@ describe("plugin service", () => {
     captured: TelemetryEvent[],
   ): PluginService {
     return createPluginService({
-      aiServices: createAiServiceRegistry(),
       db,
       hub: {
         getDaemonSessionIdForHost: () => null,
@@ -663,7 +660,6 @@ describe("plugin service", () => {
     install("zzz-broken", brokenRoot);
 
     const booting = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -716,7 +712,6 @@ describe("plugin service", () => {
     } as unknown as Logger;
     const makeService = (appVersion: string) =>
       createPluginService({
-        aiServices: createAiServiceRegistry(),
         telemetry: createNoopTelemetryService(),
         db,
         hub: {
@@ -804,7 +799,6 @@ describe("plugin service", () => {
     });
 
     const upgraded = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -833,7 +827,6 @@ describe("plugin service", () => {
 
   it("skips the engines gate on 0.0.0 dev builds instead of marking everything incompatible", async () => {
     const devService = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -1302,7 +1295,6 @@ describe("plugin service", () => {
         }`,
     });
     const observing = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -1566,7 +1558,6 @@ describe("plugins-changed broadcast", () => {
     notifySystem = vi.fn<(changes: SystemChangeKind[]) => void>();
     providerRegistry = createProviderRegistryService();
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {

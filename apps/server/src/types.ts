@@ -15,7 +15,6 @@ import type { WorkspaceReadCaches } from "./services/environments/workspace-read
 import type { HostSharedPortCoordinator } from "./ws/host-shared-ports.js";
 import type { SkillTreeRegistry } from "./services/skills/injected-skills.js";
 import type { ProviderRegistryService } from "./services/providers/provider-registry.js";
-import type { AiServiceRegistry } from "./services/ai/ai-service-registry.js";
 import type { PluginHostArtifactRegistry } from "./services/plugins/plugin-host-artifact-registry.js";
 import type { ProviderNativeRootsCache } from "./services/providers/native-roots.js";
 
@@ -29,11 +28,10 @@ export interface ServerRuntimeConfig {
   featureFlags: FeatureFlags;
   hostDaemonPort: number;
   inheritedSkillsRootPaths: string[];
-  inferenceFallbackModel: string;
   inferenceModel: string;
   isDevelopment: boolean;
   marketplaceUrl: string;
-  openAiApiKey: string;
+  openRouterApiKey: string;
   serverPort: number;
   sharedSkillRoots: ProviderNativeSkillRoots;
   transcriptionModel: string;
@@ -53,7 +51,6 @@ export interface AppDeps {
   providerRegistry: ProviderRegistryService;
   pluginHostArtifacts: PluginHostArtifactRegistry;
   providerNativeRoots: ProviderNativeRootsCache;
-  aiServices: AiServiceRegistry;
   skillTreeRegistry: SkillTreeRegistry;
   telemetry: TelemetryService;
   terminalSessions: TerminalSessionLifecycle;
@@ -77,7 +74,6 @@ export type WorkSessionDeps = Pick<
   | "machineAuth"
   | "providerRegistry"
   | "pluginHostArtifacts"
-  | "aiServices"
   | "skillTreeRegistry"
   | "telemetry"
 >;

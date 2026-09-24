@@ -27,7 +27,7 @@ SKILL.md. Inspect nested `--help` before selecting flags and IDs.
 | Tools and interactions | Drive a fixture file edit, command approval, and question card. | Correct interaction decisions reach the active turn once with no unapproved command execution. |
 | Native memory and subagents | Toggle provider memory and native-subagent settings, then start a fresh task. | Instruction/tool exposure follows configuration and does not mutate an already running turn retroactively. |
 | Skills and health | Resolve a native skill and inspect install/version/auth/usage through maintenance controls. | Host discovery and execution agree; errors distinguish unavailable CLI from missing authentication. |
-| AI services | Use configured Codex-backed inference and transcription with harmless text/audio fixtures. | Results come from the selected service and errors are surfaced without leaking credentials. |
+| AI services | Use configured Codex-backed helper inference with harmless text fixtures. | Results come from the selected service and errors are surfaced without leaking credentials. |
 
 ## Evidence and cleanup
 

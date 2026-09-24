@@ -9,10 +9,9 @@ import {
   type BbAppManagedEnvFile,
 } from "@bb/config/bb-app-managed-config";
 import {
-  validateInferenceFallbackModel,
   validateInferenceModel,
   validateTranscriptionModel,
-} from "@bb/config/inference-model";
+} from "@bb/config/openrouter-model";
 import { validateOptionalUrl } from "@bb/config/public-url";
 import type { ServerLogger, ServerRuntimeConfig } from "../../types.js";
 import type { NotificationHub } from "../../ws/hub.js";
@@ -109,16 +108,12 @@ export function applyBbAppManagedConfig(
     managedConfig.BB_INFERENCE !== undefined
       ? validateInferenceModel(managedConfig.BB_INFERENCE)
       : args.baseConfig.inferenceModel;
-  args.targetConfig.inferenceFallbackModel =
-    managedConfig.BB_INFERENCE_FALLBACK !== undefined
-      ? validateInferenceFallbackModel(managedConfig.BB_INFERENCE_FALLBACK)
-      : args.baseConfig.inferenceFallbackModel;
   args.targetConfig.transcriptionModel =
     managedConfig.BB_TRANSCRIPTION !== undefined
       ? validateTranscriptionModel(managedConfig.BB_TRANSCRIPTION)
       : args.baseConfig.transcriptionModel;
-  args.targetConfig.openAiApiKey =
-    managedEnv.OPENAI_API_KEY ?? args.baseConfig.openAiApiKey;
+  args.targetConfig.openRouterApiKey =
+    managedEnv.OPENROUTER_API_KEY ?? args.baseConfig.openRouterApiKey;
 
   setOptionalAppUrl(
     args.targetConfig,

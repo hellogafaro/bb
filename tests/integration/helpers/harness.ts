@@ -18,7 +18,6 @@ import {
 import { initDb } from "../../../apps/server/src/db.js";
 import { createLifecycleDedupers } from "../../../apps/server/src/lifecycle-dedupers.js";
 import { createApp } from "../../../apps/server/src/server.js";
-import { createAiServiceRegistry } from "../../../apps/server/src/services/ai/ai-service-registry.js";
 import { PendingInteractionLifecycle } from "../../../apps/server/src/services/interactions/pending-interactions.js";
 import { createMachineAuthService } from "../../../apps/server/src/services/machine-auth.js";
 import {
@@ -190,11 +189,10 @@ async function startIntegrationServer(
     dataDir: serverDataDir,
     featureFlags: defaultFeatureFlags,
     hostDaemonPort: 3001,
-    inferenceFallbackModel: "test/mock-fallback-model",
     inferenceModel: "test/mock-model",
     inheritedSkillsRootPaths: [],
     marketplaceUrl: "https://marketplace.invalid/marketplace.json",
-    openAiApiKey: process.env.OPENAI_API_KEY ?? "test-openai-key",
+    openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "test-openrouter-key",
     appUrl: "https://bb.example.test",
     serverPort: 0,
     sharedSkillRoots: { user: [], project: [] },
@@ -228,7 +226,6 @@ async function startIntegrationServer(
   const pluginHostArtifacts = new PluginHostArtifactRegistry();
   await registerFakeProviders(providerRegistry, pluginHostArtifacts);
   await recordFirstPartyProviderBridgeArtifacts(pluginHostArtifacts);
-  const aiServices = createAiServiceRegistry();
   const pendingInteractions = new PendingInteractionLifecycle({
     config,
     db,
@@ -238,7 +235,6 @@ async function startIntegrationServer(
     machineAuth,
     providerRegistry,
     pluginHostArtifacts,
-    aiServices,
     skillTreeRegistry,
     telemetry,
     terminalSessions,
@@ -254,7 +250,6 @@ async function startIntegrationServer(
     providerRegistry,
     providerNativeRoots: createProviderNativeRootsCache(),
     pluginHostArtifacts,
-    aiServices,
     config,
     db,
     hub,

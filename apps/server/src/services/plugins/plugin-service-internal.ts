@@ -1,5 +1,4 @@
 import type { MachineEnrollmentService } from "../machines/machine-services.js";
-import type { AiServiceRegistry } from "../ai/ai-service-registry.js";
 import type { DbConnection } from "@bb/db";
 import type {
   DynamicTool,
@@ -70,7 +69,6 @@ export interface PluginServiceDeps {
   ) => Promise<HostDaemonConnectTunnelIdentity>;
   providerRegistry?: ProviderRegistryService;
   pluginHostArtifacts?: PluginHostArtifactRegistry;
-  aiServices: AiServiceRegistry;
   onSettingsChanged?: (pluginId: string) => void;
   /**
    * Fired after a plugin stops being a registered owner — disabled or

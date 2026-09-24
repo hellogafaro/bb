@@ -19,16 +19,14 @@ type VoiceInputState = "idle" | "recording" | "transcribing" | "error";
 
 interface UseVoiceInputOptions {
   onTranscript: (transcript: string) => void;
-  onTranscribe: (args: {
-    file: File;
-    promptContext?: string;
-    signal?: AbortSignal;
-  }) => Promise<string>;
-  getPromptContext?: () => string | undefined;
+  onTranscribe: (args: { file: File; signal?: AbortSignal }) => Promise<string>;
+  onRecordingKeepWarm?: () => void;
 }
 
 const MIN_RECORDING_DURATION_MS = 1_000;
 const CHUNK_TIMESLICE_MS = 250;
+const SPEECH_AUDIO_BITS_PER_SECOND = 32_000;
+const KEEP_WARM_INTERVAL_MS = 20_000;
 
 const HTML_DOCUMENT_PATTERN = /<!doctype html|<html[\s>]/i;
 
@@ -129,9 +127,9 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtMsRef = useRef<number | null>(null);
-  const promptContextRef = useRef<string | undefined>(undefined);
   const shouldTranscribeRef = useRef(true);
   const transcriptionAbortRef = useRef<AbortController | null>(null);
+  const keepWarmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wakeLockSentinelRef = useRef<WakeLockSentinel | null>(null);
   const wakeLockRequestRef = useRef<Promise<void> | null>(null);
   const shouldHoldWakeLockRef = useRef(false);
@@ -146,6 +144,21 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     setState("error");
     appToast.error("Voice input failed", { description: message });
   }, []);
+
+  const stopKeepWarm = useCallback(() => {
+    if (keepWarmTimerRef.current !== null) {
+      clearInterval(keepWarmTimerRef.current);
+      keepWarmTimerRef.current = null;
+    }
+  }, []);
+
+  const startKeepWarm = useCallback(() => {
+    const keepWarm = options.onRecordingKeepWarm;
+    if (!keepWarm) return;
+    stopKeepWarm();
+    keepWarm();
+    keepWarmTimerRef.current = setInterval(keepWarm, KEEP_WARM_INTERVAL_MS);
+  }, [options.onRecordingKeepWarm, stopKeepWarm]);
 
   const stopMediaStream = useCallback(() => {
     const stream = streamRef.current;
@@ -232,8 +245,8 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       mediaRecorderRef.current = null;
       chunksRef.current = [];
       startedAtMsRef.current = null;
-      promptContextRef.current = undefined;
       shouldTranscribeRef.current = true;
+      stopKeepWarm();
       releaseRecordingWakeLock();
       if (transcriptionAbortRef.current) {
         transcriptionAbortRef.current.abort();
@@ -241,7 +254,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       }
       stopMediaStream();
     };
-  }, [releaseRecordingWakeLock, stopMediaStream]);
+  }, [releaseRecordingWakeLock, stopKeepWarm, stopMediaStream]);
 
   useEffect(() => {
     return subscribeToDocumentVisibility(() => {
@@ -268,15 +281,15 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       setStream(stream);
       chunksRef.current = [];
       startedAtMsRef.current = Date.now();
-      promptContextRef.current = options.getPromptContext?.();
       shouldTranscribeRef.current = true;
       shouldHoldWakeLockRef.current = true;
       requestRecordingWakeLock();
 
       const preferredMimeType = resolvePreferredAudioMimeType();
-      const recorder = preferredMimeType
-        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
-        : new MediaRecorder(stream);
+      const recorder = new MediaRecorder(stream, {
+        audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND,
+        ...(preferredMimeType ? { mimeType: preferredMimeType } : {}),
+      });
       mediaRecorderRef.current = recorder;
 
       recorder.onstart = () => {
@@ -294,13 +307,13 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       };
 
       recorder.onstop = async () => {
+        stopKeepWarm();
         releaseRecordingWakeLock();
         stopMediaStream();
 
         if (!shouldTranscribeRef.current) {
           shouldTranscribeRef.current = true;
           chunksRef.current = [];
-          promptContextRef.current = undefined;
           setState("idle");
           return;
         }
@@ -312,7 +325,6 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
         if (durationMs < MIN_RECORDING_DURATION_MS) {
           showError("Recording too short (minimum 1 second)");
           chunksRef.current = [];
-          promptContextRef.current = undefined;
           return;
         }
 
@@ -320,7 +332,6 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
         chunksRef.current = [];
         if (chunks.length === 0) {
           showError("No audio was captured");
-          promptContextRef.current = undefined;
           return;
         }
 
@@ -328,16 +339,12 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
           recorder.mimeType || preferredMimeType || "audio/webm";
         const audioBlob = new Blob(chunks, { type: recordedMimeType });
         const audioFile = createRecordingFile(audioBlob, recordedMimeType);
-        const promptContext = promptContextRef.current;
-        promptContextRef.current = undefined;
-
         setState("transcribing");
         const abortController = new AbortController();
         transcriptionAbortRef.current = abortController;
         try {
           const transcript = await options.onTranscribe({
             file: audioFile,
-            promptContext,
             signal: abortController.signal,
           });
           const normalized = normalizeTranscript(transcript);
@@ -368,12 +375,13 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       };
 
       recorder.start(CHUNK_TIMESLICE_MS);
+      startKeepWarm();
     } catch (error) {
+      stopKeepWarm();
       stopMediaStream();
       mediaRecorderRef.current = null;
       chunksRef.current = [];
       startedAtMsRef.current = null;
-      promptContextRef.current = undefined;
       shouldTranscribeRef.current = true;
       transcriptionAbortRef.current = null;
       releaseRecordingWakeLock();
@@ -392,7 +400,9 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     releaseRecordingWakeLock,
     requestRecordingWakeLock,
     showError,
+    startKeepWarm,
     state,
+    stopKeepWarm,
     stopMediaStream,
   ]);
 

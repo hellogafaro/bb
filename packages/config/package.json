@@ -23,10 +23,10 @@
       "types": "./src/host-daemon-entrypoint.ts",
       "default": "./src/host-daemon-entrypoint.ts"
     },
-    "./inference-model": {
-      "source": "./src/inference-model.ts",
-      "types": "./src/inference-model.ts",
-      "default": "./src/inference-model.ts"
+    "./openrouter-model": {
+      "source": "./src/openrouter-model.ts",
+      "types": "./src/openrouter-model.ts",
+      "default": "./src/openrouter-model.ts"
     },
     "./log-level": {
       "source": "./src/log-level.ts",

@@ -14,7 +14,6 @@ import {
   type DbConnection,
 } from "@bb/db";
 import type { Logger } from "@bb/logger";
-import { createAiServiceRegistry } from "../../../src/services/ai/ai-service-registry.js";
 import {
   createPluginService,
   type PluginService,
@@ -76,7 +75,6 @@ describe("plugin background services", () => {
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-bg-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -197,7 +195,6 @@ describe("plugin background services", () => {
     }));
     const interruptPluginInteractions = vi.fn(() => []);
     const local = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -258,7 +255,6 @@ describe("plugin background services", () => {
 
   it("serializes concurrent reloads so a slow-stopping service never double-starts", async () => {
     const local = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {
@@ -615,7 +611,6 @@ describe("plugin schedules", () => {
     migrate(db);
     workDir = await mkdtemp(join(tmpdir(), "bb-plugin-sched-test-"));
     service = createPluginService({
-      aiServices: createAiServiceRegistry(),
       telemetry: createNoopTelemetryService(),
       db,
       hub: {

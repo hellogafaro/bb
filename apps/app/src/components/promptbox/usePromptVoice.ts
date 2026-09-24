@@ -1,19 +1,21 @@
 import { useCallback, useMemo, type RefObject } from "react";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { transcribeVoiceInput } from "@/lib/api";
+import { transcribeVoiceInput, warmVoiceTranscription } from "@/lib/api";
 import type { PromptBoxHandle, PromptVoiceConfig } from "./PromptBoxInternal";
 
 async function requestVoiceTranscription({
   file,
-  promptContext,
   signal,
 }: {
   file: File;
-  promptContext?: string;
   signal?: AbortSignal;
 }): Promise<string> {
-  const transcription = await transcribeVoiceInput(file, promptContext, signal);
+  const transcription = await transcribeVoiceInput(file, signal);
   return transcription.text;
+}
+
+function keepTranscriptionWarm(): void {
+  void warmVoiceTranscription().catch(() => {});
 }
 
 function createVoiceAbortError(): DOMException {
@@ -30,18 +32,13 @@ export function usePromptVoice(
     [promptBoxRef],
   );
 
-  const getPromptContext = useCallback(
-    () => promptBoxRef.current?.getTextBeforeCursor(),
-    [promptBoxRef],
-  );
-
-  const transcribeAfterCompletionTransition = useCallback(
+  const transcribeThenPlayCompletionTransition = useCallback(
     async (args: Parameters<typeof requestVoiceTranscription>[0]) => {
       const text = await requestVoiceTranscription(args);
-      await promptBoxRef.current?.playVoiceCompletionTransition();
       if (args.signal?.aborted) {
         throw createVoiceAbortError();
       }
+      void promptBoxRef.current?.playVoiceCompletionTransition();
       return text;
     },
     [promptBoxRef],
@@ -49,8 +46,8 @@ export function usePromptVoice(
 
   const voiceInput = useVoiceInput({
     onTranscript,
-    onTranscribe: transcribeAfterCompletionTransition,
-    getPromptContext,
+    onTranscribe: transcribeThenPlayCompletionTransition,
+    onRecordingKeepWarm: keepTranscriptionWarm,
   });
 
   return useMemo<PromptVoiceConfig>(

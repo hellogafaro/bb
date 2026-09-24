@@ -18,7 +18,6 @@ import {
   BB_APP_VERSION_ENV,
   BB_EXTERNAL_URL_ENV,
   BB_INHERITED_SKILLS_ROOTS_ENV,
-  BB_INFERENCE_FALLBACK_ENV,
   BB_INFERENCE_ENV,
   BB_MARKETPLACE_URL_ENV,
   BB_POSTHOG_API_KEY_ENV,
@@ -30,15 +29,14 @@ import {
   DEFAULT_BB_APP_SURFACE,
   DEFAULT_BB_APP_VERSION,
   DEFAULT_BB_EXTERNAL_URL,
-  DEFAULT_BB_INFERENCE_FALLBACK,
   DEFAULT_BB_INFERENCE,
   DEFAULT_BB_MARKETPLACE_URL,
   DEFAULT_BB_POSTHOG_API_KEY,
   DEFAULT_BB_SERVER_BIND_HOST,
   DEFAULT_BB_TELEMETRY,
   DEFAULT_BB_TRANSCRIPTION,
-  DEFAULT_OPENAI_API_KEY,
-  OPENAI_API_KEY_ENV,
+  DEFAULT_OPENROUTER_API_KEY,
+  OPENROUTER_API_KEY_ENV,
   parseServerBindHost,
   type ServerBindHost,
 } from "./env-vars.js";
@@ -57,14 +55,13 @@ export interface ServerConfig
   BB_HOST_DAEMON_PORT: number;
   BB_INHERITED_SKILLS_ROOTS: string[];
   BB_INFERENCE: string;
-  BB_INFERENCE_FALLBACK: string;
   BB_POSTHOG_API_KEY: string;
   BB_MARKETPLACE_URL: string;
   BB_SERVER_BIND_HOST: ServerBindHost;
   BB_SERVER_LAUNCH_ID?: string;
   BB_TELEMETRY: boolean;
   BB_TRANSCRIPTION: string;
-  OPENAI_API_KEY: string;
+  OPENROUTER_API_KEY: string;
   featureFlags: FeatureFlags;
 }
 
@@ -147,12 +144,6 @@ export function loadServerConfig(
       definition: BB_INFERENCE_ENV,
       env: loader.env,
     }),
-    BB_INFERENCE_FALLBACK: readEnvVarWithDefault({
-      context: loader.context,
-      defaultValue: DEFAULT_BB_INFERENCE_FALLBACK,
-      definition: BB_INFERENCE_FALLBACK_ENV,
-      env: loader.env,
-    }),
     BB_MARKETPLACE_URL: readEnvVarWithDefault({
       context: loader.context,
       defaultValue: DEFAULT_BB_MARKETPLACE_URL,
@@ -183,10 +174,10 @@ export function loadServerConfig(
       definition: BB_TRANSCRIPTION_ENV,
       env: loader.env,
     }),
-    OPENAI_API_KEY: readEnvVarWithDefault({
+    OPENROUTER_API_KEY: readEnvVarWithDefault({
       context: loader.context,
-      defaultValue: DEFAULT_OPENAI_API_KEY,
-      definition: OPENAI_API_KEY_ENV,
+      defaultValue: DEFAULT_OPENROUTER_API_KEY,
+      definition: OPENROUTER_API_KEY_ENV,
       env: loader.env,
     }),
     featureFlags: loadFeatureFlags({

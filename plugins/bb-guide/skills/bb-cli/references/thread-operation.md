@@ -168,7 +168,7 @@ For review or fix pipelines, get the environment ID from
   by default. `--exclude <names...>` replaces that set; entries match basenames
   at any depth or exact root-relative paths using `/` separators.
 - File remove supports `--recursive` and requires `--yes` without a terminal.
-- Use `bb voice transcribe <file> [--type <mime>] [--prompt <text>]` without the
+- Use `bb voice transcribe <file> [--type <mime>]` without the
   app composer. The MIME type defaults to `audio/webm`.
 
 ## Long-Running Commands

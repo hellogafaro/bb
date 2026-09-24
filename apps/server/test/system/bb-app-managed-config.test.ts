@@ -69,13 +69,12 @@ function createRuntimeConfig(): ServerRuntimeConfig {
     featureFlags: defaultFeatureFlags,
     hostDaemonPort: 38887,
     inheritedSkillsRootPaths: [],
-    inferenceFallbackModel: "openai/gpt-4o-mini-fallback",
     inferenceModel: "openai/gpt-4o-mini",
     isDevelopment: false,
-    openAiApiKey: "ambient-openai-key",
+    openRouterApiKey: "ambient-openrouter-key",
     serverPort: 38886,
     sharedSkillRoots: { user: [], project: [] },
-    transcriptionModel: "openai/gpt-4o-transcribe",
+    transcriptionModel: "nvidia/parakeet-tdt-0.6b-v3",
   };
 }
 
@@ -90,13 +89,12 @@ describe("bb-app managed config", () => {
         config: {
           BB_APP_URL: "https://stored-app.example.test",
           BB_INFERENCE: "anthropic/claude-sonnet-4-5",
-          BB_INFERENCE_FALLBACK: "openai/gpt-5.4-mini",
-          BB_TRANSCRIPTION: "openai/gpt-4o-transcribe",
+          BB_TRANSCRIPTION: "openai/gpt-4o-mini-transcribe",
         },
       },
       managedEnvFile: {
         env: {
-          OPENAI_API_KEY: "stored-openai-key",
+          OPENROUTER_API_KEY: "stored-openrouter-key",
         },
       },
       targetConfig,
@@ -104,10 +102,9 @@ describe("bb-app managed config", () => {
 
     expect(targetConfig).toMatchObject({
       appUrl: "https://stored-app.example.test",
-      inferenceFallbackModel: "openai/gpt-5.4-mini",
       inferenceModel: "anthropic/claude-sonnet-4-5",
-      openAiApiKey: "stored-openai-key",
-      transcriptionModel: "openai/gpt-4o-transcribe",
+      openRouterApiKey: "stored-openrouter-key",
+      transcriptionModel: "openai/gpt-4o-mini-transcribe",
     });
   });
 
@@ -124,7 +121,7 @@ describe("bb-app managed config", () => {
       },
       managedEnvFile: {
         env: {
-          OPENAI_API_KEY: "stored-openai-key",
+          OPENROUTER_API_KEY: "stored-openrouter-key",
         },
       },
       targetConfig,
@@ -137,7 +134,7 @@ describe("bb-app managed config", () => {
     });
 
     expect(targetConfig.appUrl).toBe("https://ambient-app.example.test");
-    expect(targetConfig.openAiApiKey).toBe("ambient-openai-key");
+    expect(targetConfig.openRouterApiKey).toBe("ambient-openrouter-key");
   });
 
   it("applies custom models over the ambient runtime config", () => {
@@ -241,13 +238,13 @@ describe("bb-app managed config", () => {
         baseConfig,
         managedConfig: {
           config: {
-            BB_INFERENCE_FALLBACK: "gpt-5.4-mini",
+            BB_INFERENCE: "gpt-5.4-mini",
           },
         },
         managedEnvFile: {},
         targetConfig,
       }),
-    ).toThrow(/BB_INFERENCE_FALLBACK/u);
+    ).toThrow(/BB_INFERENCE/u);
   });
 
   it("reloads config file changes and notifies clients", async () => {
@@ -270,19 +267,19 @@ describe("bb-app managed config", () => {
       writeFileSync(
         formatBbAppConfigPath(dataDir),
         `${JSON.stringify({
-          config: { BB_INFERENCE_FALLBACK: "codex/gpt-5.4-mini" },
+          config: { BB_INFERENCE: "openai/gpt-5.4-nano" },
         })}\n`,
         "utf8",
       );
       writeFileSync(
         formatBbAppEnvPath(dataDir),
-        `${JSON.stringify({ env: { OPENAI_API_KEY: "live-openai-key" } })}\n`,
+        `${JSON.stringify({ env: { OPENROUTER_API_KEY: "live-openrouter-key" } })}\n`,
         "utf8",
       );
 
       await reloader.reload({ notify: true });
-      expect(config.inferenceFallbackModel).toBe("codex/gpt-5.4-mini");
-      expect(config.openAiApiKey).toBe("live-openai-key");
+      expect(config.inferenceModel).toBe("openai/gpt-5.4-nano");
+      expect(config.openRouterApiKey).toBe("live-openrouter-key");
       expect(
         socket.messages.some((message) => message.includes("config-changed")),
       ).toBe(true);
@@ -369,7 +366,7 @@ describe("bb-app managed config", () => {
         }),
       ).resolves.toBeDefined();
 
-      expect(config.openAiApiKey).toBe("ambient-openai-key");
+      expect(config.openRouterApiKey).toBe("ambient-openrouter-key");
       expect(config.inferenceModel).toBe("openai/gpt-4o-mini");
       expect(logger.warningCount()).toBe(1);
     } finally {

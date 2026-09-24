@@ -15,7 +15,6 @@ import { resolveBuiltinSkillsRootPath } from "./services/skills/builtin-skills-c
 import { SkillTreeRegistry } from "./services/skills/injected-skills.js";
 import { PluginHostArtifactRegistry } from "./services/plugins/plugin-host-artifact-registry.js";
 import { createProviderNativeRootsCache } from "./services/providers/native-roots.js";
-import { createAiServiceRegistry } from "./services/ai/ai-service-registry.js";
 import { createAppVersionService } from "./services/system/app-version.js";
 import { createBbAppManagedConfigReloader } from "./services/system/bb-app-managed-config.js";
 import { startEventLoopStallMonitor } from "./services/system/event-loop-stall-monitor.js";
@@ -148,10 +147,9 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     featureFlags: serverConfig.featureFlags,
     hostDaemonPort: serverConfig.BB_HOST_DAEMON_PORT,
     inheritedSkillsRootPaths: serverConfig.BB_INHERITED_SKILLS_ROOTS,
-    inferenceFallbackModel: serverConfig.BB_INFERENCE_FALLBACK,
     inferenceModel: serverConfig.BB_INFERENCE,
     isDevelopment: !isProduction,
-    openAiApiKey: serverConfig.OPENAI_API_KEY,
+    openRouterApiKey: serverConfig.OPENROUTER_API_KEY,
     serverPort: serverConfig.BB_SERVER_PORT,
     sharedSkillRoots: { user: [], project: [] },
     transcriptionModel: serverConfig.BB_TRANSCRIPTION,
@@ -209,7 +207,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
   const skillTreeRegistry = new SkillTreeRegistry();
   const pluginHostArtifacts = new PluginHostArtifactRegistry();
   const providerNativeRoots = createProviderNativeRootsCache();
-  const aiServices = createAiServiceRegistry();
   const pendingInteractions = new PendingInteractionLifecycle({
     config: runtimeConfig,
     db,
@@ -219,7 +216,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     machineAuth,
     providerRegistry,
     pluginHostArtifacts,
-    aiServices,
     skillTreeRegistry,
     telemetry,
     terminalSessions,
@@ -252,7 +248,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
       providerRegistry,
       pluginHostArtifacts,
       providerNativeRoots,
-      aiServices,
       skillTreeRegistry,
       telemetry,
       terminalSessions,
@@ -294,7 +289,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     pendingInteractions,
     providerRegistry,
     pluginHostArtifacts,
-    aiServices,
     skillTreeRegistry,
     pluginSchedules: pluginService,
     plugins: pluginService,
