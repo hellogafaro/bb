@@ -289,7 +289,7 @@ export function SplitWorkspaceSecondaryPanelHost({
               >
                 <div
                   data-testid="split-workspace-empty-panel-state"
-                  className="flex h-full min-h-0 flex-col overflow-hidden bg-background p-4 pt-12"
+                  className="flex h-full min-h-0 flex-col overflow-hidden bg-background p-4 pt-(--bb-app-chrome-row-height)"
                 >
                   <EmptyStatePanel className="flex-1 rounded-lg">
                     This pane has no right panel.
