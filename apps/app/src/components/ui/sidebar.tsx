@@ -30,6 +30,7 @@ const SIDEBAR_MOBILE_SWIPE_OPEN_INTENT_PX = 12;
 const SIDEBAR_MOBILE_SWIPE_OPEN_RATIO = 0.33;
 const SIDEBAR_MOBILE_SWIPE_OPEN_FLING_MIN_RATIO = 0.12;
 const SIDEBAR_MOBILE_SWIPE_OPEN_FLING_VELOCITY_PX_PER_SEC = 450;
+const SIDEBAR_MOBILE_SWIPE_OPEN_FLING_MAX_IDLE_MS = 100;
 const SIDEBAR_MOBILE_DRAG_SETTLE_MS = 220;
 const SIDEBAR_MOBILE_REALIZE_TIMEOUT_MS = 1000;
 const SIDEBAR_MOBILE_DRAG_SETTLE_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -165,6 +166,7 @@ function createSidebarInsetSwipeSession({
   id,
   startX,
   startY,
+  startTimeMs,
   selectionRoot,
   startTarget,
   canPreventDefault,
@@ -173,11 +175,11 @@ function createSidebarInsetSwipeSession({
   id: number;
   startX: number;
   startY: number;
+  startTimeMs: number;
   selectionRoot: Element | null;
   startTarget: Element | null;
   canPreventDefault: boolean;
 }): SidebarInsetSwipeSession {
-  const nowMs = Date.now();
   return {
     kind,
     id,
@@ -186,7 +188,7 @@ function createSidebarInsetSwipeSession({
     panelWidth: getSidebarMobilePanelWidth(),
     lastProgress: 0,
     lastClientX: startX,
-    lastTimeMs: nowMs,
+    lastTimeMs: startTimeMs,
     velocityX: 0,
     isDragging: false,
     selectionRoot,
@@ -204,11 +206,15 @@ function isSidebarSwipeEdgeZoneTouch(clientX: number): boolean {
 
 function shouldOpenSidebarMobileSwipe(
   session: SidebarInsetSwipeSession,
+  releaseTimeMs: number,
 ): boolean {
   return (
     session.lastProgress >= SIDEBAR_MOBILE_SWIPE_OPEN_RATIO ||
     (session.lastProgress >= SIDEBAR_MOBILE_SWIPE_OPEN_FLING_MIN_RATIO &&
-      session.velocityX >= SIDEBAR_MOBILE_SWIPE_OPEN_FLING_VELOCITY_PX_PER_SEC)
+      session.velocityX >=
+        SIDEBAR_MOBILE_SWIPE_OPEN_FLING_VELOCITY_PX_PER_SEC &&
+      releaseTimeMs - session.lastTimeMs <=
+        SIDEBAR_MOBILE_SWIPE_OPEN_FLING_MAX_IDLE_MS)
   );
 }
 
@@ -1137,7 +1143,6 @@ const SidebarInset = React.forwardRef<
       const deltaY = clientY - session.startY;
       const absDeltaX = Math.abs(deltaX);
       const absDeltaY = Math.abs(deltaY);
-      const nowMs = Date.now();
 
       if (
         !session.isDragging &&
@@ -1184,12 +1189,12 @@ const SidebarInset = React.forwardRef<
         event.preventDefault();
       }
 
-      const elapsedMs = nowMs - session.lastTimeMs;
-      if (elapsedMs > 0) {
+      const elapsedMs = event.timeStamp - session.lastTimeMs;
+      if (elapsedMs > 0 && clientX !== session.lastClientX) {
         session.velocityX =
           ((clientX - session.lastClientX) / elapsedMs) * 1000;
         session.lastClientX = clientX;
-        session.lastTimeMs = nowMs;
+        session.lastTimeMs = event.timeStamp;
       }
       session.lastProgress = progress;
       applySidebarMobileDragStyles({ progress, settling: false });
@@ -1237,7 +1242,7 @@ const SidebarInset = React.forwardRef<
       }
 
       suppressNextSwipeClick();
-      settleMobileSwipe(shouldOpenSidebarMobileSwipe(session));
+      settleMobileSwipe(shouldOpenSidebarMobileSwipe(session, event.timeStamp));
     },
     [clearSwipeSession, settleMobileSwipe, suppressNextSwipeClick],
   );
@@ -1333,6 +1338,7 @@ const SidebarInset = React.forwardRef<
         id: touch.identifier,
         startX: touch.clientX,
         startY: touch.clientY,
+        startTimeMs: event.timeStamp,
         selectionRoot: getSidebarSwipeSelectionRoot(event.target),
         startTarget: event.target instanceof Element ? event.target : null,
         canPreventDefault,
@@ -1388,6 +1394,7 @@ const SidebarInset = React.forwardRef<
         id: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        startTimeMs: event.timeStamp,
         selectionRoot: getSidebarSwipeSelectionRoot(event.target),
         startTarget: event.target instanceof Element ? event.target : null,
         canPreventDefault: true,
