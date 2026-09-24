@@ -1,5 +1,4 @@
-import ArrowLeft01Icon from "@hugeicons/core-free-icons/ArrowLeft01Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PiCaretLeftBold } from "react-icons/pi";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { PostBlocks, PostHeader, PostLede } from "../blog/post-body";
@@ -44,7 +43,7 @@ function BlogPostRoute() {
 
       <div className="article-head">
         <a className="back-link" href="/blog">
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="ri" />
+          <PiCaretLeftBold className="ri" />
           Blog
         </a>
       </div>

@@ -1,3 +1,4 @@
+import { PiCircleDashedBold, PiEyeBold, PiEyeSlashBold } from "react-icons/pi";
 import { useMemo, useState } from "react";
 import {
   definePluginApp,
@@ -6,10 +7,6 @@ import {
 import { Button } from "@bb/shared-ui/button";
 import { Input } from "@bb/shared-ui/input";
 import { Label } from "@bb/shared-ui/label";
-import DashedLineCircleIcon from "@hugeicons/core-free-icons/DashedLineCircleIcon";
-import ViewIcon from "@hugeicons/core-free-icons/ViewIcon";
-import ViewOffSlashIcon from "@hugeicons/core-free-icons/ViewOffSlashIcon";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
   SECRET_REQUEST_RENDERER_ID,
   secretRequestPayloadSchema,
@@ -157,11 +154,11 @@ function SecretRequestInteraction({
                   }
                   disabled={busy}
                 >
-                  <HugeiconsIcon
-                    icon={isRevealed ? ViewOffSlashIcon : ViewIcon}
-                    className="size-4"
-                    aria-hidden="true"
-                  />
+                  {isRevealed ? (
+                    <PiEyeSlashBold className="size-4" aria-hidden="true" />
+                  ) : (
+                    <PiEyeBold className="size-4" aria-hidden="true" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -196,8 +193,7 @@ function SecretRequestInteraction({
           disabled={busy}
         >
           {busy ? (
-            <HugeiconsIcon
-              icon={DashedLineCircleIcon}
+            <PiCircleDashedBold
               className="size-3 animate-spin"
               aria-hidden="true"
             />

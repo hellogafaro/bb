@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ICON_MAP, isIconName, type IconName } from "./icon-map";
+import { ICON_NAMES, isIconName, type IconName } from "./icon-names";
 import {
   SF_SYMBOL_MAP,
   SF_SYMBOL_WEIGHT,
@@ -100,7 +100,7 @@ function isAtMost(version: string, limit: string): boolean {
 
 describe("SF_SYMBOL_MAP", () => {
   it("maps every icon name", () => {
-    const unmapped = Object.keys(ICON_MAP).filter(
+    const unmapped = ICON_NAMES.filter(
       (name) => !isIconName(name) || sfSymbolFor(name) === undefined,
     );
     expect(unmapped).toEqual([]);

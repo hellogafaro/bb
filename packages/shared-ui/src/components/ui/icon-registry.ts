@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { IconSvgElement } from "@hugeicons/react";
+import type { IconType } from "react-icons";
 
 export const EXTENDED_ICON_NAMES = [
   "AiBrain01",
@@ -119,9 +119,7 @@ export const EXTENDED_ICON_NAMES = [
 
 export type ExtendedIconName = (typeof EXTENDED_ICON_NAMES)[number];
 
-export type ExtendedIconMap = Readonly<
-  Record<ExtendedIconName, IconSvgElement>
->;
+export type ExtendedIconMap = Readonly<Record<ExtendedIconName, IconType>>;
 
 let extendedIcons: ExtendedIconMap | null = null;
 const listeners = new Set<() => void>();

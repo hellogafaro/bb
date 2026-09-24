@@ -1,10 +1,11 @@
+import {
+  PiArrowUpRightBold,
+  PiDotsThreeBold,
+  PiGithubLogoBold,
+  PiPlusBold,
+} from "react-icons/pi";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { HugeiconsIcon } from "@hugeicons/react";
-import ArrowUpRight01Icon from "@hugeicons/core-free-icons/ArrowUpRight01Icon";
-import GithubIcon from "@hugeicons/core-free-icons/GithubIcon";
-import MoreHorizontalIcon from "@hugeicons/core-free-icons/MoreHorizontalIcon";
-import PlusSignIcon from "@hugeicons/core-free-icons/PlusSignIcon";
 import { MAX_PER_ACCOUNT } from "@bb/connect-db";
 import type { HandleValidationError, LabelAvailability } from "@bb/connect-db";
 import appCss from "../styles.css?url";
@@ -229,7 +230,7 @@ function Overlay({
 }
 
 function GithubMark() {
-  return <HugeiconsIcon icon={GithubIcon} className="size-4" aria-hidden />;
+  return <PiGithubLogoBold className="size-4" aria-hidden />;
 }
 
 function relativeTime(ms: number): string {
@@ -821,7 +822,7 @@ function RowMenu({
           setOpen((v) => !v);
         }}
       >
-        <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
+        <PiDotsThreeBold className="size-4" />
       </button>
       {open && (
         <>
@@ -936,7 +937,7 @@ function ServerRow({
           className="justify-self-center text-subtle-foreground"
           aria-hidden
         >
-          <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
+          <PiArrowUpRightBold className="size-4" />
         </span>
       ) : (
         <span aria-hidden />
@@ -1177,7 +1178,7 @@ function AccountDashboard({ state }: { state: ServerState }) {
             className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-recessed hover:text-foreground"
             onClick={() => setConnectOpen(true)}
           >
-            <HugeiconsIcon icon={PlusSignIcon} className="size-3" />
+            <PiPlusBold className="size-3" />
             Add a bb
           </button>
         </div>
@@ -1196,7 +1197,7 @@ function AccountDashboard({ state }: { state: ServerState }) {
               href={`${manageServer.serverUrl}/settings/machines`}
             >
               Manage machines in bb
-              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
+              <PiArrowUpRightBold className="size-3" />
             </a>
           ) : null}
         </div>

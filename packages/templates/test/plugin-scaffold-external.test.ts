@@ -31,8 +31,6 @@ const pluginSdkRoot = resolve(process.cwd(), "../plugin-sdk");
 const dependencyRequire = createRequire(join(pluginSdkRoot, "package.json"));
 
 const EXTERNAL_DEPENDENCIES = [
-  "@hugeicons/core-free-icons",
-  "@hugeicons/react",
   "@radix-ui/react-dialog",
   "@radix-ui/react-slot",
   "@testing-library/react",
@@ -48,6 +46,7 @@ const EXTERNAL_DEPENDENCIES = [
   "jsdom",
   "react",
   "react-dom",
+  "react-icons",
   "tailwind-merge",
   "vaul",
   "vitest",

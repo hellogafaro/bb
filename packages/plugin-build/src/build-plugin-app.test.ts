@@ -152,7 +152,7 @@ describe("plugin app runtime shim", () => {
         },
       }),
       [join(sharedUiDir, "src", "components", "ui", "icon.tsx")]:
-        `export function Icon() { return "shared-ui-hugeicons-map"; }\n`,
+        `export function Icon() { return "shared-ui-icon-map"; }\n`,
       [join(sharedUiDir, "src", "components", "ui", "empty-state.tsx")]:
         `import { Icon } from "./icon";\nexport function EmptyState() { return Icon; }\n`,
       [join(dir, "components", "ui", "icon.tsx")]:
@@ -177,7 +177,7 @@ describe("plugin app runtime shim", () => {
       plugins: [runtimeShimPlugin()],
     });
     const js = result.outputFiles[0]?.text ?? "";
-    expect(js).not.toContain("shared-ui-hugeicons-map");
+    expect(js).not.toContain("shared-ui-icon-map");
     expect(js).toMatch(/runtime\d*\.sharedUiIcon\b/);
     expect(js).toContain("plugin-owned-icon-map");
   });

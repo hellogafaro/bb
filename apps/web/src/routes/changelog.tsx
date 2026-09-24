@@ -1,6 +1,4 @@
-import Loading03Icon from "@hugeicons/core-free-icons/Loading03Icon";
-import Mail01Icon from "@hugeicons/core-free-icons/Mail01Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PiCircleNotchBold, PiEnvelopeBold } from "react-icons/pi";
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment } from "react";
 import type { ReactNode } from "react";
@@ -61,7 +59,7 @@ function ByMachineSidebar() {
               <div className="trow">
                 <span className="trow-title">Special Case Handling</span>
                 <span className="tstatus" aria-hidden>
-                  <HugeiconsIcon icon={Loading03Icon} className="trun" />
+                  <PiCircleNotchBold className="trun" />
                 </span>
               </div>
             </li>
@@ -171,7 +169,7 @@ function ChangelogPage() {
         <p className="sub">{PAGE_DESCRIPTION}</p>
         <div className="meta-row">
           <a href={`#${SUBSCRIBE_EMAIL_ID}`} onClick={focusSubscribeEmail}>
-            <HugeiconsIcon icon={Mail01Icon} className="ri" />
+            <PiEnvelopeBold className="ri" />
             Get release notes by email
           </a>
         </div>

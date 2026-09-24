@@ -24,7 +24,7 @@ export const LEGACY_PLUGIN_SDK_APP_SPECIFIER = "@bb/plugin-sdk/app";
  * The shared-ui icon module. Builtin plugins import it by package specifier;
  * shared-ui's own components import it relatively (`./icon`), and the build's
  * runtime shim plugin routes both to the same host slot so no plugin bundle
- * carries a second hugeicons map.
+ * carries a second icon map.
  */
 export const SHARED_UI_ICON_SPECIFIER = "@bb/shared-ui/icon";
 
@@ -41,8 +41,8 @@ export const SHARED_UI_ICON_SPECIFIER = "@bb/shared-ui/icon";
  *    the SDK surface itself.
  * 2. Host-resident libraries every plugin app would otherwise duplicate —
  *    tailwind-merge + clsx (the `cn()` pair every vendored component pulls
- *    in), class-variance-authority, and the shared-ui `Icon` (its hugeicons
- *    map is ~110 KB raw per copy). These have no singleton semantics; they
+ *    in), class-variance-authority, and the shared-ui `Icon` (its icon
+ *    map would otherwise ship in every plugin bundle). These have no singleton semantics; they
  *    are shimmed so a phone does not parse a dozen copies of the same code.
  *    A plugin gets the host's installed version, so its declared range must
  *    stay within the host's major (tailwind-merge ^3, clsx ^2, cva ^0.7).
@@ -55,7 +55,7 @@ export const SHARED_UI_ICON_SPECIFIER = "@bb/shared-ui/icon";
  *    before first paint — so zod stays bundled per plugin.
  *
  * Everything else (non-portal radix, lucide-react, zod, form/calendar/chart
- * libs, hugeicons imported directly) bundles from the plugin's own
+ * libs, react-icons imported directly) bundles from the plugin's own
  * node_modules. Adding a slot here requires the matching host slot in
  * apps/app/src/lib/plugin-frontend.ts (installPluginRuntime); the export
  * manifest and the scaffold's type-only devDependencies follow automatically.

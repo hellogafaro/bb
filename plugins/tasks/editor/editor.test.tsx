@@ -283,6 +283,11 @@ describe("thread mention extension", () => {
       expect(pill?.classList.contains("bb-tasks-thread-mention")).toBe(true);
       expect(pill?.textContent).toBe("Fix login flow");
       expect(pill?.querySelector("svg.bb-tasks-mention-icon")).toBeTruthy();
+      expect(
+        pill
+          ?.querySelector("svg.bb-tasks-mention-icon path")
+          ?.getAttribute("d"),
+      ).toMatch(/^M/);
       expect(editor.storage.markdown.getMarkdown()).toBe(
         "See [Fix login flow](bbthread://thr_a82u8wp8qq).",
       );

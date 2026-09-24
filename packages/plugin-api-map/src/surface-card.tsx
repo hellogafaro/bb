@@ -1,6 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Icon } from "@bb/shared-ui/icon";
-import { HugeiconsIcon } from "@hugeicons/react";
 
 import { GROUP_BY_SURFACE_ID, type PluginSurface } from "./surfaces";
 import {
@@ -39,7 +38,7 @@ export function SurfaceCard({
   const ExampleList = mobile ? UsedByPager : UsedByList;
   const surfaceMap = useContext(SurfaceMapContext);
   const pluginPageHref = surfaceMap?.pluginPageHref;
-  const icon = surfaceIcon(surface.id);
+  const SurfaceGlyph = surfaceIcon(surface.id);
   const { currentGroupId, onGoToSurface, numberOf } = surfaceMap ?? {};
   const [copyState, setCopyState] = useState<
     "idle" | "copying" | "copied" | "failed"
@@ -112,11 +111,8 @@ export function SurfaceCard({
     >
       <div className="flex items-start gap-2">
         {number === null ? (
-          icon ? (
-            <HugeiconsIcon
-              icon={icon}
-              className="mt-0.5 size-4 shrink-0 text-file-accent"
-            />
+          SurfaceGlyph ? (
+            <SurfaceGlyph className="mt-0.5 size-4 shrink-0 text-file-accent" />
           ) : null
         ) : (
           <span aria-hidden className={annotationChipClass(true, "mt-0.5")}>
@@ -192,8 +188,12 @@ export function SurfaceCard({
       onCopyForAgent ? (
         <div className="mt-3 flex min-w-0 items-center gap-2 border-t border-border-hairline pt-2.5">
           {surface.firstParty && surface.firstParty.length > 0 ? (
-            <div className={`flex min-w-0 flex-1 items-center ${mobile ? "gap-1" : "gap-2"}`}>
-              <span className={`shrink-0 whitespace-nowrap text-xs text-subtle-foreground ${mobile ? "" : "rounded bg-surface-recessed px-2 py-0.5 font-normal"}`}>
+            <div
+              className={`flex min-w-0 flex-1 items-center ${mobile ? "gap-1" : "gap-2"}`}
+            >
+              <span
+                className={`shrink-0 whitespace-nowrap text-xs text-subtle-foreground ${mobile ? "" : "rounded bg-surface-recessed px-2 py-0.5 font-normal"}`}
+              >
                 Used by
               </span>
               <ExampleList
@@ -211,23 +211,33 @@ export function SurfaceCard({
                             className="size-3.5 shrink-0 text-subtle-foreground"
                           />
                         ) : null)}
-                      {mobile ? <span className="min-w-0 truncate">{plugin}</span> : plugin}
+                      {mobile ? (
+                        <span className="min-w-0 truncate">{plugin}</span>
+                      ) : (
+                        plugin
+                      )}
                     </>
                   );
                   return href ? (
                     <a
                       href={href}
                       title={plugin}
-                      className={mobile
-                        ? `flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-surface-recessed px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground ${FOCUS_RING_CLASS}`
-                        : "flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground hover:decoration-foreground"}
+                      className={
+                        mobile
+                          ? `flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-surface-recessed px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground ${FOCUS_RING_CLASS}`
+                          : "flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                      }
                     >
                       {body}
                     </a>
                   ) : (
-                    <span className={mobile
-                      ? "flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-surface-recessed px-2 py-1 text-xs text-muted-foreground"
-                      : "flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"}>
+                    <span
+                      className={
+                        mobile
+                          ? "flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-surface-recessed px-2 py-1 text-xs text-muted-foreground"
+                          : "flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"
+                      }
+                    >
                       {body}
                     </span>
                   );
@@ -240,15 +250,32 @@ export function SurfaceCard({
               type="button"
               onClick={() => void copyForAgent()}
               disabled={copyState === "copying"}
-              aria-label={copyState === "failed" ? "Copy failed. Retry copy for agent" : "Copy for agent"}
-              title={copyState === "failed" ? "Copy failed. Retry copy for agent" : "Copy for agent"}
+              aria-label={
+                copyState === "failed"
+                  ? "Copy failed. Retry copy for agent"
+                  : "Copy for agent"
+              }
+              title={
+                copyState === "failed"
+                  ? "Copy failed. Retry copy for agent"
+                  : "Copy for agent"
+              }
               className={`ml-auto inline-flex shrink-0 cursor-pointer items-center rounded-md text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground disabled:cursor-wait disabled:opacity-60 ${mobile ? "size-9 @2xl/guide:size-7 justify-center" : "h-7 gap-1.5 whitespace-nowrap px-2 text-xs font-medium"} ${FOCUS_RING_CLASS}`}
             >
               <Icon
-                name={copyState === "copied" ? "Check" : copyState === "failed" ? "AlertCircle" : "Copy"}
+                name={
+                  copyState === "copied"
+                    ? "Check"
+                    : copyState === "failed"
+                      ? "AlertCircle"
+                      : "Copy"
+                }
                 className="size-3.5"
               />
-              <span className={mobile ? "sr-only" : undefined} aria-live="polite">
+              <span
+                className={mobile ? "sr-only" : undefined}
+                aria-live="polite"
+              >
                 {copyState === "copying"
                   ? "Copying…"
                   : copyState === "copied"

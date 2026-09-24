@@ -1,3 +1,4 @@
+import { PiChatCircleBold } from "react-icons/pi";
 import {
   Extension,
   getHTMLFromFragment,
@@ -23,8 +24,8 @@ import {
   type Node as ProseMirrorNode,
 } from "@tiptap/pm/model";
 import { Suggestion, type SuggestionProps } from "@tiptap/suggestion";
-import type { IconSvgElement } from "@hugeicons/react";
-import BubbleChatIcon from "@hugeicons/core-free-icons/BubbleChatIcon";
+import { Children, isValidElement, type ReactNode } from "react";
+import type { IconType } from "react-icons";
 
 export type MentionItem =
   | { type: "task"; id: string; key: string; title: string }
@@ -47,19 +48,41 @@ function svgSpecAttributes(
   return out;
 }
 
-function mentionIconSpec(icon: IconSvgElement): DOMOutputSpec {
+type SvgNodeProps = Record<string, string | number> & { children?: ReactNode };
+
+type IconRootProps = {
+  attr?: Record<string, string>;
+  children?: ReactNode;
+};
+
+function svgChildSpecs(nodes: ReactNode): DOMOutputSpec[] {
+  return Children.toArray(nodes).flatMap((node): DOMOutputSpec[] => {
+    if (!isValidElement<SvgNodeProps>(node) || typeof node.type !== "string") {
+      return [];
+    }
+    const { children, ...attrs } = node.props;
+    return [
+      [
+        `${SVG_NS} ${node.type}`,
+        svgSpecAttributes(attrs),
+        ...svgChildSpecs(children),
+      ],
+    ];
+  });
+}
+
+function mentionIconSpec(icon: IconType): DOMOutputSpec {
+  const root = icon({});
+  const glyph = isValidElement<IconRootProps>(root) ? root.props : null;
   return [
     `${SVG_NS} svg`,
     {
-      viewBox: "0 0 24 24",
-      fill: "none",
+      viewBox: glyph?.attr?.viewBox ?? "0 0 256 256",
+      fill: "currentColor",
       class: "bb-tasks-mention-icon",
       "aria-hidden": "true",
     },
-    ...icon.map(([tag, attrs]): DOMOutputSpec => [
-      `${SVG_NS} ${tag}`,
-      svgSpecAttributes(attrs),
-    ]),
+    ...svgChildSpecs(glyph?.children),
   ];
 }
 
@@ -205,7 +228,7 @@ function createMentionNode({
   scheme: string;
   className: string;
   role?: string;
-  icon?: IconSvgElement;
+  icon?: IconType;
 }) {
   return Node.create({
     name,
@@ -286,7 +309,7 @@ const ThreadMention = createMentionNode({
   scheme: THREAD_MENTION_SCHEME,
   className: "bb-tasks-mention bb-tasks-thread-mention",
   role: "link",
-  icon: BubbleChatIcon,
+  icon: PiChatCircleBold,
 });
 
 const TrailingParagraph = Extension.create({

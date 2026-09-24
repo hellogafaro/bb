@@ -1,5 +1,4 @@
-import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PiXBold } from "react-icons/pi";
 import { useEffect, useRef, useState } from "react";
 
 import { marketplaceAssetUrl } from "./marketplace-view-model.js";
@@ -83,7 +82,7 @@ export function MarketplaceScreenshots({
                 aria-label="Close screenshots"
                 onClick={() => setSelected(null)}
               >
-                <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+                <PiXBold aria-hidden />
               </button>
             </div>
             <div

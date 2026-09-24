@@ -514,9 +514,7 @@ import {
   type PluginSidebarThread,
   type PluginThreadListProps,
 } from "@get-bb/plugin-sdk/app";
-import { HugeiconsIcon } from "@hugeicons/react";
-import HelpCircleIcon from "@hugeicons/core-free-icons/HelpCircleIcon";
-import Loading03Icon from "@hugeicons/core-free-icons/Loading03Icon";
+import { PiCircleNotchBold, PiQuestionBold } from "react-icons/pi";
 
 function Row({
   thread,
@@ -557,12 +555,9 @@ function Row({
         </span>
         {/* Your icons, your rules — `indicator` is just a string. */}
         {thread.indicator === "runtime" ? (
-          <HugeiconsIcon
-            icon={Loading03Icon}
-            className="size-3.5 animate-spin"
-          />
+          <PiCircleNotchBold className="size-3.5 animate-spin" />
         ) : thread.indicator === "waiting-for-input" ? (
-          <HugeiconsIcon icon={HelpCircleIcon} className="size-3.5" />
+          <PiQuestionBold className="size-3.5" />
         ) : null}
       </a>
     </li>

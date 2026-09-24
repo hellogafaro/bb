@@ -1,6 +1,10 @@
 import { Image } from "expo-image";
 import { useTheme } from "@/theme/ThemeProvider";
-import { HugeIcon, ICON_SIZE_DEFAULT, type IconProps } from "./HugeIcon";
+import {
+  ICON_SIZE_DEFAULT,
+  PhosphorIcon,
+  type IconProps,
+} from "./PhosphorIcon";
 import {
   SF_SYMBOL_WEIGHT,
   SF_SYMBOL_WEIGHTS,
@@ -11,7 +15,6 @@ export function Icon({
   name,
   size = ICON_SIZE_DEFAULT,
   color,
-  strokeWidth,
   weight = SF_SYMBOL_WEIGHT,
   symbol: symbolOverride,
   effect,
@@ -22,11 +25,10 @@ export function Icon({
   const symbol = symbolOverride ?? sfSymbolFor(name);
   if (symbol === undefined) {
     return (
-      <HugeIcon
+      <PhosphorIcon
         name={name}
         size={size}
         color={color}
-        strokeWidth={strokeWidth}
         style={style}
         accessibilityLabel={accessibilityLabel}
       />
@@ -57,4 +59,4 @@ export function Icon({
   );
 }
 
-export { isIconName, type IconName } from "./icon-map";
+export { isIconName, type IconName } from "./icon-names";

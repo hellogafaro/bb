@@ -1,14 +1,16 @@
-import ArrowDataTransferHorizontalIcon from "@hugeicons/core-free-icons/ArrowDataTransferHorizontalIcon";
-import Clock01Icon from "@hugeicons/core-free-icons/Clock01Icon";
-import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
-import DatabaseIcon from "@hugeicons/core-free-icons/DatabaseIcon";
-import Layers01Icon from "@hugeicons/core-free-icons/Layers01Icon";
-import SourceCodeIcon from "@hugeicons/core-free-icons/SourceCodeIcon";
-import SparklesIcon from "@hugeicons/core-free-icons/SparklesIcon";
-import ComputerTerminal01Icon from "@hugeicons/core-free-icons/ComputerTerminal01Icon";
-import TestTubeIcon from "@hugeicons/core-free-icons/TestTubeIcon";
-import Activity03Icon from "@hugeicons/core-free-icons/Activity03Icon";
-import type { IconSvgElement } from "@hugeicons/react";
+import {
+  PiArrowsLeftRightBold,
+  PiClockBold,
+  PiCodeBold,
+  PiDatabaseBold,
+  PiDesktopBold,
+  PiPulseBold,
+  PiSparkleBold,
+  PiStackBold,
+  PiTerminalWindowBold,
+  PiTestTubeBold,
+} from "react-icons/pi";
+import type { IconType } from "react-icons";
 import type { IconName } from "@bb/shared-ui/icon";
 import accountPoolManifest from "../../../plugins/account-pool/package.json";
 import askUserQuestionManifest from "../../../plugins/ask-user-question/package.json";
@@ -88,19 +90,19 @@ export function firstPartyPluginId(displayName: string): string | null {
   return plugin?.name.replace(/^bb-plugin-/, "") ?? null;
 }
 
-const SURFACE_ICONS: Record<string, IconSvgElement> = {
-  cli: ComputerTerminal01Icon,
-  "agent-tools": SparklesIcon,
-  background: Clock01Icon,
-  wire: ArrowDataTransferHorizontalIcon,
-  storage: DatabaseIcon,
-  "thread-events": Activity03Icon,
-  "host-workers": ComputerIcon,
-  "bb-sdk": SourceCodeIcon,
-  "host-components": Layers01Icon,
-  testing: TestTubeIcon,
+const SURFACE_ICONS: Record<string, IconType> = {
+  cli: PiTerminalWindowBold,
+  "agent-tools": PiSparkleBold,
+  background: PiClockBold,
+  wire: PiArrowsLeftRightBold,
+  storage: PiDatabaseBold,
+  "thread-events": PiPulseBold,
+  "host-workers": PiDesktopBold,
+  "bb-sdk": PiCodeBold,
+  "host-components": PiStackBold,
+  testing: PiTestTubeBold,
 };
 
-export function surfaceIcon(surfaceId: string): IconSvgElement | null {
+export function surfaceIcon(surfaceId: string): IconType | null {
   return SURFACE_ICONS[surfaceId] ?? null;
 }
