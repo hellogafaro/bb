@@ -419,6 +419,67 @@ describe("plugin background services", () => {
     });
   });
 
+  it("absorbs a stale API handle used by a disabled plugin outside any service run", async () => {
+    const rootDir = await writePlugin(workDir, {
+      name: "bb-plugin-stale",
+      serverSource: `
+        import { EventEmitter } from "node:events";
+        const g = globalThis as any;
+        const frames = new EventEmitter();
+        g.__staleFrames = 0;
+        const timer = setInterval(() => {
+          if (g.__staleFrames >= 2) {
+            clearInterval(timer);
+            return;
+          }
+          frames.emit("frame");
+        }, 5);
+        export default function plugin(bb: any) {
+          bb.background.service("tunnel", {
+            async start(signal: any) {
+              await new Promise<void>((resolve) =>
+                signal.addEventListener("abort", () => resolve()));
+            },
+          });
+          frames.on("frame", () => {
+            if (!g.__staleDisabled) return;
+            g.__staleFrames += 1;
+            void bb.server.loopbackBaseUrl;
+          });
+        }
+      `,
+    });
+    const vitestListeners = process.listeners("uncaughtException");
+    process.removeAllListeners("uncaughtException");
+    const unclaimed: unknown[] = [];
+    process.on("uncaughtException", (error) => {
+      if (!service.handleUncaughtException(error)) unclaimed.push(error);
+    });
+    try {
+      await service.installPath(rootDir);
+      await vi.waitFor(() => {
+        expect(service.list().find((p) => p.id === "stale")?.services).toEqual([
+          { name: "tunnel", state: "running" },
+        ]);
+      });
+      await service.setEnabled("stale", false);
+      globals.__staleDisabled = true;
+      await vi.waitFor(
+        () => {
+          expect(globals.__staleFrames).toBe(2);
+        },
+        { timeout: 2000 },
+      );
+      expect(unclaimed).toEqual([]);
+    } finally {
+      globals.__staleDisabled = false;
+      process.removeAllListeners("uncaughtException");
+      for (const listener of vitestListeners) {
+        process.on("uncaughtException", listener);
+      }
+    }
+  });
+
   it("routes an uncaught exception from a service's async context to the supervisor", async () => {
     const rootDir = await writePlugin(workDir, {
       name: "bb-plugin-emitter",
