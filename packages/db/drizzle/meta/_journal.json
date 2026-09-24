@@ -960,6 +960,13 @@
       "when": 1790449729958,
       "tag": "0136_thread_inbox_summaries",
       "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "6",
+      "when": 1790461631009,
+      "tag": "0137_environment_retention_indexes",
+      "breakpoints": true
     }
   ]
 }
