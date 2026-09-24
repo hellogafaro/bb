@@ -1,10 +1,9 @@
 import { RiAtLine } from "react-icons/ri";
 import { readRpc } from "./lib/read-rpc";
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { definePluginApp, useBbNavigate, useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
-import { crumbsForRoute, detailPath, parseRoute, publishDetailLabel, subscribeDetailLabel } from "@/lib/route";
+import { detailPath, parseRoute, publishDetailLabel } from "@/lib/route";
 import { buildMcpEditThreadPrompt, CREATE_MCP_PROMPT, MCP_CREATE_TEMPLATES } from "@/lib/prompts";
 import { McpApprovalInteraction } from "@/components/mcp-approval";
 import { ProviderGuardNotice } from "@/components/provider-guard";
@@ -12,7 +11,6 @@ import { RiskPill, ToolPolicySelect, useToolPolicies } from "@/components/tool-p
 import { APPROVAL_RENDERER_ID } from "@/src/approval-contract";
 import { ResourceCreateButton } from "@bb/shared-ui/resource-list";
 import { Textarea } from "@bb/shared-ui/textarea";
-import { usePortalScopeProps } from "@/lib/portal-scope";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,78 +134,6 @@ const FilterButton = forwardRef<
 
 function serverHaystack(server: ServerRow): string {
   return [server.name, server.description, server.type, server.sourceRef, server.registryName, server.authStatus].join(" ").toLowerCase();
-}
-
-const CRUMB_LINK =
-  "-mx-2 inline-flex min-h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [app-region:no-drag] [-webkit-app-region:no-drag]";
-
-function HeaderCrumbs({ subPath }: { subPath: string }) {
-  const nav = useBbNavigate();
-  const scope = usePortalScopeProps();
-  const route = parseRoute(subPath);
-  const [name, setName] = useState<string | null>(null);
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useEffect(() => subscribeDetailLabel(setName), []);
-
-  const pluginAttr = scope["data-bb-plugin"];
-  const rootAttr = scope["data-bb-plugin-root"];
-
-  useLayoutEffect(() => {
-    const row = document.querySelector("[data-testid='app-page-header-content-row']");
-    const inner = row?.firstElementChild?.firstElementChild;
-    if (!(inner instanceof HTMLElement)) return;
-    const mount = document.createElement("div");
-    mount.dataset.mcpsHeaderCrumbs = "";
-    if (rootAttr !== undefined) mount.setAttribute("data-bb-plugin-root", "");
-    if (pluginAttr !== undefined) mount.setAttribute("data-bb-plugin", pluginAttr);
-    mount.className = "min-w-0 max-w-full";
-    const hidden: HTMLElement[] = [];
-    for (const child of Array.from(inner.children)) {
-      if (child instanceof HTMLElement) {
-        child.hidden = true;
-        hidden.push(child);
-      }
-    }
-    inner.append(mount);
-    setHost(mount);
-    return () => {
-      mount.remove();
-      for (const child of hidden) child.hidden = false;
-      setHost(null);
-    };
-  }, [pluginAttr, rootAttr]);
-
-  const crumbs = crumbsForRoute(route, name);
-  if (host === null) return null;
-  return createPortal(
-    <nav aria-label="Breadcrumb" className="min-w-0">
-      <ol className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-        {crumbs.map((crumb, index) => {
-          const last = index === crumbs.length - 1;
-          return (
-            <li key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
-              {index > 0 ? <Icon name="ChevronRight" className="size-3.5 shrink-0 text-subtle-foreground" /> : null}
-              {!last && crumb.subPath !== undefined ? (
-                <button
-                  type="button"
-                  className={CRUMB_LINK}
-                  onClick={() => nav.toPluginPanel("mcps", { subPath: crumb.subPath })}
-                >
-                  {crumb.label}
-                </button>
-              ) : (
-                <span aria-current={last ? "page" : undefined} className={last ? "min-w-0 truncate" : "shrink-0 text-muted-foreground"}>
-                  {crumb.label}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </nav>,
-    host,
-  );
 }
 
 function PageShell({ fill, children }: { fill?: boolean; children: ReactNode }) {
@@ -718,11 +644,10 @@ function McpsPage({ subPath }: { subPath: string }) {
   };
 
   useEffect(() => {
-    if (!route.detailId) {
-      publishDetailLabel(null);
-      return;
-    }
-    publishDetailLabel(servers?.find((server) => (server.id === route.detailId || server.handle === route.detailId))?.name ?? null);
+    const label = route.detailId ? servers?.find((server) => (server.id === route.detailId || server.handle === route.detailId))?.name ?? null : null;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) publishDetailLabel(label); });
+    return () => { cancelled = true; };
   }, [route.detailId, servers]);
 
   const run = async (label: string, work: () => Promise<unknown>) => {
@@ -846,7 +771,6 @@ export default definePluginApp((app) => {
     icon: "Layers",
     path: "mcps",
     component: McpsPage,
-    headerContent: HeaderCrumbs,
   });
   app.slots.pendingInteraction({ id: APPROVAL_RENDERER_ID, component: McpApprovalInteraction });
 });

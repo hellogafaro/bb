@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crumbsForRoute, detailPath, parseRoute } from "../lib/route.js";
+import { detailPath, parseRoute } from "../lib/route.js";
 
 describe("parseRoute", () => {
   it("treats anything outside installed/<id> as the collection", () => {
@@ -14,15 +14,7 @@ describe("parseRoute", () => {
   });
 });
 
-describe("crumbsForRoute", () => {
-  it("builds collection and detail crumbs", () => {
-    expect(crumbsForRoute({ detailId: null }, null)).toEqual([{ label: "MCPs" }]);
-    expect(crumbsForRoute({ detailId: "abc" }, "1password")).toEqual([
-      { label: "MCPs", subPath: "" },
-      { label: "1password" },
-    ]);
-  });
-
+describe("detailPath", () => {
   it("builds a detail subPath that parseRoute round-trips", () => {
     expect(parseRoute(detailPath("com.notion/mcp")).detailId).toBe("com.notion/mcp");
   });
