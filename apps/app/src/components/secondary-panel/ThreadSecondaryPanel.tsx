@@ -75,7 +75,6 @@ import { GitDiffTabContent } from "./ThreadSecondaryPanelTabContent";
 import {
   CHROME_ROW_CLASS,
   getBbDesktopInfo,
-  MACOS_CHROME_CONTROL_AXIS_CLASS,
   MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS,
   MACOS_WINDOW_DRAG_CLASS,
   MACOS_WINDOW_NO_DRAG_CLASS,
@@ -739,9 +738,6 @@ function ThreadSecondaryPanelContent({
               "min-w-0 justify-between gap-2",
               renderAsDrawer ? "px-2" : "px-4",
               usesDesktopChrome && usesWindowChrome && MACOS_WINDOW_DRAG_CLASS,
-              usesDesktopChrome &&
-                usesWindowChrome &&
-                MACOS_CHROME_CONTROL_AXIS_CLASS,
             )}
           >
             <div

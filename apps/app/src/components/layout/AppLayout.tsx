@@ -76,10 +76,9 @@ import {
   BROWSER_SIDEBAR_TRIGGER_INSET_CLASS,
   CHROME_ROW_CLASS,
   getBbDesktopInfo,
-  MACOS_CHROME_CONTROL_AXIS_CLASS,
-  MACOS_CHROME_CONTROL_NO_DRAG_CLASS,
   MACOS_TRAFFIC_LIGHT_RESERVE_OFFSET_CLASS,
   MACOS_WINDOW_DRAG_CLASS,
+  MACOS_WINDOW_NO_DRAG_CLASS,
   shouldReserveMacosTrafficLights,
   shouldUseMacosDesktopChrome,
 } from "@/lib/bb-desktop";
@@ -235,15 +234,12 @@ function SidebarTriggerOverlay({
         )}
       >
         <SidebarTrigger
-          className={MACOS_CHROME_CONTROL_NO_DRAG_CLASS}
+          className={MACOS_WINDOW_NO_DRAG_CLASS}
           {...triggerProps}
         />
         <AppCommandShortcutHint
           shortcut={shortcut}
-          className={cn(
-            "absolute left-full ml-1",
-            MACOS_CHROME_CONTROL_AXIS_CLASS,
-          )}
+          className="absolute left-full ml-1"
         />
       </div>
     );

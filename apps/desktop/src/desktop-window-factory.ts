@@ -19,10 +19,9 @@ import type { DesktopContextMenuWebContents } from "./desktop-context-menu.js";
 
 type DesktopWindowIcon = BrowserWindowConstructorOptions["icon"];
 
-const MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET = 18;
 const MACOS_TRAFFIC_LIGHT_POSITION = {
-  x: MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET,
-  y: MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET,
+  x: 17,
+  y: 15,
 };
 
 interface DesktopWindowOpenDetails {

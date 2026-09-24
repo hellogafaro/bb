@@ -4,8 +4,8 @@ import { useCloseMobileSidebar } from "@/components/ui/sidebar.js";
 import {
   CHROME_ROW_CLASS,
   getBbDesktopInfo,
-  MACOS_CHROME_CONTROL_NO_DRAG_CLASS,
   MACOS_WINDOW_DRAG_CLASS,
+  MACOS_WINDOW_NO_DRAG_CLASS,
   shouldUseMacosDesktopChrome,
 } from "@/lib/bb-desktop";
 import { SidebarHistoryNavigationControls } from "./SidebarHistoryNavigationControls";
@@ -27,7 +27,7 @@ export function SidebarTopReserveRow({ testId }: { testId: string }) {
       <SidebarHistoryNavigationControls
         onNavigate={closeOnMobile}
         className={
-          usesDesktopChrome ? MACOS_CHROME_CONTROL_NO_DRAG_CLASS : undefined
+          usesDesktopChrome ? MACOS_WINDOW_NO_DRAG_CLASS : undefined
         }
       />
     </div>
