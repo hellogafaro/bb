@@ -48,14 +48,14 @@ Notion and search; durable sessions; agents with role profiles, models, tools, s
 
 ## Build path
 
-1. **Run the fork.** Build BB from this repo and run it on the server beside the npm-installed BB. Pair it with BB Connect and use the official BB apps. Replace the npm-installed BB once the fork works end to end.
+1. **Run the fork.** Build `main` in `~/.local/bb`, a clean clone outside the projects folder, and run `bb-server` from it. It keeps the same `~/.bb` data, BB Connect pairing, machines, and BB apps as the npm-installed BB it replaces.
 2. **Hide the noise.** Hide the core surfaces we do not use, such as the built-in browser, and disable unused built-in plugins. Remove only what gets in the way.
-3. **Prove one full run.** Build Otto as one plugin with its own page (`plugins/otto`). Start from a Notion task link, plan, execute, review, repair, update Notion, draft in the original thread, approve, and send. Make the run visible in the Otto inbox.
+3. **Prove one full run.** Build Otto into the fork with its own page. Start from a Notion task link, plan, execute, review, repair, update Notion, draft in the original thread, approve, and send. Make the run visible in the Otto inbox.
 4. **Expand intake and coverage.** Add email, WhatsApp, meetings, and other sources one at a time. Apply the same run to coding, marketing, and other work. Track failures and improve skills and checks from real cases.
 
 ## Base decision
 
-Otto is our work system, built as plugins on a soft fork of [BB](https://github.com/get-bb/bb) (MIT). The app keeps BB's name, so upstream merges stay clean and BB Connect, the BB apps, push, and the machine installer keep working. We compared BB, Orca, T3 Code, Synara, and Craft Agents in September 2026. We also tried renaming BB to Otto and forking T3 Code, then deleted both trials. A full rename cost us clean upstream merges and BB's hosted services, so we went back to a soft fork.
+Otto is our work system, built into a soft fork of [BB](https://github.com/get-bb/bb) (MIT). The app keeps BB's name, so upstream merges stay clean and BB Connect, the BB apps, push, and the machine installer keep working. We compared BB, Orca, T3 Code, Synara, and Craft Agents in September 2026. We also tried renaming BB to Otto and forking T3 Code, then deleted both trials. A full rename cost us clean upstream merges and BB's hosted services, so we went back to a soft fork.
 
 - **BB** runs Claude Code and Codex on our subscriptions, supports multiple machines, mobile, push, workflows, automations, and computer use, and is already our daily tool. Its code is well tested and organized by domain, and most features are removable plugin folders. Upstream ships one squash-merged PR per commit, so changes are easy to track.
 - **Orca** was too large (about 2M lines) and too fast-moving to maintain.
@@ -72,9 +72,9 @@ Otto is our work system, built as plugins on a soft fork of [BB](https://github.
 ### Fork rules
 
 - `origin` is `hellogafaro/bb` (private). `upstream` is `get-bb/bb` with pushing disabled. GitHub Actions are disabled on the repo because the inherited workflows deploy and publish BB.
-- Keep BB's names, packages, env vars, and protocol. Never rename them; Otto is a set of plugins and settings, not a new product name.
-- An agent merges all of upstream weekly and opens a PR with a summary, test results, and any conflicts. We approve the merge.
-- Keep Otto code in new files and folders (`plugins/otto`, this plan). Keep core edits small and rare. Hide features with settings instead of deleting core files.
+- Keep BB's names, packages, env vars, and protocol. Never rename them; Otto is our work built into BB, not a new product name.
+- Follow upstream by stable release. When `bb-app` publishes a stable version, an agent merges the commit it was built from (its npm `gitHead`), never unreleased `main` or nightlies, and opens a PR with a summary, test results, and any conflicts. We approve the merge.
+- Keep Otto's changes in their own files and folders where possible so upstream merges stay clean. Hide features with settings instead of deleting core files.
 - Never edit the provider plugins (`provider-claude-code`, `provider-codex`), the provider bridge packages, or the connect and tunnel packages. Upstream keeps our subscriptions working.
 - Offer generic patches, such as hiding core surfaces, upstream. Drop each one from the fork when upstream accepts it.
 - Before copying code from a community plugin or another project, check that its license allows it and keep the required notices.
