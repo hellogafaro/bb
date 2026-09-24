@@ -52,6 +52,7 @@ interface GitDiffTabContentProps {
   target: WorkspaceDiffTarget | undefined;
   isPanelOpen: boolean;
   gitDiffPresentation: DiffPresentation;
+  fileFilter: string;
   onClearPendingGitDiffIntent?: () => void;
   onOpenFileInEditor?: (path: string) => void;
   onOpenFilePreview?: (path: string) => void;
@@ -170,6 +171,7 @@ export function GitDiffTabContent({
   target,
   isPanelOpen,
   gitDiffPresentation,
+  fileFilter,
   onClearPendingGitDiffIntent,
   onOpenFileInEditor,
   onOpenFilePreview,
@@ -297,6 +299,7 @@ export function GitDiffTabContent({
         target={target}
         diffIdentity={diffIdentity}
         files={diffFilesResponse.files}
+        fileFilter={fileFilter}
         initialPatches={diffFilesResponse.initialPatches}
         filesUpdatedAt={diffFilesUpdatedAt}
         presentation={gitDiffPresentation}
