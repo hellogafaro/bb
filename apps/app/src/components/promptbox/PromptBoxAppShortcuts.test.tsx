@@ -237,24 +237,20 @@ describe("prompt editor app shortcuts", () => {
   });
 
   it("clears the keyboard hint when the composer runs a shortcut", () => {
-    vi.useFakeTimers();
-    try {
-      const editor = renderComposer(<ShortcutHintState />);
+    const editor = renderComposer(<ShortcutHintState />);
+    act(() => {
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Control", ctrlKey: true }),
       );
-      act(() => vi.advanceTimersByTime(700));
-      expect(screen.getByText("hint-held")).toBeDefined();
+    });
+    expect(screen.getByText("hint-held")).toBeDefined();
 
-      act(() => {
-        pressInEditor(editor, { ctrlKey: true, key: "\\" });
-      });
+    act(() => {
+      pressInEditor(editor, { ctrlKey: true, key: "\\" });
+    });
 
-      expect(testState.calls).toEqual(["sidebar.toggle"]);
-      expect(screen.getByText("hint-released")).toBeDefined();
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(testState.calls).toEqual(["sidebar.toggle"]);
+    expect(screen.getByText("hint-released")).toBeDefined();
   });
 
   it("releases focus on Escape while a plugin locks the composer", () => {

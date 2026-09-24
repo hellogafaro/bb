@@ -71,8 +71,6 @@ const AppCommandContextValue = createContext<AppCommandProviderValue | null>(
 );
 const AppCommandModifierHeldContext = createContext(false);
 
-const SHORTCUT_HINT_HOLD_DELAY_MS = 700;
-
 const EMPTY_CONTEXT: AppCommandContext = {
   mainSurface: false,
   modalOpen: false,
@@ -106,9 +104,6 @@ export function AppCommandProvider({ children }: { children: ReactNode }) {
   const isDesktop = getBbDesktopInfo() !== null;
   const [isShortcutHintModifierHeld, setIsShortcutHintModifierHeld] =
     useState(false);
-  const modifierHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const shortcutHintModifierHeldRef = useRef(false);
   const keybindingsRef = useRef(keybindings);
   const handlersRef = useRef(
@@ -127,30 +122,16 @@ export function AppCommandProvider({ children }: { children: ReactNode }) {
     const isShortcutHintModifier = (key: string) =>
       key === "Control" || (isMac && key === "Meta");
     const clearModifierHold = () => {
-      if (modifierHoldTimerRef.current !== null) {
-        clearTimeout(modifierHoldTimerRef.current);
-        modifierHoldTimerRef.current = null;
-      }
       shortcutHintModifierHeldRef.current = false;
       setIsShortcutHintModifierHeld(false);
     };
     clearShortcutHintHoldRef.current = clearModifierHold;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isShortcutHintModifier(event.key)) {
-        if (
-          modifierHoldTimerRef.current !== null ||
-          shortcutHintModifierHeldRef.current
-        ) {
-          clearModifierHold();
-        }
+        if (shortcutHintModifierHeldRef.current) clearModifierHold();
         return;
       }
-      if (
-        modifierHoldTimerRef.current !== null ||
-        shortcutHintModifierHeldRef.current
-      ) {
-        return;
-      }
+      if (shortcutHintModifierHeldRef.current) return;
       const otherModifierHeld =
         event.shiftKey ||
         event.altKey ||
@@ -159,11 +140,8 @@ export function AppCommandProvider({ children }: { children: ReactNode }) {
         clearModifierHold();
         return;
       }
-      modifierHoldTimerRef.current = setTimeout(() => {
-        modifierHoldTimerRef.current = null;
-        shortcutHintModifierHeldRef.current = true;
-        setIsShortcutHintModifierHeld(true);
-      }, SHORTCUT_HINT_HOLD_DELAY_MS);
+      shortcutHintModifierHeldRef.current = true;
+      setIsShortcutHintModifierHeld(true);
     };
     const handleKeyUp = (event: KeyboardEvent) => {
       if (isShortcutHintModifier(event.key)) clearModifierHold();

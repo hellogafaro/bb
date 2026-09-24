@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
 
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAppSettings, type AppCommandId } from "@bb/domain";
+import {
+  AppCommandShortcutHint,
+  AppCommandShortcutHintScope,
+} from "./AppCommandShortcutHint";
 import {
   AppCommandProvider,
   useAppCommandContext,
@@ -301,70 +299,55 @@ afterEach(() => {
 });
 
 describe("AppCommandProvider", () => {
-  it("shares shortcut-hint modifier state after 700ms and clears it on release or blur", () => {
-    vi.useFakeTimers();
+  it("shares shortcut-hint modifier state immediately and clears it on release or blur", () => {
     renderProvider(<ModifierState />);
 
     expect(screen.getByText("released")).toBeDefined();
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(699));
-    expect(screen.getByText("released")).toBeDefined();
-    act(() => vi.advanceTimersByTime(1));
     expect(screen.getByText("held")).toBeDefined();
     fireEvent.keyUp(window, { key: "Control" });
     expect(screen.getByText("released")).toBeDefined();
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(700));
     expect(screen.getByText("held")).toBeDefined();
     fireEvent.blur(window);
     expect(screen.getByText("released")).toBeDefined();
-    vi.useRealTimers();
   });
 
   it("shows keyboard hints for either Command or Control on macOS", () => {
-    vi.useFakeTimers();
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     renderProvider(<ModifierState />);
 
     fireEvent.keyDown(window, { key: "Meta", metaKey: true });
-    act(() => vi.advanceTimersByTime(700));
     expect(screen.getByText("held")).toBeDefined();
     fireEvent.keyUp(window, { key: "Meta" });
     expect(screen.getByText("released")).toBeDefined();
 
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(700));
     expect(screen.getByText("held")).toBeDefined();
     fireEvent.keyUp(window, { key: "Control" });
     expect(screen.getByText("released")).toBeDefined();
-    vi.useRealTimers();
   });
 
-  it("cancels keyboard hints when the modifier becomes part of a shortcut chord", () => {
-    vi.useFakeTimers();
+  it("clears keyboard hints when the modifier becomes part of a shortcut chord", () => {
     renderProvider(<ModifierState />);
 
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(699));
+    expect(screen.getByText("held")).toBeDefined();
     fireEvent.keyDown(window, {
       key: "Shift",
       ctrlKey: true,
       shiftKey: true,
     });
-    act(() => vi.advanceTimersByTime(1));
     expect(screen.getByText("released")).toBeDefined();
 
     fireEvent.keyUp(window, { key: "Control" });
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(700));
     expect(screen.getByText("held")).toBeDefined();
-    fireEvent.keyDown(window, { key: "3", ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     expect(screen.getByText("released")).toBeDefined();
-    vi.useRealTimers();
   });
 
   it("does not show keyboard hints when another modifier was held first", () => {
-    vi.useFakeTimers();
     renderProvider(<ModifierState />);
 
     fireEvent.keyDown(window, { key: "Shift", shiftKey: true });
@@ -373,21 +356,36 @@ describe("AppCommandProvider", () => {
       ctrlKey: true,
       shiftKey: true,
     });
-    act(() => vi.advanceTimersByTime(700));
 
     expect(screen.getByText("released")).toBeDefined();
-    vi.useRealTimers();
+  });
+
+  it("renders shortcut hints only inside the sidebar scope", () => {
+    const shortcut = { ariaKeyshortcuts: "Control+B", label: "Ctrl + B" };
+    renderProvider(
+      <>
+        <div data-testid="outside">
+          <AppCommandShortcutHint shortcut={shortcut} />
+        </div>
+        <AppCommandShortcutHintScope>
+          <div data-testid="inside">
+            <AppCommandShortcutHint shortcut={shortcut} />
+          </div>
+        </AppCommandShortcutHintScope>
+      </>,
+    );
+
+    fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
+    expect(screen.getByTestId("inside").textContent).toBe("Ctrl + B");
+    expect(screen.getByTestId("outside").textContent).toBe("");
   });
 
   it("does not share shortcut-hint modifier state when keyboard hints are disabled", () => {
-    vi.useFakeTimers();
     testState.showKeyboardHints = false;
     renderProvider(<ModifierState />);
 
     fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    act(() => vi.advanceTimersByTime(700));
     expect(screen.getByText("released")).toBeDefined();
-    vi.useRealTimers();
   });
 
   it("presents the web-capable alias when the primary binding is desktop-only", () => {

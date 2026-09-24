@@ -40,6 +40,7 @@ import {
   useIsAppCommandModifierHeld,
   useIndexedAppCommandHandlers,
 } from "@/components/commands/AppCommandProvider";
+import { AppCommandShortcutHintScope } from "@/components/commands/AppCommandShortcutHint";
 import { useRouteState } from "@/hooks/useRouteState";
 import { SidebarNavigationRegion } from "./SidebarNavigationRegion";
 
@@ -188,7 +189,7 @@ export function AppSidebar({
   }, [hideThreadShortcuts, isAppCommandModifierHeld, showThreadShortcuts]);
 
   const body = (
-    <>
+    <AppCommandShortcutHintScope>
       <SidebarTopReserveRow testId="app-sidebar-top-reserve-row" />
       <SidebarNavigationRegion
         compactCustomizeMode={isCompactCustomizeModeActive}
@@ -263,7 +264,7 @@ export function AppSidebar({
         isResizing={isResizing}
         onMouseDown={onResizeMouseDown}
       />
-    </>
+    </AppCommandShortcutHintScope>
   );
 
   return (
