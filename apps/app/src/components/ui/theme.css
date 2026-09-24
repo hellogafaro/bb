@@ -1000,10 +1000,10 @@ body.sidebar-resizing [data-sidebar="panel"] {
   }
 
   @media (min-width: 768px), (pointer: fine) {
-    .bb-sidebar-hover-actions-row:is(
-        :hover,
-        :has(:focus-visible),
-        :has([data-sidebar-hover-actions-open="true"])
+    .bb-sidebar-hover-actions-row:is(:hover, :has(:focus-visible))
+      .bb-sidebar-thread-title,
+    .bb-sidebar-hover-actions-row:has(
+        .bb-sidebar-hover-actions[data-sidebar-hover-actions-open="true"]
       )
       .bb-sidebar-thread-title {
       --bb-sidebar-thread-title-cover: var(
@@ -1012,24 +1012,30 @@ body.sidebar-resizing [data-sidebar="panel"] {
       );
     }
 
-    .bb-sidebar-hover-actions-row:not(
-        :hover,
-        :has(:focus-visible),
-        :has([data-sidebar-hover-actions-open="true"])
-      )
-      .bb-sidebar-thread-disclosure-row
-      > .bb-sidebar-hover-actions {
+    .bb-sidebar-thread-disclosure-row > .bb-sidebar-hover-actions {
       position: absolute;
       right: 0;
     }
 
-    .bb-sidebar-hover-actions-row:is(
-        :hover,
-        :has(:focus-visible),
-        :has([data-sidebar-hover-actions-open="true"])
+    .bb-sidebar-hover-actions-row:is(:hover, :has(:focus-visible))
+      .bb-sidebar-thread-disclosure-row,
+    .bb-sidebar-hover-actions-row:has(
+        .bb-sidebar-hover-actions[data-sidebar-hover-actions-open="true"]
       )
       .bb-sidebar-thread-disclosure-row {
       padding-right: var(--bb-sidebar-row-actions-extra);
+    }
+
+    .bb-sidebar-hover-actions-row:is(:hover, :has(:focus-visible))
+      .bb-sidebar-thread-disclosure-row
+      > .bb-sidebar-hover-actions,
+    .bb-sidebar-hover-actions-row:has(
+        .bb-sidebar-hover-actions[data-sidebar-hover-actions-open="true"]
+      )
+      .bb-sidebar-thread-disclosure-row
+      > .bb-sidebar-hover-actions {
+      position: relative;
+      right: auto;
     }
   }
 
