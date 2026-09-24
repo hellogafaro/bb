@@ -69,13 +69,13 @@ import {
 } from "@bb/client-core";
 import {
   AUTOMATIONS_PLUGIN_ID,
-  getPluginPanelRoutePath,
   getProjectComposeRoutePath,
   getRootComposeRoutePath,
   getThreadRoutePath,
   AUTOMATION_EDIT_ROUTE_PATH,
 } from "@/lib/route-paths";
 import { useRouteState } from "@/hooks/useRouteState";
+import { resolvePluginPanelRoutePath } from "@/components/tools/customize-navigation";
 import { useServerConnectionState } from "@/hooks/useServerConnectionState";
 import { wsManager } from "@/lib/ws";
 import { pluginSdkSettingsQueryKey } from "@/hooks/queries/query-keys";
@@ -360,7 +360,7 @@ export function useBbNavigate(): BbNavigate {
   );
   const toPluginPanel = useCallback(
     (path: string, options?: { subPath?: string; replace?: boolean }) => {
-      const route = getPluginPanelRoutePath({
+      const route = resolvePluginPanelRoutePath({
         pluginId,
         path,
         ...(options?.subPath !== undefined ? { subPath: options.subPath } : {}),

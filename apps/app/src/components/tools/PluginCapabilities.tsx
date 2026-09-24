@@ -36,8 +36,8 @@ import {
   getRootComposeRoutePath,
   getSettingsRoutePath,
   getSkillDetailRoutePath,
-  getSkillsRoutePath,
 } from "@/lib/route-paths";
+import { getToolsOwnedCollectionRoutePath } from "./tools-navigation";
 import { getPluginHomepageSectionAnchor } from "@/lib/plugin-homepage-section";
 import { projectSkillsQueryKey } from "@/hooks/queries/query-keys";
 
@@ -376,7 +376,7 @@ export function PluginIncludes({ plugin }: { plugin: PluginListItem }) {
       return segments.at(-2) === capabilityId || skill.name === capabilityId;
     });
     return installedSkill === undefined
-      ? `${getSkillsRoutePath()}?view=library`
+      ? getToolsOwnedCollectionRoutePath("skills")
       : getSkillDetailRoutePath({ skillId: installedSkill.id });
   };
 

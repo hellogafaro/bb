@@ -16,6 +16,7 @@ import {
   isSkillsRoutePath,
 } from "@/lib/route-paths";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
+import { resolveCustomizeBreadcrumbs } from "./customize-navigation";
 
 export type ToolsSectionId = "skills" | "plugins";
 
@@ -30,7 +31,7 @@ interface ToolsSectionDefinition {
 const TOOLS_SECTIONS = {
   skills: {
     id: "skills",
-    label: "Customize",
+    label: "Skills",
     to: getSkillsRoutePath(),
   },
   plugins: {
@@ -53,7 +54,9 @@ const TOOLS_OWNED_COLLECTION_VIEW = {
 export function getToolsOwnedCollectionRoutePath(id: ToolsSectionId): string {
   return id === "plugins"
     ? SETTINGS_PLUGINS_ROUTE_PATH
-    : `${TOOLS_SECTIONS[id].to}?view=${TOOLS_OWNED_COLLECTION_VIEW[id]}`;
+    : FORK_CUSTOMIZE_PAGE
+      ? TOOLS_SECTIONS[id].to
+      : `${TOOLS_SECTIONS[id].to}?view=${TOOLS_OWNED_COLLECTION_VIEW[id]}`;
 }
 
 interface ToolsBreadcrumbSegment {
@@ -172,6 +175,11 @@ export function resolveToolsBreadcrumbs(
   search = "",
   resourceLabel?: string | null,
 ): ToolsBreadcrumbSegment[] | null {
+  const customizeBreadcrumbs = resolveCustomizeBreadcrumbs(
+    pathname,
+    resourceLabel,
+  );
+  if (customizeBreadcrumbs !== null) return customizeBreadcrumbs;
   const view = new URLSearchParams(search).get("view");
   const pluginCreateBreadcrumbs = resolvePluginCreateBreadcrumbs(
     pathname,
@@ -190,8 +198,7 @@ export function resolveToolsBreadcrumbs(
         sectionCrumb(section.id),
         {
           label:
-            view === TOOLS_OWNED_COLLECTION_VIEW[section.id] ||
-            (FORK_CUSTOMIZE_PAGE && section.id === "skills")
+            view === TOOLS_OWNED_COLLECTION_VIEW[section.id]
               ? TOOLS_OWNED_COLLECTION_LABEL[section.id]
               : "Browse",
         },
@@ -307,5 +314,5 @@ export function resolveSkillsWorkspaceHeaderMeta(
   pathname: string,
 ): ResourceWorkspaceHeaderMeta | null {
   if (!isSkillsRoutePath(pathname)) return null;
-  return { kind: "section-title", title: "Customize" };
+  return { kind: "section-title", title: "Skills" };
 }

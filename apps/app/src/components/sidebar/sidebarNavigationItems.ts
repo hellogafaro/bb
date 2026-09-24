@@ -8,6 +8,7 @@ import {
   getPluginPanelRoutePath,
   getPluginsRoutePath,
   getSkillsRoutePath,
+  isSkillsRoutePath,
   isToolsRoutePath,
 } from "@/lib/route-paths";
 
@@ -117,11 +118,9 @@ export function resolveActiveSidebarNavigationItemId({
 }): string | null {
   if (pathname === "/") return NEW_THREAD_NAVIGATION_ITEM_ID;
   if (isToolsRoutePath(pathname)) {
-    const itemId =
-      pathname === getSkillsRoutePath() ||
-      pathname.startsWith(`${getSkillsRoutePath()}/`)
-        ? SKILLS_NAVIGATION_ITEM_ID
-        : PLUGINS_NAVIGATION_ITEM_ID;
+    const itemId = isSkillsRoutePath(pathname)
+      ? SKILLS_NAVIGATION_ITEM_ID
+      : PLUGINS_NAVIGATION_ITEM_ID;
     return items.some((item) => item.id === itemId) ? itemId : null;
   }
   for (const panel of navPanels) {

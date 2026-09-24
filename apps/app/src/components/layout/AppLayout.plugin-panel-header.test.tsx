@@ -280,3 +280,36 @@ describe("AppLayout plugin panel header", () => {
     ).toBeUndefined();
   });
 });
+
+describe("Customize page header", () => {
+  afterEach(cleanup);
+
+  it.each([
+    ["/customize", ["Customize", "Skills"], "Skills · Customize"],
+    ["/customize/mcps", ["Customize", "MCPs"], "MCPs · Customize"],
+    [
+      "/customize/mcps/installed/github",
+      ["Customize", "MCPs", "github"],
+      "github · Customize",
+    ],
+    [
+      "/skills/library/skill_abc123",
+      ["Customize", "Skills", "skill_abc123"],
+      "skill_abc123 · Customize",
+    ],
+  ])("titles %s under Customize", (route, crumbs, title) => {
+    render(
+      <MemoryRouter initialEntries={[route]}>
+        <AppLayout>
+          <div>Customize body</div>
+        </AppLayout>
+      </MemoryRouter>,
+    );
+    const header = screen.getByTestId("app-page-header");
+    expect(
+      Array.from(header.querySelectorAll("li"), (item) => item.textContent),
+    ).toEqual(crumbs);
+    expect(screen.queryByTestId("plugin-panel-header-center")).toBeNull();
+    expect(document.title).toBe(title);
+  });
+});

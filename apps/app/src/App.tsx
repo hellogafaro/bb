@@ -25,6 +25,7 @@ import { useRememberPluginNavPanelChrome } from "@/lib/plugin-nav-panel-chrome";
 import { useWebSocket } from "./hooks/useWebSocket";
 import {
   AUTH_CALLBACK_ROUTE_PATH,
+  CUSTOMIZE_ROUTE_PATH,
   LEGACY_AUTOMATION_DETAIL_ROUTE_PATH,
   LEGACY_AUTOMATIONS_ROUTE_PATH,
   LEGACY_TOOLS_AUTOMATION_BROWSE_ROUTE_PATH,
@@ -69,6 +70,10 @@ import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provi
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
 import { FORK_CUSTOMIZE_PAGE } from "./lib/fork-flags";
+import {
+  CUSTOMIZE_MCPS_PANEL_ROUTE_PATH,
+  getCustomizeRoutePath,
+} from "./components/tools/customize-navigation";
 
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((m) => ({
@@ -83,6 +88,11 @@ const PluginsView = lazy(() =>
 const SkillsView = lazy(() =>
   import("./views/ToolsView").then((m) => ({
     default: m.SkillsView,
+  })),
+);
+const CustomizeView = lazy(() =>
+  import("./views/CustomizeView").then((m) => ({
+    default: m.CustomizeView,
   })),
 );
 const ProjectDetailSettingsView = lazy(() =>
@@ -183,11 +193,20 @@ function normalizeLegacySkillSuffix(suffix: string): string {
   return suffix;
 }
 
-const registrySkillsElement = FORK_CUSTOMIZE_PAGE ? (
-  <Navigate to={`${SKILLS_ROUTE_PATH}?view=library`} replace />
+const skillsCollectionElement = FORK_CUSTOMIZE_PAGE ? (
+  <Navigate to={getCustomizeRoutePath("skills")} replace />
 ) : (
   <SkillsView />
 );
+
+function CustomizeMcpsRedirect() {
+  const location = useLocation();
+  return (
+    <NavigatePreservingLocation
+      pathname={`${getCustomizeRoutePath("mcps")}${location.pathname.slice(CUSTOMIZE_MCPS_PANEL_ROUTE_PATH.length)}`}
+    />
+  );
+}
 
 export function LegacySkillsPathRedirect() {
   const location = useLocation();
@@ -384,15 +403,27 @@ export function AppRoutes() {
             path={LEGACY_TOOLS_SPLAT_ROUTE_PATH}
             element={<LegacyToolsPathRedirect />}
           />
-          <Route path={SKILLS_ROUTE_PATH} element={<SkillsView />} />
+          {FORK_CUSTOMIZE_PAGE ? (
+            <>
+              <Route
+                path={`${CUSTOMIZE_ROUTE_PATH}/*`}
+                element={<CustomizeView />}
+              />
+              <Route
+                path={`${CUSTOMIZE_MCPS_PANEL_ROUTE_PATH}/*`}
+                element={<CustomizeMcpsRedirect />}
+              />
+            </>
+          ) : null}
+          <Route path={SKILLS_ROUTE_PATH} element={skillsCollectionElement} />
           <Route path={SKILL_DETAIL_ROUTE_PATH} element={<SkillsView />} />
           <Route
             path={REGISTRY_SKILLS_ROUTE_PATH}
-            element={registrySkillsElement}
+            element={skillsCollectionElement}
           />
           <Route
             path={REGISTRY_SKILL_DETAIL_ROUTE_PATH}
-            element={registrySkillsElement}
+            element={skillsCollectionElement}
           />
           <Route path={PLUGINS_ROUTE_PATH} element={<PluginsRoute />} />
           <Route path={PLUGIN_DETAIL_ROUTE_PATH} element={<PluginsRoute />} />

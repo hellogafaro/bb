@@ -282,8 +282,8 @@ describe("canonical thread routes", () => {
 
 describe("Customize page sidebar", () => {
   it.each([
-    ["/skills", "app"],
-    ["/skills?view=library", "app"],
+    ["/customize", "app"],
+    ["/customize/mcps/installed/github", "app"],
     ["/skills/library/skill_abc123", "app"],
     ["/plugins", "plugins"],
   ])("renders the %s sidebar as %s", (route, mode) => {

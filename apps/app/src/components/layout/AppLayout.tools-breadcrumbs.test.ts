@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   resolveAutomationBreadcrumbs,
   resolvePluginsWorkspaceHeaderMeta,
@@ -6,14 +6,16 @@ import {
   resolveToolsBreadcrumbs,
 } from "@/components/tools/tools-navigation";
 
+vi.mock("@/lib/fork-flags", () => ({ FORK_CUSTOMIZE_PAGE: false }));
+
 describe("resolveToolsBreadcrumbs", () => {
   it("includes the selected collection tab", () => {
     expect(resolveToolsBreadcrumbs("/skills")).toEqual([
-      { label: "Customize", to: "/skills" },
-      { label: "My skills" },
+      { label: "Skills", to: "/skills" },
+      { label: "Browse" },
     ]);
     expect(resolveToolsBreadcrumbs("/skills", "?view=library")).toEqual([
-      { label: "Customize", to: "/skills" },
+      { label: "Skills", to: "/skills" },
       { label: "My skills" },
     ]);
     expect(resolveToolsBreadcrumbs("/plugins")).toEqual([
@@ -32,7 +34,7 @@ describe("resolveToolsBreadcrumbs", () => {
 
   it("resolves the Skills registry path as Browse", () => {
     expect(resolveToolsBreadcrumbs("/skills/registry")).toEqual([
-      { label: "Customize", to: "/skills" },
+      { label: "Skills", to: "/skills" },
       { label: "Browse" },
     ]);
   });
@@ -45,7 +47,7 @@ describe("resolveToolsBreadcrumbs", () => {
         "Example Skill",
       ),
     ).toEqual([
-      { label: "Customize", to: "/skills" },
+      { label: "Skills", to: "/skills" },
       { label: "My skills", to: "/skills?view=library" },
       { label: "Example Skill" },
     ]);
@@ -54,7 +56,7 @@ describe("resolveToolsBreadcrumbs", () => {
         "/skills/registry/vercel-labs%2Fskills%2Ffind-skills",
       ),
     ).toEqual([
-      { label: "Customize", to: "/skills" },
+      { label: "Skills", to: "/skills" },
       { label: "Browse", to: "/skills/registry" },
       { label: "find-skills" },
     ]);
@@ -173,7 +175,7 @@ describe("resource workspace headers", () => {
   it("gives Skills ownership of only the Skills header", () => {
     expect(resolveSkillsWorkspaceHeaderMeta("/skills/registry")).toEqual({
       kind: "section-title",
-      title: "Customize",
+      title: "Skills",
     });
     expect(resolveSkillsWorkspaceHeaderMeta("/plugins")).toBeNull();
   });

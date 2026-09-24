@@ -2,10 +2,12 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ResourceSidebar } from "./ResourceSidebar";
 import type { ToolsSectionId } from "./tools-navigation";
+
+vi.mock("@/lib/fork-flags", () => ({ FORK_CUSTOMIZE_PAGE: false }));
 
 afterEach(cleanup);
 

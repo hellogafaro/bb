@@ -57,12 +57,7 @@ import {
   getPluginsRoutePath,
   getRootComposeRoutePath,
 } from "@/lib/route-paths";
-import {
-  getToolsOwnedCollectionRoutePath,
-  TOOLS_PAGE_BAND_CLASSES,
-} from "@/components/tools/tools-navigation";
-import { CustomizeTabs } from "@/components/tools/CustomizeTabs";
-import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
+import { getToolsOwnedCollectionRoutePath } from "@/components/tools/tools-navigation";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { SkillsLibrary } from "@/components/tools/SkillsLibrary";
 import { PluginIcon } from "@/components/plugin/PluginIcon";
@@ -627,13 +622,6 @@ export function SkillsView() {
 
   return (
     <div className="-mx-4 -mb-4 -mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:-mx-5 md:-mb-5 md:-mt-5">
-      {FORK_CUSTOMIZE_PAGE && isCollection ? (
-        <div className="shrink-0 pt-3 md:pr-3 md:pt-4">
-          <div className={TOOLS_PAGE_BAND_CLASSES}>
-            <CustomizeTabs active="skills" />
-          </div>
-        </div>
-      ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         <Suspense fallback={<ResourceBodyFallback />}>
           <ResourceScrollPage fillViewport={isCollection}>

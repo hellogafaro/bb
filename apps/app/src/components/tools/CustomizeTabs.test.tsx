@@ -3,7 +3,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
-import { CustomizeTabs, type CustomizeTab } from "./CustomizeTabs";
+import { CustomizeTabs } from "./CustomizeTabs";
+import type { CustomizeTab } from "./customize-navigation";
 
 function LocationPath() {
   const location = useLocation();
@@ -28,7 +29,7 @@ afterEach(cleanup);
 
 describe("CustomizeTabs", () => {
   it("marks the active tab", () => {
-    renderTabs("mcps", "/plugins/mcps/mcps");
+    renderTabs("mcps", "/customize/mcps");
     expect(
       screen.getByRole("tab", { name: "MCPs" }).getAttribute("aria-selected"),
     ).toBe("true");
@@ -37,25 +38,23 @@ describe("CustomizeTabs", () => {
     ).toBe("false");
   });
 
-  it("opens the mcps plugin panel from Skills", () => {
-    renderTabs("skills", "/skills?view=library");
+  it("opens the MCPs tab from Skills", () => {
+    renderTabs("skills", "/customize");
     fireEvent.mouseDown(screen.getByRole("tab", { name: "MCPs" }));
-    expect(screen.getByTestId("location").textContent).toBe(
-      "/plugins/mcps/mcps",
-    );
+    expect(screen.getByTestId("location").textContent).toBe("/customize/mcps");
   });
 
-  it("opens the skills library from MCPs", () => {
-    renderTabs("mcps", "/plugins/mcps/mcps");
+  it("opens the Skills tab from an MCP detail", () => {
+    renderTabs("mcps", "/customize/mcps/installed/github");
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Skills" }));
-    expect(screen.getByTestId("location").textContent).toBe(
-      "/skills?view=library",
-    );
+    expect(screen.getByTestId("location").textContent).toBe("/customize");
   });
 
   it("stays put when the active tab is pressed again", () => {
-    renderTabs("skills", "/skills");
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Skills" }));
-    expect(screen.getByTestId("location").textContent).toBe("/skills");
+    renderTabs("mcps", "/customize/mcps/installed/github");
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "MCPs" }));
+    expect(screen.getByTestId("location").textContent).toBe(
+      "/customize/mcps/installed/github",
+    );
   });
 });

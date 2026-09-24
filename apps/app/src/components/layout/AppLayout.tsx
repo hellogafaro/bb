@@ -118,6 +118,7 @@ import { useAppSettingsRouteMemory } from "@/hooks/useAppSettingsRouteMemory";
 import { useSetRootComposeProjectId } from "@/lib/root-compose-selection";
 import { BackToAppCommandHandler } from "./BackToAppCommandHandler";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
+import { resolveCustomizeHeaderMeta } from "@/components/tools/customize-navigation";
 
 const SIDEBAR_WIDTH_KEY = "bb.sidebar.width";
 const SIDEBAR_OPEN_KEY = "bb.sidebar.open";
@@ -274,7 +275,7 @@ const routeTitles: Record<string, { title: string }> = {
   "/": { title: "bb" },
   "/settings": { title: "Settings" },
   "/automations": { title: "Automations" },
-  "/skills": { title: "Customize" },
+  "/skills": { title: "Skills" },
 };
 
 function resolveRouteTitle(pathname: string): { title: string } | undefined {
@@ -571,6 +572,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   );
   const documentTitleBreadcrumbs = toolsBreadcrumbs ?? automationBreadcrumbs;
   const resourceWorkspaceHeaderMeta =
+    resolveCustomizeHeaderMeta(location.pathname, resourceRouteLabel) ??
     resolvePluginsWorkspaceHeaderMeta(location.pathname, location.search) ??
     resolveSkillsWorkspaceHeaderMeta(location.pathname);
   const meta =

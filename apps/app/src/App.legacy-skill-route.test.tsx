@@ -18,6 +18,9 @@ vi.mock("./views/ToolsView", () => ({
   ),
   SkillsView: () => <h1>Skills</h1>,
 }));
+vi.mock("./views/CustomizeView", () => ({
+  CustomizeView: () => <h1>Customize</h1>,
+}));
 vi.mock("./views/SplitWorkspaceRoute", () => ({
   default: () => <h1>App workspace</h1>,
 }));
@@ -93,7 +96,7 @@ describe("legacy resource redirects", () => {
       "/extensions/plugins/github?view=installed#configuration",
       "/plugins/github?view=installed#configuration",
     ],
-    ["/extensions/skills", "/skills"],
+    ["/extensions/skills", "/customize"],
     [
       "/extensions/skills/library/skill_abc123?source=local#details",
       "/skills/library/skill_abc123?source=local#details",
@@ -102,13 +105,17 @@ describe("legacy resource redirects", () => {
       "/extensions/skills/installed/skill_abc123",
       "/skills/library/skill_abc123",
     ],
-    ["/extensions/skills/registry", "/skills?view=library"],
+    ["/extensions/skills/registry", "/customize"],
+    ["/extensions/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
+    ["/skills", "/customize"],
+    ["/skills?view=library", "/customize"],
+    ["/skills/registry?sort=trending", "/customize"],
+    ["/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
+    ["/plugins/mcps/mcps", "/customize/mcps"],
     [
-      "/extensions/skills/registry/moss-skills%2Fmoss-notes",
-      "/skills?view=library",
+      "/plugins/mcps/mcps/installed/my%20server?tab=tools#auth",
+      "/customize/mcps/installed/my%20server?tab=tools#auth",
     ],
-    ["/skills/registry?sort=trending", "/skills?view=library"],
-    ["/skills/registry/moss-skills%2Fmoss-notes", "/skills?view=library"],
     ["/tools", "/plugins"],
     ["/tools/plugins/browse", "/plugins"],
     ["/tools/plugins/browse/?sort=name#catalog", "/plugins?sort=name#catalog"],

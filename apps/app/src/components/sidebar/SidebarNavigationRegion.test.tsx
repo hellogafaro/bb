@@ -204,9 +204,13 @@ describe("SidebarNavigationRegion", () => {
     );
   });
 
-  it("routes Customize and leaves Plugins out of the navigation", () => {
+  it.each([
+    "/skills/library/demo",
+    "/customize",
+    "/customize/mcps/installed/x",
+  ])("marks Customize active on %s and routes it to /customize", (route) => {
     registerFixture();
-    renderHarness(vi.fn(), ["/skills/library/demo"]);
+    renderHarness(vi.fn(), [route]);
 
     expect(
       screen
@@ -216,7 +220,7 @@ describe("SidebarNavigationRegion", () => {
     expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Customize" }));
-    expect(screen.getByTestId("pathname").textContent).toBe("/skills");
+    expect(screen.getByTestId("pathname").textContent).toBe("/customize");
   });
 
   it("delegates and falls back after a crash without owner remounts", () => {
