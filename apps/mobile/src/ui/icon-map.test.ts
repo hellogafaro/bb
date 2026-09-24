@@ -20,8 +20,8 @@ const SHARED_UI_DIR = join(
 const SHARED_UI_CORE_ICON_PATH = join(SHARED_UI_DIR, "icon.tsx");
 const SHARED_UI_EXTENDED_ICON_PATH = join(SHARED_UI_DIR, "icon-extended.tsx");
 const MOBILE_ICON_MAP_PATH = join(HERE, "icon-map.ts");
-const WEB_GLYPH = /^Pi([A-Za-z0-9]+)Bold$/;
-const MOBILE_GLYPH = /^([A-Za-z0-9]+)Icon$/;
+const WEB_GLYPH = /^(Ri[A-Za-z0-9]+)$/;
+const MOBILE_GLYPH = /^(Ri[A-Za-z0-9]+)$/;
 
 function iconMapEntries(
   source: string,

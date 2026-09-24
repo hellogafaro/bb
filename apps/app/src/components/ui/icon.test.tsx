@@ -96,7 +96,7 @@ describe("Icon core/extended split", () => {
 
     expect(iconSource).not.toMatch(/from\s+["']\.\/icon-extended["']/);
     expect(iconSource).toMatch(/import\(\s*["']\.\/icon-extended["']\s*\)/);
-    expect(registrySource).not.toMatch(/react-icons\/pi/);
+    expect(registrySource).not.toMatch(/react-icons\/ri/);
     expect(registrySource).not.toMatch(/from\s+["']\.\/icon-extended["']/);
   });
 });

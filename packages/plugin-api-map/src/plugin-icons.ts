@@ -1,15 +1,15 @@
 import {
-  PiArrowsLeftRightBold,
-  PiClockBold,
-  PiCodeBold,
-  PiDatabaseBold,
-  PiDesktopBold,
-  PiPulseBold,
-  PiSparkleBold,
-  PiStackBold,
-  PiTerminalWindowBold,
-  PiTestTubeBold,
-} from "react-icons/pi";
+  RiArrowLeftRightLine,
+  RiCodeSSlashLine,
+  RiComputerLine,
+  RiDatabase2Line,
+  RiPulseLine,
+  RiSparkling2Line,
+  RiStackLine,
+  RiTerminalBoxLine,
+  RiTestTubeLine,
+  RiTimeLine,
+} from "react-icons/ri";
 import type { IconType } from "react-icons";
 import type { IconName } from "@bb/shared-ui/icon";
 import accountPoolManifest from "../../../plugins/account-pool/package.json";
@@ -89,16 +89,16 @@ export function firstPartyPluginId(displayName: string): string | null {
 }
 
 const SURFACE_ICONS: Record<string, IconType> = {
-  cli: PiTerminalWindowBold,
-  "agent-tools": PiSparkleBold,
-  background: PiClockBold,
-  wire: PiArrowsLeftRightBold,
-  storage: PiDatabaseBold,
-  "thread-events": PiPulseBold,
-  "host-workers": PiDesktopBold,
-  "bb-sdk": PiCodeBold,
-  "host-components": PiStackBold,
-  testing: PiTestTubeBold,
+  cli: RiTerminalBoxLine,
+  "agent-tools": RiSparkling2Line,
+  background: RiTimeLine,
+  wire: RiArrowLeftRightLine,
+  storage: RiDatabase2Line,
+  "thread-events": RiPulseLine,
+  "host-workers": RiComputerLine,
+  "bb-sdk": RiCodeSSlashLine,
+  "host-components": RiStackLine,
+  testing: RiTestTubeLine,
 };
 
 export function surfaceIcon(surfaceId: string): IconType | null {

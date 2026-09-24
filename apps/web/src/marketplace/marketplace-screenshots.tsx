@@ -1,4 +1,4 @@
-import { PiXBold } from "react-icons/pi";
+import { RiCloseLine } from "react-icons/ri";
 import { useEffect, useRef, useState } from "react";
 
 import { marketplaceAssetUrl } from "./marketplace-view-model.js";
@@ -82,7 +82,7 @@ export function MarketplaceScreenshots({
                 aria-label="Close screenshots"
                 onClick={() => setSelected(null)}
               >
-                <PiXBold aria-hidden />
+                <RiCloseLine aria-hidden />
               </button>
             </div>
             <div

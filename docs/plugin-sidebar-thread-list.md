@@ -514,7 +514,7 @@ import {
   type PluginSidebarThread,
   type PluginThreadListProps,
 } from "@get-bb/plugin-sdk/app";
-import { PiCircleNotchBold, PiQuestionBold } from "react-icons/pi";
+import { RiLoader4Line, RiQuestionLine } from "react-icons/ri";
 
 function Row({
   thread,
@@ -555,9 +555,9 @@ function Row({
         </span>
         {/* Your icons, your rules — `indicator` is just a string. */}
         {thread.indicator === "runtime" ? (
-          <PiCircleNotchBold className="size-3.5 animate-spin" />
+          <RiLoader4Line className="size-3.5 animate-spin" />
         ) : thread.indicator === "waiting-for-input" ? (
-          <PiQuestionBold className="size-3.5" />
+          <RiQuestionLine className="size-3.5" />
         ) : null}
       </a>
     </li>

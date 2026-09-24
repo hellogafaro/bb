@@ -1,4 +1,4 @@
-import { PiArrowSquareOutBold } from "react-icons/pi";
+import { RiExternalLinkLine } from "react-icons/ri";
 import type { ComponentPropsWithoutRef } from "react";
 import ReactMarkdown, {
   type Components,
@@ -46,7 +46,7 @@ function OverviewLink({ children, href }: ComponentPropsWithoutRef<"a">) {
   return (
     <a href={safeHref} target="_blank" rel="noopener noreferrer">
       {children}
-      <PiArrowSquareOutBold aria-hidden />
+      <RiExternalLinkLine aria-hidden />
     </a>
   );
 }

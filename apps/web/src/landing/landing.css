@@ -554,7 +554,7 @@ code,
   white-space: nowrap;
 }
 
-/* Both pills end in the same Phosphor caret. The glyph is drawn with ~4px of
+/* Both pills end in the same Remix caret. The glyph is drawn with ~4px of
    slack inside its own box, so the box gaps lie: negative margins pull that
    slack back out and let the chevron sit against the text it belongs to,
    rather than stranded between the text and the pill's edge. */

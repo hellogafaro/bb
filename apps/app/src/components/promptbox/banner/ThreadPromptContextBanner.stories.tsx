@@ -653,6 +653,7 @@ function ContextBannerPreview({
                 changedFiles: section,
                 mergeBase,
                 onPromptBannerFileClick: noop,
+                onCommit: noop,
               }
             : null
         }

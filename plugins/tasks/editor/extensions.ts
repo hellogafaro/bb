@@ -1,4 +1,4 @@
-import { PiChatCircleBold } from "react-icons/pi";
+import { RiChat3Line } from "react-icons/ri";
 import {
   Extension,
   getHTMLFromFragment,
@@ -77,7 +77,7 @@ function mentionIconSpec(icon: IconType): DOMOutputSpec {
   return [
     `${SVG_NS} svg`,
     {
-      viewBox: glyph?.attr?.viewBox ?? "0 0 256 256",
+      viewBox: glyph?.attr?.viewBox ?? "0 0 24 24",
       fill: "currentColor",
       class: "bb-tasks-mention-icon",
       "aria-hidden": "true",
@@ -309,7 +309,7 @@ const ThreadMention = createMentionNode({
   scheme: THREAD_MENTION_SCHEME,
   className: "bb-tasks-mention bb-tasks-thread-mention",
   role: "link",
-  icon: PiChatCircleBold,
+  icon: RiChat3Line,
 });
 
 const TrailingParagraph = Extension.create({

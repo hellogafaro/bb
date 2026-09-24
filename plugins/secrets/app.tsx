@@ -1,4 +1,4 @@
-import { PiCircleDashedBold, PiEyeBold, PiEyeSlashBold } from "react-icons/pi";
+import { RiEyeLine, RiEyeOffLine, RiLoader5Line } from "react-icons/ri";
 import { useMemo, useState } from "react";
 import {
   definePluginApp,
@@ -155,9 +155,9 @@ function SecretRequestInteraction({
                   disabled={busy}
                 >
                   {isRevealed ? (
-                    <PiEyeSlashBold className="size-4" aria-hidden="true" />
+                    <RiEyeOffLine className="size-4" aria-hidden="true" />
                   ) : (
-                    <PiEyeBold className="size-4" aria-hidden="true" />
+                    <RiEyeLine className="size-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>
@@ -193,10 +193,7 @@ function SecretRequestInteraction({
           disabled={busy}
         >
           {busy ? (
-            <PiCircleDashedBold
-              className="size-3 animate-spin"
-              aria-hidden="true"
-            />
+            <RiLoader5Line className="size-3 animate-spin" aria-hidden="true" />
           ) : null}
           Add secrets
         </Button>

@@ -70,6 +70,7 @@ export interface ThreadPromptGitSection {
   changedFiles: WorkspaceChangedFilesSection;
   mergeBase: ContextBannerMergeBaseConfig | null;
   onPromptBannerFileClick: (selection: WorkspaceChangedFileSelection) => void;
+  onCommit: (() => void) | null;
 }
 
 export interface ThreadPromptParentThreadSection {
@@ -864,6 +865,15 @@ export function ThreadPromptContextBanner({
       </BannerActionSlot>
     ) : null;
 
+  const commitAction =
+    showGit && gitSection.onCommit ? (
+      <BannerActionSlot hideInTiny={false}>
+        <PromptBannerActionButton onClick={gitSection.onCommit}>
+          Commit
+        </PromptBannerActionButton>
+      </BannerActionSlot>
+    ) : null;
+
   const isParentThreadOnly = showParentThread && !showGit && !showPullRequest;
 
   const pullRequest = pullRequestSection?.pullRequest ?? null;
@@ -968,6 +978,7 @@ export function ThreadPromptContextBanner({
           ) : null}
           {pullRequestAction}
           {segmentAction}
+          {commitAction}
         </div>
         {showParentThread && parentThreadSection && !isParentThreadOnly ? (
           <ParentThreadSectionBody

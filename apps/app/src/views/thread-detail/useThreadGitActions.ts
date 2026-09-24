@@ -37,16 +37,6 @@ interface UseThreadGitActionsParams {
   workspaceStatus?: WorkspaceStatus;
 }
 
-export interface ThreadHeaderGitAction {
-  label: string;
-  target: ThreadGitActionDialogTarget;
-}
-
-const EMPTY_THREAD_HEADER_GIT_ACTIONS: ThreadHeaderGitAction[] = [];
-const COMMIT_THREAD_HEADER_GIT_ACTIONS: ThreadHeaderGitAction[] = [
-  { target: { kind: "commit" }, label: "Commit" },
-];
-
 function renderGitActionDescription(response: CommitActionResponse): ReactNode {
   return createElement(AppToastCommitDescription, {
     commitSha: response.commitSha,
@@ -100,9 +90,6 @@ export function useThreadGitActions({
     Boolean(environment) &&
     !isArchivedThread &&
     workspaceWorkingTree?.hasUncommittedChanges === true;
-  const threadHeaderGitActions = canCommit
-    ? COMMIT_THREAD_HEADER_GIT_ACTIONS
-    : EMPTY_THREAD_HEADER_GIT_ACTIONS;
 
   const enqueueGitAction = useCallback(
     ({ run }: EnqueueGitActionParams): Promise<void> => {
@@ -171,7 +158,7 @@ export function useThreadGitActions({
 
   return {
     handleCommitThread,
+    canCommit,
     threadGitActionDialog,
-    threadHeaderGitActions,
   };
 }

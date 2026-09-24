@@ -1,4 +1,4 @@
-import { PiFileTextBold, PiXBold } from "react-icons/pi";
+import { RiCloseLine, RiFileTextLine } from "react-icons/ri";
 import {
   useEffect,
   useRef,
@@ -156,7 +156,7 @@ export function AttachmentChip({
       {!broken && image ? (
         <ChipThumbnail file={entry.file} />
       ) : (
-        <PiFileTextBold
+        <RiFileTextLine
           className={cn("size-3", broken ? undefined : "text-muted-foreground")}
         />
       )}
@@ -192,7 +192,7 @@ export function AttachmentChip({
         )}
         onClick={onRemove}
       >
-        <PiXBold className="size-3" />
+        <RiCloseLine className="size-3" />
       </button>
     </span>
   );

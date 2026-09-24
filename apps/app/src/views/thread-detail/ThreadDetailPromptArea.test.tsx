@@ -873,6 +873,7 @@ function buildPromptAreaElement({
         modelFallback={modelFallback}
         isEnvironmentActionPending={false}
         onChangedFileClick={vi.fn()}
+        onCommit={null}
         parentThreadSection={null}
         pendingInteractions={pendingInteractions}
         pendingInteractionsInitialLoading={pendingInteractionsInitialLoading}

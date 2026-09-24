@@ -1,4 +1,4 @@
-import { PiCaretRightBold, PiEnvelopeBold } from "react-icons/pi";
+import { RiArrowRightSLine, RiMailLine } from "react-icons/ri";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { POSTS } from "../blog/posts";
@@ -36,7 +36,7 @@ function BlogIndexRoute() {
         <p className="sub">{PAGE_DESCRIPTION}</p>
         <div className="meta-row">
           <a href={`#${SUBSCRIBE_EMAIL_ID}`} onClick={focusSubscribeEmail}>
-            <PiEnvelopeBold className="ri" />
+            <RiMailLine className="ri" />
             Get new posts by email
           </a>
         </div>
@@ -60,7 +60,7 @@ function BlogIndexRoute() {
               ) : null}
               <a className="read-more" href={`/blog/${post.slug}`}>
                 Read
-                <PiCaretRightBold />
+                <RiArrowRightSLine />
               </a>
             </div>
           </article>

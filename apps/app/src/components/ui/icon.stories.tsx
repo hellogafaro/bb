@@ -149,13 +149,13 @@ export function ExpandCollapse() {
         </StoryRow>
         <StoryRow
           label="Close thread pane"
-          hint="Phosphor X glyph; optically reduced in split headers"
+          hint="Remix close glyph; optically reduced in split headers"
         >
           <ExpandCollapseControl icon="CloseThreadPane" label="Close pane" />
         </StoryRow>
         <StoryRow
           label="Close plugin pane"
-          hint="Phosphor X glyph; optically reduced in split headers"
+          hint="Remix close glyph; optically reduced in split headers"
         >
           <ExpandCollapseControl icon="ClosePluginPane" label="Close pane" />
         </StoryRow>

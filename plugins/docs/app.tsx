@@ -1,19 +1,19 @@
 import {
-  PiArrowUpRightBold,
-  PiCaretDownBold,
-  PiCaretRightBold,
-  PiFileHtmlBold,
-  PiFilePlusBold,
-  PiFileTextBold,
-  PiFolderOpenBold,
-  PiFolderSimpleBold,
-  PiFolderSimplePlusBold,
-  PiMagnifyingGlassBold,
-  PiPlusBold,
-  PiTrashBold,
-  PiWarningCircleBold,
-  PiXBold,
-} from "react-icons/pi";
+  RiAddLine,
+  RiArrowDownSLine,
+  RiArrowRightSLine,
+  RiArrowRightUpLine,
+  RiCloseLine,
+  RiDeleteBinLine,
+  RiErrorWarningLine,
+  RiFileAddLine,
+  RiFileCodeLine,
+  RiFileTextLine,
+  RiFolderAddLine,
+  RiFolderLine,
+  RiFolderOpenLine,
+  RiSearchLine,
+} from "react-icons/ri";
 import {
   useCallback,
   useEffect,
@@ -1143,7 +1143,7 @@ function DocsDirectiveCard({ attributes }: PluginMessageDirectiveProps) {
         onClick={openPreview}
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <PiFileHtmlBold className="size-4" />
+          <RiFileCodeLine className="size-4" />
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {document.title}
@@ -1156,7 +1156,7 @@ function DocsDirectiveCard({ attributes }: PluginMessageDirectiveProps) {
         aria-label="Open in Docs"
         onClick={openInDocs}
       >
-        <PiArrowUpRightBold />
+        <RiArrowRightUpLine />
       </Button>
     </div>
   );
@@ -1266,7 +1266,7 @@ function DocumentPanel({ params }: PluginThreadPanelProps) {
             })
           }
         >
-          <PiArrowUpRightBold />
+          <RiArrowRightUpLine />
         </Button>
       </div>
       <HtmlPreview {...document} panel />
@@ -1492,7 +1492,7 @@ function DocsFileOpener({ path: filePath, source }: PluginFileOpenerProps) {
               })
             }
           >
-            <PiArrowUpRightBold className="size-4" />
+            <RiArrowRightUpLine className="size-4" />
           </Button>
         </div>
       )}
@@ -1573,7 +1573,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
       {props.searchOpen ? (
         <>
           <div className="relative min-w-0 flex-1">
-            <PiMagnifyingGlassBold className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <RiSearchLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               autoFocus
               className="h-8 pl-8"
@@ -1597,7 +1597,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
               props.onSearchOpenChange(false);
             }}
           >
-            <PiXBold className="size-4" />
+            <RiCloseLine className="size-4" />
           </Button>
         </>
       ) : null}
@@ -1610,7 +1610,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="Search notes"
             onClick={() => props.onSearchOpenChange(true)}
           >
-            <PiMagnifyingGlassBold className="size-4" />
+            <RiSearchLine className="size-4" />
           </Button>
           <Button
             className="size-8"
@@ -1619,7 +1619,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="New note"
             onClick={props.onNewNote}
           >
-            <PiFilePlusBold className="size-4" />
+            <RiFileAddLine className="size-4" />
           </Button>
           <Button
             className="size-8"
@@ -1628,7 +1628,7 @@ function NotesSidebarNavigation(props: NotesSidebarNavigationProps) {
             aria-label="New folder"
             onClick={props.onNewFolder}
           >
-            <PiFolderSimplePlusBold className="size-4" />
+            <RiFolderAddLine className="size-4" />
           </Button>
           <span className="min-w-0 flex-1" />
         </>
@@ -1825,7 +1825,7 @@ function Tree({
             }}
             onDrop={(event) => moveIntoFolder(event, "")}
           >
-            <PiFolderSimpleBold className="size-4 shrink-0" />
+            <RiFolderLine className="size-4 shrink-0" />
             Move to top level
           </button>
         ) : null}
@@ -1899,23 +1899,23 @@ function Tree({
             >
               {isFolder ? (
                 collapsed.has(entry.path) ? (
-                  <PiCaretRightBold className="size-3.5 shrink-0 text-muted-foreground" />
+                  <RiArrowRightSLine className="size-3.5 shrink-0 text-muted-foreground" />
                 ) : (
-                  <PiCaretDownBold className="size-3.5 shrink-0 text-muted-foreground" />
+                  <RiArrowDownSLine className="size-3.5 shrink-0 text-muted-foreground" />
                 )
               ) : (
                 <span className="size-3.5 shrink-0" />
               )}
               {isFolder ? (
                 collapsed.has(entry.path) ? (
-                  <PiFolderSimpleBold className="size-4 shrink-0 text-muted-foreground" />
+                  <RiFolderLine className="size-4 shrink-0 text-muted-foreground" />
                 ) : (
-                  <PiFolderOpenBold className="size-4 shrink-0 text-muted-foreground" />
+                  <RiFolderOpenLine className="size-4 shrink-0 text-muted-foreground" />
                 )
               ) : /\.html?$/i.test(entry.path) ? (
-                <PiFileHtmlBold className="size-4 shrink-0 text-muted-foreground" />
+                <RiFileCodeLine className="size-4 shrink-0 text-muted-foreground" />
               ) : (
-                <PiFileTextBold className="size-4 shrink-0 text-muted-foreground" />
+                <RiFileTextLine className="size-4 shrink-0 text-muted-foreground" />
               )}
               <span className="truncate">{label}</span>
             </button>
@@ -1937,7 +1937,7 @@ function Tree({
                     className="flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-destructive outline-none focus:bg-destructive/15 focus:text-destructive"
                     onSelect={() => onDeleteFile(entry.path)}
                   >
-                    <PiTrashBold className="size-4" />
+                    <RiDeleteBinLine className="size-4" />
                     Delete
                   </ContextMenuPrimitive.Item>
                 </ContextMenuPrimitive.Content>
@@ -1975,7 +1975,7 @@ function Tree({
             aria-label="Add vault"
             onClick={onAddVault}
           >
-            <PiPlusBold className="size-4" />
+            <RiAddLine className="size-4" />
           </Button>
         </div>
         {hostUnavailable ? (
@@ -1983,7 +1983,7 @@ function Tree({
             className="flex items-center gap-1.5 px-1 text-xs text-destructive"
             role="status"
           >
-            <PiWarningCircleBold className="size-4 shrink-0" />
+            <RiErrorWarningLine className="size-4 shrink-0" />
             <span className="truncate">Host unavailable</span>
           </div>
         ) : null}
