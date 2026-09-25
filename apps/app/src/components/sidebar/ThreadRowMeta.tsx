@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { PERSONAL_PROJECT_ID, type ThreadListEntry } from "@bb/domain";
 import { Icon } from "@bb/shared-ui/icon";
+import { AgentIcon } from "@/components/agents/AgentIcon";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSidebarProjectName } from "@/components/thread/ThreadTitleMentions";
 import { formatWakeLabel } from "@/components/thread/ThreadSnoozeControls";
 
@@ -67,6 +69,7 @@ export function ThreadRowMeta({
 }) {
   const now = useRelativeTimeNow();
   const projectName = useSidebarProjectName(thread.projectId);
+  const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
   const location =
     thread.projectId === PERSONAL_PROJECT_ID || !projectName
       ? "Personal"
@@ -77,6 +80,14 @@ export function ThreadRowMeta({
       data-sidebar-thread-meta=""
       className="pointer-events-none col-span-full row-start-2 flex h-4 min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap pr-2 text-meta text-subtle-foreground"
     >
+      {agent === null ? null : (
+        <span
+          data-sidebar-thread-agent=""
+          className="flex shrink-0 items-center"
+        >
+          <AgentIcon providerId={agent.providerId} className="size-3.5" />
+        </span>
+      )}
       <Icon name="Folder" className="size-3 shrink-0" aria-hidden />
       <span className="min-w-0 truncate" title={location}>
         {location}

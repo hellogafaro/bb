@@ -6,9 +6,8 @@ import {
   AGENT_INSTRUCTIONS_MAX_CHARS,
   AGENT_NAME_MAX_CHARS,
   PERSONAL_PROJECT_ID,
-  reasoningLevelValues,
   type Agent,
-  type ReasoningLevel,
+  type ProviderInfo,
 } from "@bb/domain";
 import type { UpdateAgentRequest } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
@@ -27,7 +26,8 @@ import {
   ConfirmDeleteDialogContent,
 } from "@/components/dialogs/ConfirmDeleteDialog";
 import { McpPageShell } from "@/components/mcp/McpPageShell";
-import { OptionPicker } from "@/components/pickers/OptionPicker";
+import { ModelReasoningPicker } from "@/components/pickers/ModelReasoningPicker";
+import type { ProviderPickerOption } from "@/components/pickers/model-brand-prefix";
 import { appToast } from "@/components/ui/app-toast";
 import {
   useDeleteAgent,
@@ -40,11 +40,16 @@ import {
   useSystemExecutionOptions,
   useSystemProviders,
 } from "@/hooks/queries/system-queries";
+import {
+  resolveModelCatalogSelection,
+  resolveModelReasoningLevel,
+} from "@/hooks/thread-creation-options/model-catalog-selection";
 import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
+import { getProviderIconInfo } from "@/lib/provider-icon";
 import { customizeSkills } from "@/lib/fork-customize-skills";
 import { agentExecutionLabel } from "./agent-display";
 
-const DEFAULT_MODEL_VALUE = "__default__";
+const EMPTY_PROVIDERS: readonly ProviderInfo[] = [];
 
 export function AgentDetailView({ agentRef }: { agentRef: string }) {
   const navigate = useNavigate();
@@ -177,7 +182,7 @@ function AgentDetail({
       />
       <AgentModelSection
         agent={agent}
-        pending={update.isPending}
+        pendingUpdate={update.isPending ? update.variables?.update : undefined}
         onSave={save}
       />
       <AgentSkillsSection
@@ -306,83 +311,116 @@ function SettingRow({
   );
 }
 
-function AgentModelSection({ agent, pending, onSave }: AgentSectionProps) {
+function AgentModelSection({
+  agent,
+  pendingUpdate,
+  onSave,
+}: Omit<AgentSectionProps, "pending"> & {
+  pendingUpdate: UpdateAgentRequest | undefined;
+}) {
   const providersQuery = useSystemProviders();
-  const executionOptions = useSystemExecutionOptions({
-    providerId: agent.providerId,
-  });
-  const models = executionOptions.data?.models ?? [];
-  const selectedModel =
-    agent.model === null
-      ? null
-      : models.find((model) => model.model === agent.model);
-  const reasoningLevels: readonly ReasoningLevel[] =
-    selectedModel && selectedModel.supportedReasoningEfforts.length > 0
-      ? selectedModel.supportedReasoningEfforts.map(
-          (effort) => effort.reasoningEffort,
-        )
-      : reasoningLevelValues;
-  const providerOptions = (providersQuery.data ?? []).map((provider) => ({
-    value: provider.id,
-    label: provider.displayName,
-  }));
-  if (!providerOptions.some((option) => option.value === agent.providerId)) {
-    providerOptions.push({ value: agent.providerId, label: agent.providerId });
-  }
-  const modelOptions = [
-    { value: DEFAULT_MODEL_VALUE, label: "Default model" },
-    ...models.map((model) => ({
-      value: model.model,
-      label: model.displayName || formatModelLabel(model.model),
-    })),
-    ...(agent.model !== null && selectedModel === undefined
-      ? [{ value: agent.model, label: formatModelLabel(agent.model) }]
-      : []),
-  ];
+  const providerId = pendingUpdate?.providerId ?? agent.providerId;
+  const model =
+    pendingUpdate?.model !== undefined ? pendingUpdate.model : agent.model;
+  const preferredReasoningLevel =
+    pendingUpdate?.reasoningLevel ?? agent.reasoningLevel;
+  const executionOptions = useSystemExecutionOptions({ providerId });
+  const providers = providersQuery.data ?? EMPTY_PROVIDERS;
+  const providerInfo = providers.find((provider) => provider.id === providerId);
+  const modelLoadError = executionOptions.data?.modelLoadError ?? null;
+  const catalogIsVerified =
+    executionOptions.data !== undefined &&
+    !executionOptions.isPlaceholderData &&
+    !executionOptions.isError &&
+    modelLoadError === null;
+  const selection = useMemo(
+    () =>
+      resolveModelCatalogSelection({
+        models: executionOptions.data?.models ?? [],
+        selectedOnlyModels: executionOptions.data?.selectedOnlyModels ?? [],
+        selectedModel: model ?? "",
+        preferredReasoningLevel,
+        provider: providerInfo,
+        catalogIsVerified,
+        formatModelLabel,
+      }),
+    [
+      catalogIsVerified,
+      executionOptions.data?.models,
+      executionOptions.data?.selectedOnlyModels,
+      model,
+      preferredReasoningLevel,
+      providerInfo,
+    ],
+  );
+  const providerOptions = useMemo((): ProviderPickerOption[] => {
+    const options: ProviderPickerOption[] = providers.map((provider) => ({
+      value: provider.id,
+      label: provider.displayName,
+      icon: getProviderIconInfo("agent", provider.id, provider)?.icon,
+      ...(provider.strings?.brandPrefix === undefined
+        ? {}
+        : { brandPrefix: provider.strings.brandPrefix }),
+    }));
+    return options.some((option) => option.value === agent.providerId)
+      ? options
+      : [...options, { value: agent.providerId, label: agent.providerId }];
+  }, [agent.providerId, providers]);
+  const modelsLoading =
+    executionOptions.isLoading ||
+    (executionOptions.isPlaceholderData &&
+      (executionOptions.data?.models.length ?? 0) === 0);
+  const findModel = (value: string) =>
+    [
+      ...(executionOptions.data?.models ?? []),
+      ...(executionOptions.data?.selectedOnlyModels ?? []),
+    ].find((entry) => entry.model === value);
   return (
     <SectionCard title="Model">
       <div className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-3.5">
-        <SettingRow label="Provider">
-          <OptionPicker
-            modal={false}
-            label="Provider"
-            align="end"
-            disabled={pending}
-            showChevronWhenDisabled
-            value={agent.providerId}
-            options={providerOptions}
-            onChange={(providerId) => {
-              if (providerId !== agent.providerId) onSave({ providerId });
-            }}
-          />
-        </SettingRow>
         <SettingRow label="Model">
-          <OptionPicker
+          <ModelReasoningPicker
             modal={false}
-            label="Model"
             align="end"
-            disabled={pending}
-            showChevronWhenDisabled
-            value={agent.model ?? DEFAULT_MODEL_VALUE}
-            options={modelOptions}
-            onChange={(value) =>
-              onSave({ model: value === DEFAULT_MODEL_VALUE ? null : value })
+            commandShortcutsEnabled={false}
+            providerOptions={providerOptions}
+            selectedProviderId={providerId}
+            onSelectedProviderChange={(nextProviderId) => {
+              if (nextProviderId === providerId) return;
+              onSave({
+                providerId: nextProviderId,
+                model: null,
+                reasoningLevel: preferredReasoningLevel,
+              });
+            }}
+            hasMultipleProviders={providerOptions.length > 1}
+            modelValue={selection.selectedModel}
+            modelOptions={selection.modelOptions}
+            moreModelOptions={selection.moreModelOptions}
+            modelIsLoading={modelsLoading}
+            modelLoadFailed={
+              executionOptions.isError || modelLoadError !== null
             }
-          />
-        </SettingRow>
-        <SettingRow label="Reasoning">
-          <OptionPicker
-            modal={false}
-            label="Reasoning"
-            align="end"
-            disabled={pending}
-            showChevronWhenDisabled
-            value={agent.reasoningLevel}
-            options={reasoningLevels.map((level) => ({
-              value: level,
-              label: level,
-            }))}
-            onChange={(reasoningLevel) => onSave({ reasoningLevel })}
+            modelLoadError={modelLoadError}
+            onModelChange={(nextModel) =>
+              onSave({
+                providerId,
+                model: nextModel,
+                reasoningLevel: resolveModelReasoningLevel(
+                  findModel(nextModel),
+                  preferredReasoningLevel,
+                ),
+              })
+            }
+            formatModelLabel={formatModelLabel}
+            reasoningValue={selection.reasoningLevel}
+            reasoningOptions={selection.reasoningOptions}
+            onReasoningChange={(reasoningLevel) =>
+              onSave({ providerId, model, reasoningLevel })
+            }
+            fastModeEnabled={false}
+            onFastModeChange={() => {}}
+            showFastModeToggle={false}
           />
         </SettingRow>
         <SettingRow label="Permissions">

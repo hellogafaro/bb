@@ -10,9 +10,9 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { createStore, Provider } from "jotai";
-import type { ThreadListEntry } from "@bb/domain";
+import type { Agent, ThreadListEntry } from "@bb/domain";
 import type { PluginComposerThreadRowStatus } from "@get-bb/plugin-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -63,6 +63,8 @@ import { splitLayoutAtom } from "@/lib/split-layout/atoms";
 import { SPLIT_LAYOUT_STORAGE_KEY } from "@/lib/split-layout/persistence";
 import { NO_COLLAPSED_CHILD_ACTIVITY } from "@bb/client-core";
 import { sdk } from "@/lib/sdk";
+import { agentsQueryKey } from "@/hooks/queries/query-keys";
+import claudeMark from "@/assets/agent-icons/claude.svg";
 import { makeThreadListEntry as makeThreadListEntryFixture } from "@bb/test-helpers/domain-fixtures";
 
 vi.mock("@/components/thread/ThreadActionsMenu", async (importOriginal) => ({
@@ -88,6 +90,31 @@ function createThread(
   });
 }
 
+function createTestQueryClient(agents?: Agent[]): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: { queries: { enabled: false, retry: false } },
+  });
+  if (agents) client.setQueryData(agentsQueryKey(), agents);
+  return client;
+}
+
+function createAgent(overrides: Partial<Agent> = {}): Agent {
+  return {
+    id: "agent_default01",
+    name: "BB",
+    description: "",
+    providerId: "codex",
+    model: null,
+    reasoningLevel: "medium",
+    skills: [],
+    mcpServers: [],
+    instructions: "",
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  };
+}
+
 const DEFAULT_OPTIONS: ThreadRowOptions = {
   kind: "default",
   depth: 1,
@@ -98,15 +125,18 @@ function ThreadRowTestHarness({
   hasComposerDraft = false,
   isActive = false,
   options = DEFAULT_OPTIONS,
+  queryClient,
   shortcutKey,
   thread,
 }: {
   hasComposerDraft?: boolean;
   isActive?: boolean;
   options?: ThreadRowOptions;
+  queryClient?: QueryClient;
   shortcutKey?: string;
   thread: ThreadListEntry;
 }) {
+  const [defaultQueryClient] = useState(() => createTestQueryClient());
   const shortcutKeys = shortcutKey
     ? new Map([
         [
@@ -117,19 +147,21 @@ function ThreadRowTestHarness({
     : EMPTY_SIDEBAR_THREAD_SHORTCUT_KEYS;
 
   return (
-    <MemoryRouter>
-      <TooltipProvider>
-        <SidebarThreadShortcutKeysContext.Provider value={shortcutKeys}>
-          <ThreadRow
-            projectId={thread.projectId}
-            thread={thread}
-            isActive={isActive}
-            hasComposerDraft={hasComposerDraft}
-            options={options}
-          />
-        </SidebarThreadShortcutKeysContext.Provider>
-      </TooltipProvider>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient ?? defaultQueryClient}>
+      <MemoryRouter>
+        <TooltipProvider>
+          <SidebarThreadShortcutKeysContext.Provider value={shortcutKeys}>
+            <ThreadRow
+              projectId={thread.projectId}
+              thread={thread}
+              isActive={isActive}
+              hasComposerDraft={hasComposerDraft}
+              options={options}
+            />
+          </SidebarThreadShortcutKeysContext.Provider>
+        </TooltipProvider>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -241,13 +273,10 @@ describe("ThreadRow", () => {
   it("keeps desktop restore available, hides it on mobile, and blocks row event propagation", () => {
     const thread = createThread({ archivedAt: 1 });
     const rowEvent = vi.fn();
-    const client = new QueryClient();
     render(
-      <QueryClientProvider client={client}>
-        <div onPointerDown={rowEvent} onKeyDown={rowEvent} onClick={rowEvent}>
-          <ThreadRowTestHarness thread={thread} />
-        </div>
-      </QueryClientProvider>,
+      <div onPointerDown={rowEvent} onKeyDown={rowEvent} onClick={rowEvent}>
+        <ThreadRowTestHarness thread={thread} />
+      </div>,
     );
     const restore = screen.getByRole("button", { name: "Unarchive thread" });
     expect(restore.querySelector('[data-icon="ArchiveRestore"]')).toBeTruthy();
@@ -265,7 +294,7 @@ describe("ThreadRow", () => {
   });
 
   it("disables only the restoring thread and recovers when its mutation fails", async () => {
-    const client = new QueryClient();
+    const client = createTestQueryClient();
     const thread = createThread({ archivedAt: 1 });
     let rejectRestore!: (error: Error) => void;
     const mutation = client.getMutationCache().build(client, {
@@ -274,11 +303,7 @@ describe("ThreadRow", () => {
         rejectRestore = reject;
       }),
     });
-    render(
-      <QueryClientProvider client={client}>
-        <ThreadRowTestHarness thread={thread} />
-      </QueryClientProvider>,
-    );
+    render(<ThreadRowTestHarness queryClient={client} thread={thread} />);
     const restore = screen.getByRole<HTMLButtonElement>("button", { name: "Unarchive thread" });
     let completion: Promise<unknown>;
     act(() => {
@@ -920,6 +945,38 @@ describe("ThreadRow", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("leads the second line with the thread's agent mark", () => {
+    const coder = createAgent({
+      id: "agent_coder0001",
+      name: "Coder",
+      providerId: "claude-code",
+    });
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={createTestQueryClient([createAgent(), coder])}
+        thread={createThread({ agentId: coder.id })}
+      />,
+    );
+    const meta = container.querySelector("[data-sidebar-thread-meta]");
+    const mark = meta?.firstElementChild;
+    expect(mark?.hasAttribute("data-sidebar-thread-agent")).toBe(true);
+    const image = mark?.querySelector("img");
+    expect(image?.getAttribute("src")).toBe(claudeMark);
+    expect(image?.classList.contains("size-3.5")).toBe(true);
+  });
+
+  it("omits the agent mark when no agent resolves", () => {
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={createTestQueryClient([])}
+        thread={createThread({ agentId: "agent_deleted01" })}
+      />,
+    );
+    expect(
+      container.querySelector("[data-sidebar-thread-agent]"),
+    ).toBeNull();
   });
 
   it("labels personal threads Personal on the second line", () => {
