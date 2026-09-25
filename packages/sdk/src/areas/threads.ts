@@ -218,6 +218,7 @@ export interface ThreadSpawnBaseArgs extends Omit<
   CreateThreadRequest,
   "input" | "origin" | "originKind" | "startedOnBehalfOf"
 > {
+  agent?: string;
   origin?: CreateThreadRequest["origin"];
   originKind?: CreateThreadRequest["originKind"];
   startedOnBehalfOf?: CreateThreadRequest["startedOnBehalfOf"];
@@ -734,6 +735,7 @@ function spawnInput(input: ThreadSpawnArgs): PromptInput[] {
 
 function spawnJson(args: ThreadSpawnArgs): CreateThreadRequest {
   const {
+    agent,
     input: _input,
     origin,
     originKind,
@@ -741,8 +743,13 @@ function spawnJson(args: ThreadSpawnArgs): CreateThreadRequest {
     startedOnBehalfOf,
     ...request
   } = args;
+  if (agent !== undefined && request.agentId !== undefined) {
+    throw new Error("Provide only one of agent or agentId.");
+  }
+  const agentId = request.agentId ?? agent;
   return {
     ...request,
+    ...(agentId === undefined ? {} : { agentId }),
     ...(args.pluginMetadata === undefined
       ? {}
       : { pluginMetadata: validatePluginMetadata(args.pluginMetadata) }),

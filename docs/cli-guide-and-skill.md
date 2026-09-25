@@ -43,3 +43,10 @@ entries in `bb guide json` and `apps/cli/src/json-shapes.ts`, and the bb-cli
 skill's `references/mcp.md` and command index. MCP approvals and questions are
 answered through `bb thread interactions approve|deny|respond`; keep the threads
 chapter aligned with them.
+
+`bb agent` is a core command group over `sdk.agents`, and `bb thread spawn
+--agent` picks the agent a thread runs as. When agent commands, flags, fields,
+or `--json` shapes change, update `bb guide agents` (`bb-guide-agents.md`), the
+agent entries in `bb guide json` and `apps/cli/src/json-shapes.ts`, the threads
+chapter's spawn options, and the bb-cli skill's `references/agents.md`,
+`references/thread-creation.md`, and command index.

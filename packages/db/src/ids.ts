@@ -69,3 +69,7 @@ export function createTerminalSessionId(): string {
 export function createMcpServerId(): string {
   return createId("mcp");
 }
+
+export function createAgentId(): string {
+  return createId("agent");
+}

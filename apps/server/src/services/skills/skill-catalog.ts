@@ -12,6 +12,7 @@ interface ResolveSkillCatalogSourcesArgs {
   pluginSkillSelections?: ReadonlyMap<string, ReadonlySet<string>>;
   projectSkillSources?: readonly ProjectInjectedSkillSource[];
   sharedSkillSources?: readonly SharedInjectedSkillSource[];
+  skillNames?: readonly string[];
 }
 
 export function resolveSkillCatalog(
@@ -33,9 +34,14 @@ export function resolveSkillCatalog(
       : {}),
     skillTreeRegistry: deps.skillTreeRegistry,
   });
+  const selected =
+    args.skillNames === undefined || args.skillNames.length === 0
+      ? null
+      : new Set(args.skillNames);
   return entries.filter(
     ({ provenance, runtimeSource }) =>
-      provenance.kind !== "plugin" ||
-      !FORK_EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name),
+      (provenance.kind !== "plugin" ||
+        !FORK_EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name)) &&
+      (selected === null || selected.has(runtimeSource.name)),
   );
 }

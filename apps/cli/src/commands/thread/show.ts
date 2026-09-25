@@ -22,6 +22,7 @@ import type {
 import { THREAD_EVENT_LIST_PAGE_SIZE } from "@bb/server-contract";
 import { action } from "../../action.js";
 import { createCliBbSdk } from "../../client.js";
+import { fetchThreadAgentName } from "./thread-agent.js";
 import {
   getErrorMessage,
   outputJson,
@@ -341,7 +342,16 @@ export function registerShowCommand(
           return;
         }
 
-        printThreadStatus(statusPayload, environmentInfo, fetchedPullRequest);
+        const agentName = await fetchThreadAgentName({
+          agentId: thread.agentId,
+          sdk,
+        });
+        printThreadStatus(
+          statusPayload,
+          agentName,
+          environmentInfo,
+          fetchedPullRequest,
+        );
 
         printPendingTodos(pendingTodos);
 
@@ -532,6 +542,7 @@ export function registerShowCommand(
 
 function printThreadStatus(
   payload: ThreadStatusPayload,
+  agentName: string | null,
   environmentInfo: ThreadEnvironmentInfo | null,
   pullRequest: FetchedPullRequest | null,
 ): void {
@@ -542,6 +553,9 @@ function printThreadStatus(
     console.log(`  Title: ${thread.title}`);
   }
   console.log(`  Project: ${thread.projectId}`);
+  if (agentName !== null) {
+    console.log(`  Agent: ${agentName}`);
+  }
   if (thread.parentThreadId) {
     console.log(`  Parent: ${thread.parentThreadId}`);
   }

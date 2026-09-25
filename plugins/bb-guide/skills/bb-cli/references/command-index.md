@@ -334,6 +334,18 @@ server.
 
 `bb mcp` manages MCP servers for every provider. Read references/mcp.md before you add servers, change policies, or answer MCP approvals.
 
+## agent
+
+- `bb agent`
+- `bb agent list`
+- `bb agent show`
+- `bb agent create`
+- `bb agent set`
+- `bb agent remove`
+- `bb agent rm`
+
+`bb agent` manages the agents threads run as. Read references/agents.md before you create, edit, or delete agents or spawn a thread as one.
+
 ## guide
 
 - `bb guide`

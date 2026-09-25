@@ -43,6 +43,7 @@ import {
   reasoningLevelSchema,
   serviceTierSchema,
 } from "./rpc-types.js";
+import { resolveAgentRef } from "./agents.js";
 import { interpreterForPath } from "./script-files.js";
 
 const DURATION_PATTERN =
@@ -116,15 +117,21 @@ const AGENT_OPTIONS = {
     placeholder: "text",
     description: "Prompt the agent runs when the automation is due",
   },
+  agent: {
+    type: "string",
+    placeholder: "name|id",
+    description:
+      "Agent the run uses (bb agent list); omit for the default agent at run time",
+  },
   provider: {
     type: "string",
     placeholder: "id",
-    description: "Provider id, for example claude or codex",
+    description: "Legacy provider id; runs always use the automation's agent",
   },
   model: {
     type: "string",
     placeholder: "model",
-    description: "Model id the provider accepts",
+    description: "Legacy model id; runs always use the automation's agent",
   },
   reasoning: {
     type: "enum",
@@ -219,6 +226,7 @@ interface ScheduleOptionValues {
 
 interface AgentOptionValues {
   prompt: string | undefined;
+  agent: string | undefined;
   provider: string | undefined;
   model: string | undefined;
   reasoning: ReasoningLevel | undefined;
@@ -621,16 +629,16 @@ async function buildExecution(
   }
   if (!hasAgent && !hasScript) {
     throw cliError(
-      "Provide an execution mode: agent (--prompt --provider --model) or script (--script-file <path> or --script <inline>).",
+      "Provide an execution mode: agent (--prompt [--agent <name>]) or script (--script-file <path> or --script <inline>).",
       "missing_required",
     );
   }
   if (hasAgent) {
     const provider = options.provider;
     const model = options.model;
-    if (!provider || !model) {
+    if ((provider === undefined) !== (model === undefined)) {
       throw cliError(
-        "Agent automations require --provider and --model alongside --prompt.",
+        "Pass --provider and --model together, or neither and pick an --agent.",
         "missing_required",
       );
     }
@@ -641,18 +649,25 @@ async function buildExecution(
       execution: {
         mode: "agent",
         prompt,
-        providerId: provider,
-        model,
+        ...(options.agent !== undefined
+          ? { agentId: await resolveAgentRef(bb, options.agent) }
+          : {}),
+        ...(provider !== undefined && model !== undefined
+          ? {
+              providerId: provider,
+              model,
+              permissionMode: await resolvePermissionMode(
+                bb,
+                provider,
+                options["permission-mode"],
+                providerRoutingForEnvironment(environment),
+              ),
+            }
+          : {}),
         reasoningLevel: options.reasoning ?? "medium",
         ...(serviceTier === undefined || serviceTier === "none"
           ? {}
           : { serviceTier }),
-        permissionMode: await resolvePermissionMode(
-          bb,
-          provider,
-          options["permission-mode"],
-          providerRoutingForEnvironment(environment),
-        ),
         environment,
         ...(options["target-thread"]
           ? { targetThreadId: options["target-thread"] }
@@ -661,6 +676,7 @@ async function buildExecution(
     };
   }
   if (
+    options.agent !== undefined ||
     options.provider !== undefined ||
     options.model !== undefined ||
     options.reasoning !== undefined ||
@@ -723,6 +739,7 @@ async function buildAgentExecutionUpdate(
 ): Promise<AgentExecutionUpdate | undefined> {
   const agentOptionNames = [
     options.prompt,
+    options.agent,
     options.provider,
     options.model,
     options.reasoning,
@@ -739,6 +756,12 @@ async function buildAgentExecutionUpdate(
   const update: AgentExecutionUpdate = {};
   if (options.prompt !== undefined) {
     update.prompt = requireOptionValue("prompt", options.prompt);
+  }
+  if (options.agent !== undefined) {
+    update.agentId = await resolveAgentRef(
+      bb,
+      requireOptionValue("agent", options.agent),
+    );
   }
   if (options.provider !== undefined) {
     update.providerId = requireOptionValue("provider", options.provider);
@@ -887,11 +910,8 @@ function printAutomation(
   }
   if (automation.execution.mode === "agent") {
     lines.push(
-      `  Provider:  ${automation.execution.providerId}`,
-      `  Model:     ${automation.execution.model}`,
-      `  Reasoning: ${automation.execution.reasoningLevel}`,
+      `  Agent:     ${automation.execution.agentId ?? "default agent"}`,
       `  Tier:      ${automation.execution.serviceTier ?? "-"}`,
-      `  Permission: ${automation.execution.permissionMode}`,
     );
   }
   if (automation.lastError) lines.push(`  Error:     ${automation.lastError}`);

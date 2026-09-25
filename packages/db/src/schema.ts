@@ -620,6 +620,9 @@ export const threads = sqliteTable(
     archivedAt: integer("archived_at"),
     pinnedAt: integer("pinned_at"),
     snoozedUntil: integer("snoozed_until"),
+    agentId: text("agent_id").references((): AnySQLiteColumn => agents.id, {
+      onDelete: "set null",
+    }),
     pinSortKey: text("pin_sort_key"),
     deletedAt: integer("deleted_at"),
     storageDeletedAt: integer("storage_deleted_at"),
@@ -1383,4 +1386,22 @@ export const mcpToolPolicies = sqliteTable(
       sql`${table.mode} IN ('inherit', 'allow', 'deny', 'confirm')`,
     ),
   ],
+);
+
+export const agents = sqliteTable(
+  "agents",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    providerId: text("provider_id").notNull(),
+    model: text("model"),
+    reasoningLevel: text("reasoning_level").$type<ReasoningLevel>().notNull(),
+    skillsJson: text("skills_json").notNull().default("[]"),
+    mcpServersJson: text("mcp_servers_json").notNull().default("[]"),
+    instructions: text("instructions").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("agents_name_idx").on(table.name)],
 );

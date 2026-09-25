@@ -14,6 +14,7 @@ import type {
 } from "@bb/server-contract";
 
 export interface ThreadCreateServiceRequestInput {
+  agentId?: CreateThreadRequest["agentId"];
   environment: CreateThreadEnvironmentArgs;
   executionInputSources?: CreateThreadRequest["executionInputSources"];
   /**
@@ -46,8 +47,9 @@ export interface ThreadCreateServiceRequestInput {
 
 export interface ThreadCreateServiceRequest extends Omit<
   ThreadCreateServiceRequestInput,
-  "environment" | "pluginMetadata" | "providerId"
+  "agentId" | "environment" | "pluginMetadata" | "providerId"
 > {
+  agentId: string | null;
   environment: EnvironmentArgs | ProviderEnvironmentArgs;
   pluginMetadata: { pluginId: string; metadata: JsonObject } | null;
   providerId: string;

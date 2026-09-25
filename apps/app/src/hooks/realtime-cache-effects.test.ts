@@ -49,6 +49,7 @@ import {
   threadTimelineTurnSummaryDetailsQueryKey,
 } from "./queries/query-keys";
 import {
+  agentsQueryKey,
   mcpServerQueryKey,
   mcpServersQueryKey,
   mcpServerToolsQueryKey,
@@ -323,6 +324,34 @@ describe("createRealtimeCacheEffects", () => {
 
     expect(queryClient.getQueryState(statusKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(configKey)?.isInvalidated).toBe(false);
+    effects.dispose();
+  });
+
+  it("refreshes the agent list on agent changes and deletions", () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext();
+    const agentsKey = agentsQueryKey();
+    const mcpKey = mcpServersQueryKey();
+    queryClient.setQueryData(agentsKey, []);
+    queryClient.setQueryData(mcpKey, []);
+
+    effects.handleChanged({
+      type: "changed",
+      entity: "agent",
+      id: "agent_coder0001",
+      changes: ["agent-changed"],
+    });
+
+    expect(queryClient.getQueryState(agentsKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(mcpKey)?.isInvalidated).toBe(false);
+
+    queryClient.setQueryData(agentsKey, []);
+    effects.handleChanged({
+      type: "changed",
+      entity: "agent",
+      id: "agent_coder0001",
+      changes: ["agent-deleted"],
+    });
+    expect(queryClient.getQueryState(agentsKey)?.isInvalidated).toBe(true);
     effects.dispose();
   });
 

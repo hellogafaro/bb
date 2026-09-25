@@ -112,6 +112,7 @@ export function makeThreadResponse(
     archivedAt: null,
     pinnedAt: null,
     snoozedUntil: null,
+    agentId: null,
     deletedAt: null,
     lastReadAt: null,
     latestAttentionAt: 0,

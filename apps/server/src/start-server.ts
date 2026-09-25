@@ -45,6 +45,7 @@ import {
 import { createConnectHold } from "./services/server-move/connect-hold.js";
 import { isServerMoveFrozen } from "./services/server-move/freeze-state.js";
 import { reconcileServerMoveRunAtBoot } from "./services/server-move/reconcile.js";
+import { seedDefaultAgent } from "./services/agents/agents.js";
 import {
   retireServerProcess as retireProcessWithDeadline,
   SERVER_RETIRE_FORCE_EXIT_MS,
@@ -353,6 +354,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     pluginCatalogService.startPeriodicRefresh();
     mcpService.start();
     providerGuard.start();
+    void seedDefaultAgent({ db, hub, logger, providerRegistry });
     sweepInterval = setInterval(() => {
       if (!isServerMoveFrozen(db)) {
         void runPeriodicSweeps(sweepDeps);

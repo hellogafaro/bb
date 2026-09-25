@@ -65,6 +65,9 @@ BB_HOST_DAEMON_PORT only for an intentional non-default target.
 - Read references/plugins.md for plugin discovery, install, build, update,
   configuration, runtime, and contributed commands.
 - Read references/app-settings.md for complete app setting keys and effects.
+- Read references/agents.md for agents: the provider, model, reasoning,
+  skills, MCPs, and instructions a thread runs as (`bb agent`,
+  `bb thread spawn --agent`).
 - Read references/mcp.md for MCP servers, tool policies, guides, approvals,
   and the provider guard (`bb provider guard [--fix]`), which keeps Claude
   Code and Codex from loading their own MCPs, skills, or plugins.

@@ -27,6 +27,7 @@ const guideChapters: Record<string, TemplateId> = {
   plugins: "bbGuidePlugins",
   automations: "bbGuideAutomations",
   mcp: "bbGuideMcp",
+  agents: "bbGuideAgents",
   json: "bbGuideJson",
 };
 
@@ -43,8 +44,7 @@ const guideChapterAliases: Record<string, string> = {
   env: "environments",
   worktree: "environments",
   worktrees: "environments",
-  agent: "agent-configuration",
-  agents: "agent-configuration",
+  agent: "agents",
   skill: "agent-configuration",
   skills: "agent-configuration",
   provider: "providers",

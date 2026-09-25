@@ -7,12 +7,13 @@
   reads stdin) instead of quoting it inline; `bb thread fork` takes it too.
   Pass the intended project explicitly; the CLI does not infer it from
   context variables, and when `--project` is missing the error prints the
-  current thread's project ID to add. Omitted execution flags use remembered project defaults;
-  without a remembered model, bb resolves the selected provider and its reported
-  default model on the target machine.
+  current thread's project ID to add. The thread runs as an agent:
+  `--agent <name|id>` picks one and omitting it uses the default agent. The
+  agent sets the provider, model, and reasoning, and permissions are always
+  full; `--provider`, `--model`, `--reasoning-level`, and `--permission-mode`
+  are rejected. See references/agents.md.
 - Select a target with `--environment`, `--new-environment`, `--base-branch`,
-  or `--machine`. Select execution with `--provider`, `--model`,
-  `--reasoning-level`, `--service-tier`, and `--permission-mode`.
+  or `--machine`. `--service-tier` still applies per thread.
 - List plugin-provisioned environment choices with `bb environment providers`. Add `--project <id>` and optionally `--machine <id>` to omit providers whose declared requirements are unmet. Without a machine, the project listing includes providers structurally eligible on any persistent machine. Git inspection and plugin availability run only for the selected provider and machine during thread creation. `--json` includes each provider's `description` and `icon`, its `requires` facts and its `inputs` JSON Schema or null.
   Pass the selected ID to `--environment-provider`. Add
   `--environment-inputs <json>` only when the provider's schema does not accept
@@ -42,7 +43,7 @@ worktree` only; a provider takes its branch through `--environment-inputs`.
   the follow-up picker, choose **Handoff to new thread**; **Exit handoff** in
   the picker or composer restores the source execution settings and retains
   draft edits without the automatic source reference. Closing the picker
-  keeps handoff active. Use `bb thread spawn --provider PROVIDER --model MODEL
+  keeps handoff active. Use `bb thread spawn --agent AGENT
 --environment ENV_ID --prompt 'Continue from @thread:THREAD_ID ...'` for the
   same thread creation through the CLI, or `threads.spawn` through the SDK.
 - Use `bb thread fork <source-thread-id>` to clone a provider session. The

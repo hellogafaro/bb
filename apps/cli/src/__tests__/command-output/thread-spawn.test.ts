@@ -432,10 +432,10 @@ describe("bb thread spawn command output", () => {
     expect(collectLogLines(vi.mocked(console.log))).toContain("  Project:  -");
   });
 
-  it("bb thread spawn forwards explicit execution overrides", async () => {
+  it("bb thread spawn forwards --agent and the service tier", async () => {
     vi.stubEnv("BB_PROJECT_ID", "proj-1");
     const thread: domain.Thread = fixtures.makeThread({
-      id: "thread-overrides",
+      id: "thread-agent",
       projectId: "proj-1",
       providerId: "codex",
       status: "starting",
@@ -453,16 +453,10 @@ describe("bb thread spawn command output", () => {
         "proj-1",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
-        "--reasoning-level",
-        "high",
+        "--agent",
+        " Coder ",
         "--service-tier",
         "fast",
-        "--permission-mode",
-        "auto",
       ],
       register,
     );
@@ -473,15 +467,43 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
-        reasoningLevel: "high",
-        permissionMode: "auto",
+        agentId: "Coder",
         serviceTier: "fast",
         input: [{ type: "text", text: "hello", mentions: [] }],
         environment: { type: "project-default" },
       },
     });
+  });
+
+  it.each([
+    ["--provider", "codex"],
+    ["--model", "gpt-5"],
+    ["--reasoning-level", "high"],
+    ["--permission-mode", "auto"],
+  ])("bb thread spawn rejects %s in favor of --agent", async (flag, value) => {
+    const post = vi.fn();
+    stubServerApi({ "v1.threads.$post": post });
+
+    await expect(
+      runCommand(
+        [
+          "thread",
+          "spawn",
+          "--project",
+          "proj-1",
+          "--prompt",
+          "hello",
+          flag,
+          value,
+        ],
+        register,
+      ),
+    ).rejects.toThrow("process.exit:1");
+
+    expect(vi.mocked(console.error).mock.calls[0]?.[0]).toBe(
+      "Error: Pick an agent with --agent; agents set the provider, model, and reasoning, and permissions are always full.",
+    );
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("bb thread spawn forwards hidden visibility", async () => {
@@ -562,58 +584,6 @@ describe("bb thread spawn command output", () => {
     expect(helpOutput).toMatch(/Permission mode: accept-edits, auto, or full/);
   });
 
-  it("bb thread spawn reports invalid permission mode choices", async () => {
-    vi.stubEnv("BB_PROJECT_ID", "proj-1");
-
-    await expect(
-      runCommand(
-        [
-          "thread",
-          "spawn",
-          "--project",
-          "proj-1",
-          "--prompt",
-          "hello",
-          "--permission-mode",
-          "unsafe",
-        ],
-        register,
-      ),
-    ).rejects.toThrow("process.exit:1");
-
-    expect(console.error).toHaveBeenCalledWith(
-      "Error: Invalid permission mode 'unsafe'. Expected accept-edits, auto, or full.",
-    );
-  });
-
-  it("bb thread spawn normalizes deprecated workspace-write to accept-edits", async () => {
-    const thread: domain.Thread = fixtures.makeThread({
-      id: "thread-legacy-permission",
-      projectId: "proj-1",
-      providerId: "codex",
-    });
-    const post = vi.fn(async () => thread);
-    stubServerApi({ "v1.threads.$post": post });
-
-    await runCommand(
-      [
-        "thread",
-        "spawn",
-        "--project",
-        "proj-1",
-        "--prompt",
-        "hello",
-        "--permission-mode",
-        "workspace-write",
-      ],
-      register,
-    );
-
-    expect(post).toHaveBeenCalledWith({
-      json: expect.objectContaining({ permissionMode: "accept-edits" }),
-    });
-  });
-
   it("bb thread spawn --json prints the raw thread", async () => {
     vi.stubEnv("BB_PROJECT_ID", "proj-1");
     const thread: domain.Thread = fixtures.makeThread({
@@ -636,10 +606,6 @@ describe("bb thread spawn command output", () => {
         "proj-1",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -694,10 +660,6 @@ describe("bb thread spawn command output", () => {
         "thread-parent",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -708,8 +670,6 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
         input: [{ type: "text", text: "hello", mentions: [] }],
         parentThreadId: "thread-parent",
         environment: { type: "project-default" },
@@ -740,10 +700,6 @@ describe("bb thread spawn command output", () => {
         "proj-1",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -754,8 +710,6 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
         input: [{ type: "text", text: "hello", mentions: [] }],
         environment: { type: "project-default" },
       },
@@ -786,10 +740,6 @@ describe("bb thread spawn command output", () => {
         "--parent-self",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -824,10 +774,6 @@ describe("bb thread spawn command output", () => {
           "--parent-self",
           "--prompt",
           "hello",
-          "--provider",
-          "codex",
-          "--model",
-          "gpt-5",
         ],
         register,
       ),
@@ -862,10 +808,6 @@ describe("bb thread spawn command output", () => {
           "--parent-self",
           "--prompt",
           "hello",
-          "--provider",
-          "codex",
-          "--model",
-          "gpt-5",
         ],
         register,
       ),
@@ -898,10 +840,6 @@ describe("bb thread spawn command output", () => {
           "thread/invalid",
           "--prompt",
           "hello",
-          "--provider",
-          "codex",
-          "--model",
-          "gpt-5",
         ],
         register,
       ),
@@ -937,10 +875,6 @@ describe("bb thread spawn command output", () => {
         "env-worktree-001",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -951,8 +885,6 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
         input: [{ type: "text", text: "hello", mentions: [] }],
         environment: { type: "reuse", environmentId: "env-worktree-001" },
       },
@@ -984,10 +916,6 @@ describe("bb thread spawn command output", () => {
         workspacePath,
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -999,8 +927,6 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
         input: [{ type: "text", text: "hello", mentions: [] }],
         environment: {
           type: "host",
@@ -1027,10 +953,6 @@ describe("bb thread spawn command output", () => {
           "env:bad",
           "--prompt",
           "hello",
-          "--provider",
-          "codex",
-          "--model",
-          "gpt-5",
         ],
         register,
       ),
@@ -1066,10 +988,6 @@ describe("bb thread spawn command output", () => {
         "worktree",
         "--prompt",
         "hello",
-        "--provider",
-        "codex",
-        "--model",
-        "gpt-5",
       ],
       register,
     );
@@ -1080,8 +998,6 @@ describe("bb thread spawn command output", () => {
         startedOnBehalfOf: null,
         originKind: null,
         projectId: "proj-1",
-        providerId: "codex",
-        model: "gpt-5",
         input: [{ type: "text", text: "hello", mentions: [] }],
         environment: {
           type: "host",

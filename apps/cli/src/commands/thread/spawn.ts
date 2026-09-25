@@ -37,11 +37,17 @@ import {
   parseServiceTier,
 } from "./helpers.js";
 import { SEND_AT_HELP, parseSendAt } from "./send-time.js";
+import {
+  AGENT_HELP,
+  agentSpawnField,
+  rejectAgentExecutionFlags,
+} from "./spawn-agent.js";
 
 const PROVIDER_HELP =
   "Provider ID for the thread. Omit to use the project's remembered provider choice";
 
 interface ThreadSpawnCommandOptions {
+  agent?: string;
   prompt?: string;
   promptFile?: string;
   json?: boolean;
@@ -310,7 +316,7 @@ export function registerSpawnCommand(
     .command("spawn")
     .aliases(["create", "new"])
     .description(
-      "Spawn a new thread; omitted execution flags use remembered project defaults, then the target provider catalog default",
+      "Spawn a new thread as an agent; the agent sets the provider, model, and reasoning, and permissions are always full",
     )
     .option(
       "--prompt <prompt>",
@@ -353,6 +359,7 @@ export function registerSpawnCommand(
     )
     .option("--parent-thread <id>", "Parent thread ID for worker thread links")
     .option("--parent-self", "Parent the new thread to BB_THREAD_ID")
+    .option("--agent <name-or-id>", AGENT_HELP)
     .option("--provider <id>", PROVIDER_HELP)
     .option(
       "--model <model>",
@@ -400,6 +407,7 @@ export function registerSpawnCommand(
     )
     .action(
       action(async (opts: ThreadSpawnCommandOptions) => {
+        rejectAgentExecutionFlags(opts);
         const prompt = await requireTextInput({
           file: opts.promptFile,
           fileLabel: "--prompt-file",
@@ -577,6 +585,7 @@ export function registerSpawnCommand(
           thread = await sdk.threads.spawn({
             origin: "cli",
             projectId,
+            ...agentSpawnField(opts.agent),
             ...(providerId ? { providerId } : {}),
             ...(opts.model ? { model: opts.model } : {}),
             input,

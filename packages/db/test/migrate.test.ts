@@ -689,11 +689,22 @@ function dropThreadSnoozeColumn(db: DbConnection): void {
   }
 }
 
+function dropAgentsSchema(db: DbConnection): void {
+  const columns = db.$client
+    .prepare<[], TableInfoRow>("PRAGMA table_info(threads)")
+    .all();
+  if (columns.some((column) => column.name === "agent_id")) {
+    db.$client.prepare("ALTER TABLE threads DROP COLUMN agent_id").run();
+  }
+  db.$client.exec("DROP TABLE IF EXISTS agents");
+}
+
 function dropEventToolNameColumn(db: DbConnection): void {
   db.$client.prepare("DROP TABLE IF EXISTS provider_model_catalogs").run();
   db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
   dropMcpTables(db);
   dropThreadSnoozeColumn(db);
+  dropAgentsSchema(db);
   db.$client.prepare("DROP TABLE IF EXISTS ui_preferences").run();
   db.$client.prepare("DROP TABLE IF EXISTS retained_event_outputs").run();
   dropThreadConversationOutlinesTable(db);
@@ -891,6 +902,7 @@ function rewindMachineProvidersMigration(db: DbConnection): void {
   db.$client.exec("DROP TABLE IF EXISTS ui_preference_defaults");
   dropMcpTables(db);
   dropThreadSnoozeColumn(db);
+  dropAgentsSchema(db);
   const queuedDispatchOrigin = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(queued_thread_messages)")
     .all();
@@ -1786,6 +1798,7 @@ describe("migrate", () => {
       db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
       dropMcpTables(db);
       dropThreadSnoozeColumn(db);
+      dropAgentsSchema(db);
       db.$client.prepare("DROP TABLE ui_preferences").run();
       db.$client.prepare("DROP TABLE retained_event_outputs").run();
       db.$client
@@ -5742,6 +5755,7 @@ describe("environment providers migration", () => {
     db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
     dropMcpTables(db);
     dropThreadSnoozeColumn(db);
+    dropAgentsSchema(db);
     db.$client.prepare("DROP TABLE ui_preferences").run();
     db.$client.prepare("DROP TABLE retained_event_outputs").run();
     rewindEnvironmentRowFactsMigration(db);

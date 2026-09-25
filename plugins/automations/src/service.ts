@@ -62,6 +62,7 @@ import {
   writeInlineAutomationScript,
 } from "./script-files.js";
 import { errorMessage, executeAgentRun, executeScriptRun } from "./run.js";
+import { resolveAgentRef, resolveAutomationAgent } from "./agents.js";
 import {
   createScriptWorkingDirectoryResolver,
   projectPathForHost,
@@ -73,6 +74,7 @@ type ServiceApi = Pick<BbPluginApi, "realtime" | "log"> & {
     projects: Pick<BbPluginApi["sdk"]["projects"], "get" | "list">;
     providers: Pick<BbPluginApi["sdk"]["providers"], "list">;
     threads: Pick<BbPluginApi["sdk"]["threads"], "get" | "send" | "spawn">;
+    agents: Pick<BbPluginApi["sdk"]["agents"], "get">;
   };
 };
 
@@ -446,6 +448,7 @@ function applyAgentExecutionUpdate(
   const next = {
     ...execution,
     ...(update.prompt !== undefined ? { prompt: update.prompt } : {}),
+    ...(typeof update.agentId === "string" ? { agentId: update.agentId } : {}),
     ...(update.providerId !== undefined
       ? { providerId: update.providerId }
       : {}),
@@ -457,6 +460,7 @@ function applyAgentExecutionUpdate(
       ? { permissionMode: update.permissionMode }
       : {}),
   };
+  if (update.agentId === null) delete next.agentId;
   if (update.serviceTier === null) {
     delete next.serviceTier;
   } else if (update.serviceTier !== undefined) {
@@ -601,19 +605,20 @@ export function createAutomationService(args: {
       const now = Date.now();
       validateTrigger(payload.trigger, now);
       assertNotRecursiveCreation(db, payload.createdByThreadId);
-      if (payload.execution.mode === "agent") {
+      const execution = await resolveAutomationAgent(bb, payload.execution);
+      if (execution.mode === "agent" && execution.providerId !== undefined) {
         await resolvePermissionMode(
           bb,
-          payload.execution.providerId,
-          payload.execution.permissionMode,
-          providerRoutingForEnvironment(payload.execution.environment),
+          execution.providerId,
+          execution.permissionMode,
+          providerRoutingForEnvironment(execution.environment),
         );
       }
       const automationId = createAutomationId();
       const stored = await resolveStoredExecution({
         pluginDataDir,
         automationId,
-        execution: payload.execution,
+        execution,
         defaultWorkingDirectory:
           payload.execution.mode === "script" &&
           payload.execution.workingDirectory === undefined
@@ -694,18 +699,19 @@ export function createAutomationService(args: {
           : null;
       }
       if (input.execution !== undefined) {
-        if (input.execution.mode === "agent") {
+        const execution = await resolveAutomationAgent(bb, input.execution);
+        if (execution.mode === "agent" && execution.providerId !== undefined) {
           await resolvePermissionMode(
             bb,
-            input.execution.providerId,
-            input.execution.permissionMode,
-            providerRoutingForEnvironment(input.execution.environment),
+            execution.providerId,
+            execution.permissionMode,
+            providerRoutingForEnvironment(execution.environment),
           );
         }
         const stored = await resolveStoredExecution({
           pluginDataDir,
           automationId: current.id,
-          execution: input.execution,
+          execution,
           defaultWorkingDirectory:
             currentExecution.mode === "script"
               ? currentExecution.workingDirectory
@@ -723,12 +729,18 @@ export function createAutomationService(args: {
       if (input.agent !== undefined) {
         const updatedExecution = applyAgentExecutionUpdate(
           currentExecution,
-          input.agent,
+          typeof input.agent.agentId === "string"
+            ? {
+                ...input.agent,
+                agentId: await resolveAgentRef(bb, input.agent.agentId),
+              }
+            : input.agent,
         );
         if (
-          input.agent.providerId !== undefined ||
-          input.agent.permissionMode !== undefined ||
-          input.agent.target?.type === "environment"
+          updatedExecution.providerId !== undefined &&
+          (input.agent.providerId !== undefined ||
+            input.agent.permissionMode !== undefined ||
+            input.agent.target?.type === "environment")
         ) {
           await resolvePermissionMode(
             bb,

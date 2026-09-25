@@ -14,3 +14,4 @@ export * from "./api/server-move.js";
 export * from "./api/mcp.js";
 export * from "./api/provider-guard.js";
 export * from "./api/search.js";
+export * from "./api/agents.js";

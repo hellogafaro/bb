@@ -4,6 +4,8 @@ export {
   wrapStandardWebsocket,
 } from "./realtime-client.js";
 export type {
+  AgentRealtimeEvent,
+  AgentRealtimeSubscribeArgs,
   BbRealtime,
   BbRealtimeCallback,
   BbRealtimeConnectionEvent,

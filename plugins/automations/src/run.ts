@@ -123,13 +123,12 @@ export async function executeAgentRun(
         environment: args.execution.environment,
         prompt: args.execution.prompt,
         title: args.automation.name,
-        providerId: args.execution.providerId,
-        model: args.execution.model,
-        reasoningLevel: args.execution.reasoningLevel,
+        ...(args.execution.agentId === undefined
+          ? {}
+          : { agentId: args.execution.agentId }),
         ...(args.execution.serviceTier === undefined
           ? {}
           : { serviceTier: args.execution.serviceTier }),
-        permissionMode: args.execution.permissionMode,
       }),
     );
     setAutomationRunThread(db, { runId: args.run.id, threadId: thread.id });
@@ -228,7 +227,6 @@ async function reuseTargetThreadForRun(
         mentions: [],
       },
     ],
-    permissionMode: args.execution.permissionMode,
   });
 }
 

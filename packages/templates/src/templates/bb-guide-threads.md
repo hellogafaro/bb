@@ -23,9 +23,9 @@ Spawning:
     --parent-thread <id>           Parent thread (may be in another project)
     --parent-self                  Parent to the current thread (BB_THREAD_ID)
     --lifecycle-owner-thread <id>  Archive/delete with this owner
-    --provider <id>                Provider override
-    --model <model>                Model override
-    --reasoning-level <level>      Reasoning level: low, medium, high, xhigh, max (provider-dependent)
+    --agent <agent>                Agent to run as, by name or ID (default agent when omitted);
+                                   the agent sets provider, model, reasoning, skills, MCPs, and
+                                   instructions. See `bb guide agents`
     --environment <id-or-path>     Attach to an existing environment (ID or workspace path)
     --new-environment <kind>       Create a fresh personal workspace or managed worktree
     --base-branch <branch>         Exact Git ref for a new managed worktree
@@ -46,7 +46,6 @@ Spawning:
                                    refused when it does not
     --machine <id-or-name>         Run on a machine (--host is an alias)
     --service-tier <tier>          Service tier: fast, default
-    --permission-mode <mode>       Permission mode: accept-edits, auto, or full
     --plan                         Send the prompt as the provider's /plan action (plan first, execute after approval)
     --section <id>                 Create the thread in a section
     --visibility <visibility>      visible or hidden; a child inherits its parent by default
@@ -57,11 +56,12 @@ Spawning:
     --source-thread <id>           Source thread for a fork
     --source-seq-end <seq>         Fork after the source turn containing this event sequence
 
-  Execution defaults resolve from explicit flags, live parent execution, and
-  remembered project defaults. With no remembered model, bb uses the explicitly
-  requested provider or Codex and resolves its provider-reported default model
-  on the target machine. The product reasoning and permission defaults are
-  medium and auto.
+  The agent decides execution: provider, model, and reasoning come from the
+  agent, and permissions are always full. An agent without a model uses the
+  remembered project model for its provider, then the provider-reported
+  default model on the target machine. --provider, --model,
+  --reasoning-level, and --permission-mode are rejected; pick an agent with
+  --agent.
   accept-edits uses workspace sandboxing with user-reviewed escalation. auto uses
   the same workspace sandbox with provider-native automatic review. full is the
   explicit sandbox and approval bypass. Plan mode is separate from permissions.
@@ -93,7 +93,7 @@ Handoff:
   one from the current provider. Exit handoff restores the original execution
   settings and keeps draft edits, removing the automatic source reference.
   Closing the picker keeps handoff active; the composer also has Exit handoff.
-  CLI callers can use bb thread spawn with --provider, --model, --environment
+  CLI callers can use bb thread spawn with --agent, --environment
   and --prompt 'Continue from @thread:THREAD_ID ...'. SDK callers use
   threads.spawn with the corresponding execution, environment and input fields.
 

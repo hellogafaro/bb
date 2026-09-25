@@ -121,6 +121,7 @@ export function makeThread(overrides: MakeThreadArgs): Thread {
     archivedAt: null,
     pinnedAt: null,
     snoozedUntil: null,
+    agentId: null,
     deletedAt: null,
     lastReadAt: null,
     latestAttentionAt: Date.now(),

@@ -68,6 +68,7 @@ import {
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { useSystemMachineProviders } from "@/hooks/queries/machine-provider-queries";
 import { useHostDaemon } from "@/hooks/useHostDaemon";
+import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
 const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 64;
 
@@ -360,17 +361,19 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
             machineProviderInputsSlot={modeConfig.machineProviderInputsSlot}
           />
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <PermissionModePicker
-            value={modeConfig.permission.value}
-            options={modeConfig.permission.options}
-            onChange={modeConfig.permission.onChange}
-            supported={modeConfig.permission.supported}
-            disabled={permissionPickerDisabledByPlanMode}
-            showChevronWhenDisabled={permissionPickerDisabledByPlanMode}
-            displayOverride={permissionDisplayOverride}
-          />
-        </div>
+        {FORK_AGENT_COMPOSER ? null : (
+          <div className="flex shrink-0 items-center gap-2">
+            <PermissionModePicker
+              value={modeConfig.permission.value}
+              options={modeConfig.permission.options}
+              onChange={modeConfig.permission.onChange}
+              supported={modeConfig.permission.supported}
+              disabled={permissionPickerDisabledByPlanMode}
+              showChevronWhenDisabled={permissionPickerDisabledByPlanMode}
+              displayOverride={permissionDisplayOverride}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

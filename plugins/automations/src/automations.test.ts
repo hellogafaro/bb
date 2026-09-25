@@ -162,9 +162,26 @@ function legacyAutomationRow(
   };
 }
 
+const testAgentsSdk = {
+  get: async ({ agent }: { agent: string }) => ({
+    id: agent.startsWith("agent_") ? agent : `agent_${agent.toLowerCase()}`,
+    name: agent,
+    description: "",
+    providerId: "codex",
+    model: null,
+    reasoningLevel: "medium" as const,
+    skills: [],
+    mcpServers: [],
+    instructions: "",
+    createdAt: 1,
+    updatedAt: 1,
+  }),
+};
+
 function createAutomationServiceBb() {
   return {
     sdk: {
+      agents: testAgentsSdk,
       system: {
         config: async (): Promise<{ primaryHostId: string | null }> => ({
           primaryHostId: "host_server",
@@ -1287,6 +1304,7 @@ describe("automation service", () => {
     const db = createTestDb();
     const bb = {
       sdk: {
+        agents: testAgentsSdk,
         system: { config: async () => ({ primaryHostId: null }) },
         projects: {
           get: async () => {

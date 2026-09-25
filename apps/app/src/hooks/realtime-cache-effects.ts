@@ -18,6 +18,7 @@ import {
 } from "./cache-owners/system-cache-effects";
 import { createBufferedEnvironmentInvalidator } from "./buffered-environment-invalidator";
 import { invalidateMcpRealtimeChange } from "./cache-owners/mcp-cache-owner";
+import { invalidateAgentRealtimeChange } from "./cache-owners/agent-cache-owner";
 import {
   isDocumentVisible,
   subscribeToDocumentVisibility,
@@ -581,6 +582,12 @@ export function createRealtimeCacheEffects({
           invalidateMcpRealtimeChange({
             queryClient,
             serverId: message.id,
+            changes: message.changes,
+          });
+          break;
+        case "agent":
+          invalidateAgentRealtimeChange({
+            queryClient,
             changes: message.changes,
           });
           break;

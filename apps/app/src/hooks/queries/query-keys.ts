@@ -72,6 +72,7 @@ const HOST_PATH_EXISTENCE_QUERY_KEY = "hostPathExistence";
 const PROJECT_SKILLS_QUERY_KEY = "projectSkills";
 export const SKILL_CONTENT_QUERY_KEY = "skillContent";
 export const SKILL_FILES_QUERY_KEY = "skillFiles";
+const AGENTS_QUERY_KEY = "agents";
 const MCP_SERVERS_QUERY_KEY = "mcpServers";
 const MCP_SERVER_QUERY_KEY = "mcpServer";
 const MCP_SERVER_TOOLS_QUERY_KEY = "mcpServerTools";
@@ -1218,6 +1219,10 @@ export function skillContentQueryKey(
 
 export function skillFilesQueryKey(projectId: string, skillId: string) {
   return [SKILL_FILES_QUERY_KEY, projectId, skillId] as const;
+}
+
+export function agentsQueryKey() {
+  return [AGENTS_QUERY_KEY] as const;
 }
 
 export function mcpServersQueryKey() {

@@ -23,6 +23,7 @@ import { createStatusArea, type StatusArea } from "./areas/status.js";
 import { createSearchArea, type SearchArea } from "./areas/search.js";
 import { createSkillsArea, type SkillsArea } from "./areas/skills.js";
 import { createMcpArea, type McpArea } from "./areas/mcp.js";
+import { createAgentsArea, type AgentsArea } from "./areas/agents.js";
 import { createThemeArea, type ThemeArea } from "./areas/theme.js";
 import { createSystemArea, type SystemArea } from "./areas/system.js";
 import { createTerminalsArea, type TerminalsArea } from "./areas/terminals.js";
@@ -45,6 +46,7 @@ export interface CreateBbSdkWithGuideArgs extends CreateBbSdkArgs {
 }
 
 export interface BbSdkAreas extends BbRealtime {
+  agents: AgentsArea;
   experimental_desktopBrowsers: ExperimentalDesktopBrowsersArea;
   experimental_server: ExperimentalServerArea;
   environments: EnvironmentsArea;
@@ -84,6 +86,7 @@ export function createBbSdk(
     files: createFilesArea(sdkContext),
     hosts: createHostsArea(sdkContext),
     mcp: createMcpArea(sdkContext),
+    agents: createAgentsArea(sdkContext),
     subscribe(args) {
       return realtime.subscribe(args);
     },

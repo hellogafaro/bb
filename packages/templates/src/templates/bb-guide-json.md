@@ -38,10 +38,10 @@ Fields beyond those shown exist; these are the ones scripts use.
     {project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}
 
   bb thread list --json
-    [{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, createdAt, updatedAt, activity}]    (bare array; title can be null)
+    [{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, agentId, createdAt, updatedAt, activity}]    (bare array; title can be null)
 
   bb thread show <id> --json
-    {thread: {id, status, title, projectId, environmentId, parentThreadId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)
+    {thread: {id, status, title, projectId, environmentId, parentThreadId, agentId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)
 
   bb thread log <id> --json
     [{id, seq, type, createdAt, threadId, scope, data}]    (bare array of raw events, oldest first; page with --after-seq <seq>)
@@ -111,6 +111,15 @@ Fields beyond those shown exist; these are the ones scripts use.
 
   bb skill list [--scope <scope>]... [--provider <id>]... --json
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
+
+  bb agent list --json
+    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all)
+
+  bb agent show|create|set ... --json
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}
+
+  bb agent remove <agent> --json
+    {deleted: true, id}
 
   bb mcp list [--details] --json
     [{id, handle, type, status, tools}]    (bare array; tools is absent until the catalog is known; --details prints full records as in bb mcp show)

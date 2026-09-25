@@ -47,6 +47,7 @@ import {
 } from "@/components/promptbox/PromptBoxInternal";
 import { usePromptModePermissionDisplay } from "@/components/promptbox/usePromptModePermissionDisplay";
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
+import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
 import {
   ExecutionControls,
@@ -786,7 +787,7 @@ function FollowUpPromptBoxWithComposer({
             {environmentSummary}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {permissionControl}
+            {FORK_AGENT_COMPOSER ? null : permissionControl}
             {contextWindowUsage ? (
               <ThreadContextWindowIndicator usage={contextWindowUsage} />
             ) : null}

@@ -990,10 +990,12 @@ describe("ThreadDetailPromptArea", () => {
 
     expect(mocks.sendMessageMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        executionInputSources: {},
         id: "thr_1",
         pluginSubmission,
       }),
+    );
+    expect(mocks.sendMessageMutateAsync.mock.calls[0]?.[0]).not.toHaveProperty(
+      "model",
     );
   });
 
@@ -1085,14 +1087,7 @@ describe("ThreadDetailPromptArea", () => {
     );
 
     expect(onSubmit).toHaveBeenCalledWith({
-      execution: {
-        model: "gpt-5",
-        permissionMode: "auto",
-        reasoningLevel: "medium",
-        serviceTier: undefined,
-        supportsServiceTier: false,
-        executionInputSources: {},
-      },
+      execution: null,
       input: [{ type: "text", text: "Edited request", mentions: [] }],
     });
     expect(mocks.promptDraft.clearIfCurrentMatches).not.toHaveBeenCalled();

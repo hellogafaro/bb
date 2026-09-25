@@ -11,20 +11,19 @@ Agent mode flags:
 
 ```text
 --prompt <prompt>              Prompt to run when due
---provider <id>                Provider ID
---model <model>                Model ID
---reasoning <level>            none, low, medium, high, xhigh, ultracode, max, or ultra
+--agent <name|id>              Agent the run uses (`bb agent list`); omit for
+                               the default agent at run time
 --service-tier <tier>          default or fast (update also accepts none to clear)
---permission-mode <mode>       accept-edits, auto, or full
 --target-thread <id>           Reuse/re-prompt an existing thread
 --environment <id-or-path>     Existing environment ID or unmanaged workspace path
 --new-environment <kind>       Create a new environment (worktree)
 --base-branch <branch>         Base branch for new managed worktrees
 ```
 
-When `--permission-mode` is omitted, the plugin chooses Approve for me
-(`auto`) when the provider supports it and otherwise uses Full Access
-(`full`).
+Every run is a thread that runs as the automation's agent: the agent sets the
+provider, model, reasoning, skills, MCPs, and instructions, and permissions are
+always full. `--provider`, `--model`, `--reasoning`, and `--permission-mode`
+remain only for older records and do not change how a run executes.
 
 Script mode flags:
 

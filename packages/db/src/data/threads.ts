@@ -286,6 +286,7 @@ export interface CreateThreadInput {
   originPluginId?: string | null;
   pluginMetadata?: { pluginId: string; metadata: JsonObject } | null;
   visibility?: ThreadVisibility;
+  agentId?: string | null;
 }
 
 export class InvalidLifecycleOwnerError extends Error {
@@ -331,6 +332,7 @@ export function createThread(
           projectId: input.projectId,
           environmentId: input.environmentId ?? null,
           providerId: input.providerId,
+          agentId: input.agentId ?? null,
           title: input.title ?? null,
           titleFallback: input.titleFallback ?? null,
           sectionId: input.sectionId ?? null,

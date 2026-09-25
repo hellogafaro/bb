@@ -155,6 +155,7 @@ describe("createThreadRecord", () => {
             projectId: project.id,
             providerId: "codex",
             startedOnBehalfOf: null,
+            agentId: null,
             titleFallback: null,
             visibility: "visible",
           },

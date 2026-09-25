@@ -26,6 +26,11 @@ import {
   type ReasoningLevel,
   type ServiceTier,
 } from "@bb/domain";
+import {
+  useApplyComposerAgent,
+  useComposerAgent,
+} from "@/components/agents/useComposerAgent";
+import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 import type {
   ExperimentalComposerSelection,
   NewThreadRequest,
@@ -245,6 +250,7 @@ export function resolveSubmittedExecutionSources(
 }
 
 export interface NewThreadComposerSubmission extends NewThreadRequest {
+  agentId?: string;
   pluginSubmission?: CreateThreadRequest["pluginSubmission"];
   sendAt?: number;
 }
@@ -868,6 +874,15 @@ export function NewThreadComposer({
     clearReuseEnvironment,
   } = creationOptions;
   const selectedThreadModel = activeModel?.model ?? selectedModel;
+  const composerAgent = useComposerAgent(projectId);
+  const submittedAgent = FORK_AGENT_COMPOSER ? composerAgent.selected : null;
+  useApplyComposerAgent({
+    agent: seed?.providerId === undefined ? submittedAgent : null,
+    selection: { providerId: selectedProviderId, model: selectedModel, reasoningLevel },
+    setProviderModelReasoning,
+    setReasoningLevel,
+    setSelectedProviderId,
+  });
   const providerIds = useMemo(
     () => providerOptions.map((option) => option.value),
     [providerOptions],
@@ -1580,6 +1595,7 @@ export function NewThreadComposer({
       };
       const request: NewThreadComposerSubmission = {
         projectId,
+        ...(submittedAgent !== null ? { agentId: submittedAgent.id } : {}),
         providerId: selectedProviderId,
         model: selectedThreadModel,
         reasoningLevel,
@@ -1626,6 +1642,7 @@ export function NewThreadComposer({
       seededExecutionInputSources,
       submitDisabledReason,
       submissionEnvironment,
+      submittedAgent,
       selectedProviderId,
       selectedThreadModel,
       serviceTier,
@@ -1993,6 +2010,16 @@ export function NewThreadComposer({
               options: reasoningOptions,
               onChange: handleReasoningChange,
             },
+            ...(FORK_AGENT_COMPOSER
+              ? {
+                  agent: {
+                    agentId: composerAgent.selected?.id ?? null,
+                    ...(locks.provider
+                      ? {}
+                      : { onChange: composerAgent.select }),
+                  },
+                }
+              : {}),
           }}
         />
       );
@@ -2001,6 +2028,8 @@ export function NewThreadComposer({
       activeModel,
       attachmentError,
       commandSuggestions,
+      composerAgent.select,
+      composerAgent.selected,
       currentDraft,
       defaultMentionLinkResolver,
       effectiveEnvironmentValue,

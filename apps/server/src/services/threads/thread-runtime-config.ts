@@ -46,6 +46,11 @@ import {
   readWorkspaceAgentInstructions,
 } from "./workspace-agent-instructions.js";
 import { resolveDeprecatedWorkspaceProvisionType } from "../environments/environment-response.js";
+import {
+  agentInstructionSection,
+  syncThreadAgentMcpScope,
+} from "../agents/agent-runtime.js";
+import { resolveThreadAgent } from "../agents/agents.js";
 
 const UPDATE_ENVIRONMENT_DIRECTORY_INSTRUCTIONS =
   "If the user asks you to move this thread to another checkout, worktree, or directory, make sure the target directory exists, then call `update_environment_directory` with its absolute path. After it succeeds, stop work in the current turn; future turns will run in the updated environment.";
@@ -224,10 +229,12 @@ export async function resolveThreadRuntimeCommandConfig(
       },
     }),
   );
+  const agent = resolveThreadAgent(deps, args.thread);
   const injectedSkillSources = resolveSkillCatalog(deps, {
     projectSkillSources,
     sharedSkillSources: sharedSkills.runtimeSources,
     pluginSkillSelections: conditionalConfiguration.selectedSkillIdsByPlugin,
+    ...(agent !== null ? { skillNames: agent.skills } : {}),
   }).map((entry) => entry.runtimeSource);
   const dataDirAgentInstructions = readDataDirAgentInstructions(
     deps.logger,
@@ -253,6 +260,7 @@ export async function resolveThreadRuntimeCommandConfig(
       );
     }
   }
+  syncThreadAgentMcpScope(deps, { agent, threadId: args.thread.id });
   const mcpInstructions = mcpService?.instructions(
     threadServerSelection(
       getThreadPluginMetadata(deps.db, args.thread.id, MCP_THREAD_METADATA_KEY)
@@ -306,6 +314,9 @@ export async function resolveThreadRuntimeCommandConfig(
       `The following workspace instructions come from ${WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH}:`,
       workspaceAgentInstructions,
     );
+  }
+  if (agent !== null) {
+    instructionSections.push(...agentInstructionSection(agent));
   }
   const instructions = instructionSections.join("\n\n");
   const threadStoragePath = await requireLiveThreadStoragePath(deps, {

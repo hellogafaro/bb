@@ -6,6 +6,8 @@ import {
   HOST_CHANGE_KINDS,
   PROJECT_CHANGE_KINDS,
   SYSTEM_CHANGE_KINDS,
+  MCP_CHANGE_KINDS,
+  AGENT_CHANGE_KINDS,
   THREAD_CHANGE_KINDS,
   threadChangeMetadataSchema,
   type ChangedMessage,
@@ -83,6 +85,18 @@ const maximalChangedMessages: ChangedMessage[] = [
     type: "changed",
     entity: "system",
     changes: [...SYSTEM_CHANGE_KINDS],
+  },
+  {
+    type: "changed",
+    entity: "mcp",
+    id: "mcp_notion",
+    changes: [...MCP_CHANGE_KINDS],
+  },
+  {
+    type: "changed",
+    entity: "agent",
+    id: "agent_coder0001",
+    changes: [...AGENT_CHANGE_KINDS],
   },
 ];
 

@@ -81,6 +81,8 @@ describe.each(["project", "thread", "preference"] as const)(
           db.$client.exec("DROP TABLE mcp_tool_policies");
           db.$client.exec("DROP TABLE mcp_servers");
           db.$client.exec("ALTER TABLE threads DROP COLUMN snoozed_until");
+          db.$client.exec("ALTER TABLE threads DROP COLUMN agent_id");
+          db.$client.exec("DROP TABLE agents");
           db.$client
             .prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?")
             .run(SIDEBAR_INSTALLATION_DEFAULTS_MIGRATION_TIMESTAMP);

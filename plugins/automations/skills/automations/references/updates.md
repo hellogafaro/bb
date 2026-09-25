@@ -14,17 +14,13 @@ create/update persists the canonical format.
 
 Choose one of two execution update forms:
 
-- A complete replacement uses `--prompt`, `--provider`, and `--model` together
-  to replace the execution with an agent, or `--script`/`--script-file` to
-  replace it with a script. Add `--reasoning` and `--service-tier` when needed.
-  Include every desired mode-specific setting;
+- A complete replacement uses `--script`/`--script-file` to replace the
+  execution with a script. Include every desired mode-specific setting;
   settings from the previous execution do not carry over.
 - A partial agent update preserves every omitted execution field and edits the
   existing agent automation in place. Use any combination of `--prompt`,
-  `--provider`, `--model`, `--reasoning`, `--service-tier`, and
-  `--permission-mode accept-edits|auto|full`, then choose at most one execution
-  target. When changing providers, pass the provider's coherent model,
-  reasoning, tier, and permission selection together:
+  `--agent <name|id>`, and `--service-tier`, then choose at most one execution
+  target. The agent decides the provider, model, and reasoning:
 
 ```bash
 bb automation update <automationId> --project <id> \

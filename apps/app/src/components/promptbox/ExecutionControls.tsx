@@ -12,6 +12,11 @@ import {
 import { type PickerOption } from "@/components/pickers/OptionPicker";
 import type { ModelPickerOption } from "@/components/pickers/model-picker-option";
 import type { ProviderPickerOption } from "@/components/pickers/model-brand-prefix";
+import {
+  AgentPicker,
+  type ExecutionAgentConfig,
+} from "@/components/agents/AgentPicker";
+import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
 interface ExecutionProviderConfig {
   options?: readonly ProviderPickerOption[];
@@ -59,6 +64,7 @@ export interface ExecutionControlsProps {
   serviceTier?: ExecutionServiceTierConfig;
   reasoning: ExecutionReasoningConfig;
   handoff?: ModelReasoningPickerHandoff;
+  agent?: ExecutionAgentConfig;
   disabled?: boolean;
 }
 
@@ -69,6 +75,7 @@ export const ExecutionControls = memo(function ExecutionControls({
   serviceTier,
   reasoning,
   handoff,
+  agent,
   disabled,
 }: ExecutionControlsProps) {
   const handleServiceTierChange = serviceTier?.onChange ?? (() => {});
@@ -87,6 +94,10 @@ export const ExecutionControls = memo(function ExecutionControls({
     canSwitchProviders ||
     selectedProviderId.length > 0 ||
     handoff !== undefined;
+
+  if (FORK_AGENT_COMPOSER && agent !== undefined) {
+    return <AgentPicker {...agent} disabled={disabled} />;
+  }
 
   return (
     <>

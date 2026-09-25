@@ -279,6 +279,10 @@ function PromptVariant({
             setExecution({
               ...execution,
               ...update,
+              agentId:
+                update.agentId === undefined
+                  ? execution.agentId
+                  : (update.agentId ?? undefined),
               serviceTier: update.serviceTier ?? undefined,
             });
             setEditing(false);

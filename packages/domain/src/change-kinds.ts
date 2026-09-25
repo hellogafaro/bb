@@ -75,7 +75,11 @@ export const MCP_CHANGE_KINDS = [
 ] as const;
 export type McpChangeKind = (typeof MCP_CHANGE_KINDS)[number];
 
+export const AGENT_CHANGE_KINDS = ["agent-changed", "agent-deleted"] as const;
+export type AgentChangeKind = (typeof AGENT_CHANGE_KINDS)[number];
+
 export const threadChangeKindSchema = z.enum(THREAD_CHANGE_KINDS);
+export const agentChangeKindSchema = z.enum(AGENT_CHANGE_KINDS);
 export const mcpChangeKindSchema = z.enum(MCP_CHANGE_KINDS);
 export const projectChangeKindSchema = z.enum(PROJECT_CHANGE_KINDS);
 export const environmentChangeKindSchema = z.enum(ENVIRONMENT_CHANGE_KINDS);
@@ -289,6 +293,16 @@ export const mcpChangedMessageSchema = z
   .strict();
 export type McpChangedMessage = z.infer<typeof mcpChangedMessageSchema>;
 
+export const agentChangedMessageSchema = z
+  .object({
+    type: z.literal("changed"),
+    entity: z.literal("agent"),
+    id: z.string(),
+    changes: z.array(agentChangeKindSchema).readonly(),
+  })
+  .strict();
+export type AgentChangedMessage = z.infer<typeof agentChangedMessageSchema>;
+
 export const changedMessageSchema = z.discriminatedUnion("entity", [
   threadChangedMessageSchema,
   projectChangedMessageSchema,
@@ -296,6 +310,7 @@ export const changedMessageSchema = z.discriminatedUnion("entity", [
   hostChangedMessageSchema,
   systemChangedMessageSchema,
   mcpChangedMessageSchema,
+  agentChangedMessageSchema,
 ]);
 export type ChangedMessage = z.infer<typeof changedMessageSchema>;
 
@@ -369,6 +384,13 @@ const mcpChangedMessageLenientSchema = z.object({
   changes: lenientKinds(MCP_CHANGE_KINDS),
 });
 
+const agentChangedMessageLenientSchema = z.object({
+  type: z.literal("changed"),
+  entity: z.literal("agent"),
+  id: z.string(),
+  changes: lenientKinds(AGENT_CHANGE_KINDS),
+});
+
 export const changedMessageLenientSchema = z.discriminatedUnion("entity", [
   threadChangedMessageLenientSchema,
   projectChangedMessageLenientSchema,
@@ -376,4 +398,5 @@ export const changedMessageLenientSchema = z.discriminatedUnion("entity", [
   hostChangedMessageLenientSchema,
   systemChangedMessageLenientSchema,
   mcpChangedMessageLenientSchema,
+  agentChangedMessageLenientSchema,
 ]);

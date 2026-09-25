@@ -6,6 +6,7 @@ import {
   type ChangedMessage,
   type EnvironmentChangeKind,
   type HostChangeKind,
+  type AgentChangeKind,
   type McpChangeKind,
   type ProjectChangeKind,
   type SystemChangeKind,
@@ -57,7 +58,7 @@ export type ServerChangedMessage =
       ChangedMessage,
       { entity: "thread" | "project" | "environment" | "host" }
     > & { id: string })
-  | Extract<ChangedMessage, { entity: "system" | "mcp" }>;
+  | Extract<ChangedMessage, { entity: "system" | "mcp" | "agent" }>;
 
 type ChangedMessageListener = (message: ServerChangedMessage) => void;
 
@@ -117,6 +118,7 @@ function subscriptionKeysForMessage(message: ServerChangedMessage): string[] {
       ];
     case "system":
     case "mcp":
+    case "agent":
       return [subscriptionKey({ kind: "system" })];
   }
 }
@@ -942,6 +944,10 @@ export class NotificationHub implements DbNotifier {
       ...(id === null ? {} : { id }),
       changes,
     });
+  }
+
+  notifyAgent(id: string, changes: AgentChangeKind[]): void {
+    this.notifyClients({ type: "changed", entity: "agent", id, changes });
   }
 
   notifySystem(changes: SystemChangeKind[]): void {

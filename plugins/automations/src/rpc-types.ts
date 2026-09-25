@@ -168,11 +168,12 @@ const automationAgentExecutionSchema = z
   .object({
     mode: z.literal("agent"),
     prompt: z.string().min(1),
-    providerId: z.string().min(1),
-    model: z.string().min(1),
+    agentId: z.string().min(1).optional(),
+    providerId: z.string().min(1).optional(),
+    model: z.string().min(1).optional(),
     reasoningLevel: reasoningLevelSchema.default("medium"),
     serviceTier: serviceTierSchema.optional(),
-    permissionMode: permissionModeSchema,
+    permissionMode: permissionModeSchema.optional(),
     environment: agentEnvironmentSchema,
     targetThreadId: z.string().min(1).optional(),
   })
@@ -301,6 +302,7 @@ const agentExecutionTargetSchema = z.discriminatedUnion("type", [
 const agentExecutionUpdateSchema = z
   .object({
     prompt: z.string().min(1).optional(),
+    agentId: z.string().min(1).nullable().optional(),
     providerId: z.string().min(1).optional(),
     model: z.string().min(1).optional(),
     reasoningLevel: reasoningLevelSchema.optional(),
@@ -312,6 +314,7 @@ const agentExecutionUpdateSchema = z
   .refine(
     (value) =>
       value.prompt !== undefined ||
+      value.agentId !== undefined ||
       value.providerId !== undefined ||
       value.model !== undefined ||
       value.reasoningLevel !== undefined ||

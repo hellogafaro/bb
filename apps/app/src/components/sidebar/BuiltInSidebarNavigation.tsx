@@ -9,7 +9,7 @@ import {
   ProjectListSearchAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
-import { getSkillsRoutePath } from "@/lib/route-paths";
+import { getAgentsRoutePath, getSkillsRoutePath } from "@/lib/route-paths";
 
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
@@ -56,6 +56,19 @@ export function BuiltInSidebarNavigation({
           icon="Puzzle"
           title="Customize"
           routePath={skillsRoutePath}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
+    {
+      kind: "built-in",
+      pluginId: "__bb__",
+      id: "agents",
+      content: (
+        <ResourceNavSidebarItem
+          icon="Bot"
+          title="Agents"
+          routePath={getAgentsRoutePath()}
           onNavigate={onNavigate}
         />
       ),

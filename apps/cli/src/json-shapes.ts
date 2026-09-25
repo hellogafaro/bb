@@ -4,9 +4,9 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   status:
     "{project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}",
   "thread list":
-    "[{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, createdAt, updatedAt, activity}]    (bare array; title can be null)",
+    "[{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, agentId, createdAt, updatedAt, activity}]    (bare array; title can be null)",
   "thread show":
-    "{thread: {id, status, title, projectId, environmentId, parentThreadId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)",
+    "{thread: {id, status, title, projectId, environmentId, parentThreadId, agentId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)",
   "thread log":
     "[{id, seq, type, createdAt, threadId, scope, data}]    (bare array of raw events, oldest first; page with --after-seq <seq>)",
   "thread output": "{output}",
@@ -39,6 +39,15 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "{plugins: [{id, version, enabled, status, source, rootDir}]}    (wrapped in .plugins)",
   "skill list":
     "{skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)",
+  "agent list":
+    "[{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all)",
+  "agent show":
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}",
+  "agent create":
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}",
+  "agent set":
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}",
+  "agent remove": "{deleted: true, id}",
   "mcp list":
     "[{id, handle, type, status, tools}]    (bare array; tools is absent until the catalog is known; --details prints full records as in bb mcp show)",
   "mcp show":

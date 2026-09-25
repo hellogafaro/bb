@@ -856,7 +856,7 @@ describe("FollowUpPromptBox", () => {
     },
   );
 
-  it("disables the permission picker while plan mode is active", () => {
+  it("hides the permission picker because agents always run with full access", () => {
     const props = createFollowUpPromptBoxProps({
       kind: "queue",
       onStop: vi.fn(),
@@ -873,12 +873,7 @@ describe("FollowUpPromptBox", () => {
       />,
     );
 
-    expect(mocks.permissionModePicker).toHaveBeenCalledWith(
-      expect.objectContaining({
-        disabled: true,
-        showChevronWhenDisabled: true,
-      }),
-    );
+    expect(mocks.permissionModePicker).not.toHaveBeenCalled();
   });
 
   it("can lock permission without disabling execution controls", () => {
@@ -891,11 +886,7 @@ describe("FollowUpPromptBox", () => {
         disabled: false,
       }),
     );
-    expect(mocks.permissionModePicker).toHaveBeenCalledWith(
-      expect.objectContaining({
-        disabled: true,
-      }),
-    );
+    expect(mocks.permissionModePicker).not.toHaveBeenCalled();
   });
 
   it("starts as a single compact row on mobile without size controls", () => {

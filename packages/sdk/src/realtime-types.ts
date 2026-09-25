@@ -10,6 +10,7 @@ export type BbRealtimeEventName =
   | "system:changed"
   | "system:config-changed"
   | "mcp:changed"
+  | "agent:changed"
   | "realtime:connection";
 
 export type ThreadRealtimeEvent = Extract<ChangedMessage, { entity: "thread" }>;
@@ -24,6 +25,7 @@ export type EnvironmentRealtimeEvent = Extract<
 export type HostRealtimeEvent = Extract<ChangedMessage, { entity: "host" }>;
 export type SystemRealtimeEvent = Extract<ChangedMessage, { entity: "system" }>;
 export type McpRealtimeEvent = Extract<ChangedMessage, { entity: "mcp" }>;
+export type AgentRealtimeEvent = Extract<ChangedMessage, { entity: "agent" }>;
 
 export type BbRealtimeConnectionState =
   | "connecting"
@@ -44,6 +46,7 @@ export interface BbRealtimeEventMap {
   "system:changed": SystemRealtimeEvent;
   "system:config-changed": SystemRealtimeEvent;
   "mcp:changed": McpRealtimeEvent;
+  "agent:changed": AgentRealtimeEvent;
   "realtime:connection": BbRealtimeConnectionEvent;
 }
 
@@ -91,6 +94,12 @@ export interface McpRealtimeSubscribeArgs {
   serverId?: string;
 }
 
+export interface AgentRealtimeSubscribeArgs {
+  agentId?: string;
+  callback: BbRealtimeCallback<"agent:changed">;
+  event: "agent:changed";
+}
+
 export interface RealtimeConnectionSubscribeArgs {
   callback: BbRealtimeCallback<"realtime:connection">;
   event: "realtime:connection";
@@ -104,6 +113,7 @@ export type BbRealtimeSubscribeArgsUnion =
   | SystemRealtimeSubscribeArgs
   | SystemConfigRealtimeSubscribeArgs
   | McpRealtimeSubscribeArgs
+  | AgentRealtimeSubscribeArgs
   | RealtimeConnectionSubscribeArgs;
 
 export type BbRealtimeSubscribeArgs<

@@ -138,6 +138,7 @@ import {
   type FollowUpPromptBoxProps,
   type FollowUpSubmitMode,
 } from "@/components/promptbox/FollowUpPromptBox";
+import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 import type { SendMessageMutationLike } from "./threadDetailMutationTypes";
 import {
   buildAutoFollowUpRequest,
@@ -1093,7 +1094,7 @@ export function ThreadDetailPromptArea({
     submitModeKind: submitMode.kind,
   });
   const followUpExecutionSelection = useMemo<FollowUpExecutionSelection>(() => {
-    if (!hasConcreteDefaultExecutionOptions) {
+    if (FORK_AGENT_COMPOSER || !hasConcreteDefaultExecutionOptions) {
       return null;
     }
     return {
@@ -1572,6 +1573,7 @@ export function ThreadDetailPromptArea({
         onExit: exitHandoff,
         onSelect: handleHandoffSelect,
       },
+      agent: { agentId: thread.agentId },
     }),
     [
       effectiveSelectedModel,
@@ -1599,6 +1601,7 @@ export function ThreadDetailPromptArea({
       setServiceTier,
       supportsServiceTier,
       serviceTierFastLabel,
+      thread.agentId,
       thread.environmentId,
       thread.providerId,
     ],

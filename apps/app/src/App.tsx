@@ -25,6 +25,8 @@ import { useRememberPluginNavPanelChrome } from "@/lib/plugin-nav-panel-chrome";
 import { useWebSocket } from "./hooks/useWebSocket";
 import {
   AUTH_CALLBACK_ROUTE_PATH,
+  AGENTS_ROUTE_PATH,
+  AGENT_DETAIL_ROUTE_PATH,
   CUSTOMIZE_ROUTE_PATH,
   LEGACY_AUTOMATION_DETAIL_ROUTE_PATH,
   LEGACY_AUTOMATIONS_ROUTE_PATH,
@@ -85,6 +87,11 @@ const PluginsView = lazy(() =>
 const SkillsView = lazy(() =>
   import("./views/ToolsView").then((m) => ({
     default: m.SkillsView,
+  })),
+);
+const AgentsView = lazy(() =>
+  import("./views/AgentsView").then((m) => ({
+    default: m.AgentsView,
   })),
 );
 const CustomizeView = lazy(() =>
@@ -397,6 +404,8 @@ export function AppRoutes() {
               element={<CustomizeView />}
             />
           ) : null}
+          <Route path={AGENTS_ROUTE_PATH} element={<AgentsView />} />
+          <Route path={AGENT_DETAIL_ROUTE_PATH} element={<AgentsView />} />
           <Route path={SKILLS_ROUTE_PATH} element={skillsCollectionElement} />
           <Route path={SKILL_DETAIL_ROUTE_PATH} element={<SkillsView />} />
           <Route

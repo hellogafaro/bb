@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { useState, type ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
@@ -27,6 +28,39 @@ import {
   AgentAutomationDefinition,
   ScriptAutomationDefinition,
 } from "bb-plugin-automations/detail-view";
+
+const recipeSdk = vi.hoisted(() => ({
+  agents: {
+    list: async () => [
+      {
+        id: "agent_default01",
+        name: "BB",
+        description: "",
+        providerId: "codex",
+        model: null,
+        reasoningLevel: "medium",
+        skills: [],
+        mcpServers: [],
+        instructions: "",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "agent_writer001",
+        name: "Writer",
+        description: "",
+        providerId: "claude",
+        model: "claude-opus-5",
+        reasoningLevel: "high",
+        skills: [],
+        mcpServers: [],
+        instructions: "",
+        createdAt: 2,
+        updatedAt: 2,
+      },
+    ],
+  },
+}));
 
 vi.mock("@get-bb/plugin-sdk/app", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -64,6 +98,7 @@ vi.mock("@get-bb/plugin-sdk/app", async (importOriginal) => ({
       {value.reasoningLevel}
     </button>
   ),
+  useSdk: () => recipeSdk,
   experimental_PermissionModePicker: ({
     providerId,
     value,
@@ -956,16 +991,20 @@ describe("Automation detail recipe", () => {
     expect(readOnlyPromptShell.contains(savedPrompt)).toBe(true);
     expect(savedPrompt.textContent).toBe("Summarize yesterday's commits.");
     expect(screen.queryByRole("button", { name: "Save Prompt" })).toBeNull();
-    const disabledModelSelector = container.querySelector(
-      '[data-testid="bb-provider-model-picker"]',
-    ) as HTMLButtonElement;
-    const disabledPermissionSelector = container.querySelector(
-      '[data-testid="bb-permission-mode-picker"]',
-    ) as HTMLButtonElement;
-    expect(disabledModelSelector.disabled).toBe(true);
-    expect(disabledPermissionSelector.disabled).toBe(true);
-    expect(readOnlyPromptShell.contains(disabledModelSelector)).toBe(true);
-    expect(readOnlyPromptShell.contains(disabledPermissionSelector)).toBe(true);
+    const disabledAgentSelector = screen.getByRole("button", {
+      name: "Agent",
+    }) as HTMLButtonElement;
+    expect(disabledAgentSelector.disabled).toBe(true);
+    expect(readOnlyPromptShell.contains(disabledAgentSelector)).toBe(true);
+    await waitFor(() =>
+      expect(disabledAgentSelector.textContent).toBe("BB (default)"),
+    );
+    expect(
+      container.querySelector('[data-testid="bb-provider-model-picker"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="bb-permission-mode-picker"]'),
+    ).toBeNull();
     const readOnlyPromptFooter = container.querySelector(
       '[data-automation-prompt-footer=""]',
     ) as HTMLElement;
@@ -999,22 +1038,14 @@ describe("Automation detail recipe", () => {
     expect(
       promptFooter.querySelector('[title="Environment: Personal workspace"]'),
     ).not.toBeNull();
-    expect(promptFooter.textContent).toContain("Approve for me");
     expect(
       promptFooter.querySelectorAll('[data-option-display=""]'),
     ).toHaveLength(1);
-    const accessSelector = promptFooter.querySelector(
-      '[data-testid="bb-permission-mode-picker"]',
-    ) as HTMLButtonElement;
-    expect(accessSelector.disabled).toBe(false);
-    expect(accessSelector.getAttribute("aria-label")).toBe("Permission mode");
-    expect(promptPanel.textContent).toContain("Opus 5");
-    expect(promptPanel.textContent).toContain("Claude");
-    const modelSelector = promptPanel.querySelector(
-      '[data-testid="bb-provider-model-picker"]',
-    ) as HTMLButtonElement;
-    expect(modelSelector.disabled).toBe(false);
-    expect(modelSelector.textContent).toContain("medium");
+    const agentSelector = screen.getByRole("button", {
+      name: "Agent",
+    }) as HTMLButtonElement;
+    expect(agentSelector.disabled).toBe(false);
+    expect(promptActionRow.contains(agentSelector)).toBe(true);
     const savePrompt = screen.getByRole("button", { name: "Save Prompt" });
     expect(promptPanel.contains(savePrompt)).toBe(true);
     expect(savePrompt.querySelector('[data-icon="Check"]')).not.toBeNull();
@@ -1032,11 +1063,8 @@ describe("Automation detail recipe", () => {
       name: "Automation prompt",
     }) as HTMLTextAreaElement;
     const reopenedPanel = reopenedPrompt.closest("form") as HTMLElement;
-    const reopenedModelSelector = reopenedPanel.querySelector(
-      '[data-testid="bb-provider-model-picker"]',
-    ) as HTMLButtonElement;
-    const reopenedAccessSelector = container.querySelector(
-      '[data-testid="bb-permission-mode-picker"]',
+    const reopenedAgentSelector = reopenedPanel.querySelector(
+      '[aria-label="Agent"]',
     ) as HTMLButtonElement;
     const reopenedSavePrompt = screen.getByRole("button", {
       name: "Save Prompt",
@@ -1044,8 +1072,8 @@ describe("Automation detail recipe", () => {
     fireEvent.change(reopenedPrompt, {
       target: { value: "Summarize the last two days." },
     });
-    fireEvent.click(reopenedModelSelector);
-    fireEvent.click(reopenedAccessSelector);
+    fireEvent.pointerDown(reopenedAgentSelector, { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Writer/ }));
     expect((reopenedSavePrompt as HTMLButtonElement).disabled).toBe(false);
     expect(
       (screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement)
@@ -1054,11 +1082,7 @@ describe("Automation detail recipe", () => {
     fireEvent.click(reopenedSavePrompt);
     expect(updateAgent).toHaveBeenCalledWith({
       prompt: "Summarize the last two days.",
-      providerId: "claude",
-      model: "claude-sonnet-5",
-      reasoningLevel: "high",
-      serviceTier: "fast",
-      permissionMode: "full",
+      agentId: "agent_writer001",
     });
     expect(
       await screen.findByRole("textbox", { name: "Saved prompt" }),
@@ -1122,18 +1146,14 @@ describe("Automation detail recipe", () => {
     const promptFooter = promptShell.querySelector(
       '[data-automation-prompt-footer=""]',
     ) as HTMLElement;
-    expect(promptShell.textContent).toContain("Claude");
-    expect(promptShell.textContent).toContain("Opus 5");
     expect(promptFooter.textContent).toContain("bb");
     expect(promptFooter.textContent).toContain("~/Code/bb");
-    expect(promptFooter.textContent).toContain("Approve for me");
-    expect(promptShell.textContent).toContain("medium");
     expect(
       promptShell.querySelectorAll('[data-option-display=""]'),
     ).toHaveLength(2);
-    expect(
-      promptShell.querySelectorAll('[data-testid="bb-provider-model-picker"]'),
-    ).toHaveLength(1);
+    expect(promptShell.querySelectorAll('[aria-label="Agent"]')).toHaveLength(
+      1,
+    );
   });
 
   it("does not treat a project named Local as the personal project", () => {
@@ -1190,9 +1210,7 @@ describe("Automation detail recipe", () => {
     expect(
       promptFooter.querySelectorAll('[data-option-display=""]'),
     ).toHaveLength(2);
-    expect(
-      container.querySelector('[data-testid="bb-provider-model-picker"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Agent"]')).not.toBeNull();
   });
 
   it("shows the stored script with capped overflow and no environment values", () => {

@@ -12,6 +12,8 @@ export const PLUGINS_ROUTE_PATH = "/plugins";
 export const PLUGIN_DETAIL_ROUTE_PATH = "/plugins/:pluginId";
 export const SKILLS_ROUTE_PATH = "/skills";
 export const CUSTOMIZE_ROUTE_PATH = "/customize";
+export const AGENTS_ROUTE_PATH = "/agents";
+export const AGENT_DETAIL_ROUTE_PATH = "/agents/:agentRef";
 export const SKILL_DETAIL_ROUTE_PATH = "/skills/library/:skillId";
 export const REGISTRY_SKILLS_ROUTE_PATH = "/skills/registry";
 export const REGISTRY_SKILL_DETAIL_ROUTE_PATH =
@@ -151,6 +153,14 @@ export function getPluginConfigurationRoutePath(
   return `/settings/plugins/${encodeURIComponent(args.pluginId)}`;
 }
 
+export function getAgentsRoutePath(): string {
+  return AGENTS_ROUTE_PATH;
+}
+
+export function getAgentDetailRoutePath(agentRef: string): string {
+  return `${AGENTS_ROUTE_PATH}/${encodeURIComponent(agentRef)}`;
+}
+
 export function getAutomationsRoutePath(): string {
   return AUTOMATIONS_ROUTE_PATH;
 }
@@ -216,6 +226,8 @@ export const ROUTE_PATTERNS: readonly string[] = [
   PLUGIN_DETAIL_ROUTE_PATH,
   SKILLS_ROUTE_PATH,
   `${CUSTOMIZE_ROUTE_PATH}/*`,
+  AGENTS_ROUTE_PATH,
+  AGENT_DETAIL_ROUTE_PATH,
   SKILL_DETAIL_ROUTE_PATH,
   REGISTRY_SKILLS_ROUTE_PATH,
   REGISTRY_SKILL_DETAIL_ROUTE_PATH,

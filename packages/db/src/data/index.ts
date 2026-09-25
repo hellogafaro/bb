@@ -15,6 +15,25 @@ export {
 export type { ProjectRow, ReorderProjectResult } from "./projects.js";
 
 export {
+  countAgents,
+  deleteAgent,
+  getAgent,
+  getAgentByName,
+  getDefaultAgent,
+  getLatestProjectExecutionDefaults,
+  insertAgent,
+  listAgentNamesByIds,
+  listAgents,
+  setThreadAgentId,
+  updateAgent,
+} from "./agents.js";
+export type {
+  InsertAgentArgs,
+  SetThreadAgentIdArgs,
+  UpdateAgentArgs,
+} from "./agents.js";
+
+export {
   notifyThreadSnoozeChanged,
   setThreadSnoozedUntil,
   wakeSnoozedThreadFamily,

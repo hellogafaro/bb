@@ -283,6 +283,7 @@ describe("plugin thread lifecycle events", () => {
         projectId: project.id,
         providerId: "codex",
         startedOnBehalfOf: null,
+        agentId: null,
         titleFallback: "Plugin event test thread",
         visibility: "visible",
       };
@@ -330,6 +331,7 @@ describe("plugin thread lifecycle events", () => {
               projectId: project.id,
               providerId: "codex",
               startedOnBehalfOf: null,
+              agentId: null,
               titleFallback: "Hidden plugin worker",
               visibility: "hidden",
             },

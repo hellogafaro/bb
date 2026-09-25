@@ -59,6 +59,7 @@ export function threadListEntry(
     archivedAt: null,
     pinnedAt: null,
     snoozedUntil: null,
+    agentId: null,
     deletedAt: null,
     lastReadAt: now,
     latestAttentionAt: updatedAt,

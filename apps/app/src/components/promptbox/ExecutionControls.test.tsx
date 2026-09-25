@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
+import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
+import type { Agent } from "@bb/domain";
+import { sdk } from "@/lib/sdk";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -47,6 +56,87 @@ function renderExecutionControls(props: ExecutionControlsProps) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
+
+function makeAgent(overrides: Partial<Agent>): Agent {
+  return {
+    id: "agent_default01",
+    name: "BB",
+    description: "",
+    providerId: "codex",
+    model: null,
+    reasoningLevel: "medium",
+    skills: [],
+    mcpServers: [],
+    instructions: "",
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  };
+}
+
+function stubAgents() {
+  vi.spyOn(sdk.agents, "list").mockResolvedValue([
+    makeAgent({}),
+    makeAgent({
+      id: "agent_coder0001",
+      name: "Coder",
+      providerId: "claude-code",
+      model: "opus",
+    }),
+  ]);
+  vi.spyOn(sdk.providers, "list").mockResolvedValue([
+    makeProviderInfo({ id: "codex", displayName: "Codex" }),
+    makeProviderInfo({ id: "claude-code", displayName: "Claude Code" }),
+  ]);
+}
+
+describe("ExecutionControls agent picker", () => {
+  it("replaces the model picker with an agent picker and switches agents", async () => {
+    stubAgents();
+    const onChange = vi.fn();
+    renderExecutionControls({
+      ...makeExecutionControlsProps(vi.fn()),
+      agent: { agentId: null, onChange },
+    });
+
+    const trigger = await screen.findByRole("button", { name: "Agent" });
+    await waitFor(() => expect(trigger.textContent).toBe("BB"));
+    expect(
+      screen.queryByRole("button", { name: "Provider, model and reasoning" }),
+    ).toBeNull();
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    expect(await screen.findByText("Claude Code · Opus")).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Coder/ }));
+    expect(onChange).toHaveBeenCalledWith("agent_coder0001");
+  });
+
+  it("shows a thread's fixed agent as disabled", async () => {
+    stubAgents();
+    renderExecutionControls({
+      ...makeExecutionControlsProps(),
+      agent: { agentId: "agent_coder0001" },
+    });
+    const trigger = await screen.findByRole("button", { name: "Agent" });
+    await waitFor(() =>
+      expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
+        "Coder · Claude Code · Opus",
+      ),
+    );
+    expect(trigger.textContent).toBe("Coder");
+    expect(trigger.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("falls back to the default agent when the thread's agent is gone", async () => {
+    stubAgents();
+    renderExecutionControls({
+      ...makeExecutionControlsProps(),
+      agent: { agentId: "agent_deleted01" },
+    });
+    const trigger = await screen.findByRole("button", { name: "Agent" });
+    await waitFor(() => expect(trigger.textContent).toBe("BB"));
+  });
 });
 
 describe("ExecutionControls", () => {

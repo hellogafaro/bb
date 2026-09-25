@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, UIEvent } from "react";
 import type {
-  AgentEnvironment,
   AutomationDetailResponse,
   AutomationExecution,
   AutomationResponse,
@@ -9,13 +8,8 @@ import type {
   AutomationRunStatus,
   AgentExecutionUpdate,
 } from "./src/rpc-types";
-import {
-  experimental_PermissionModePicker as PermissionModePicker,
-  experimental_ProviderIcon as ProviderIcon,
-  experimental_ProviderModelPicker as ProviderModelPicker,
-  type ExperimentalProviderModelPickerRouting,
-  type ExperimentalProviderModelPickerValue,
-} from "@get-bb/plugin-sdk/app";
+import { experimental_ProviderIcon as ProviderIcon } from "@get-bb/plugin-sdk/app";
+import { AutomationAgentPicker, useAutomationAgents } from "./agent-picker";
 import { RUN_STATE_PRESENTATION } from "@bb/domain/update-state";
 import { Button } from "@bb/shared-ui/button";
 import { COARSE_POINTER_HOVER_REVEAL_VISIBLE_CLASS } from "@bb/shared-ui/coarse-pointer-visibility";
@@ -82,33 +76,6 @@ interface AutomationDetailViewProps {
   footer?: ReactNode;
 }
 
-function providerModelValue(
-  execution: Extract<AutomationExecution, { mode: "agent" }>,
-): ExperimentalProviderModelPickerValue {
-  return {
-    providerId: execution.providerId,
-    model: execution.model,
-    reasoningLevel: execution.reasoningLevel,
-    ...(execution.serviceTier === undefined
-      ? {}
-      : { serviceTier: execution.serviceTier }),
-  };
-}
-
-function providerModelRouting(
-  environment: AgentEnvironment,
-): ExperimentalProviderModelPickerRouting | undefined {
-  if (environment.type === "reuse") {
-    return { kind: "environment", environmentId: environment.environmentId };
-  }
-  if (environment.type === "host" && environment.hostId !== undefined) {
-    return { kind: "host", hostId: environment.hostId };
-  }
-  return undefined;
-}
-
-function ignoreProviderModelChange(): void {}
-function ignorePermissionModeChange(): void {}
 
 interface AutomationLifecycleControlProps {
   checked: boolean;
@@ -504,34 +471,16 @@ export function AgentAutomationDefinition({
   onCancel: () => void;
   onUpdate: (update: AgentExecutionUpdate) => Promise<void>;
 }) {
+  const agents = useAutomationAgents();
+  const savedAgentId = execution.agentId ?? null;
   const [prompt, setPrompt] = useState(execution.prompt);
-  const [providerModel, setProviderModel] = useState(() =>
-    providerModelValue(execution),
-  );
-  const [permissionMode, setPermissionMode] = useState(
-    execution.permissionMode,
-  );
+  const [agentId, setAgentId] = useState<string | null>(savedAgentId);
   useEffect(() => {
     setPrompt(execution.prompt);
-    setProviderModel(providerModelValue(execution));
-    setPermissionMode(execution.permissionMode);
-  }, [
-    execution.model,
-    execution.permissionMode,
-    execution.prompt,
-    execution.providerId,
-    execution.reasoningLevel,
-    execution.serviceTier,
-  ]);
-  const pickerRouting = providerModelRouting(execution.environment);
+    setAgentId(execution.agentId ?? null);
+  }, [execution.agentId, execution.prompt]);
   const trimmedPrompt = prompt.trim();
-  const dirty =
-    prompt !== execution.prompt ||
-    providerModel.providerId !== execution.providerId ||
-    providerModel.model !== execution.model ||
-    providerModel.reasoningLevel !== execution.reasoningLevel ||
-    providerModel.serviceTier !== execution.serviceTier ||
-    permissionMode !== execution.permissionMode;
+  const dirty = prompt !== execution.prompt || agentId !== savedAgentId;
   const promptFooter = (
     <div
       data-automation-prompt-footer=""
@@ -560,25 +509,6 @@ export function AgentAutomationDefinition({
           leading={<AutomationEnvironmentIcon execution={execution} />}
         />
       </div>
-      {editing ? (
-        <PermissionModePicker
-          providerId={providerModel.providerId}
-          value={permissionMode}
-          onChange={setPermissionMode}
-          {...(pickerRouting === undefined ? {} : { routing: pickerRouting })}
-          disabled={pending}
-          className="h-6 shrink-0"
-        />
-      ) : (
-        <PermissionModePicker
-          providerId={execution.providerId}
-          value={execution.permissionMode}
-          onChange={ignorePermissionModeChange}
-          {...(pickerRouting === undefined ? {} : { routing: pickerRouting })}
-          disabled
-          className="h-6 shrink-0"
-        />
-      )}
     </div>
   );
 
@@ -589,12 +519,8 @@ export function AgentAutomationDefinition({
         event.preventDefault();
         if (!dirty || trimmedPrompt.length === 0) return;
         void onUpdate({
-          prompt: trimmedPrompt,
-          providerId: providerModel.providerId,
-          model: providerModel.model,
-          reasoningLevel: providerModel.reasoningLevel,
-          serviceTier: providerModel.serviceTier ?? null,
-          permissionMode,
+          ...(prompt !== execution.prompt ? { prompt: trimmedPrompt } : {}),
+          ...(agentId !== savedAgentId ? { agentId } : {}),
         });
       }}
     >
@@ -610,13 +536,11 @@ export function AgentAutomationDefinition({
         className="flex min-w-0 shrink-0 items-center gap-3 pb-2 pl-3.5 pr-2 pt-1.5"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1">
-          <ProviderModelPicker
-            value={providerModel}
-            onChange={setProviderModel}
-            {...(pickerRouting === undefined ? {} : { routing: pickerRouting })}
-            allowProviderChange={execution.targetThreadId === undefined}
-            disabled={pending}
-            className="h-6 max-w-full"
+          <AutomationAgentPicker
+            agents={agents}
+            agentId={agentId}
+            disabled={pending || execution.targetThreadId !== undefined}
+            onChange={setAgentId}
           />
         </div>
         <Button
@@ -648,14 +572,10 @@ export function AgentAutomationDefinition({
       context={[
         {
           label: (
-            <ProviderModelPicker
-              value={providerModelValue(execution)}
-              onChange={ignoreProviderModelChange}
-              {...(pickerRouting === undefined
-                ? {}
-                : { routing: pickerRouting })}
+            <AutomationAgentPicker
+              agents={agents}
+              agentId={savedAgentId}
               disabled
-              className="h-6 max-w-full"
             />
           ),
         },

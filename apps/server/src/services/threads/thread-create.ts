@@ -71,6 +71,10 @@ import {
   getEnvironmentProvider,
   listEnvironmentCompositions,
 } from "../plugins/plugin-environment-provider-registry.js";
+import {
+  pinThreadExecution,
+  resolveCreateThreadAgent,
+} from "../agents/thread-agent.js";
 
 type ThreadCreateDeps = LoggedPendingInteractionWorkSessionDeps;
 
@@ -635,24 +639,30 @@ export async function createThreadFromRequest(
     projectId: requestInput.projectId,
   });
   await deps.providerRegistry.whenRegistrationsSettled();
+  const agentResolution = resolveCreateThreadAgent(deps, {
+    input: requestInput,
+    sourceThread,
+  });
+  const agentRequestInput = agentResolution.input;
   const {
     executionDefaults,
     providerId,
     providerFallbackCandidates,
     requestedModel,
   } = resolveProjectExecutionDefaultsForCreate(deps, {
-    executionInputSources: requestInput.executionInputSources,
-    model: requestInput.model,
-    projectId: requestInput.projectId,
-    providerId: requestInput.providerId,
+    executionInputSources: agentRequestInput.executionInputSources,
+    model: agentRequestInput.model,
+    projectId: agentRequestInput.projectId,
+    providerId: agentRequestInput.providerId,
   });
   const {
+    agentId: _requestedAgentId,
     originKind: _requestedOriginKind,
     parentThreadId: _requestedParentThreadId,
     pluginMetadata: _requestedPluginMetadata,
     sourceThreadId: _requestedSourceThreadId,
     ...requestRest
-  } = requestInput;
+  } = agentRequestInput;
   const requestedEnvironment = await resolveCreateThreadEnvironment(deps, {
     parentThread:
       forkSourceEnvironmentId !== undefined
@@ -674,6 +684,7 @@ export async function createThreadFromRequest(
   }
   const request: ThreadCreateServiceRequest = {
     ...requestRest,
+    agentId: agentResolution.agentId,
     ...(hierarchyParentThreadId
       ? { parentThreadId: hierarchyParentThreadId }
       : {}),
@@ -782,6 +793,10 @@ export async function createThreadFromRequest(
   const thread = await createPendingThreadAndAttemptFirstDispatch(deps, {
     ...createArgs,
     sendAt: request.sendAt,
+  });
+  pinThreadExecution(deps, {
+    threadId: thread.id,
+    pinned: agentResolution.pinned,
   });
   deps.telemetry.capture({
     name: "thread_created",

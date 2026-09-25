@@ -134,6 +134,7 @@ export function makeThread(overrides: Partial<Thread> = {}): Thread {
     archivedAt: null,
     pinnedAt: null,
     snoozedUntil: null,
+    agentId: null,
     deletedAt: null,
     lastReadAt: 100,
     latestAttentionAt: 100,

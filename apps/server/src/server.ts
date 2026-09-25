@@ -30,6 +30,7 @@ import { registerPluginRoutes } from "./routes/plugins.js";
 import { registerPluginCatalogRoutes } from "./routes/plugin-catalog.js";
 import { registerSkillsRegistryRoutes } from "./routes/skills-registry.js";
 import { registerMcpRoutes } from "./routes/mcp.js";
+import { registerAgentRoutes } from "./routes/agents.js";
 import { registerProviderGuardRoutes } from "./routes/provider-guard.js";
 import { createMcpService } from "./services/mcp/create-mcp-service.js";
 import {
@@ -788,6 +789,7 @@ export function createApp(
   registerPluginRoutes(publicApi, deps, pluginService, upgradeWebSocket);
   registerSkillsRegistryRoutes(publicApi, deps);
   registerMcpRoutes(publicApi, deps, mcpService);
+  registerAgentRoutes(publicApi, deps);
   registerProviderGuardRoutes(publicApi, providerGuard);
   registerServerMoveRoutes(publicApi, deps, serverMove);
   app.route("/api/v1", publicApi);

@@ -23,6 +23,7 @@ import {
 } from "./thread-default-policy.js";
 import { getLastExecutionOptions } from "./thread-events.js";
 import { getSupportedReasoningLevelsForProvider } from "./thread-reasoning-policy.js";
+import { resolveThreadAgentExecution } from "../agents/thread-agent.js";
 
 interface ExecutionPlanFieldInput<TValue> {
   source: CallerExecutionInputSource;
@@ -86,9 +87,9 @@ export function resolveExistingThreadPermissionMode(
   )?.permissionMode;
   const permissionMode = clampPermissionModeToHost(deps, {
     hostId: resolveEnvironmentHostId(deps, thread.environmentId),
-    permissionMode: resolveThreadExecutionPermissionMode(
-      deps.providerRegistry,
-      {
+    permissionMode:
+      resolveThreadAgentExecution(deps, thread).permissionMode ??
+      resolveThreadExecutionPermissionMode(deps.providerRegistry, {
         lastExecutionPermissionMode,
         parentThread,
         parentThreadExecutionPermissionMode:
@@ -97,8 +98,7 @@ export function resolveExistingThreadPermissionMode(
             : undefined,
         projectExecutionPermissionMode: projectExecution?.permissionMode,
         thread,
-      },
-    ),
+      }),
     providerId: thread.providerId,
   });
   validateProviderPermissionMode(
@@ -278,9 +278,11 @@ export async function resolveExistingThreadExecutionPlan(
     parentThread !== null
       ? getLastExecutionOptions(deps, parentThread.id)
       : null;
+  const agentExecution = resolveThreadAgentExecution(deps, thread);
   const model = resolveRequiredField<string>([
     args.input.model?.value,
     thread.modelOverride ?? undefined,
+    agentExecution.model,
     lastExecution?.model,
     projectExecution?.model,
   ]);
@@ -293,17 +295,16 @@ export async function resolveExistingThreadExecutionPlan(
       args.hostId === undefined
         ? resolveEnvironmentHostId(deps, thread.environmentId)
         : args.hostId,
-    permissionMode: resolveThreadExecutionPermissionMode(
-      deps.providerRegistry,
-      {
+    permissionMode:
+      agentExecution.permissionMode ??
+      resolveThreadExecutionPermissionMode(deps.providerRegistry, {
         requestedPermissionMode: args.input.permissionMode?.value,
         lastExecutionPermissionMode: lastExecution?.permissionMode,
         parentThread,
         parentThreadExecutionPermissionMode: parentExecution?.permissionMode,
         projectExecutionPermissionMode: projectExecution?.permissionMode,
         thread,
-      },
-    ),
+      }),
     providerId: thread.providerId,
   });
   validateProviderPermissionMode(
@@ -316,6 +317,7 @@ export async function resolveExistingThreadExecutionPlan(
     [
       args.input.reasoningLevel?.value,
       thread.reasoningLevelOverride ?? undefined,
+      agentExecution.reasoningLevel,
       lastExecution?.reasoningLevel,
       projectExecution?.reasoningLevel,
     ],

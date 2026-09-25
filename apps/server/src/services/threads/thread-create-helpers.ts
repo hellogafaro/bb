@@ -104,6 +104,7 @@ export function createThreadRecord(
       projectId: args.request.projectId,
       environmentId: args.environmentId,
       providerId: args.request.providerId,
+      agentId: args.request.agentId,
       title: args.request.title ?? null,
       titleFallback: args.request.titleFallback,
       sectionId,
