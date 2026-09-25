@@ -122,7 +122,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         bullets: [
           "Render every row, and decide the grouping, the ordering, and what each row shows",
           "Read live thread, section, project, and run-status data; select active or archived threads with experimental_lifecycles and load more archived pages through experimental_archived",
-          "Use host-owned actions for navigation, pinning, read state, renaming, archiving, and deletion confirmation; opt into per-row pull-request state and drag-to-split support",
+          "Use host-owned actions for navigation, pinning, read state, renaming, title generation with shared pending state and host feedback, archiving, and deletion confirmation; opt into per-row pull-request state and drag-to-split support",
           "Own the whole region: bb ships no built-in list, so the sidebar shows a placeholder until a thread list plugin mounts; the deprecated searchQuery is always empty because the quick palette owns thread search",
           "Replace only the list. The New thread button, the search action, the plugin rows, and the sidebar footer stay bb's",
         ],
@@ -136,6 +136,8 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginSidebarSection",
           "experimental_useSidebarThreadActions",
           "PluginSidebarThreadActions",
+          "PluginSidebarThreadActions.experimental_generateTitle",
+          "PluginSidebarThreadActions.experimental_isGeneratingTitle",
           "experimental_useSidebarThreadPullRequest",
           "PluginSidebarThreadPullRequestState",
           "experimental_useSidebarThreadSplit",

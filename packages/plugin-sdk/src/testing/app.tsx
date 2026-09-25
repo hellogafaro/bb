@@ -1670,6 +1670,12 @@ export function renderSlot<
     async rename(threadId, title) {
       sidebarActionCalls.push({ method: "rename", threadId, title });
     },
+    async experimental_generateTitle(threadId) {
+      sidebarActionCalls.push({ method: "experimental_generateTitle", threadId });
+    },
+    experimental_isGeneratingTitle() {
+      return false;
+    },
     archive(threadId) {
       sidebarActionCalls.push({ method: "archive", threadId });
     },

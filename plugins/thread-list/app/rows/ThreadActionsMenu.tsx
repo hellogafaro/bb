@@ -213,6 +213,7 @@ function ThreadActionsMenuItems({
   const isArchived = thread.archivedAt != null;
   const isPinned = thread.pinnedAt !== null;
   const threadUrl = getThreadUrl(thread);
+  const isGeneratingTitle = actions.experimental_isGeneratingTitle(thread.id);
 
   if (isDrawer && compactStep === "move") {
     return (
@@ -304,6 +305,16 @@ function ThreadActionsMenuItems({
         }}
       >
         Rename
+      </ActionMenuItem>
+      <ActionMenuItem
+        surface={surface}
+        icon="Sparkles"
+        disabled={isGeneratingTitle}
+        onSelect={() => {
+          void actions.experimental_generateTitle(thread.id);
+        }}
+      >
+        {isGeneratingTitle ? "Generating title…" : "Regenerate title"}
       </ActionMenuItem>
       {showSeparators ? <ActionMenuSeparator surface={surface} /> : null}
       <ActionMenuItem

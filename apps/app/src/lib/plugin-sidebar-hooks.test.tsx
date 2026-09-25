@@ -25,6 +25,8 @@ import { SidebarThreadShortcutKeysContext } from "@/components/sidebar/sidebarTh
 
 const actions = vi.hoisted(() => ({
   navigate: vi.fn(),
+  generateTitle: vi.fn(async () => undefined),
+  generatingTitleIds: new Set<string>(),
   setRootComposeProjectId: vi.fn(),
 }));
 
@@ -76,6 +78,8 @@ vi.mock("@/hooks/queries/host-queries", () => {
 
 vi.mock("@/components/thread/ThreadActionsProvider", () => ({
   useThreadActions: () => ({
+    generateTitle: actions.generateTitle,
+    generatingTitleIds: actions.generatingTitleIds,
     archiveThreadAndChildren: vi.fn(),
     requestDelete: vi.fn(),
     togglePin: vi.fn(),
@@ -309,6 +313,30 @@ describe("useSidebarThreads sections", () => {
 });
 
 describe("useSidebarThreadActions", () => {
+  it("shares title generation and reactive pending state with the host", async () => {
+    const { result, rerender } = renderHook(() => useSidebarThreadActions());
+    expect(result.current.experimental_isGeneratingTitle("thread-title")).toBe(
+      false,
+    );
+    await act(async () => {
+      await result.current.experimental_generateTitle("thread-title");
+    });
+    expect(actions.generateTitle).toHaveBeenCalledWith("thread-title");
+    actions.generatingTitleIds.add("thread-title");
+    rerender();
+    expect(result.current.experimental_isGeneratingTitle("thread-title")).toBe(
+      true,
+    );
+    expect(result.current.experimental_isGeneratingTitle("other-thread")).toBe(
+      false,
+    );
+    actions.generatingTitleIds.clear();
+    rerender();
+    expect(result.current.experimental_isGeneratingTitle("thread-title")).toBe(
+      false,
+    );
+  });
+
   it("opens a project composer without a legacy route transition", () => {
     state.data = payload([]);
     const { result } = renderHook(() => useSidebarThreadActions());

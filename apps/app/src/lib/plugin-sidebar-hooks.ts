@@ -331,6 +331,12 @@ export function useSidebarThreadActions(): PluginSidebarThreadActions {
       async rename(threadId, title) {
         await updateThreadAsync({ id: threadId, title });
       },
+      experimental_generateTitle(threadId) {
+        return hostActions.generateTitle(threadId);
+      },
+      experimental_isGeneratingTitle(threadId) {
+        return hostActions.generatingTitleIds.has(threadId);
+      },
       archive(threadId) {
         hostActions.archiveThreadAndChildren(requireEntry(threadId));
       },

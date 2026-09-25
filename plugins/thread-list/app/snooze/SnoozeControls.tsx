@@ -152,7 +152,7 @@ export function ThreadSnoozeMenuItem({
         window.setTimeout(() => state.openCustom(threadId), 0);
       }}
     >
-      Snooze…
+      Snooze
     </ActionMenuItem>
   );
 }

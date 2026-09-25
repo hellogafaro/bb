@@ -2443,6 +2443,14 @@ is temporarily unavailable renders BB's renderer without erasing the pin.
 
 **Kept experimental (2026-08-22).** zero consumers; items 4 (a paged/windowed read at 10k threads) and 5 (the draft indicator gap) are unresolvable without one and both change the contract.
 
+**Title generation (Sep 2026).** `PluginSidebarThreadActions.experimental_generateTitle(threadId)`
+uses the host's title-generation action, cache updates, duplicate suppression,
+and progress/error feedback. Its promise resolves after success or a displayed
+failure. `experimental_isGeneratingTitle(threadId)` reads the same pending state
+as the thread-page menu; hook consumers rerender when it changes. Stabilization
+requires verifying pending state across simultaneous plugin/core menu instances,
+failure retries, and cache updates in active and archived lists.
+
 **Archive selection (Sep 2026).** `experimental_useSidebarThreads` accepts
 `experimental_lifecycles` (active, archived, or both; active by default).
 `PluginSidebarThreadsState.experimental_archived` is null for active-only reads;

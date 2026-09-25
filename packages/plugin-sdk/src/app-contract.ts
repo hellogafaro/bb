@@ -1276,6 +1276,10 @@ export interface PluginSidebarThreadActions {
   setRead(threadId: string, read: boolean): Promise<void>;
   /** Silent rename — no dialog. For inline editing in your own row. */
   rename(threadId: string, title: string): Promise<void>;
+  /** Generates and saves a title with host-owned feedback and duplicate suppression. Errors are shown by the host; the promise resolves after handling the outcome. */
+  experimental_generateTitle(threadId: string): Promise<void>;
+  /** Shared pending state across sidebar and thread-page menus; rerenders when it changes. */
+  experimental_isGeneratingTitle(threadId: string): boolean;
   /** Archives the thread AND its children, closing any panes showing them. */
   archive(threadId: string): void;
   /**
