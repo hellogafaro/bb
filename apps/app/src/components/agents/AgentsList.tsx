@@ -10,7 +10,8 @@ import {
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 import { useAgents } from "@/hooks/queries/agent-queries";
-import { AgentIcon } from "./AgentIcon";
+import { AgentMascot } from "./mascots/AgentMascot";
+import { ProviderMark } from "./ProviderMark";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentExecutionLabel, agentRowSubtitle } from "./agent-display";
 
@@ -106,8 +107,9 @@ export function AgentsList() {
                   onClick={() => navigate(getAgentDetailRoutePath(agent.id))}
                 >
                   <span className="flex size-6 shrink-0 items-center justify-center">
-                    <AgentIcon
-                      providerId={agent.providerId}
+                    <AgentMascot
+                      mascot={agent.mascot}
+                      color={agent.color}
                       className="size-5"
                     />
                   </span>
@@ -129,8 +131,14 @@ export function AgentsList() {
                         </span>
                       ) : null}
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {agentRowSubtitle(agent, providers)}
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <ProviderMark
+                        providerId={agent.providerId}
+                        className="size-3"
+                      />
+                      <span className="min-w-0 truncate">
+                        {agentRowSubtitle(agent, providers)}
+                      </span>
                     </span>
                   </span>
                 </li>

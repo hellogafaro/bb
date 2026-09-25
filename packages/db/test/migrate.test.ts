@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { publishedMigrationWhensByTag } from "../src/migration-history.js";
-import { defaultAppSettings } from "@bb/domain";
+import {
+  agentColorForName,
+  agentMascotForName,
+  defaultAppSettings,
+  labelColorForKey,
+} from "@bb/domain";
 import {
   createQueuedThreadMessage,
   createThread,
@@ -531,6 +536,12 @@ const eventLargeValuesMigrationPath = resolve(
   "drizzle",
   "0031_mysterious_zaran.sql",
 );
+const agentMascotsProjectColorsMigrationPath = resolve(
+  __dirname,
+  "..",
+  "drizzle",
+  "0134_agent_mascots_project_colors.sql",
+);
 const machineProvidersMigrationPath = resolve(
   __dirname,
   "..",
@@ -689,7 +700,17 @@ function dropThreadSnoozeColumn(db: DbConnection): void {
   }
 }
 
+function dropProjectColorColumn(db: DbConnection): void {
+  const columns = db.$client
+    .prepare<[], TableInfoRow>("PRAGMA table_info(projects)")
+    .all();
+  if (columns.some((column) => column.name === "color")) {
+    db.$client.prepare("ALTER TABLE projects DROP COLUMN color").run();
+  }
+}
+
 function dropAgentsSchema(db: DbConnection): void {
+  dropProjectColorColumn(db);
   const columns = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(threads)")
     .all();
@@ -6119,6 +6140,62 @@ describe("environment providers migration", () => {
           inputs: null,
         },
       });
+    } finally {
+      closeConnection(db);
+    }
+  });
+});
+
+describe("agent mascots and project colors migration", () => {
+  it("backfills name-hashed mascots, id-hashed project colors, and the bb robot", () => {
+    const db = createConnection(":memory:");
+    try {
+      migrate(db);
+      db.$client.exec(`
+        INSERT INTO agents (id, name, provider_id, reasoning_level, created_at, updated_at)
+        VALUES
+          ('agt_default', 'bb', 'codex', 'medium', 1, 1),
+          ('agt_reviewer', 'Reviewer', 'codex', 'medium', 2, 2),
+          ('agt_writer', 'Docs writer', 'claude-code', 'high', 3, 3);
+        INSERT INTO projects (id, name, created_at, updated_at)
+        VALUES ('proj_alpha', 'Alpha', 1, 1), ('proj_beta', 'Beta', 2, 2);
+        ALTER TABLE agents DROP COLUMN mascot;
+        ALTER TABLE agents DROP COLUMN color;
+        ALTER TABLE projects DROP COLUMN color;
+      `);
+
+      runMigrationFile({
+        db,
+        migrationPath: agentMascotsProjectColorsMigrationPath,
+      });
+
+      const agentRows = db.$client
+        .prepare<[], { id: string; mascot: string; color: number }>(
+          "SELECT id, mascot, color FROM agents ORDER BY created_at",
+        )
+        .all();
+      expect(agentRows).toEqual([
+        { id: "agt_default", mascot: "robot", color: 1 },
+        {
+          id: "agt_reviewer",
+          mascot: agentMascotForName("Reviewer"),
+          color: agentColorForName("Reviewer"),
+        },
+        {
+          id: "agt_writer",
+          mascot: agentMascotForName("Docs writer"),
+          color: agentColorForName("Docs writer"),
+        },
+      ]);
+      const projectRows = db.$client
+        .prepare<[], { id: string; color: number }>(
+          "SELECT id, color FROM projects WHERE id IN ('proj_alpha', 'proj_beta') ORDER BY id",
+        )
+        .all();
+      expect(projectRows).toEqual([
+        { id: "proj_alpha", color: labelColorForKey("proj_alpha") },
+        { id: "proj_beta", color: labelColorForKey("proj_beta") },
+      ]);
     } finally {
       closeConnection(db);
     }

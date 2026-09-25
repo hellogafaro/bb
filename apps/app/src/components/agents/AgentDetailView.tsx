@@ -2,7 +2,9 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAgentsRoutePath } from "@bb/client-core";
 import {
+  AGENT_COLOR_COUNT,
   AGENT_DESCRIPTION_MAX_CHARS,
+  AGENT_MASCOTS,
   AGENT_INSTRUCTIONS_MAX_CHARS,
   AGENT_NAME_MAX_CHARS,
   PERSONAL_PROJECT_ID,
@@ -12,7 +14,7 @@ import {
 import type { UpdateAgentRequest } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
 import { Checkbox } from "@bb/shared-ui/checkbox";
-import { AgentIcon } from "./AgentIcon";
+import { cn } from "@bb/shared-ui/lib/utils";
 import { Input } from "@bb/shared-ui/input";
 import {
   ResourceListState,
@@ -48,6 +50,8 @@ import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
 import { getProviderIconInfo } from "@/lib/provider-icon";
 import { customizeSkills } from "@/lib/fork-customize-skills";
 import { agentExecutionLabel } from "./agent-display";
+import { AgentMascot, agentColorVar } from "./mascots/AgentMascot";
+import { ProviderMark } from "./ProviderMark";
 
 const EMPTY_PROVIDERS: readonly ProviderInfo[] = [];
 
@@ -145,7 +149,11 @@ function AgentDetail({
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex min-w-0 items-center gap-2">
-            <AgentIcon providerId={agent.providerId} className="size-5" />
+            <AgentMascot
+              mascot={agent.mascot}
+              color={agent.color}
+              className="size-5"
+            />
             <h1 className="min-w-0 truncate text-base font-semibold">
               {agent.name}
             </h1>
@@ -155,8 +163,12 @@ function AgentDetail({
               </span>
             ) : null}
           </div>
-          <p className="text-xs text-subtle-foreground">
-            {agentExecutionLabel(agent, providersQuery.data)} · full permissions
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-subtle-foreground">
+            <ProviderMark providerId={agent.providerId} className="size-3.5" />
+            <span className="min-w-0 truncate">
+              {agentExecutionLabel(agent, providersQuery.data)} · full
+              permissions
+            </span>
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
@@ -291,8 +303,91 @@ function AgentProfileSection({ agent, pending, onSave }: AgentSectionProps) {
             onChange={(event) => setDescription(event.target.value)}
           />
         </label>
+        <AgentAppearanceRow agent={agent} pending={pending} onSave={onSave} />
       </div>
     </SectionCard>
+  );
+}
+
+const AGENT_COLOR_CHOICES = Array.from(
+  { length: AGENT_COLOR_COUNT },
+  (_, index) => index + 1,
+);
+
+function AgentAppearanceRow({ agent, pending, onSave }: AgentSectionProps) {
+  return (
+    <div className="space-y-1.5" role="group" aria-label="Appearance">
+      <span className="block text-sm">Appearance</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div
+          role="radiogroup"
+          aria-label="Mascot"
+          className="grid grid-cols-10 gap-1"
+        >
+          {AGENT_MASCOTS.map((mascot) => {
+            const selected = agent.mascot === mascot;
+            return (
+              <button
+                key={mascot}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={mascot}
+                title={mascot}
+                disabled={pending}
+                onClick={() => {
+                  if (!selected) onSave({ mascot }, "Agent saved");
+                }}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-md border hover:bg-state-hover disabled:cursor-default",
+                  selected
+                    ? "border-foreground/40 bg-state-active"
+                    : "border-transparent",
+                )}
+              >
+                <AgentMascot
+                  mascot={mascot}
+                  color={agent.color}
+                  className="size-4"
+                />
+              </button>
+            );
+          })}
+        </div>
+        <div
+          role="radiogroup"
+          aria-label="Color"
+          className="flex items-center gap-1"
+        >
+          {AGENT_COLOR_CHOICES.map((color) => {
+            const selected = agent.color === color;
+            return (
+              <button
+                key={color}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={`Color ${color}`}
+                disabled={pending}
+                onClick={() => {
+                  if (!selected) onSave({ color }, "Agent saved");
+                }}
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-full border disabled:cursor-default",
+                  selected ? "border-foreground/40" : "border-transparent",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-4 rounded-full"
+                  style={{ backgroundColor: agentColorVar(color) }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 

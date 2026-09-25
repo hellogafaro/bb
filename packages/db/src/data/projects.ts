@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
-import { PERSONAL_PROJECT_ID } from "@bb/domain";
+import { labelColorForKey, PERSONAL_PROJECT_ID } from "@bb/domain";
 import type {
   DbConnection,
   DbQueryConnection,
@@ -149,6 +149,7 @@ function insertProject(tx: DbTransaction, input: CreateProjectInput) {
     .values({
       id: projectId,
       name: input.name,
+      color: labelColorForKey(projectId),
       sortKey,
       createdAt: now,
       updatedAt: now,
@@ -245,6 +246,7 @@ export function ensurePersonalProject(db: DbConnection) {
       id: PERSONAL_PROJECT_ID,
       kind: "personal",
       name: "Personal",
+      color: labelColorForKey(PERSONAL_PROJECT_ID),
       sortKey: "V",
       createdAt: now,
       updatedAt: now,
@@ -261,6 +263,7 @@ export function ensurePersonalProject(db: DbConnection) {
 
 export interface UpdateProjectInput {
   name?: string;
+  color?: number;
 }
 
 export function setProjectGitRemoteUrlIfMissing(

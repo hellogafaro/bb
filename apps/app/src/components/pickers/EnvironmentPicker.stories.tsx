@@ -474,7 +474,7 @@ export function IconAlignment() {
     <StoryCard>
       <StoryRow label="Project selector reference">
         <ProjectSelector
-          projects={[{ id: "proj_demo", name: "bb" }]}
+          projects={[{ id: "proj_demo", name: "bb", color: 9 }]}
           value="proj_demo"
           onChange={noop}
         />

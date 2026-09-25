@@ -1329,7 +1329,7 @@ function HandoffModeHeader({ onBack }: { onBack: () => void }) {
   );
 }
 
-function MenuSectionLabel({
+export function MenuSectionLabel({
   children,
   className,
 }: {
@@ -1508,9 +1508,11 @@ function ResetBrowseStateOnContentUnmount({
   return null;
 }
 
-function MenuRowButton({
+export function MenuRowButton({
   label,
   qualifier,
+  leading,
+  description,
   selected,
   disabled = false,
   onClick,
@@ -1520,6 +1522,8 @@ function MenuRowButton({
 }: {
   label: string;
   qualifier?: string;
+  leading?: ReactNode;
+  description?: ReactNode;
   selected: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -1548,18 +1552,30 @@ function MenuRowButton({
       )}
       {...hoverProps}
     >
-      <span
-        className="truncate"
-        title={qualifier ? `${label} · ${qualifier}` : label}
-      >
-        {base}
-        {tag ? (
-          <span className="ml-1.5 text-subtle-foreground">{tag}</span>
-        ) : null}
-        {qualifier ? (
-          <span className="ml-1.5 text-subtle-foreground">{qualifier}</span>
-        ) : null}
-      </span>
+      {leading !== undefined || description !== undefined ? (
+        <span className="flex min-w-0 items-center gap-2">
+          {leading}
+          <span className="flex min-w-0 flex-col items-start">
+            <span className="max-w-full truncate" title={label}>
+              {label}
+            </span>
+            {description}
+          </span>
+        </span>
+      ) : (
+        <span
+          className="truncate"
+          title={qualifier ? `${label} · ${qualifier}` : label}
+        >
+          {base}
+          {tag ? (
+            <span className="ml-1.5 text-subtle-foreground">{tag}</span>
+          ) : null}
+          {qualifier ? (
+            <span className="ml-1.5 text-subtle-foreground">{qualifier}</span>
+          ) : null}
+        </span>
+      )}
       <span className="flex shrink-0 items-center gap-1.5">
         <Icon
           name="Check"
@@ -1603,6 +1619,7 @@ function MenuActionButton({
   );
 }
 interface ModelSearchInputProps {
+  label?: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   query: string;
   onQueryChange: (query: string) => void;
@@ -1611,7 +1628,8 @@ interface ModelSearchInputProps {
   activeOptionId: string | undefined;
 }
 
-function ModelSearchInput({
+export function ModelSearchInput({
+  label = "Search models",
   inputRef,
   query,
   onQueryChange,
@@ -1631,8 +1649,8 @@ function ModelSearchInput({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Search models"
-          aria-label="Search models"
+          placeholder={label}
+          aria-label={label}
           role="combobox"
           aria-expanded
           aria-controls={listboxId}

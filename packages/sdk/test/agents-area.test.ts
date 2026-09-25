@@ -20,6 +20,8 @@ const agent = {
   skills: ["bb-cli"],
   mcpServers: [],
   instructions: "",
+  mascot: "robot",
+  color: 1,
   createdAt: 1,
   updatedAt: 2,
 };

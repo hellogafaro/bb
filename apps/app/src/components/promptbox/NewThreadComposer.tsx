@@ -508,7 +508,7 @@ export function NewThreadComposer({
     [currentProject?.sources],
   );
   const projectOptions = useMemo(
-    () => projects?.map(({ id, name }) => ({ id, name })) ?? [],
+    () => projects?.map(({ id, name, color }) => ({ id, name, color })) ?? [],
     [projects],
   );
 

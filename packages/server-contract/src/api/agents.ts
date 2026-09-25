@@ -2,6 +2,8 @@ import {
   AGENT_DESCRIPTION_MAX_CHARS,
   AGENT_INSTRUCTIONS_MAX_CHARS,
   AGENT_NAME_MAX_CHARS,
+  agentColorSchema,
+  agentMascotSchema,
   agentSchema,
   reasoningLevelSchema,
 } from "@bb/domain";
@@ -31,6 +33,8 @@ export const createAgentRequestSchema = z
     skills: agentNameListSchema.optional(),
     mcpServers: agentNameListSchema.optional(),
     instructions: z.string().max(AGENT_INSTRUCTIONS_MAX_CHARS).optional(),
+    mascot: agentMascotSchema.optional(),
+    color: agentColorSchema.optional(),
   })
   .strict();
 export type CreateAgentRequest = z.input<typeof createAgentRequestSchema>;
@@ -45,6 +49,8 @@ export const updateAgentRequestSchema = z
     skills: agentNameListSchema,
     mcpServers: agentNameListSchema,
     instructions: z.string().max(AGENT_INSTRUCTIONS_MAX_CHARS),
+    mascot: agentMascotSchema,
+    color: agentColorSchema,
   })
   .partial()
   .strict()

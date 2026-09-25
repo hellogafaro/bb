@@ -16,6 +16,7 @@ import { threadCreateOriginValues } from "@bb/domain/thread-create-origin";
 import { threadOriginKindValues } from "@bb/domain/thread-origin-kind";
 import { threadVisibilityValues } from "@bb/domain/thread-visibility";
 import type {
+  AgentMascot,
   EnvironmentProviderSelection,
   JsonValue,
   EnvironmentStatus,
@@ -151,6 +152,7 @@ export const projects = sqliteTable(
     kind: text("kind").$type<ProjectKind>().notNull().default("standard"),
     name: text("name").notNull(),
     gitRemoteUrl: text("git_remote_url"),
+    color: integer("color").notNull().default(1),
     sortKey: text("sort_key").notNull().default("V"),
     deletedAt: integer("deleted_at"),
     createdAt: integer("created_at").notNull(),
@@ -1400,6 +1402,8 @@ export const agents = sqliteTable(
     skillsJson: text("skills_json").notNull().default("[]"),
     mcpServersJson: text("mcp_servers_json").notNull().default("[]"),
     instructions: text("instructions").notNull().default(""),
+    mascot: text("mascot").$type<AgentMascot>().notNull().default("robot"),
+    color: integer("color").notNull().default(1),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

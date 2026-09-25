@@ -6,7 +6,9 @@ import type {
   ProjectResponse,
   UpdateProjectSourceRequest,
 } from "@bb/server-contract";
+import { LABEL_COLOR_COUNT } from "@bb/domain";
 import { action } from "../action.js";
+import { CliUsageError } from "../cli-usage-error.js";
 import { createCliBbSdk } from "../client.js";
 import { resolveLocalHostId } from "../daemon.js";
 import { columnWidths, printBorderlessTable } from "../table.js";
@@ -67,7 +69,21 @@ function addProjectWorkspaceRoutingOptions(command: Command): Command {
 
 interface ProjectUpdateCommandOptions {
   name?: string;
+  color?: string;
   json?: boolean;
+}
+
+function parseProjectColor(value: string): number {
+  const trimmed = value.trim();
+  const color = /^\d+$/u.test(trimmed) ? Number(trimmed) : Number.NaN;
+  if (!Number.isInteger(color) || color < 1 || color > LABEL_COLOR_COUNT) {
+    throw new CliUsageError({
+      code: "invalid_value",
+      hint: null,
+      message: `Invalid color '${value}'. Expected a label color number from 1 to ${LABEL_COLOR_COUNT}.`,
+    });
+  }
+  return color;
 }
 
 interface ProjectDeleteCommandOptions {
@@ -524,16 +540,23 @@ export function registerProjectCommands(
     .command("update <id>")
     .description("Update a project")
     .option("--name <name>", "Set the project name")
+    .option(
+      `--color <1-${LABEL_COLOR_COUNT}>`,
+      "Set the project's label color (its dot in the app)",
+    )
     .option("--json", "Print machine-readable JSON output")
     .action(
       action(async (id: string, opts: ProjectUpdateCommandOptions) => {
-        if (!opts.name) {
-          throw new Error("No changes requested. Provide --name.");
+        const color =
+          opts.color === undefined ? undefined : parseProjectColor(opts.color);
+        if (!opts.name && color === undefined) {
+          throw new Error("No changes requested. Provide --name or --color.");
         }
         const sdk = createCliBbSdk(getUrl());
         const updated = await sdk.projects.update({
           projectId: id,
-          name: opts.name,
+          ...(opts.name ? { name: opts.name } : {}),
+          ...(color !== undefined ? { color } : {}),
         });
         if (outputJson(opts, updated)) return;
         console.log(`Project ${updated.id} updated`);
@@ -679,6 +702,7 @@ function printProject(project: ProjectResponse): void {
   console.log("");
   console.log(`  ID:       ${project.id}`);
   console.log(`  Name:     ${project.name}`);
+  console.log(`  Color:    ${project.color}`);
   console.log(`  Created:  ${new Date(project.createdAt).toLocaleString()}`);
   console.log(`  Updated:  ${new Date(project.updatedAt).toLocaleString()}`);
   if (project.sources.length > 0) {

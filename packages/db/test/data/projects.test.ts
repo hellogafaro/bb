@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PERSONAL_PROJECT_ID } from "@bb/domain";
+import { labelColorForKey, PERSONAL_PROJECT_ID } from "@bb/domain";
 import { noopNotifier } from "../../src/notifier.js";
 import { projects } from "../../src/schema.js";
 import {
@@ -11,6 +11,7 @@ import {
   markProjectDeleted,
   reorderProject,
   setProjectGitRemoteUrlIfMissing,
+  updateProject,
 } from "../../src/data/projects.js";
 import { upsertHost } from "../../src/data/hosts.js";
 import { createMigratedConnection } from "../helpers/migrated-connection.js";
@@ -24,6 +25,23 @@ function setup() {
 }
 
 describe("projects", () => {
+  it("colors new projects by a stable hash of their id and saves explicit colors", () => {
+    const { db, host } = setup();
+    const { project } = findOrCreateProjectByLocalPathSource(db, noopNotifier, {
+      name: "colored",
+      source: { type: "local_path", hostId: host.id, path: "/tmp/colored" },
+    });
+    expect(project.color).toBe(labelColorForKey(project.id));
+    expect(project.color).toBeGreaterThanOrEqual(1);
+    expect(ensurePersonalProject(db).color).toBe(
+      labelColorForKey(PERSONAL_PROJECT_ID),
+    );
+
+    const updated = updateProject(db, noopNotifier, project.id, { color: 20 });
+    expect(updated?.color).toBe(20);
+    expect(getProject(db, project.id)?.color).toBe(20);
+  });
+
   it("returns the existing project when the same host path is added again", () => {
     const { db, host } = setup();
     const first = findOrCreateProjectByLocalPathSource(db, noopNotifier, {

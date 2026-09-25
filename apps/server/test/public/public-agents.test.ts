@@ -8,7 +8,11 @@ import {
   agentListResponseSchema,
   agentResponseSchema,
 } from "@bb/server-contract";
-import { threadSchema } from "@bb/domain";
+import {
+  agentColorForName,
+  agentMascotForName,
+  threadSchema,
+} from "@bb/domain";
 import { beforeEach, describe, expect, it } from "vitest";
 import { waitForQueuedCommand } from "../helpers/commands.js";
 import { readJson } from "../helpers/json.js";
@@ -182,6 +186,65 @@ describe("agent routes", () => {
     });
   });
 
+  it("hashes a mascot and color from the name on create and saves explicit picks", async () => {
+    await withTestHarness(async (harness) => {
+      const hashed = await createAgent(harness, {
+        name: "Reviewer",
+        providerId: "codex",
+      });
+      expect(hashed.mascot).toBe(agentMascotForName("Reviewer"));
+      expect(hashed.color).toBe(agentColorForName("Reviewer"));
+      expect(hashed.color).toBeGreaterThanOrEqual(1);
+
+      const picked = await createAgent(harness, {
+        name: "Picker",
+        providerId: "codex",
+        mascot: "frog",
+        color: 0,
+      });
+      expect(picked).toMatchObject({ mascot: "frog", color: 0 });
+
+      const renamed = await request(harness, `/agents/${hashed.id}`, {
+        method: "PATCH",
+        body: { name: "Renamed" },
+      });
+      expect(agentResponseSchema.parse(await readJson(renamed))).toMatchObject(
+        { mascot: hashed.mascot, color: hashed.color },
+      );
+
+      const updated = await request(harness, `/agents/${hashed.id}`, {
+        method: "PATCH",
+        body: { mascot: "dino", color: 8 },
+      });
+      expect(agentResponseSchema.parse(await readJson(updated))).toMatchObject(
+        { mascot: "dino", color: 8 },
+      );
+    });
+  });
+
+  it("rejects unknown mascots and out-of-range colors", async () => {
+    await withTestHarness(async (harness) => {
+      await createAgent(harness, { name: "Coder", providerId: "codex" });
+      for (const body of [
+        { mascot: "dragon" },
+        { color: 9 },
+        { color: -1 },
+        { color: 1.5 },
+      ]) {
+        const response = await request(harness, "/agents/Coder", {
+          method: "PATCH",
+          body,
+        });
+        expect(response.status).toBe(400);
+      }
+      const badCreate = await request(harness, "/agents", {
+        method: "POST",
+        body: { name: "Bad", providerId: "codex", mascot: "Robot" },
+      });
+      expect(badCreate.status).toBe(400);
+    });
+  });
+
   it("clears the model when the provider changes without a model", async () => {
     await withTestHarness(async (harness) => {
       const agent = await createAgent(harness, {
@@ -338,6 +401,8 @@ describe("spawning threads as agents", () => {
         skills: [],
         mcpServers: [],
         instructions: "",
+        mascot: "robot",
+        color: 1,
       });
       const target = seedThreadTarget(harness, "/tmp/agents-unknown");
       const response = await request(harness, "/threads", {

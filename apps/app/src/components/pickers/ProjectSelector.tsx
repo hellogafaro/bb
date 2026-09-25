@@ -20,6 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import { searchPickerOptions } from "./picker-search";
 import { useResetPickerScroll } from "./useResetPickerScroll";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
 
 const PROJECT_SEARCH_MIN_OPTIONS = 5;
 const NO_HIGHLIGHT_VALUE = "__project-picker-idle__";
@@ -28,6 +29,7 @@ const PROJECT_PICKER_ITEM_CLASS_NAME = "py-[0.3125rem] text-xs max-md:py-2";
 export interface ProjectSelectorOption {
   id: string;
   name: string;
+  color: number;
 }
 
 export interface ProjectSelectorCreateProjectConfig {
@@ -93,6 +95,7 @@ export function ProjectSelector({
   const compactTriggerLabel = isLoading
     ? "Loading…"
     : (selected?.name ?? fallback?.name ?? "No project");
+  const triggerProject = isLoading ? null : (selected ?? fallback);
   const triggerIcon =
     isLoading || selected || fallback
       ? "Folder"
@@ -138,11 +141,18 @@ export function ProjectSelector({
           )}
         >
           <span className={OPTION_TRIGGER_CONTENT_CLASS_NAME}>
-            <Icon
-              name={triggerIcon}
-              className="size-3.5 shrink-0"
-              aria-hidden
-            />
+            {triggerProject ? (
+              <ProjectColorDot
+                color={triggerProject.color}
+                className="size-3.5"
+              />
+            ) : (
+              <Icon
+                name={triggerIcon}
+                className="size-3.5 shrink-0"
+                aria-hidden
+              />
+            )}
             <span className="min-w-0 truncate" data-promptbox-full-label="">
               {triggerLabel}
             </span>
@@ -206,11 +216,7 @@ export function ProjectSelector({
                     onSelect={() => selectProject(project.id)}
                     className={PROJECT_PICKER_ITEM_CLASS_NAME}
                   >
-                    <Icon
-                      name="Folder"
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
+                    <ProjectColorDot color={project.color} className="size-4" />
                     <span className="min-w-0 flex-1 truncate">
                       {project.name}
                     </span>

@@ -373,6 +373,57 @@ describe("bb project command output", () => {
     );
   });
 
+  it("bb project update --color saves a label color and show prints it", async () => {
+    const project = {
+      id: "proj-alpha",
+      kind: "standard",
+      name: "Alpha",
+      gitRemoteUrl: null,
+      color: 17,
+      createdAt: 1,
+      updatedAt: 2,
+      sources: [],
+    };
+    const patch = vi.fn(async () => project);
+    const get = vi.fn(async () => project);
+    stubServerApi({
+      "v1.projects.:id.$patch": patch,
+      "v1.projects.:id.$get": get,
+    });
+
+    await runCommand(
+      ["project", "update", "proj-alpha", "--color", "17"],
+      register,
+    );
+    expect(patch).toHaveBeenCalledWith({
+      param: { id: "proj-alpha" },
+      json: { color: 17 },
+    });
+
+    await runCommand(["project", "show", "proj-alpha"], register);
+    expect(collectLogLines(vi.mocked(console.log))).toContain("  Color:    17");
+  });
+
+  it.each(["0", "25", "1.5", "red"])(
+    "bb project update rejects --color %s before calling the server",
+    async (color) => {
+      const patch = vi.fn();
+      stubServerApi({ "v1.projects.:id.$patch": patch });
+
+      await expect(
+        runCommand(
+          ["project", "update", "proj-alpha", "--color", color],
+          register,
+        ),
+      ).rejects.toThrow("process.exit:1");
+
+      expect(vi.mocked(console.error).mock.calls.flat().join("\n")).toContain(
+        `Invalid color '${color}'. Expected a label color number from 1 to 24.`,
+      );
+      expect(patch).not.toHaveBeenCalled();
+    },
+  );
+
   it("bb project create --json prints the created project", async () => {
     const created = {
       id: "proj-created",

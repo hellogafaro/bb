@@ -86,6 +86,7 @@ function stubSidebarBootstrapFetch(
               kind: "standard",
               name: "bb",
               gitRemoteUrl: "git@github.com:get-bb/bb.git",
+              color: 6,
               createdAt: NOW - 86_400_000,
               updatedAt: NOW,
               sources: sources.map((source, index) => ({
@@ -107,6 +108,7 @@ function stubSidebarBootstrapFetch(
             kind: "personal",
             name: "Personal",
             gitRemoteUrl: null,
+            color: 1,
             createdAt: NOW,
             updatedAt: NOW,
             sources: [],
@@ -165,6 +167,43 @@ afterEach(() => {
 });
 
 describe("ProjectDetailSettingsView", () => {
+  it("shows the project's color dot and saves a picked label color", async () => {
+    stubSidebarBootstrapFetch([{ hostId: "host_primary", path: "/src/bb" }]);
+    vi.mocked(sdk.projects.update).mockResolvedValue({
+      id: "proj_bb",
+      kind: "standard",
+      name: "bb",
+      gitRemoteUrl: "git@github.com:get-bb/bb.git",
+      color: 22,
+      createdAt: NOW,
+      updatedAt: NOW,
+      sources: [],
+    });
+    renderView();
+
+    const heading = await screen.findByRole("heading", { name: "bb" });
+    expect(
+      heading.parentElement
+        ?.querySelector("[data-project-color-dot]")
+        ?.getAttribute("data-project-color-dot"),
+    ).toBe("6");
+    const picker = screen.getByRole("radiogroup", { name: "Project color" });
+    expect(picker.querySelectorAll('[role="radio"]')).toHaveLength(24);
+    expect(picker.className).toContain("grid-cols-12");
+    expect(
+      screen
+        .getByRole("radio", { name: "Color 6" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "Color 22" }));
+    await waitFor(() =>
+      expect(sdk.projects.update).toHaveBeenCalledWith({
+        projectId: "proj_bb",
+        color: 22,
+      }),
+    );
+  });
+
   it("keeps checkout counts in sync with the show-all machine toggle", async () => {
     const sandbox = host({
       id: "host_sandbox",

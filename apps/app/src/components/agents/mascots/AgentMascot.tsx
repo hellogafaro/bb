@@ -1,0 +1,42 @@
+import type { AgentMascot as AgentMascotName } from "@bb/domain";
+import { cn } from "@bb/shared-ui/lib/utils";
+import { MASCOT_GRID, mascotSprite } from "./mascot-sprites";
+
+export function agentColorVar(color: number): string {
+  return `var(--agent-color-${color})`;
+}
+
+export function AgentMascot({
+  mascot,
+  color,
+  active = false,
+  className,
+}: {
+  mascot: AgentMascotName;
+  color: number;
+  active?: boolean;
+  className?: string;
+}) {
+  const sprite = mascotSprite(mascot);
+  return (
+    <svg
+      aria-hidden="true"
+      data-agent-mascot={mascot}
+      data-agent-mascot-active={active ? "" : undefined}
+      viewBox={`0 0 ${MASCOT_GRID} ${MASCOT_GRID}`}
+      shapeRendering="crispEdges"
+      fill="currentColor"
+      className={cn("size-3 shrink-0", active && "mascot-active", className)}
+      style={{ color: agentColorVar(color) }}
+    >
+      {active ? (
+        <>
+          <path className="mascot-rest" d={sprite.restPath} />
+          <path className="mascot-talk" d={sprite.talkPath} />
+        </>
+      ) : (
+        <path d={sprite.restPath} />
+      )}
+    </svg>
+  );
+}

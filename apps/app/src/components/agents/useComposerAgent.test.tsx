@@ -16,6 +16,8 @@ function makeAgent(overrides: Partial<Agent>): Agent {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "robot",
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,

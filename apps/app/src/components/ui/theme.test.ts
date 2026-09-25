@@ -473,3 +473,49 @@ describe("theme.css shimmer and scroll-anchor paint scope", () => {
     );
   });
 });
+
+describe("theme.css label and agent palettes", () => {
+  const rootBlock = css.slice(
+    css.indexOf("--agent-color-0:"),
+    css.indexOf("}", css.indexOf("--agent-color-0:")),
+  );
+
+  it("defines 24 chromatic label colors as 12 hues in two shades", () => {
+    const colors = Array.from({ length: 24 }, (_, index) =>
+      parseOklch(variableValue(rootBlock, `label-color-${index + 1}`)),
+    );
+    const hues = colors.slice(0, 12).map((color) => color.hueDegrees);
+    expect(hues).toEqual(hues.map((_, index) => 25 + index * 30));
+    for (const [index, color] of colors.entries()) {
+      expect(color.chroma).toBeGreaterThan(0.08);
+      const partner = colors[(index + 12) % 24];
+      expect(partner?.hueDegrees).toBe(color.hueDegrees);
+    }
+    for (const bright of colors.slice(0, 12)) {
+      expect(bright.lightness).toBeGreaterThan(colors[12]?.lightness ?? 1);
+    }
+  });
+
+  for (const mode of MODES) {
+    it(`keeps every label color dot at 3:1 against the ${mode} canvas`, () => {
+      const canvas = parseOklch(variableValue(modeBlock(mode), "canvas"));
+      for (let index = 1; index <= 24; index++) {
+        const color = parseOklch(
+          variableValue(rootBlock, `label-color-${index}`),
+        );
+        expect(
+          contrastRatio(color, canvas),
+          `--label-color-${index}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    });
+  }
+
+  it("defines the neutral and eight MonoCode agent colors", () => {
+    for (let index = 0; index <= 8; index++) {
+      expect(variableValue(rootBlock, `agent-color-${index}`)).toMatch(
+        /^hsl\(\d+ \d+% \d+%\)$/,
+      );
+    }
+  });
+});

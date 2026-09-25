@@ -42,6 +42,7 @@ function project(projectId = PROJECT_ID) {
     kind: "standard" as const,
     name: "Test Project",
     gitRemoteUrl: null,
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,

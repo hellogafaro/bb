@@ -77,10 +77,10 @@ Fields beyond those shown exist; these are the ones scripts use.
     bare arrays
 
   bb project list --json
-    [{id, kind, name, gitRemoteUrl, sources: [{id, hostId, path, isDefault}]}]    (bare array)
+    [{id, kind, name, gitRemoteUrl, color, sources: [{id, hostId, path, isDefault}]}]    (bare array; color is the label palette index 1-24)
 
   bb project show <id> --json
-    {id, kind, name, gitRemoteUrl, sources}
+    {id, kind, name, gitRemoteUrl, color, sources}
 
   bb machine list --json
     [{id, name, type, status, lifecycle, maxPermissionMode, lastSeenAt}]    (bare array)
@@ -113,10 +113,16 @@ Fields beyond those shown exist; these are the ones scripts use.
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
 
   bb agent list --json
-    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all)
+    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8)
 
-  bb agent show|create|set ... --json
-    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, createdAt, updatedAt}
+  bb agent show <agent> --json
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
+
+  bb agent create <name> --json
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
+
+  bb agent set <agent> <field> <value> --json
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
 
   bb agent remove <agent> --json
     {deleted: true, id}

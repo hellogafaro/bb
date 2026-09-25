@@ -30,6 +30,8 @@ function agentRecord(overrides: Partial<AgentResult> = {}): AgentResult {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "cat",
+    color: 4,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -121,6 +123,8 @@ describe("bb agent commands", () => {
         "  Provider: codex",
         "  Model: gpt-5",
         "  Reasoning: high",
+        "  Mascot: cat",
+        "  Color: 4",
         "  Permissions: full",
         "  Skills: bb-cli",
         "  MCPs: all enabled",
@@ -158,6 +162,10 @@ describe("bb agent commands", () => {
           "notion",
           "--description",
           "Writes code",
+          "--mascot",
+          "Frog",
+          "--color",
+          "8",
           "--instructions-file",
           path,
         ],
@@ -176,6 +184,8 @@ describe("bb agent commands", () => {
       mcpServers: ["notion"],
       description: "Writes code",
       instructions: "Use `pnpm test` before $(done)",
+      mascot: "frog",
+      color: 8,
     });
     expect(logLines()).toEqual(["Created agent Coder (agent_coder00001)"]);
   });
@@ -195,6 +205,22 @@ describe("bb agent commands", () => {
   });
 
   it.each([
+    [["--mascot", "dragon"], "Unknown mascot 'dragon'"],
+    [["--color", "0"], "Invalid color '0'"],
+    [["--color", "9"], "Invalid color '9'"],
+    [["--color", "2.5"], "Invalid color '2.5'"],
+  ] as const)("rejects create %j before calling the server", async (args, message) => {
+    const create = vi.spyOn(sdk.agents, "create");
+
+    await expect(
+      runCommand(["agent", "create", "Coder", ...args], register),
+    ).rejects.toThrow("process.exit:1");
+
+    expect(errorOutput()).toContain(message);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([
     [["skills", "bb-cli, notion ,"], { skills: ["bb-cli", "notion"] }],
     [["mcp", "notion,linear"], { mcpServers: ["notion", "linear"] }],
     [["model", "gpt-5-mini"], { model: "gpt-5-mini" }],
@@ -208,6 +234,8 @@ describe("bb agent commands", () => {
     [["mcp", "--clear"], { mcpServers: [] }],
     [["instructions", "--clear"], { instructions: "" }],
     [["description", "--clear"], { description: "" }],
+    [["mascot", "rocket"], { mascot: "rocket" }],
+    [["color", "3"], { color: 3 }],
   ] as const)("sets %j", async (args, patch) => {
     const update = vi
       .spyOn(sdk.agents, "update")
@@ -223,7 +251,13 @@ describe("bb agent commands", () => {
     const update = vi.spyOn(sdk.agents, "update");
 
     await expect(
+      runCommand(["agent", "set", "Coder", "flavor", "red"], register),
+    ).rejects.toThrow("process.exit:1");
+    await expect(
       runCommand(["agent", "set", "Coder", "color", "red"], register),
+    ).rejects.toThrow("process.exit:1");
+    await expect(
+      runCommand(["agent", "set", "Coder", "mascot", "--clear"], register),
     ).rejects.toThrow("process.exit:1");
     await expect(
       runCommand(["agent", "set", "Coder", "model"], register),
@@ -239,7 +273,9 @@ describe("bb agent commands", () => {
     ).rejects.toThrow("process.exit:1");
 
     const errors = errorOutput();
-    expect(errors).toContain("Unknown agent field 'color'");
+    expect(errors).toContain("Unknown agent field 'flavor'");
+    expect(errors).toContain("Invalid color 'red'");
+    expect(errors).toContain("The mascot field cannot be cleared.");
     expect(errors).toContain("Missing a value for model.");
     expect(errors).toContain("The provider field cannot be cleared.");
     expect(errors).toContain("Pass either a value or --clear, not both.");

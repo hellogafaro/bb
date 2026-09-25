@@ -55,7 +55,7 @@ This index lists every command path that the core CLI registers, including alias
 - `bb project update`
 - `bb project delete`
 
-`bb project show <id>` accepts `proj_personal` to inspect Personal.
+`bb project show <id>` accepts `proj_personal` to inspect Personal and prints the project's label color. `bb project update <id> --color <1-24>` sets the color of the project's dot in the app.
 
 ## provider
 

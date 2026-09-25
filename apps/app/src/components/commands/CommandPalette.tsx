@@ -14,6 +14,7 @@ import { isForkHiddenSettingsPath } from "@/lib/fork-settings";
 import {
   CORE_SETTINGS_CATALOG,
   CORE_SETTINGS_PAGES,
+  PERSONAL_PROJECT_ID,
   type KeyboardCommandId,
   type ThreadListEntry,
 } from "@bb/domain";
@@ -55,6 +56,8 @@ import {
 } from "@/lib/command-palette/global-search";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSidebarNavigation } from "@/hooks/queries/sidebar-navigation-query";
+import { useProjectColor } from "@/hooks/queries/project-color-query";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
 import { useHosts } from "@/hooks/queries/host-queries";
 import { useHostDaemon, useLocalHostDaemonAccess } from "@/hooks/useHostDaemon";
 import { getBbDesktopInfo } from "@/lib/bb-desktop";
@@ -1195,6 +1198,11 @@ function SearchResultRow({
           : entry.kind === "machine"
             ? "Monitor"
             : "Command";
+  const projectColor = useProjectColor(
+    entry.kind === "project" && entry.projectId !== PERSONAL_PROJECT_ID
+      ? entry.projectId
+      : null,
+  );
   const shortcut =
     entry.kind === "local-action" && showShortcut
       ? entry.action.shortcut
@@ -1232,11 +1240,15 @@ function SearchResultRow({
       : entry.highlights.filter((range) => range.field === "label");
   return (
     <>
-      <Icon
-        name={icon}
-        className="size-4 shrink-0 text-subtle-foreground"
-        aria-hidden
-      />
+      {projectColor !== null ? (
+        <ProjectColorDot color={projectColor} className="size-4" />
+      ) : (
+        <Icon
+          name={icon}
+          className="size-4 shrink-0 text-subtle-foreground"
+          aria-hidden
+        />
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate">
           <HighlightedField text={entry.label} ranges={labelHighlights} />

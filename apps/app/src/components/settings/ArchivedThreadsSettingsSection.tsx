@@ -25,6 +25,7 @@ import type { ArchivedThreadsKindFilter } from "@/hooks/queries/query-keys";
 import { getThreadRoutePath } from "@/lib/route-paths";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { getThreadDisplayTitle } from "@/lib/thread-title";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
 
 const ALL_PROJECTS = "all";
 const ARCHIVED_THREAD_SEARCH_LIMIT = 50;
@@ -127,6 +128,15 @@ export function ArchivedThreadsSettingsSection() {
   }, [sidebarNavigation.data]);
   const projectNames = useMemo(
     () => new Map(projects.map((project) => [project.id, project.name])),
+    [projects],
+  );
+  const projectColors = useMemo(
+    () =>
+      new Map(
+        projects
+          .filter((project) => project.kind !== "personal")
+          .map((project) => [project.id, project.color]),
+      ),
     [projects],
   );
   const projectOptions = useMemo(
@@ -241,7 +251,9 @@ export function ArchivedThreadsSettingsSection() {
           {groupedThreads.map(([groupProjectId, threads]) => (
             <section key={groupProjectId} className="space-y-2">
               <div className="flex items-center gap-2 px-0.5 text-xs font-medium text-muted-foreground">
-                <Icon name="Folder" className="size-3.5" />
+                <ArchivedGroupProjectMark
+                  color={projectColors.get(groupProjectId) ?? null}
+                />
                 <h3 className="min-w-0 flex-1 truncate">
                   {projectNames.get(groupProjectId) ?? "Unknown project"}
                 </h3>
@@ -313,4 +325,9 @@ export function ArchivedThreadsSettingsSection() {
       ) : null}
     </section>
   );
+}
+
+function ArchivedGroupProjectMark({ color }: { color: number | null }) {
+  if (color === null) return <Icon name="Folder" className="size-3.5" />;
+  return <ProjectColorDot color={color} className="size-3.5" />;
 }

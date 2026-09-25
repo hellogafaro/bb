@@ -51,6 +51,8 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "robot",
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -186,6 +188,40 @@ describe("AgentDetailView model section", () => {
         providerId: "claude-code",
         model: null,
         reasoningLevel: "medium",
+      }),
+    );
+  });
+});
+
+describe("AgentDetailView appearance", () => {
+  it("shows the mascot in the header and saves a picked mascot and color", async () => {
+    renderDetail(makeAgent({ mascot: "cat", color: 3 }));
+    const heading = await screen.findByRole("heading", { name: "Coder" });
+    expect(
+      heading.parentElement?.querySelector('[data-agent-mascot="cat"]'),
+    ).not.toBeNull();
+
+    const mascots = screen.getByRole("radiogroup", { name: "Mascot" });
+    const options = Array.from(mascots.querySelectorAll('[role="radio"]'));
+    expect(options).toHaveLength(10);
+    expect(
+      screen.getByRole("radio", { name: "cat" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "rocket" }));
+    await waitFor(() =>
+      expect(sdk.agents.update).toHaveBeenCalledWith({
+        agent: "agent_coder0001",
+        mascot: "rocket",
+      }),
+    );
+
+    const colors = screen.getByRole("radiogroup", { name: "Color" });
+    expect(colors.querySelectorAll('[role="radio"]')).toHaveLength(8);
+    fireEvent.click(screen.getByRole("radio", { name: "Color 7" }));
+    await waitFor(() =>
+      expect(sdk.agents.update).toHaveBeenCalledWith({
+        agent: "agent_coder0001",
+        color: 7,
       }),
     );
   });

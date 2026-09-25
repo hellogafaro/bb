@@ -6,12 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectSelector } from "./ProjectSelector";
 
 const PROJECTS = [
-  { id: "proj_alpha", name: "Alpha Web" },
-  { id: "proj_bravo", name: "Bravo API" },
-  { id: "proj_charlie", name: "Charlie Docs" },
-  { id: "proj_delta", name: "Delta Mobile" },
-  { id: "proj_echo", name: "Echo Infra" },
-  { id: "proj_foxtrot", name: "Foxtrot Design" },
+  { id: "proj_alpha", name: "Alpha Web", color: 1 },
+  { id: "proj_bravo", name: "Bravo API", color: 5 },
+  { id: "proj_charlie", name: "Charlie Docs", color: 9 },
+  { id: "proj_delta", name: "Delta Mobile", color: 13 },
+  { id: "proj_echo", name: "Echo Infra", color: 17 },
+  { id: "proj_foxtrot", name: "Foxtrot Design", color: 21 },
 ] as const;
 
 afterEach(cleanup);
@@ -85,6 +85,51 @@ describe("ProjectSelector", () => {
       ).toBeTruthy();
     },
   );
+
+  it("marks the trigger and options with project color dots", () => {
+    render(
+      <ProjectSelector
+        projects={PROJECTS}
+        value="proj_charlie"
+        onChange={() => {}}
+        defaultOpen
+        modal={false}
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: /^Project: Charlie Docs/,
+    });
+    expect(trigger.querySelector('[data-icon="Folder"]')).toBeNull();
+    const triggerDot = trigger.querySelector("[data-project-color-dot]");
+    expect(triggerDot?.getAttribute("data-project-color-dot")).toBe("9");
+    expect(triggerDot?.classList.contains("size-3.5")).toBe(true);
+    const options = screen
+      .getAllByRole("option")
+      .filter((option) => option.textContent?.includes(" "));
+    expect(
+      options.map((option) =>
+        option
+          .querySelector("[data-project-color-dot]")
+          ?.getAttribute("data-project-color-dot"),
+      ),
+    ).toEqual(["1", "5", "9", "13", "17", "21"]);
+  });
+
+  it("keeps the no-project icon when no project is selected", () => {
+    render(
+      <ProjectSelector
+        projects={PROJECTS}
+        value={null}
+        onChange={() => {}}
+        allowNoProject
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: /^Project: No project/,
+    });
+    expect(trigger.querySelector("[data-project-color-dot]")).toBeNull();
+    expect(trigger.querySelector('[data-icon="FolderMinus"]')).not.toBeNull();
+  });
 
   it("exposes the current project separately from keyboard highlight", () => {
     render(
@@ -274,6 +319,7 @@ describe("ProjectSelector", () => {
         projects={Array.from({ length: 20 }, (_, index) => ({
           id: `proj_${index}`,
           name: `Project ${index}`,
+          color: (index % 24) + 1,
         }))}
         value="proj_0"
         onChange={() => {}}

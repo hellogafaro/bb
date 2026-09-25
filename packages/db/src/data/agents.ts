@@ -1,6 +1,7 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   Agent,
+  AgentMascot,
   ProjectExecutionDefaults,
   ReasoningLevel,
 } from "@bb/domain";
@@ -20,6 +21,8 @@ export interface InsertAgentArgs {
   skills: readonly string[];
   mcpServers: readonly string[];
   instructions: string;
+  mascot: AgentMascot;
+  color: number;
   now?: number;
 }
 
@@ -33,6 +36,8 @@ export interface UpdateAgentArgs {
   skills?: readonly string[];
   mcpServers?: readonly string[];
   instructions?: string;
+  mascot?: AgentMascot;
+  color?: number;
   now?: number;
 }
 
@@ -58,6 +63,8 @@ function toAgent(row: AgentRow): Agent {
     skills: parseNameList(row.skillsJson),
     mcpServers: parseNameList(row.mcpServersJson),
     instructions: row.instructions,
+    mascot: row.mascot,
+    color: row.color,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -136,6 +143,8 @@ export function insertAgent(db: AgentConnection, args: InsertAgentArgs): Agent {
       skillsJson: JSON.stringify(args.skills),
       mcpServersJson: JSON.stringify(args.mcpServers),
       instructions: args.instructions,
+      mascot: args.mascot,
+      color: args.color,
       createdAt: now,
       updatedAt: now,
     })
@@ -161,6 +170,8 @@ export function updateAgent(
   if (args.mcpServers !== undefined)
     set.mcpServersJson = JSON.stringify(args.mcpServers);
   if (args.instructions !== undefined) set.instructions = args.instructions;
+  if (args.mascot !== undefined) set.mascot = args.mascot;
+  if (args.color !== undefined) set.color = args.color;
   const row = db
     .update(agents)
     .set(set)

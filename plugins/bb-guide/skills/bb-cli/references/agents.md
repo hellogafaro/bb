@@ -11,12 +11,15 @@ permissions are always full. A thread's agent is fixed at spawn.
   (`agent_...`).
 - `bb agent create <name> [--provider <id>] [--model <model>] [--reasoning
   <level>] [--skill <name>]... [--mcp <handle>]... [--description <text>]
-  [--instructions <text> | --instructions-file <path>]` fills omitted fields
-  from the default agent's provider and model, medium reasoning, all skills,
-  and all MCPs. Use `--instructions-file` for multi-line text.
+  [--instructions <text> | --instructions-file <path>] [--mascot <name>]
+  [--color <1-8>]` fills omitted fields from the default agent's provider and
+  model, medium reasoning, all skills, and all MCPs, and picks the mascot and
+  color from a stable hash of the name. Use `--instructions-file` for
+  multi-line text.
 - `bb agent set <agent> <field> <value>` changes one field: name, description,
-  provider, model, reasoning, skills, mcp, or instructions. `skills` and `mcp`
-  take comma lists. `--clear` resets model (provider default), skills and mcp
+  provider, model, reasoning, skills, mcp, instructions, mascot, or color.
+  `skills` and `mcp` take comma lists; `mascot` is one of invader, ghost,
+  robot, cat, skull, crab, mushroom, rocket, dino, frog; `color` is 1-8. `--clear` resets model (provider default), skills and mcp
   (all), description, or instructions. `bb agent set <agent> instructions
   --instructions-file <path>` reads instructions from a file. Renaming keeps
   the ID; changing the provider without a model clears the model.
@@ -25,7 +28,10 @@ permissions are always full. A thread's agent is fixed at spawn.
 - `bb thread spawn --project <id> --agent <agent> --prompt "..."` runs the
   thread as that agent; omit `--agent` for the default. `--provider`,
   `--model`, `--reasoning-level`, and `--permission-mode` are rejected.
-- `bb thread show <id>` prints `Agent: <name>`.
+- `bb thread show <id>` prints `Agent: <name>`. `bb agent show` prints the
+  mascot and color (0 is neutral gray, settable only through the API). The app
+  shows the mascot for the agent and animates it while a thread has a turn in
+  flight.
 
 Empty `skills` means every BB skill; empty `mcp` lists every enabled MCP
 server. Agent instructions are appended after workspace instructions.

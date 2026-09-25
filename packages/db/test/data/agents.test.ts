@@ -45,6 +45,8 @@ function agentArgs(overrides: Partial<InsertAgentArgs> = {}): InsertAgentArgs {
     skills: ["bb-cli"],
     mcpServers: ["notion"],
     instructions: "Be terse.",
+    mascot: "cat",
+    color: 3,
     ...overrides,
   };
 }
@@ -78,6 +80,8 @@ describe("agents data", () => {
       skills: ["bb-cli"],
       mcpServers: ["notion"],
       instructions: "Be terse.",
+      mascot: "cat",
+      color: 3,
       createdAt: 5,
       updatedAt: 5,
     });
@@ -114,6 +118,8 @@ describe("agents data", () => {
       name: "Reviewer",
       model: null,
       skills: [],
+      mascot: "rocket",
+      color: 0,
       now: 9,
     });
     expect(updated).toMatchObject({
@@ -121,6 +127,8 @@ describe("agents data", () => {
       name: "Reviewer",
       model: null,
       skills: [],
+      mascot: "rocket",
+      color: 0,
       mcpServers: ["notion"],
       instructions: "Be terse.",
       updatedAt: 9,

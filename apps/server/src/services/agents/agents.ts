@@ -11,6 +11,10 @@ import {
 } from "@bb/db";
 import {
   AGENT_PERMISSION_MODE,
+  agentColorForName,
+  agentMascotForName,
+  DEFAULT_AGENT_COLOR,
+  DEFAULT_AGENT_MASCOT,
   DEFAULT_AGENT_NAME,
   type Agent,
   type PermissionMode,
@@ -209,6 +213,8 @@ export function createAgent(
     skills: request.skills ?? [],
     mcpServers: normalizeMcpServers(request.mcpServers ?? []),
     instructions: request.instructions ?? "",
+    mascot: request.mascot ?? agentMascotForName(name),
+    color: request.color ?? agentColorForName(name),
   });
   notifyAgentChanged(deps, agent);
   return agent;
@@ -251,6 +257,8 @@ export function updateAgentByRef(
     ...(request.instructions !== undefined
       ? { instructions: request.instructions }
       : {}),
+    ...(request.mascot !== undefined ? { mascot: request.mascot } : {}),
+    ...(request.color !== undefined ? { color: request.color } : {}),
   });
   if (updated === null) {
     throw new ApiError(404, "agent_not_found", `Agent not found: ${ref}`);
@@ -295,6 +303,8 @@ export function ensureDefaultAgent(
       skills: [],
       mcpServers: [],
       instructions: "",
+      mascot: DEFAULT_AGENT_MASCOT,
+      color: DEFAULT_AGENT_COLOR,
     });
   });
   if (agent !== null) notifyAgentChanged(deps, agent);

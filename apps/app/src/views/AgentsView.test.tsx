@@ -41,6 +41,8 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "robot",
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -56,6 +58,8 @@ const coder = makeAgent({
   skills: ["bb-review"],
   mcpServers: ["notion"],
   instructions: "Keep diffs small.",
+  mascot: "robot",
+  color: 1,
   createdAt: 2,
 });
 

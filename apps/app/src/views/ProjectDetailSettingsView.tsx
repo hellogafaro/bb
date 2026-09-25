@@ -34,6 +34,8 @@ import {
   formatGitRemote,
   pluralize,
 } from "@/components/settings/ProjectsSettingsSection";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import { ProjectColorPicker } from "@/components/projects/ProjectColorPicker";
 import { PageShell } from "@/components/ui/page-shell.js";
 import {
   SettingsBadge,
@@ -351,10 +353,7 @@ export function ProjectDetailSettingsView() {
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <Icon
-                  name="FolderGit"
-                  className="size-4 shrink-0 text-muted-foreground"
-                />
+                <ProjectColorDot color={project.color} className="size-4" />
                 <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">
                   {project.name}
                 </h1>
@@ -390,6 +389,19 @@ export function ProjectDetailSettingsView() {
             />
           </div>
         </div>
+
+        <SettingsSection
+          title="Color"
+          description="The dot that marks this project across the app."
+        >
+          <ProjectColorPicker
+            value={project.color}
+            disabled={updateProject.isPending}
+            onChange={(color) =>
+              updateProject.mutate({ id: project.id, color })
+            }
+          />
+        </SettingsSection>
 
         <SettingsSection title="Checkouts" description={CHECKOUTS_DESCRIPTION}>
           {hosts.length === 0 ? (

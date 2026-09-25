@@ -63,8 +63,14 @@ import { splitLayoutAtom } from "@/lib/split-layout/atoms";
 import { SPLIT_LAYOUT_STORAGE_KEY } from "@/lib/split-layout/persistence";
 import { NO_COLLAPSED_CHILD_ACTIVITY } from "@bb/client-core";
 import { sdk } from "@/lib/sdk";
-import { agentsQueryKey } from "@/hooks/queries/query-keys";
-import claudeMark from "@/assets/agent-icons/claude.svg";
+import {
+  agentsQueryKey,
+  sidebarNavigationQueryKey,
+} from "@/hooks/queries/query-keys";
+import {
+  makeProjectWithThreadsResponse,
+  makeSidebarBootstrapResponse,
+} from "@/test/fixtures/projects";
 import { makeThreadListEntry as makeThreadListEntryFixture } from "@bb/test-helpers/domain-fixtures";
 
 vi.mock("@/components/thread/ThreadActionsMenu", async (importOriginal) => ({
@@ -109,6 +115,8 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "robot",
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -947,11 +955,13 @@ describe("ThreadRow", () => {
     }
   });
 
-  it("leads the second line with the thread's agent mark", () => {
+  it("leads the second line with the thread's agent mascot", () => {
     const coder = createAgent({
       id: "agent_coder0001",
       name: "Coder",
       providerId: "claude-code",
+      mascot: "crab",
+      color: 6,
     });
     const { container } = render(
       <ThreadRowTestHarness
@@ -962,9 +972,82 @@ describe("ThreadRow", () => {
     const meta = container.querySelector("[data-sidebar-thread-meta]");
     const mark = meta?.firstElementChild;
     expect(mark?.hasAttribute("data-sidebar-thread-agent")).toBe(true);
-    const image = mark?.querySelector("img");
-    expect(image?.getAttribute("src")).toBe(claudeMark);
-    expect(image?.classList.contains("size-3.5")).toBe(true);
+    expect(mark?.querySelector("img")).toBeNull();
+    const mascot = mark?.querySelector<SVGElement>('[data-agent-mascot="crab"]');
+    expect(mascot?.classList.contains("size-3")).toBe(true);
+    expect(mascot?.style.color).toBe("var(--agent-color-6)");
+    expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
+  });
+
+  it("animates the agent mascot while the thread has a turn in flight", () => {
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={createTestQueryClient([createAgent()])}
+        thread={createThread({
+          runtime: {
+            ...createThread().runtime,
+            displayStatus: "active",
+          },
+        })}
+      />,
+    );
+    const mascot = container.querySelector(
+      '[data-sidebar-thread-agent] [data-agent-mascot="robot"]',
+    );
+    expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(true);
+    expect(mascot?.classList.contains("mascot-active")).toBe(true);
+    expect(mascot?.querySelector(".mascot-talk")).not.toBeNull();
+  });
+
+  it("shows the project's color dot instead of the folder glyph", () => {
+    const queryClient = createTestQueryClient([]);
+    queryClient.setQueryData(
+      sidebarNavigationQueryKey(),
+      makeSidebarBootstrapResponse({
+        projects: [
+          makeProjectWithThreadsResponse({
+            id: "proj_web",
+            name: "Web App",
+            color: 19,
+          }),
+        ],
+      }),
+    );
+    const { container } = render(
+      <ThreadTitleMentionResourcesProvider
+        sectionNamesById={new Map()}
+        projectNamesById={new Map([["proj_web", "Web App"]])}
+        threadById={new Map()}
+      >
+        <ThreadRowTestHarness
+          queryClient={queryClient}
+          thread={createThread({ projectId: "proj_web" })}
+        />
+      </ThreadTitleMentionResourcesProvider>,
+    );
+    const meta = container.querySelector("[data-sidebar-thread-meta]");
+    expect(meta?.querySelector('[data-icon="Folder"]')).toBeNull();
+    const dot = meta?.querySelector("[data-project-color-dot]");
+    expect(dot?.getAttribute("data-project-color-dot")).toBe("19");
+    expect(dot?.classList.contains("size-3")).toBe(true);
+    expect(meta?.textContent).toMatch(/^Web App·/);
+  });
+
+  it("keeps the folder glyph for personal threads", () => {
+    const queryClient = createTestQueryClient([]);
+    queryClient.setQueryData(
+      sidebarNavigationQueryKey(),
+      makeSidebarBootstrapResponse(),
+    );
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={queryClient}
+        thread={createThread({ projectId: "proj_personal" })}
+      />,
+    );
+    const meta = container.querySelector("[data-sidebar-thread-meta]");
+    expect(meta?.querySelector('[data-icon="Folder"]')).not.toBeNull();
+    expect(meta?.querySelector("[data-project-color-dot]")).toBeNull();
   });
 
   it("omits the agent mark when no agent resolves", () => {

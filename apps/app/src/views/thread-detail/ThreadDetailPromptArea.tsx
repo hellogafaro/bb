@@ -89,6 +89,7 @@ import { useComposerTextEffects } from "@/lib/composer-text-effects";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useThreadCreationOptions } from "@/hooks/useThreadCreationOptions";
 import { useProjectDisplayName } from "@/hooks/queries/sidebar-navigation-query";
+import { useProjectColor } from "@/hooks/queries/project-color-query";
 import {
   useActiveComposerDraft,
   useComposerAttachmentUploads,
@@ -123,6 +124,7 @@ import { getThreadDisplayTitle } from "@/lib/thread-title";
 import {
   buildThreadHandoffCreateRequest,
   buildThreadHandoffFollowUpDraft,
+  isRuntimeBusyThread,
   stripThreadHandoffPrefix,
   type ThreadHandoffCreateSeed,
 } from "@bb/client-core";
@@ -505,6 +507,9 @@ export function ThreadDetailPromptArea({
   const projectName = useProjectDisplayName(
     thread.projectId === PERSONAL_PROJECT_ID ? undefined : thread.projectId,
   );
+  const projectColor = useProjectColor(
+    thread.projectId === PERSONAL_PROJECT_ID ? null : thread.projectId,
+  );
   const {
     promptDraft,
     currentPromptDraft,
@@ -870,6 +875,7 @@ export function ThreadDetailPromptArea({
     resolveMentionLink,
   });
   const runtimeDisplayStatus = thread.runtime.displayStatus;
+  const agentIsWorking = isRuntimeBusyThread(thread);
   const shouldSteerWhenReady =
     runtimeDisplayStatus === "provisioning" ||
     runtimeDisplayStatus === "starting";
@@ -1573,7 +1579,7 @@ export function ThreadDetailPromptArea({
         onExit: exitHandoff,
         onSelect: handleHandoffSelect,
       },
-      agent: { agentId: thread.agentId },
+      agent: { agentId: thread.agentId, active: agentIsWorking },
     }),
     [
       effectiveSelectedModel,
@@ -1602,6 +1608,7 @@ export function ThreadDetailPromptArea({
       supportsServiceTier,
       serviceTierFastLabel,
       thread.agentId,
+      agentIsWorking,
       thread.environmentId,
       thread.providerId,
     ],
@@ -1669,6 +1676,7 @@ export function ThreadDetailPromptArea({
       thread.environmentId !== null ? (
         <ThreadEnvironmentSummary
           projectName={projectName}
+          {...(projectColor === null ? {} : { projectColor })}
           environmentLabel={environmentLabel}
           environmentCompactLabel={environmentCompactLabel}
           environmentHost={environmentHost}
@@ -1688,6 +1696,7 @@ export function ThreadDetailPromptArea({
       environmentMachineProvider,
       environmentProviderName,
       onCreateNewThreadInEnvironment,
+      projectColor,
       projectName,
       thread.environmentId,
     ],

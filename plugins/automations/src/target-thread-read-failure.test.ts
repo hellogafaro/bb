@@ -20,6 +20,7 @@ async function createHost(
             kind: "standard" as const,
             name: "Test Project",
             gitRemoteUrl: null,
+            color: 1,
             createdAt: 1,
             updatedAt: 1,
             deletedAt: null,

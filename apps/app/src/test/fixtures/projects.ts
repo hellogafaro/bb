@@ -12,6 +12,7 @@ export function makeProjectResponse(
     kind: "standard",
     name: "Test project",
     gitRemoteUrl: null,
+    color: 1,
     sources: [],
     createdAt: 0,
     updatedAt: 0,

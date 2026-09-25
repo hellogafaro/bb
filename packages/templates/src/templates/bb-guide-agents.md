@@ -26,6 +26,13 @@ Fields:
   server.
 - instructions — text appended to every thread's instructions under
   "The following instructions come from the BB agent ...".
+- mascot — the pixel sprite the app shows for the agent: invader, ghost,
+  robot, cat, skull, crab, mushroom, rocket, dino, or frog. It animates while
+  a thread running as the agent has a turn in flight.
+- color — the mascot's palette color, 1-8 (0 is neutral gray, API only).
+
+create picks the mascot and color from a stable hash of the name when they
+are omitted; renaming keeps them. The default "bb" agent is a blue robot.
 
 The default agent is the first agent (the oldest). BB creates one named "bb"
 on first start from the current default provider and model. Threads without
@@ -39,7 +46,7 @@ Manage agents:
   bb agent create <name> [--provider <id>] [--model <model>]
       [--reasoning <level>] [--skill <name>]... [--mcp <handle>]...
       [--description <text>] [--instructions <text> | --instructions-file <path>]
-      [--json]
+      [--mascot <name>] [--color <1-8>] [--json]
   bb agent set <agent> <field> <value> [--json]
   bb agent set <agent> <field> --clear [--json]
   bb agent set <agent> instructions --instructions-file <path> [--json]
@@ -47,8 +54,10 @@ Manage agents:
 
   create fills omitted fields from the default agent's provider and model,
   medium reasoning, all skills, and all MCPs. set fields are name,
-  description, provider, model, reasoning, skills, mcp, and instructions;
-  skills and mcp take comma lists (`bb agent set Coder skills bb-cli,notion`).
+  description, provider, model, reasoning, skills, mcp, instructions, mascot,
+  and color; skills and mcp take comma lists
+  (`bb agent set Coder skills bb-cli,notion`, `bb agent set Coder mascot frog`,
+  `bb agent set Coder color 3`).
   --clear resets model (provider default), skills and mcp (all), description,
   or instructions. Changing the provider without a model clears the model.
 

@@ -909,6 +909,42 @@
   --diffs-dark-deletion-color: var(--diff-removed);
 }
 
+:root {
+  --agent-color-0: hsl(210 8% 58%);
+  --agent-color-1: hsl(211 92% 62%);
+  --agent-color-2: hsl(12 80% 58%);
+  --agent-color-3: hsl(45 90% 55%);
+  --agent-color-4: hsl(142 55% 50%);
+  --agent-color-5: hsl(330 70% 62%);
+  --agent-color-6: hsl(280 55% 62%);
+  --agent-color-7: hsl(175 55% 48%);
+  --agent-color-8: hsl(25 85% 58%);
+  --label-color-1: oklch(0.64 0.18 25);
+  --label-color-2: oklch(0.64 0.158 55);
+  --label-color-3: oklch(0.64 0.131 85);
+  --label-color-4: oklch(0.64 0.145 115);
+  --label-color-5: oklch(0.64 0.18 145);
+  --label-color-6: oklch(0.64 0.12 175);
+  --label-color-7: oklch(0.64 0.109 205);
+  --label-color-8: oklch(0.64 0.135 235);
+  --label-color-9: oklch(0.64 0.18 265);
+  --label-color-10: oklch(0.64 0.18 295);
+  --label-color-11: oklch(0.64 0.18 325);
+  --label-color-12: oklch(0.64 0.18 355);
+  --label-color-13: oklch(0.53 0.18 25);
+  --label-color-14: oklch(0.53 0.131 55);
+  --label-color-15: oklch(0.53 0.108 85);
+  --label-color-16: oklch(0.53 0.12 115);
+  --label-color-17: oklch(0.53 0.166 145);
+  --label-color-18: oklch(0.53 0.1 175);
+  --label-color-19: oklch(0.53 0.09 205);
+  --label-color-20: oklch(0.53 0.112 235);
+  --label-color-21: oklch(0.53 0.18 265);
+  --label-color-22: oklch(0.53 0.18 295);
+  --label-color-23: oklch(0.53 0.18 325);
+  --label-color-24: oklch(0.53 0.18 355);
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -1132,6 +1168,63 @@ body.sidebar-resizing [data-sidebar="panel"] {
   }
   100% {
     margin-inline-start: 100%;
+  }
+}
+
+.mascot-active {
+  animation: mascot-hop var(--mascot-beat, 460ms) infinite;
+}
+
+.mascot-rest {
+  animation: mascot-rest var(--mascot-beat, 460ms) infinite;
+}
+
+.mascot-talk {
+  animation: mascot-talk var(--mascot-beat, 460ms) infinite;
+}
+
+@keyframes mascot-hop {
+  0%,
+  49.99% {
+    transform: translateY(0);
+  }
+  50%,
+  100% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes mascot-rest {
+  0%,
+  49.99% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes mascot-talk {
+  0%,
+  49.99% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-active,
+  .mascot-rest,
+  .mascot-talk {
+    animation: none;
+  }
+
+  .mascot-talk {
+    opacity: 0;
   }
 }
 

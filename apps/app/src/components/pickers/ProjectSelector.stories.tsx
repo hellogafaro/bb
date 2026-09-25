@@ -7,8 +7,8 @@ export default {
 };
 
 const projects: readonly ProjectSelectorOption[] = [
-  { id: "proj_bb", name: "bb" },
-  { id: "proj_pierre", name: "pierre" },
+  { id: "proj_bb", name: "bb", color: 2 },
+  { id: "proj_pierre", name: "pierre", color: 14 },
 ];
 
 const noop = () => {};

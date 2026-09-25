@@ -33,6 +33,8 @@ function agentArgs(overrides: Partial<InsertAgentArgs> = {}): InsertAgentArgs {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "crab",
+    color: 2,
     ...overrides,
   };
 }
@@ -100,6 +102,8 @@ describe("default agent seeding", () => {
         skills: [],
         mcpServers: [],
         instructions: "",
+        mascot: "robot",
+        color: 1,
       });
       expect(ensureDefaultAgent(harness.deps)).toBeNull();
       expect(countAgents(harness.db)).toBe(1);

@@ -1,5 +1,11 @@
 import { Command } from "commander";
 import type { AgentResult, AgentUpdateArgs } from "@bb/sdk";
+import {
+  AGENT_COLOR_COUNT,
+  AGENT_MASCOTS,
+  agentMascotSchema,
+  type AgentMascot,
+} from "@bb/domain";
 import { action } from "../action.js";
 import { CliUsageError } from "../cli-usage-error.js";
 import { createCliBbSdk } from "../client.js";
@@ -21,6 +27,8 @@ const AGENT_FIELDS = [
   "skills",
   "mcp",
   "instructions",
+  "mascot",
+  "color",
 ] as const;
 type AgentField = (typeof AGENT_FIELDS)[number];
 
@@ -33,6 +41,8 @@ interface AgentCreateOptions extends JsonOutputOptions {
   description?: string;
   instructions?: string;
   instructionsFile?: string;
+  mascot?: string;
+  color?: string;
 }
 
 interface AgentSetOptions extends JsonOutputOptions {
@@ -52,6 +62,27 @@ function parseField(value: string): AgentField {
     );
   }
   return field;
+}
+
+function parseMascot(value: string): AgentMascot {
+  const parsed = agentMascotSchema.safeParse(value.trim().toLowerCase());
+  if (!parsed.success) {
+    usageError(
+      `Unknown mascot '${value}'. Expected ${joinValues(AGENT_MASCOTS)}.`,
+    );
+  }
+  return parsed.data;
+}
+
+function parseColor(value: string): number {
+  const trimmed = value.trim();
+  const color = /^\d+$/u.test(trimmed) ? Number(trimmed) : Number.NaN;
+  if (!Number.isInteger(color) || color < 1 || color > AGENT_COLOR_COUNT) {
+    usageError(
+      `Invalid color '${value}'. Expected a palette number from 1 to ${AGENT_COLOR_COUNT}.`,
+    );
+  }
+  return color;
 }
 
 function parseNameList(value: string): string[] {
@@ -91,6 +122,8 @@ function formatAgent(agent: AgentResult, isDefault: boolean): string {
     `  Provider: ${agent.providerId}`,
     `  Model: ${agent.model ?? "provider default"}`,
     `  Reasoning: ${agent.reasoningLevel}`,
+    `  Mascot: ${agent.mascot}`,
+    `  Color: ${agent.color === 0 ? "neutral" : agent.color}`,
     "  Permissions: full",
     `  Skills: ${agent.skills.length === 0 ? "all" : agent.skills.join(", ")}`,
     `  MCPs: ${agent.mcpServers.length === 0 ? "all enabled" : agent.mcpServers.join(", ")}`,
@@ -150,6 +183,8 @@ async function buildSetPatch(
       case "name":
       case "provider":
       case "reasoning":
+      case "mascot":
+      case "color":
         usageError(`The ${field} field cannot be cleared.`);
     }
   }
@@ -189,6 +224,10 @@ async function buildSetPatch(
       return { skills: parseNameList(value) };
     case "mcp":
       return { mcpServers: parseNameList(value) };
+    case "mascot":
+      return { mascot: parseMascot(value) };
+    case "color":
+      return { color: parseColor(value) };
   }
 }
 
@@ -257,6 +296,14 @@ export function registerAgentCommands(
       [],
     )
     .option("--description <text>", "One-line description")
+    .option(
+      "--mascot <name>",
+      `Pixel mascot: ${AGENT_MASCOTS.join(", ")} (omit to pick one from the name)`,
+    )
+    .option(
+      "--color <1-${AGENT_COLOR_COUNT}>",
+      "Mascot color from the palette (omit to pick one from the name)",
+    )
     .option("--instructions <text>", "Instructions appended to every thread")
     .option(
       "--instructions-file <path>",
@@ -270,6 +317,10 @@ export function registerAgentCommands(
           opts.instructionsFile,
         );
         const reasoningLevel = parseReasoningLevel(opts.reasoning);
+        const mascot =
+          opts.mascot === undefined ? undefined : parseMascot(opts.mascot);
+        const color =
+          opts.color === undefined ? undefined : parseColor(opts.color);
         const created = await createCliBbSdk(getUrl()).agents.create({
           name,
           ...(opts.provider ? { providerId: opts.provider } : {}),
@@ -281,6 +332,8 @@ export function registerAgentCommands(
             ? { description: opts.description }
             : {}),
           ...(instructions !== undefined ? { instructions } : {}),
+          ...(mascot !== undefined ? { mascot } : {}),
+          ...(color !== undefined ? { color } : {}),
         });
         if (outputJson(opts, created)) return;
         console.log(`Created agent ${created.name} (${created.id})`);
@@ -290,7 +343,7 @@ export function registerAgentCommands(
   agent
     .command("set <agent> <field> [value]")
     .description(
-      `Change one field: ${AGENT_FIELDS.join(", ")}. Skills and mcp take comma lists; --clear resets model, skills, mcp, description, or instructions`,
+      `Change one field: ${AGENT_FIELDS.join(", ")}. Skills and mcp take comma lists; mascot takes ${AGENT_MASCOTS.join("|")}; color takes 1-${AGENT_COLOR_COUNT}; --clear resets model, skills, mcp, description, or instructions`,
     )
     .option("--clear", "Clear the field")
     .option(

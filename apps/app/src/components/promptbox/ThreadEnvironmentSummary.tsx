@@ -11,6 +11,7 @@ import {
   type MachineLabelHost,
 } from "@/components/machines/MachineLabel";
 import type { MachineProviderPresentation } from "@/components/plugin/MachineProviderIcon";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
 
 const CHECKOUT_CHIP_BASE_CLASS_NAME =
   "flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground";
@@ -18,6 +19,7 @@ const CHECKOUT_CHIP_BUTTON_CLASS_NAME = `${CHECKOUT_CHIP_BASE_CLASS_NAME} cursor
 
 interface ThreadEnvironmentSummaryProps {
   projectName?: string;
+  projectColor?: number;
   environmentLabel?: string;
   environmentCompactLabel?: string;
   environmentIcon?: IconName;
@@ -30,6 +32,7 @@ interface ThreadEnvironmentSummaryProps {
 
 export const ThreadEnvironmentSummary = memo(function ThreadEnvironmentSummary({
   projectName,
+  projectColor,
   environmentLabel,
   environmentCompactLabel,
   environmentIcon,
@@ -57,7 +60,13 @@ export const ThreadEnvironmentSummary = memo(function ThreadEnvironmentSummary({
           label="Project"
           value={projectName}
           compactValue={projectName}
-          leading={<Icon name="Folder" className="size-4 shrink-0" />}
+          leading={
+            projectColor === undefined ? (
+              <Icon name="Folder" className="size-4 shrink-0" />
+            ) : (
+              <ProjectColorDot color={projectColor} className="size-4" />
+            )
+          }
           className="h-6 min-w-0 max-w-[10rem] shrink"
         />
       ) : null}

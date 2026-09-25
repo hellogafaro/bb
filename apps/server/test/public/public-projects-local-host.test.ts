@@ -5,7 +5,11 @@ import {
   listPublicProjects,
   setExperiments,
 } from "@bb/db";
-import { defaultExperiments, PERSONAL_PROJECT_ID } from "@bb/domain";
+import {
+  defaultExperiments,
+  labelColorForKey,
+  PERSONAL_PROJECT_ID,
+} from "@bb/domain";
 import {
   reportQueuedCommandSuccess,
   waitForQueuedCommand,
@@ -34,6 +38,53 @@ const projectResponseSchema = z.object({
 });
 
 describe("public project local host routes", () => {
+  it("returns a hashed label color and updates it through PATCH", async () => {
+    await withTestHarness(async (harness) => {
+      const { host } = seedHostSession(harness.deps);
+      const { project } = seedProjectWithSource(harness.deps, {
+        hostId: host.id,
+        path: "/tmp/project-color",
+      });
+      const colorSchema = z.object({ color: z.number() });
+      const initial = await harness.app.request(
+        `/api/v1/projects/${project.id}`,
+      );
+      expect(colorSchema.parse(await readJson(initial)).color).toBe(
+        labelColorForKey(project.id),
+      );
+
+      for (const color of [0, 25, 1.5, "3"]) {
+        const rejected = await harness.app.request(
+          `/api/v1/projects/${project.id}`,
+          {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ color }),
+          },
+        );
+        expect(rejected.status).toBe(400);
+      }
+
+      const updated = await harness.app.request(
+        `/api/v1/projects/${project.id}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ color: 24 }),
+        },
+      );
+      expect(updated.status).toBe(200);
+      expect(colorSchema.parse(await readJson(updated)).color).toBe(24);
+      const listed = await harness.app.request("/api/v1/projects");
+      const projects = z.array(z.object({ id: z.string(), color: z.number() }));
+      expect(
+        projects
+          .parse(await readJson(listed))
+          .find((entry) => entry.id === project.id)?.color,
+      ).toBe(24);
+    });
+  });
+
   it("creates a project when a personal thread already uses its folder", async () => {
     await withTestHarness(async (harness) => {
       const offlinePrimary = seedHost(harness.deps, {

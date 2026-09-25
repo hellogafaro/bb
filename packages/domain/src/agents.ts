@@ -7,6 +7,48 @@ export const AGENT_INSTRUCTIONS_MAX_CHARS = 20_000;
 export const AGENT_PERMISSION_MODE = "full";
 export const DEFAULT_AGENT_NAME = "bb";
 
+export const AGENT_MASCOTS = [
+  "invader",
+  "ghost",
+  "robot",
+  "cat",
+  "skull",
+  "crab",
+  "mushroom",
+  "rocket",
+  "dino",
+  "frog",
+] as const;
+export const agentMascotSchema = z.enum(AGENT_MASCOTS);
+export type AgentMascot = z.infer<typeof agentMascotSchema>;
+
+export const AGENT_NEUTRAL_COLOR = 0;
+export const AGENT_COLOR_COUNT = 8;
+export const agentColorSchema = z
+  .number()
+  .int()
+  .min(AGENT_NEUTRAL_COLOR)
+  .max(AGENT_COLOR_COUNT);
+
+export const DEFAULT_AGENT_MASCOT: AgentMascot = "robot";
+export const DEFAULT_AGENT_COLOR = 1;
+
+export function agentMascotForName(name: string): AgentMascot {
+  let hash = 0;
+  for (let index = 0; index < name.length; index++) {
+    hash = (hash * 131 + name.charCodeAt(index)) >>> 0;
+  }
+  return AGENT_MASCOTS[hash % AGENT_MASCOTS.length] ?? DEFAULT_AGENT_MASCOT;
+}
+
+export function agentColorForName(name: string): number {
+  let hash = 0;
+  for (let index = 0; index < name.length; index++) {
+    hash = (hash * 31 + name.charCodeAt(index)) >>> 0;
+  }
+  return (hash % AGENT_COLOR_COUNT) + 1;
+}
+
 export const agentSchema = z
   .object({
     id: z.string(),
@@ -18,6 +60,8 @@ export const agentSchema = z
     skills: z.array(z.string()),
     mcpServers: z.array(z.string()),
     instructions: z.string(),
+    mascot: agentMascotSchema,
+    color: agentColorSchema,
     createdAt: z.number(),
     updatedAt: z.number(),
   })

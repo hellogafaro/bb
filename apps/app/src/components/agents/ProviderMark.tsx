@@ -8,7 +8,7 @@ const AGENT_PROVIDER_MARKS: Readonly<Record<string, string>> = {
   codex: codexMark,
 };
 
-export function AgentIcon({
+export function ProviderMark({
   providerId,
   className,
 }: {
@@ -36,8 +36,8 @@ export function AgentIcon({
   );
 }
 
-export function agentIconComponent(providerId: string) {
-  return function AgentOptionIcon({ className }: { className?: string }) {
-    return <AgentIcon providerId={providerId} className={className} />;
+export function providerMarkComponent(providerId: string) {
+  return function ProviderMarkIcon({ className }: { className?: string }) {
+    return <ProviderMark providerId={providerId} className={className} />;
   };
 }

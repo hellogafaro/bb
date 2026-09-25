@@ -252,6 +252,10 @@ vi.mock("@/hooks/queries/sidebar-navigation-query", () => ({
   useProjectDisplayName: () => null,
 }));
 
+vi.mock("@/hooks/queries/project-color-query", () => ({
+  useProjectColor: () => null,
+}));
+
 vi.mock("@/hooks/queries/thread-default-execution-options-query", () => ({
   useThreadDefaultExecutionOptions: () => ({
     data: {

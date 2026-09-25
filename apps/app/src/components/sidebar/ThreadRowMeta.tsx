@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from "react";
 import { PERSONAL_PROJECT_ID, type ThreadListEntry } from "@bb/domain";
 import { Icon } from "@bb/shared-ui/icon";
-import { AgentIcon } from "@/components/agents/AgentIcon";
+import { AgentMascot } from "@/components/agents/mascots/AgentMascot";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import { useProjectColor } from "@/hooks/queries/project-color-query";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSidebarProjectName } from "@/components/thread/ThreadTitleMentions";
 import { formatWakeLabel } from "@/components/thread/ThreadSnoozeControls";
+import { isThreadWorking } from "./status-list/status-sections";
 
 const CLOCK_TICK_MS = 30_000;
 
@@ -70,10 +73,9 @@ export function ThreadRowMeta({
   const now = useRelativeTimeNow();
   const projectName = useSidebarProjectName(thread.projectId);
   const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
-  const location =
-    thread.projectId === PERSONAL_PROJECT_ID || !projectName
-      ? "Personal"
-      : projectName;
+  const isPersonal = thread.projectId === PERSONAL_PROJECT_ID || !projectName;
+  const projectColor = useProjectColor(isPersonal ? null : thread.projectId);
+  const location = isPersonal ? "Personal" : projectName;
   const lastActivityAt = getThreadLastActivityAt(thread);
   return (
     <span
@@ -85,10 +87,19 @@ export function ThreadRowMeta({
           data-sidebar-thread-agent=""
           className="flex shrink-0 items-center"
         >
-          <AgentIcon providerId={agent.providerId} className="size-3.5" />
+          <AgentMascot
+            mascot={agent.mascot}
+            color={agent.color}
+            active={isThreadWorking(thread)}
+            className="size-3"
+          />
         </span>
       )}
-      <Icon name="Folder" className="size-3 shrink-0" aria-hidden />
+      {isPersonal || projectColor === null ? (
+        <Icon name="Folder" className="size-3 shrink-0" aria-hidden />
+      ) : (
+        <ProjectColorDot color={projectColor} />
+      )}
       <span className="min-w-0 truncate" title={location}>
         {location}
       </span>

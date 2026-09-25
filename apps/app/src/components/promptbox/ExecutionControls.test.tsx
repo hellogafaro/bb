@@ -70,6 +70,8 @@ function makeAgent(overrides: Partial<Agent>): Agent {
     skills: [],
     mcpServers: [],
     instructions: "",
+    mascot: "robot",
+    color: 1,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -84,6 +86,9 @@ function stubAgents() {
       name: "Coder",
       providerId: "claude-code",
       model: "opus",
+      reasoningLevel: "high",
+      mascot: "frog",
+      color: 4,
     }),
   ]);
   vi.spyOn(sdk.providers, "list").mockResolvedValue([
@@ -101,31 +106,59 @@ describe("ExecutionControls agent picker", () => {
       agent: { agentId: null, onChange },
     });
 
-    const trigger = await screen.findByRole("button", { name: "Agent" });
-    await waitFor(() => expect(trigger.textContent).toBe("BB"));
+    const trigger = await screen.findByRole("button", { name: "Agent: BB" });
+    expect(trigger.textContent).toBe("BB");
+    expect(trigger.querySelector('[data-agent-mascot="robot"]')).not.toBeNull();
+    expect(trigger.querySelector("[data-agent-mascot-active]")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Provider, model and reasoning" }),
     ).toBeNull();
-    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-    expect(await screen.findByText("Claude Code · Opus")).toBeTruthy();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Coder/ }));
+    fireEvent.click(trigger);
+
+    const coder = await screen.findByRole("option", { name: /Coder/ });
+    expect(coder.textContent).toContain("Claude Code · Opus · High");
+    expect(coder.querySelector('[data-agent-mascot="frog"]')).not.toBeNull();
+    expect(coder.querySelector("img")).not.toBeNull();
+    const current = screen.getByRole("option", { name: /BB/ });
+    expect(current.textContent).toContain("Codex · Default model · Medium");
+    expect(
+      screen.queryByRole("combobox", { name: "Search agents" }),
+    ).toBeNull();
+    fireEvent.click(coder);
     expect(onChange).toHaveBeenCalledWith("agent_coder0001");
+    await waitFor(() =>
+      expect(screen.queryByRole("option", { name: /Coder/ })).toBeNull(),
+    );
   });
 
-  it("shows a thread's fixed agent as disabled", async () => {
+  it("shows a thread's fixed agent as disabled without a chevron", async () => {
     stubAgents();
     renderExecutionControls({
       ...makeExecutionControlsProps(),
       agent: { agentId: "agent_coder0001" },
     });
-    const trigger = await screen.findByRole("button", { name: "Agent" });
+    const trigger = await screen.findByRole("button", { name: "Agent: Coder" });
     await waitFor(() =>
       expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
-        "Coder · Claude Code · Opus",
+        "Coder · Claude Code · Opus · High",
       ),
     );
     expect(trigger.textContent).toBe("Coder");
     expect(trigger.hasAttribute("disabled")).toBe(true);
+    expect(trigger.className).toContain("disabled:opacity-100");
+    expect(trigger.querySelectorAll("svg")).toHaveLength(1);
+    expect(trigger.querySelector('[data-agent-mascot="frog"]')).not.toBeNull();
+  });
+
+  it("animates the trigger mascot while the thread has a turn in flight", async () => {
+    stubAgents();
+    renderExecutionControls({
+      ...makeExecutionControlsProps(),
+      agent: { agentId: "agent_coder0001", active: true },
+    });
+    const trigger = await screen.findByRole("button", { name: "Agent: Coder" });
+    const mascot = trigger.querySelector("[data-agent-mascot-active]");
+    expect(mascot?.classList.contains("mascot-active")).toBe(true);
   });
 
   it("falls back to the default agent when the thread's agent is gone", async () => {
@@ -134,8 +167,48 @@ describe("ExecutionControls agent picker", () => {
       ...makeExecutionControlsProps(),
       agent: { agentId: "agent_deleted01" },
     });
-    const trigger = await screen.findByRole("button", { name: "Agent" });
-    await waitFor(() => expect(trigger.textContent).toBe("BB"));
+    const trigger = await screen.findByRole("button", { name: "Agent: BB" });
+    expect(trigger.textContent).toBe("BB");
+  });
+
+  it("searches many agents and picks one with the keyboard", async () => {
+    const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
+    vi.spyOn(sdk.agents, "list").mockResolvedValue(
+      names.map((name, index) =>
+        makeAgent({
+          id: `agent_${name.toLowerCase()}`,
+          name,
+          createdAt: index,
+        }),
+      ),
+    );
+    vi.spyOn(sdk.providers, "list").mockResolvedValue([
+      makeProviderInfo({ id: "codex", displayName: "Codex" }),
+    ]);
+    const onChange = vi.fn();
+    renderExecutionControls({
+      ...makeExecutionControlsProps(vi.fn()),
+      agent: { agentId: null, onChange },
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agent: Alpha" }),
+    );
+    const search = await screen.findByRole("combobox", {
+      name: "Search agents",
+    });
+    fireEvent.change(search, { target: { value: "ech" } });
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("option").map((option) => option.textContent),
+      ).toEqual([expect.stringContaining("Echo")]),
+    );
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(search.getAttribute("aria-activedescendant")).toBe(
+      screen.getByRole("option", { name: /Echo/ }).id,
+    );
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith("agent_echo");
   });
 });
 

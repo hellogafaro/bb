@@ -3,6 +3,7 @@ import {
   FILE_LIST_QUERY_MAX_LENGTH,
   getProjectPathValidationMessage,
   gitBranchNameSchema,
+  labelColorSchema,
   normalizeProjectPathInput,
   projectExecutionDefaultsSchema,
   projectSchema,
@@ -241,10 +242,11 @@ export type ProjectAttachmentUploadForm = Record<"file", Blob>;
 export const updateProjectRequestSchema = z
   .object({
     name: z.string().min(1),
+    color: labelColorSchema,
   })
   .partial()
   .refine(
-    (value) => value.name !== undefined,
+    (value) => value.name !== undefined || value.color !== undefined,
     "At least one field must be provided",
   );
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;

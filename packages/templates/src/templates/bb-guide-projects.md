@@ -28,6 +28,7 @@ A project maps to a code repository. All threads belong to a project.
     Accepts proj_personal to inspect Personal.
   bb project update <id>                  Update a project
     --name <name>                         New name
+    --color <1-24>                        Label color: the project's dot in the app
 
   bb project delete <id>                  Delete project and all threads
     --yes                                 Skip confirmation

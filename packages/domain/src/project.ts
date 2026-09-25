@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { labelColorSchema } from "./label-colors.js";
 
 export const PERSONAL_PROJECT_ID = "proj_personal";
 
@@ -11,6 +12,7 @@ export const projectSchema = z.object({
   kind: projectKindSchema,
   name: z.string(),
   gitRemoteUrl: z.string().nullable(),
+  color: labelColorSchema,
   createdAt: z.number(),
   updatedAt: z.number(),
 });

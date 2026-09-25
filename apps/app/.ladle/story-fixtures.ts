@@ -384,8 +384,8 @@ export const STORY_ENVIRONMENT_PROVIDERS: readonly SystemEnvironmentProvider[] =
   ];
 
 export const STORY_PROJECTS: readonly ProjectSelectorOption[] = [
-  { id: PROJECT_IDS.bb, name: PROJECT_NAMES.bb },
-  { id: PROJECT_IDS.pierre, name: PROJECT_NAMES.pierre },
+  { id: PROJECT_IDS.bb, name: PROJECT_NAMES.bb, color: 2 },
+  { id: PROJECT_IDS.pierre, name: PROJECT_NAMES.pierre, color: 14 },
 ];
 
 export function makeExecutionControlsProps(

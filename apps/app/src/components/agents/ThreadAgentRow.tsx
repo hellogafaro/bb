@@ -5,7 +5,8 @@ import { DetailRow, DetailRowIconLabel } from "@/components/ui/detail-card.js";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentExecutionLabel } from "./agent-display";
-import { AgentIcon } from "./AgentIcon";
+import { AgentMascot } from "./mascots/AgentMascot";
+import { ProviderMark } from "./ProviderMark";
 
 export function ThreadAgentRow({
   thread,
@@ -22,7 +23,11 @@ export function ThreadAgentRow({
       valueClassName="min-w-0"
     >
       <span className="flex min-w-0 items-start gap-2">
-        <AgentIcon providerId={agent.providerId} className="mt-0.5 size-4" />
+        <AgentMascot
+          mascot={agent.mascot}
+          color={agent.color}
+          className="mt-0.5 size-4"
+        />
         <span className="flex min-w-0 flex-col">
           <Link
             to={getAgentDetailRoutePath(agent.id)}
@@ -30,8 +35,11 @@ export function ThreadAgentRow({
           >
             {agent.name}
           </Link>
-          <span className="truncate text-xs text-muted-foreground">
-            {agentExecutionLabel(agent, providersQuery.data)}
+          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <ProviderMark providerId={agent.providerId} className="size-3" />
+            <span className="truncate">
+              {agentExecutionLabel(agent, providersQuery.data)}
+            </span>
           </span>
         </span>
       </span>

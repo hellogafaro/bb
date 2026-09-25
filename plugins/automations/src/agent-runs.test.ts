@@ -178,6 +178,7 @@ describe("agent automation service", () => {
             kind: "standard" as const,
             name: "Test Project",
             gitRemoteUrl: null,
+            color: 1,
             createdAt: 1,
             updatedAt: 1,
             sources: [],
