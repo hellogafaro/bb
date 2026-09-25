@@ -138,15 +138,14 @@ export function searchGlobalThreads(db: DbConnection, args: {
     )
     SELECT page.id, page.projectId, page.projectName, page.title,
       page.titleFallback, page.status, page.archivedAt, page.updatedAt,
-      page.matchClass,
-      (SELECT s.text FROM thread_search_segments s
-       WHERE s.thread_id = page.id AND s.source_kind NOT IN ('title', 'title_fallback')
-         AND (${messageCondition})
-       ORDER BY (${messageScore}) DESC, s.source_seq, s.id LIMIT 1) AS messageText,
-      (SELECT s.source_seq FROM thread_search_segments s
-       WHERE s.thread_id = page.id AND s.source_kind NOT IN ('title', 'title_fallback')
-         AND (${messageCondition})
-       ORDER BY (${messageScore}) DESC, s.source_seq, s.id LIMIT 1) AS messageSeq
-    FROM page ORDER BY matchClass, affinity, archived, updatedAt DESC, id
+      page.matchClass, snippet.text AS messageText, snippet.source_seq AS messageSeq
+    FROM page
+    LEFT JOIN thread_search_segments snippet ON snippet.rowid = CASE WHEN page.matchClass = 6 THEN (
+      SELECT s.rowid FROM thread_search_segments s
+      WHERE s.thread_id = page.id AND s.source_kind NOT IN ('title', 'title_fallback')
+        AND (${messageCondition})
+      ORDER BY (${messageScore}) DESC, s.source_seq, s.id LIMIT 1
+    ) END
+    ORDER BY matchClass, affinity, archived, updatedAt DESC, page.id
   `);
 }

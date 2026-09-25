@@ -175,6 +175,79 @@ describe("global Search", () => {
     ).toBe(selectedText);
   });
 
+  it("shows quiet skeletons for a slow query and preserves the no-results state", async () => {
+    let resolve: (value: unknown) => void = () => {};
+    test.query.mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    setup();
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "zzzzzz" },
+    });
+    expect(screen.queryByText("Searching…")).toBeNull();
+    const loading = await screen.findByRole("status", {
+      name: "Loading results",
+    });
+    expect(loading.textContent).toBe("");
+    expect(screen.getByRole("listbox").getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByText(/No results for/)).toBeNull();
+    await act(async () => {
+      resolve({ query: "zzzzzz", groups: [] });
+    });
+    expect(await screen.findByText("No results for “zzzzzz”")).toBeTruthy();
+    expect(
+      screen.queryByRole("status", { name: "Loading results" }),
+    ).toBeNull();
+  });
+
+  it("shows cached matches immediately without waiting for the typing debounce", () => {
+    setup();
+    act(() => {
+      currentClient.setQueryData(
+        ["global-search", window.location.origin, "cached", null],
+        {
+          query: "cached",
+          groups: [
+            { kind: "threads", results: [result({ label: "Cached thread" })] },
+          ],
+        },
+      );
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "cached" },
+    });
+    expect(screen.getByRole("option", { name: /Cached thread/ })).toBeTruthy();
+    expect(test.query).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("status", { name: "Loading results" }),
+    ).toBeNull();
+  });
+
+  it("keeps results visible during a background refresh without loading clutter", async () => {
+    test.query.mockResolvedValueOnce({
+      query: "thread",
+      groups: [{ kind: "threads", results: [result()] }],
+    });
+    setup();
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "thread" },
+    });
+    await screen.findByRole("option", { name: /Thread title/ });
+    test.query.mockImplementation(() => new Promise(() => {}));
+    act(() => {
+      void currentClient.invalidateQueries({ queryKey: ["global-search"] });
+    });
+    await waitFor(() => expect(test.query).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("option", { name: /Thread title/ })).toBeTruthy();
+    expect(
+      screen.queryByRole("status", { name: "Loading results" }),
+    ).toBeNull();
+    expect(screen.queryByText("Searching…")).toBeNull();
+  });
+
   it("opens a message result at its anchor and marks archived rows", async () => {
     test.query.mockResolvedValue({
       query: "message",

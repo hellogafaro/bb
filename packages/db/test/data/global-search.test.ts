@@ -14,6 +14,7 @@ describe("global thread search", () => {
       const host = upsertHost(db, noopNotifier, { name: "machine" });
       const { project } = createProject(db, noopNotifier, { name: "BB", source: { type: "local_path", hostId: host.id, path: "/tmp/bb-search-test" } });
       const exact = createThread(db, noopNotifier, { projectId: project.id, providerId: "codex", title: "font" });
+      upsertThreadSearchSegments(db, { segments: [{ threadId: exact.id, sourceKind: "user_message", sourceKey: "test", sourceSeq: 2, text: "font notes" }] });
       const archived = createThread(db, noopNotifier, { projectId: project.id, providerId: "codex", title: "font archive" });
       archiveThread(db, noopNotifier, archived.id);
       const content = createThread(db, noopNotifier, { projectId: project.id, providerId: "codex", title: "draft" });
@@ -24,6 +25,8 @@ describe("global thread search", () => {
       const rows = searchGlobalThreads(db, { query: "font", tokens: ["font"], limit: 10 });
       expect(rows.map((row) => row.id)).toEqual([exact.id, archived.id, content.id]);
       expect(rows.map((row) => row.matchClass)).toEqual([1, 2, 6]);
+      expect(rows[0]).toMatchObject({ messageText: null, messageSeq: null });
+      expect(rows[2]?.messageText).toBe("font options");
       expect(rows[2]?.messageSeq).toBe(4);
       const mixed = searchGlobalThreads(db, { query: "bb font", tokens: ["bb", "font"], limit: 10 });
       expect(mixed.map((row) => row.id)).toContain(content.id);

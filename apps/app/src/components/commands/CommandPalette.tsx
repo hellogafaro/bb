@@ -25,6 +25,7 @@ import type {
 import { Dialog, DialogContent, DialogTitle } from "@bb/shared-ui/dialog";
 import { ResponsiveDrawerShell } from "@bb/shared-ui/responsive-overlay";
 import { Icon } from "@bb/shared-ui/icon";
+import { Skeleton } from "@bb/shared-ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
@@ -208,18 +209,18 @@ export function CommandPalette({
   const normalizedQuery = query.startsWith(">")
     ? query.slice(1).trim()
     : query.trim();
-  const debouncedQuery = useDebouncedValue(normalizedQuery, 150);
+  const debouncedQuery = useDebouncedValue(normalizedQuery, 75);
   const isCurrentQuery = debouncedQuery === normalizedQuery;
   const search = useQuery({
     queryKey: [
       ...globalSearchQueryKeyPrefix(),
       server,
-      debouncedQuery,
+      normalizedQuery,
       projectId,
     ],
     queryFn: ({ signal }) =>
       sdk.search.query({
-        query: debouncedQuery,
+        query: normalizedQuery,
         contextProjectId: projectId ?? undefined,
         limitPerGroup: 20,
         signal,
@@ -234,7 +235,7 @@ export function CommandPalette({
     setPageLoading(null);
     setPageError(null);
   }, [search.dataUpdatedAt]);
-  const remoteGroups = isCurrentQuery && search.data ? search.data.groups : [];
+  const remoteGroups = search.data?.groups ?? [];
   const localActions = useMemo(
     () => localActionResults(actions, normalizedQuery),
     [actions, normalizedQuery],
@@ -666,6 +667,7 @@ export function CommandPalette({
   const loading = Boolean(
     normalizedQuery && (!isCurrentQuery || search.isFetching || pageLoading),
   );
+  const showSkeleton = useDebouncedValue(loading && options.length === 0, 120);
   const failed = Boolean(normalizedQuery && isCurrentQuery && search.isError);
 
   const openPalette = useCallback(
@@ -961,6 +963,7 @@ export function CommandPalette({
       }}
     >
       <PaletteShell
+        busy={loading}
         inputRef={inputRef}
         activeDescendantId={
           activeIndex < 0 ? undefined : `${optionPrefix}-${activeIndex}`
@@ -1059,10 +1062,25 @@ export function CommandPalette({
             )}
           </div>
         ))}
-        {loading ? (
-          <p role="status" className="px-3 py-2 text-xs text-subtle-foreground">
-            Searching…
-          </p>
+        {loading && options.length === 0 && showSkeleton ? (
+          <div role="status" aria-label="Loading results">
+            <div aria-hidden="true" className="space-y-1 py-1">
+              {["w-2/3", "w-1/2", "w-3/5"].map((width) => (
+                <div
+                  key={width}
+                  className="flex min-h-11 items-center gap-3 px-2 py-1.5"
+                >
+                  <Skeleton className="size-4 shrink-0 motion-reduce:animate-none" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton
+                      className={cn("h-3 motion-reduce:animate-none", width)}
+                    />
+                    <Skeleton className="h-2.5 w-1/3 motion-reduce:animate-none" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
         {failed || pageError ? (
           <p role="status" className="px-3 py-2 text-xs text-subtle-foreground">

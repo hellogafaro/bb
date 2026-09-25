@@ -24,6 +24,7 @@ export function PaletteShortcut({ children }: { children: string }) {
 
 interface PaletteShellProps {
   activeDescendantId?: string;
+  busy: boolean;
   children: ReactNode;
   inputDescription: string;
   inputLabel: string;
@@ -40,6 +41,7 @@ interface PaletteShellProps {
 
 export function PaletteShell({
   activeDescendantId,
+  busy,
   children,
   inputDescription,
   inputLabel,
@@ -105,6 +107,7 @@ export function PaletteShell({
           ref={composedListRef}
           id={listId}
           role="listbox"
+          aria-busy={busy}
           aria-label={listLabel}
           className="max-h-[min(24rem,50dvh)] overflow-y-auto p-1"
           style={{
