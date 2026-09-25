@@ -146,7 +146,7 @@ export class McpApprovals {
     }
     const parsed = toolApprovalResponseSchema.safeParse(result.value);
     if (!parsed.success || !parsed.data.allowed) return `The user denied ${label}; the tool was not run.`;
-    this.log.info(`[mcps] allowed ${label} in thread ${input.scope.threadId}`);
+    this.log.info(`[mcp] allowed ${label} in thread ${input.scope.threadId}`);
     return null;
   }
 
@@ -165,7 +165,7 @@ export class McpApprovals {
     const fields = elicitationFields(params.requestedSchema);
     const scope = this.scopeFor(sourceId);
     if (!fields || !scope?.threadId) {
-      this.log.info(`[mcps] declined elicitation from ${server}: ${fields ? "no thread to ask in" : "unsupported form"}`);
+      this.log.info(`[mcp] declined elicitation from ${server}: ${fields ? "no thread to ask in" : "unsupported form"}`);
       return { action: "decline" };
     }
     let result;
@@ -188,7 +188,7 @@ export class McpApprovals {
         },
       }, scope.signal ? { signal: scope.signal } : undefined);
     } catch (error) {
-      this.log.warn(`[mcps] elicitation from ${server} could not be shown: ${error instanceof Error ? error.message : String(error)}`);
+      this.log.warn(`[mcp] elicitation from ${server} could not be shown: ${error instanceof Error ? error.message : String(error)}`);
       return { action: "decline" };
     }
     if (result.outcome === "cancelled") return result.reason === "user" ? { action: "cancel" } : { action: "decline" };

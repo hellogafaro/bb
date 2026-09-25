@@ -22,16 +22,16 @@ Everything here is a fork change. Keep core edits small and behind constants so 
 - Skills page: `/skills` routes in `packages/client-core/src/routes/route-paths.ts:13`, `SkillsView` in `apps/app/src/App.tsx:380`, library in `apps/app/src/components/tools/SkillsLibrary.tsx`, resource sidebar in `apps/app/src/components/tools/ResourceSidebar.tsx`, registry browse in `SkillsBrowse.tsx`. "New bb skill" already prefills chat with `CREATE_SKILL_PROMPT` (`SkillsLibrary.tsx:468`), and "Edit" prefills with `buildSkillEditThreadPrompt`.
 - Sidebar entry: `apps/app/src/components/sidebar/BuiltInSidebarNavigation.tsx:59` (icon `Zap`, title `Skills`) and `sidebarNavigationItems.ts:79`. Header title: `tools-navigation.ts:308` and `AppLayout.tsx:276`.
 - Automations "New": `navigate.toCompose({ focusPrompt: true, initialPrompt })` (`plugins/automations/app.tsx:456`, prompt at `overview-view.tsx:60`).
-- MCPs plugin: `~/projects/bb-plugins/bb-plugin-mcps`, loaded by path. Page registered with `app.slots.navPanel({ id: "mcps", path: "mcps" })` (`app.tsx:1281`) with Installed and Browse tabs plus add dialogs. Storage at `~/.bb/plugins/mcps/` (SQLite, secrets, server dirs), keyed by plugin id only.
+- MCPs plugin: `~/projects/bb-plugins/bb-plugin-mcp`, loaded by path. Page registered with `app.slots.navPanel({ id: "mcps", path: "mcps" })` (`app.tsx:1281`) with Installed and Browse tabs plus add dialogs. Storage at `~/.bb/plugins/mcp/` (SQLite, secrets, server dirs), keyed by plugin id only.
 
 ## Phase A: move `mcps` into the fork
 
-1. Copy `bb-plugin-mcps` to `plugins/mcps`. Drop `node_modules`, `package-lock.json`, `dist`. Match the built-in plugin layout (`package.json` with `bb` manifest, `tsconfig.json`, `vitest.config.ts` using `sharedWorkerProjects`).
-2. Add the plugin to the built-in list so `builtin:mcps` resolves, and to `plugins/bb-official.json` if the fork's catalog tests require it.
+1. Copy `bb-plugin-mcp` to `plugins/mcp`. Drop `node_modules`, `package-lock.json`, `dist`. Match the built-in plugin layout (`package.json` with `bb` manifest, `tsconfig.json`, `vitest.config.ts` using `sharedWorkerProjects`).
+2. Add the plugin to the built-in list so `builtin:mcp` resolves, and to `plugins/bb-official.json` if the fork's catalog tests require it.
 3. Replace `@hugeicons/*` with the icon set the fork uses (Remix Line), matching commit `f0d0f18b1`.
-4. Install with `bb plugin install builtin:mcps --yes`. Do not run `bb plugin remove`; it deletes settings and OAuth credentials. The id stays `mcps`, so `~/.bb/plugins/mcps/data.db`, secrets, and server dirs carry over.
+4. Install with `bb plugin install builtin:mcp --yes`. Do not run `bb plugin remove`; it deletes settings and OAuth credentials. The id is `mcp`, so `~/.bb/plugins/mcp/data.db`, secrets, and server dirs carry over.
 5. Verify: `bb mcps list` shows the same servers and auth state as before; one `mcps_search` call from a thread returns results.
-6. Archive `bb-plugin-mcps` in the `bb-plugins` repo README as moved.
+6. Archive `bb-plugin-mcp` in the `bb-plugins` repo README as moved.
 
 ## Phase B: the Customize page
 
@@ -40,13 +40,13 @@ Core edits, kept minimal.
 1. **Rename and icon.** "Skills" becomes "Customize" in `BuiltInSidebarNavigation.tsx`, `sidebarNavigationItems.ts`, `tools-navigation.ts` (`TOOLS_SECTIONS.skills.label` and `resolveSkillsWorkspaceHeaderMeta`), `AppLayout.tsx:276`, and the composer mention/actions menus (`MentionMenu.tsx:199`, `PromptBoxActionsMenu.tsx:73`) where the label means the page rather than the skills themselves. Use a sliders/tune glyph from the host icon set in place of `Zap`/`extensions`. Keep the `/skills` routes and `__bb__/skills` navigation key unchanged so upstream merges and stored sidebar preferences keep working.
 2. **Two buttons, no resource sidebar.** Add a `CustomizeTabs` segmented control (Skills | MCPs) rendered at the top of the page band. Skills routes to `/skills?view=library`; MCPs routes to the mcps plugin panel path. Skip rendering `ResourceSidebar` on the skills routes behind a fork constant (`FORK_CUSTOMIZE_PAGE = true` in one small `apps/app/src/lib/fork-flags.ts`), not by deleting the component.
 3. **Skills tab.** Keep the library list, search, provider/source filters, detail view, "New skill" (already prefills chat), and "Edit in chat". Behind the same flag, hide the Browse/registry mode (`activeMode === "browse"`, `RegistrySkillsBrowsePage`, `forkRegistrySkill`) and redirect `/skills/registry*` to `/skills?view=library`. Keep the CLI skills settings section as is.
-4. **MCPs tab.** The mcps plugin page renders the same `CustomizeTabs` at the top (exported from `@bb/shared-ui` or duplicated as a tiny component in the plugin, whichever avoids a new public plugin API). Hide the plugin's own sidebar entry by adding `mcps/mcps` to `DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS` in `pluginNavSidebarOrder.ts`, so the panel route still exists but the sidebar shows only Customize.
+4. **MCPs tab.** The mcps plugin page renders the same `CustomizeTabs` at the top (exported from `@bb/shared-ui` or duplicated as a tiny component in the plugin, whichever avoids a new public plugin API). Hide the plugin's own sidebar entry by adding `mcp/mcp` to `DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS` in `pluginNavSidebarOrder.ts`, so the panel route still exists but the sidebar shows only Customize.
 5. **Header.** Both tabs show the section title "Customize" with a breadcrumb for the tab and, on detail pages, the item name (the mcps plugin already publishes `HeaderCrumbs`).
 6. **Verification.** Unit tests for `CustomizeTabs` routing and the flag-gated redirect; `AppLayout.tools-breadcrumbs.test.ts` and `AppLayoutSidebar.test.tsx` updated for the new label; a `verify-bb` recipe that opens Customize, switches tabs, opens a skill detail and an MCP detail, and confirms the sidebar has one entry.
 
 ## Phase C: simplify the MCPs plugin UI
 
-1. Remove the Browse pane, `registrySearch` RPC from the UI, the add-URL and add-command dialogs, and the `NewMcpButton` menu. Keep the installed list, detail page (enable, authenticate, reconnect, headers, remove), and the `mcps-changed` realtime refresh.
+1. Remove the Browse pane, `registrySearch` RPC from the UI, the add-URL and add-command dialogs, and the `NewMcpButton` menu. Keep the installed list, detail page (enable, authenticate, reconnect, headers, remove), and the `mcp-changed` realtime refresh.
 2. "New MCP" calls `navigate.toCompose({ focusPrompt: true, initialPrompt: CREATE_MCP_PROMPT })` with:
 
    ```
@@ -56,11 +56,11 @@ Core edits, kept minimal.
    Offer two or three templates like Automations does (Notion, Slack, GitHub) that complete the sentence.
 3. "Edit in chat" on the detail page prefills a prompt with the server handle and the `bb mcps` commands for headers, enable/disable, and remove.
 4. CLI is unchanged: `bb mcps list|registry|add|auth|remove|show`. Add `bb mcps policy` in Phase E.
-5. Update `plugins/mcps/PLUGIN_OVERVIEW.md`, the CLI guide surfaces listed in `docs/cli-guide-and-skill.md`, and the `bb-cli` skill for the removed UI paths.
+5. Update `plugins/mcp/PLUGIN_OVERVIEW.md`, the CLI guide surfaces listed in `docs/cli-guide-and-skill.md`, and the `bb-cli` skill for the removed UI paths.
 
 ## Phase D: context
 
-1. **Connected list in instructions.** `bb.agents.configure()` returns `instructions` with one line per enabled server: `Connected MCPs: notion (Notion pages and databases), slack (Slack messages). Use mcps_search to find their tools.` Around 15 tokens per server. Rebuild on `mcps-changed`.
+1. **Connected list in instructions.** `bb.agents.configure()` returns `instructions` with one line per enabled server: `Connected MCPs: notion (Notion pages and databases), slack (Slack messages). Use mcps_search to find their tools.` Around 15 tokens per server. Rebuild on `mcp-changed`.
 2. **Per-server guide.** Add a nullable `guide` column to `sources` (plugin-owned SQLite migration). Editable on the detail page and via `bb mcps guide <id> [text]`. When set, append it under the server's line, capped so the whole block stays under 4096 characters.
 3. **Per-thread selection.** `configure()` receives `thread`, `project`, and `pluginMetadata`. Honor `pluginMetadata.servers: string[]` to limit the connected list, search scope, and direct tools for that thread. Default is all enabled servers. No UI yet; agents and the CLI can set thread metadata.
 
@@ -82,7 +82,7 @@ Core edits, kept minimal.
 
 ## Phase G: performance
 
-1. Warm catalogs for enabled servers on plugin start and after `mcps-changed`, in the background with the existing 5s failure backoff, so the first `mcps_search` in a thread is not a cold load.
+1. Warm catalogs for enabled servers on plugin start and after `mcp-changed`, in the background with the existing 5s failure backoff, so the first `mcps_search` in a thread is not a cold load.
 2. Pass `onElicitation` to the gateway so servers that ask for input mid-call get a BB pending interaction instead of failing. Sampling and roots stay off.
 3. Keep: process-wide gateway, host-isolated stdio with lease, `tools/list_changed` refresh, opaque IDs, 5-minute catalog TTL, 8k output cap with artifacts.
 
@@ -99,7 +99,7 @@ The providers must not bring their own MCP servers. The provider plugins cannot 
 ## Fork hygiene
 
 - Core files touched: `BuiltInSidebarNavigation.tsx`, `sidebarNavigationItems.ts`, `tools-navigation.ts`, `AppLayout.tsx`, `SkillsLibrary.tsx`, `pluginNavSidebarOrder.ts`, `App.tsx` (redirect), plus the new `fork-flags.ts` and `CustomizeTabs.tsx`. Expect conflicts in the first four on upstream merges; keep each diff to a few lines.
-- Plugin files are ours: `plugins/mcps/**`. No conflicts expected.
+- Plugin files are ours: `plugins/mcp/**`. No conflicts expected.
 - Do not touch `provider-claude-code`, `provider-codex`, provider bridges, connect, or tunnel. The Codex `deferLoading` change goes upstream only.
 - Bump nothing in `HOST_DAEMON_PROTOCOL_VERSION`; the mcps host contract is plugin-owned and unchanged.
 - Craft Agents is Apache-2.0. Nothing in this plan copies its code; the ideas (connected list, per-source read-only policy) are reimplemented.
@@ -121,6 +121,6 @@ Steps 1 and 2 can run in parallel. Step 5 is what the "prove one full run" step 
 
 ## Verification per phase
 
-- Turbo tasks: `pnpm exec turbo run typecheck test --filter=@bb/app --filter=bb-plugin-mcps`.
+- Turbo tasks: `pnpm exec turbo run typecheck test --filter=@bb/app --filter=bb-plugin-mcp`.
 - `verify-bb` recipes: Customize page navigation, skill create via chat, MCP add via chat with `bb mcps add`, a confirm-policy tool call approved from the inbox, and a Codex thread with a pinned server confirming the tool list.
 - Manual: `bb mcps list` before and after Phase A shows identical servers and auth; a Claude Code thread shows `mcp__bb-bridge__mcps_*` as deferred tools and the connected-MCPs line in instructions.

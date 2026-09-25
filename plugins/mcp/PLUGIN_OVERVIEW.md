@@ -1,6 +1,6 @@
 BB's built-in MCP registry: the official MCP Registry plus manual stdio and
 HTTP servers, normalized into one catalog that every provider sees. Install it
-with `bb plugin install builtin:mcps`.
+with `bb plugin install builtin:mcp`.
 
 ## What you get
 
@@ -63,7 +63,7 @@ section is omitted.
 
 ## Thread metadata
 
-Set `servers` in this plugin's thread metadata (plugin id `mcps`) to an array
+Set `servers` in this plugin's thread metadata (plugin id `mcp`) to an array
 of server IDs or handles to limit that thread's `<connected_mcps>` section, for
 example `{ "servers": ["notion", "mcp_abc123def4"] }`. An empty array lists
 none. Without the key, every enabled server is listed. Search and call scope

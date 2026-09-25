@@ -11,12 +11,12 @@ afterEach(async () => {
   await Promise.all(temps.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-describe("mcps plugin surface", () => {
+describe("mcp plugin surface", () => {
   it("lists an empty registry over CLI and registers lazy agent tools", async () => {
-    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-"));
+    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-"));
     temps.push(dataDir);
     const { bb, harness } = createFakePluginHost({
-      pluginId: "mcps",
+      pluginId: "mcp",
       sdk: {
         system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) },
       },
@@ -63,8 +63,8 @@ describe("mcps plugin surface", () => {
 });
 
 it('preserves both concurrent installs with the same name', async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), 'bb-mcps-')); temps.push(dataDir);
-  const {bb, harness} = createFakePluginHost({pluginId: 'mcps', sdk: {system: {config: async () => ({dataDir, primaryHostId: 'host_1'})}}});
+  const dataDir = await mkdtemp(join(tmpdir(), 'bb-mcp-')); temps.push(dataDir);
+  const {bb, harness} = createFakePluginHost({pluginId: 'mcp', sdk: {system: {config: async () => ({dataDir, primaryHostId: 'host_1'})}}});
   await plugin(bb);
   try {
     const results = await Promise.all(Array.from({length: 2}, () => harness.behavior.runCli(['add', 'same', '--', 'echo'])));
@@ -77,8 +77,8 @@ it('preserves both concurrent installs with the same name', async () => {
 
 
 it("takes a strict id on every agent tool and rejects other id fields", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-")); temps.push(dataDir);
-  const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-")); temps.push(dataDir);
+  const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
   const tool = { id: "mcpt_0123456789", sourceId: "mcp_fixture000", handle: "fixture", name: "echo", description: "Echo", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } };
   vi.spyOn(McpGateway.prototype, "searchTools").mockResolvedValue({ tools: [{ id: tool.id, sourceId: tool.sourceId, handle: tool.handle, name: "echo", description: "Echo", risk: "read" }], unavailable: [] });
   vi.spyOn(McpGateway.prototype, "getTool").mockResolvedValue(tool);
@@ -109,8 +109,8 @@ it("takes a strict id on every agent tool and rejects other id fields", async ()
 });
 
 it("rejects unknown ids through mcp_call with a clear error", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-")); temps.push(dataDir);
-  const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-")); temps.push(dataDir);
+  const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
   await plugin(bb);
   try {
     await expect(harness.behavior.callAgentTool("mcp_call", { id: "notion__mcp__search_0123456789" }))
@@ -122,8 +122,8 @@ it("rejects unknown ids through mcp_call with a clear error", async () => {
 });
 
 it("paginates lean discovery, distinguishes unknown counts, and keeps diagnostics opt-in", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-")); temps.push(dataDir);
-  const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-")); temps.push(dataDir);
+  const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
   await plugin(bb);
   const unpack = (result: unknown) => JSON.parse((result as { content: Array<{ text: string }> }).content[0]!.text);
   try {
@@ -146,8 +146,8 @@ it("paginates lean discovery, distinguishes unknown counts, and keeps diagnostic
 });
 
 it("uses one input map and preserves full schemas on demand", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-")); temps.push(dataDir);
-  const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-")); temps.push(dataDir);
+  const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
   const schema = { type: "object", properties: { query: { type: "string", minLength: 1 }, limit: { type: "integer", minimum: 1 } }, required: ["query"] };
   const { compactToolFromCatalog } = await import("../src/catalog.js");
   const tool = { id: "mcpt_test123abc", sourceId: "mcp_fixture000", handle: "fixture", name: "search", description: "Find things", inputSchema: schema, annotations: { readOnlyHint: true } };
@@ -170,8 +170,8 @@ it("uses one input map and preserves full schemas on demand", async () => {
 const instructionsBlock = (...lines: string[]) => ["<connected_mcps>", ...lines, "</connected_mcps>", "Use mcp_search to find tools on connected MCPs, then mcp_call."].join("\n");
 
 it("round-trips a server guide through RPC and CLI and renders it in agent instructions", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-")); temps.push(dataDir);
-  const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-")); temps.push(dataDir);
+  const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } } });
   await plugin(bb);
   const configure = (pluginMetadata = {}) => harness.behavior.resolveAgentConfiguration(makePluginAgentConfigurationContext({ pluginMetadata }));
   try {

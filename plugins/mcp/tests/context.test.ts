@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { McpsStore } from "../src/store.js";
+import type { McpStore } from "../src/store.js";
 import { connectedInstructions, GUIDE_MAX_CHARS, INSTRUCTIONS_MAX_CHARS, threadServerSelection } from "../src/context.js";
 import { addSource as insertSource, memoryStore } from "./helpers.js";
 
-const stores: McpsStore[] = [];
+const stores: McpStore[] = [];
 afterEach(() => { for (const store of stores.splice(0)) store.db.close(); });
 
-function createStore(): McpsStore {
+function createStore(): McpStore {
   const store = memoryStore();
   stores.push(store);
   return store;
 }
 
-function addSource(store: McpsStore, name: string, options: { description?: string | null; enabled?: boolean } = {}) {
+function addSource(store: McpStore, name: string, options: { description?: string | null; enabled?: boolean } = {}) {
   return insertSource(store, { name, description: options.description ?? null }, options.enabled !== false).id;
 }
 
-function render(store: McpsStore, metadata: Record<string, unknown> = {}) {
+function render(store: McpStore, metadata: Record<string, unknown> = {}) {
   return connectedInstructions(store.listEnabled(), threadServerSelection(metadata));
 }
 

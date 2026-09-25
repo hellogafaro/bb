@@ -925,7 +925,7 @@
     "bb-plugin-keep-awake#typecheck": {
       "dependsOn": ["@get-bb/plugin-sdk#build:types", "topo"]
     },
-    "bb-plugin-mcps#typecheck": {
+    "bb-plugin-mcp#typecheck": {
       "dependsOn": ["@get-bb/plugin-sdk#build:types", "topo"]
     },
     "bb-plugin-memory#typecheck": {

@@ -39,7 +39,7 @@ it('bounds the rendered rows of a 500-tool catalog and exposes later pages', asy
 it('keeps the newest snapshot after out-of-order realtime refreshes and aborts old reads', async () => {
   const old = deferred<{servers: typeof rows}>(); let calls = 0;
   const slot = mount('', { snapshot: () => ++calls === 1 ? old.promise : {servers: [rows[1]]} });
-  await slot.behavior.emitRealtime('mcps-changed', {});
+  await slot.behavior.emitRealtime('mcp-changed', {});
   await slot.findByText('beta');
   const firstSignal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
   expect(firstSignal.aborted).toBe(true);

@@ -5,7 +5,7 @@ manual stdio/HTTP servers, exposed as a small lazy catalog (`mcp_search` with
 compact input maps, then `mcp_call`; `mcp_schema` when more detail is needed)
 instead of dumping every schema into context.
 
-Source: `plugins/mcps` in the BB monorepo. The plugin ID is `mcps`;
+Source: `plugins/mcp` in the BB monorepo. The plugin ID is `mcp`;
 settings, OAuth credentials, and server data live under that ID.
 
 Storage is the plugin's SQLite database with two tables: `sources` (one row
@@ -13,12 +13,12 @@ per server: `id`, unique `handle`, name, transport `type`, `configJson`,
 `status`, `lastError`, `enabled`, `guide`, and registry provenance) and
 `tool_policies` (`sourceId`, `toolName`, `risk`, `mode`, deleted with their
 source). OAuth credentials are one BB secret keyed by source ID, and stdio
-working directories live under `plugins/mcps/servers/<id>/`.
+working directories live under `plugins/mcp/servers/<id>/`.
 
 ```
-pnpm exec turbo run typecheck --filter=bb-plugin-mcps
-pnpm exec turbo run test --filter=bb-plugin-mcps
-bb plugin install builtin:mcps --yes
+pnpm exec turbo run typecheck --filter=bb-plugin-mcp
+pnpm exec turbo run test --filter=bb-plugin-mcp
+bb plugin install builtin:mcp --yes
 ```
 
 CLI: `bb mcp list`, `bb mcp registry <query>`, `bb mcp add <name> <url|registry-id>`,

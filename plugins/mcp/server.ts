@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { handleFor, McpsStore, type NewMcpSource } from "./src/store.js";
+import { handleFor, McpStore, type NewMcpSource } from "./src/store.js";
 import { McpGateway, type McpStdioCatalog, type McpStdioHost } from "./src/gateway.js";
 import { mcpHostContract, mcpHostSignals, providerMcpStatusSchema } from "./src/host-contract.js";
 import { DeferredOAuthCredentialStore, McpOAuthProvider, type OAuthCredentialRecord } from "./src/oauth.js";
@@ -171,7 +171,7 @@ function headersFromInput(headers?: Record<string, string>, headerLines?: string
 }
 
 export default async function plugin(bb: BbPluginApi) {
-  bb.log.info("[mcps] loading");
+  bb.log.info("[mcp] loading");
 
   let dataDir: string | null = null;
   const getDataDir = async (): Promise<string> => {
@@ -188,11 +188,11 @@ export default async function plugin(bb: BbPluginApi) {
   let disposed = false;
   async function publishChanged(payload: Record<string, unknown>): Promise<void> {
     if (payload.kind !== "mcp-runtime") scheduleWarmup(WARMUP_AFTER_CHANGE_MS);
-    try { await bb.realtime.publish("mcps-changed", payload); }
-    catch (error) { bb.log.warn(`[mcps] realtime publish failed: ${errorText(error)}`); }
+    try { await bb.realtime.publish("mcp-changed", payload); }
+    catch (error) { bb.log.warn(`[mcp] realtime publish failed: ${errorText(error)}`); }
   }
 
-  const store = new McpsStore(bb.storage.database(), (db, statements) => bb.storage.migrate(db, statements));
+  const store = new McpStore(bb.storage.database(), (db, statements) => bb.storage.migrate(db, statements));
   const settings = bb.settings.define({
     registryUrl: {
       type: "string",
@@ -221,13 +221,13 @@ export default async function plugin(bb: BbPluginApi) {
       try {
         const parsed = JSON.parse(raw) as unknown;
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, OAuthCredentialRecord>;
-      } catch (error) { bb.log.warn(`[mcps] OAuth secret store is invalid: ${errorText(error)}`); }
+      } catch (error) { bb.log.warn(`[mcp] OAuth secret store is invalid: ${errorText(error)}`); }
       return {};
     },
     async save(next: Record<string, OAuthCredentialRecord>): Promise<void> {
       await bb.sdk.plugins.updateSettings({ pluginId: bb.pluginId, values: { oauthCredentials: JSON.stringify(next) } });
     },
-  }, (error) => bb.log.warn(`[mcps] OAuth secret persistence failed: ${errorText(error)}`));
+  }, (error) => bb.log.warn(`[mcp] OAuth secret persistence failed: ${errorText(error)}`));
   async function withDeferredOAuthPersistence<T>(operation: () => Promise<T>): Promise<T> {
     const release = oauthCredentialStore.deferPersistence();
     try { return await operation(); }
@@ -281,7 +281,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
   };
   async function serverDir(id: string): Promise<string> {
-    return path.join(await getDataDir(), "plugins", "mcps", "servers", id);
+    return path.join(await getDataDir(), "plugins", "mcp", "servers", id);
   }
   async function serverDirs(id: string) {
     const dir = await serverDir(id);
@@ -313,7 +313,7 @@ export default async function plugin(bb: BbPluginApi) {
   });
 
   async function artifactDir(): Promise<string> {
-    const dir = path.join(await getDataDir(), "plugins", "mcps", "artifacts");
+    const dir = path.join(await getDataDir(), "plugins", "mcp", "artifacts");
     await ensureDir(dir);
     return dir;
   }
@@ -355,7 +355,7 @@ export default async function plugin(bb: BbPluginApi) {
     if (!source) return undefined;
     await gateway.resetServer(source.id).catch(() => {});
     await oauthCredentialStore.delete(source.id).catch((error) => {
-      bb.log.warn(`[mcps] could not delete OAuth credentials for ${source.handle}: ${errorText(error)}`);
+      bb.log.warn(`[mcp] could not delete OAuth credentials for ${source.handle}: ${errorText(error)}`);
     });
     store.delete(source.id);
     await rimraf(await serverDir(source.id)).catch(() => {});
@@ -481,7 +481,7 @@ export default async function plugin(bb: BbPluginApi) {
     if (warmTimer) clearTimeout(warmTimer);
     warmTimer = setTimeout(() => {
       warmTimer = null;
-      if (!disposed) void gateway.warm().catch((error) => bb.log.info(`[mcps] warmup failed: ${errorText(error)}`));
+      if (!disposed) void gateway.warm().catch((error) => bb.log.info(`[mcp] warmup failed: ${errorText(error)}`));
     }, delayMs);
     warmTimer.unref?.();
   }
@@ -513,7 +513,7 @@ export default async function plugin(bb: BbPluginApi) {
       await publishChanged({ kind: "oauth", id });
       return new Response("<p>Authentication completed. You can close this window.</p>", { headers: { "content-type": "text/html; charset=utf-8" } });
     } catch (error) {
-      bb.log.warn(`[mcps] OAuth callback failed for ${id}: ${errorText(error)}`);
+      bb.log.warn(`[mcp] OAuth callback failed for ${id}: ${errorText(error)}`);
       return new Response("<p>Authentication failed. Return to BB and try again.</p>", { status: 400, headers: { "content-type": "text/html; charset=utf-8" } });
     }
   });
@@ -979,14 +979,14 @@ export default async function plugin(bb: BbPluginApi) {
 
   scheduleWarmup(WARMUP_ON_START_MS);
   void providerStatus("providerMcpStatus").then(({ hostId, issues }) => {
-    for (const issue of issues) bb.log.warn(`[mcps] provider MCP guard on ${hostId}: ${issue.message}`);
-  }, (error) => bb.log.info(`[mcps] provider MCP guard unavailable: ${errorText(error)}`));
+    for (const issue of issues) bb.log.warn(`[mcp] provider MCP guard on ${hostId}: ${issue.message}`);
+  }, (error) => bb.log.info(`[mcp] provider MCP guard unavailable: ${errorText(error)}`));
 
   bb.onDispose(async () => {
     disposed = true;
     if (warmTimer) clearTimeout(warmTimer);
     await gateway.close().catch(() => {});
     oauthCredentialStore.dispose();
-    bb.log.info("[mcps] disposed");
+    bb.log.info("[mcp] disposed");
   });
 }

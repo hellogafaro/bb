@@ -20,7 +20,7 @@ interface CustomizeBreadcrumb {
   to?: string;
 }
 
-export const CUSTOMIZE_MCPS_PANEL = { pluginId: "mcps", path: "mcps" } as const;
+export const CUSTOMIZE_MCPS_PANEL = { pluginId: "mcp", path: "mcp" } as const;
 export const CUSTOMIZE_MCPS_PANEL_ROUTE_PATH =
   getPluginPanelRoutePath(CUSTOMIZE_MCPS_PANEL);
 const CUSTOMIZE_MCPS_ROUTE_PATH = `${CUSTOMIZE_ROUTE_PATH}/mcps`;

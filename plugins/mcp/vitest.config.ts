@@ -21,7 +21,7 @@ export default defineWorkspaceTestConfig({
     projects: sharedWorkerProjects({
       pkgDir: import.meta.dirname,
       aliases: { "@": path.resolve(import.meta.dirname, ".") },
-      name: "bb-plugin-mcps",
+      name: "bb-plugin-mcp",
       include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
       exclude: ["dist/**", "node_modules/**"],
     }),

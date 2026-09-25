@@ -70,9 +70,9 @@ function stubElicitingServer() {
 describe("MCP elicitation", () => {
   it("asks the user through a BB interaction in the calling thread and returns the answer to the server", async () => {
     const { answers } = stubElicitingServer();
-    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-elicit-"));
+    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-elicit-"));
     temps.push(dataDir);
-    const { bb, harness } = createFakePluginHost({ pluginId: "mcps", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) }, plugins: { updateSettings: async () => ({}) } } });
+    const { bb, harness } = createFakePluginHost({ pluginId: "mcp", sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) }, plugins: { updateSettings: async () => ({}) } } });
     await plugin(bb);
     try {
       expect((await harness.behavior.runCli(["add", "elicit", `${origin}/mcp`])).exitCode).toBe(0);

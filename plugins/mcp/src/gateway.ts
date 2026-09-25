@@ -14,7 +14,7 @@ import {
   type Tool,
 } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
-import type { McpsStore } from "./store.js";
+import type { McpStore } from "./store.js";
 import { expandPlaceholders, validateMcpServer } from "./loader.js";
 import { isWithinRoot } from "./safe-fs.js";
 import { McpOAuthProvider } from "./oauth.js";
@@ -79,7 +79,7 @@ export interface McpStdioHost {
   onConnectionChanged?(handler: (id: string, status: "closed" | "error", error: string | null) => void | Promise<void>): () => void;
 }
 
-const MCP_CLIENT_INFO = { name: "bb-mcps", version: "0.1.0" };
+const MCP_CLIENT_INFO = { name: "bb-mcp", version: "0.1.0" };
 const CONNECT_TIMEOUT_MS = 15_000;
 const OAUTH_TIMEOUT_MS = 15_000;
 const FETCH_TIMEOUT_GRACE_MS = 1_000;
@@ -294,7 +294,7 @@ export class McpGateway {
   private closed = false;
 
   constructor(
-    private readonly store: McpsStore,
+    private readonly store: McpStore,
     private readonly log: { info(m: string): void; warn(m: string): void; error(m: string): void },
     private readonly options: McpGatewayOptions,
   ) {

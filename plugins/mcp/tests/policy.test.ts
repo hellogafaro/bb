@@ -82,11 +82,11 @@ describe("tool policies", () => {
 });
 
 async function pluginFixture() {
-  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-policy-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-policy-"));
   temps.push(dataDir);
   const ran: string[] = [];
   const { bb, harness } = createFakePluginHost({
-    pluginId: "mcps",
+    pluginId: "mcp",
     sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } },
     experimental_callHostRpc: async (call) => {
       const input = call.input as { name?: string };

@@ -235,7 +235,7 @@ function useServers() {
     }, (cause) => { if (!controller.signal.aborted) setError(errorText(cause)); });
   }, []);
   useEffect(() => { refetch(); return () => request.current?.abort(); }, [refetch]);
-  useRealtime("mcps-changed", refetch);
+  useRealtime("mcp-changed", refetch);
   return { rpc, servers, error, setError, refetch };
 }
 
@@ -640,7 +640,7 @@ function McpsPage({ subPath }: { subPath: string }) {
   const [removeTarget, setRemoveTarget] = useState<ServerRow | null>(null);
 
   const go = (next: string, replace = false) => {
-    nav.toPluginPanel("mcps", { subPath: next, replace });
+    nav.toPluginPanel("mcp", { subPath: next, replace });
   };
 
   useEffect(() => {
@@ -766,10 +766,10 @@ function McpsPage({ subPath }: { subPath: string }) {
 
 export default definePluginApp((app) => {
   app.slots.navPanel({
-    id: "mcps",
+    id: "mcp",
     title: "MCPs",
     icon: "Layers",
-    path: "mcps",
+    path: "mcp",
     component: McpsPage,
   });
   app.slots.pendingInteraction({ id: APPROVAL_RENDERER_ID, component: McpApprovalInteraction });

@@ -16,7 +16,7 @@ import { disableClaudeConnectors, providerGuardPaths, readProviderMcpStatus } fr
 const CONNECT_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 60_000;
 const CLOSE_TIMEOUT_MS = 2_000;
-const MCP_CLIENT_INFO = { name: "bb-mcps-stdio", version: "0.1.0" };
+const MCP_CLIENT_INFO = { name: "bb-mcp-stdio", version: "0.1.0" };
 
 type HostConnection = {
   client: Client;
@@ -186,7 +186,7 @@ async function start(input: {
   });
   transport.stderr?.on("data", (chunk: Buffer) => {
     const message = chunk.toString("utf8").trim();
-    if (message) console.warn(`[mcps] MCP ${input.id} stderr: ${message.slice(0, 2000)}`);
+    if (message) console.warn(`[mcp] MCP ${input.id} stderr: ${message.slice(0, 2000)}`);
   });
 
   const connection: HostConnection = {

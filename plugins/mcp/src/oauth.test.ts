@@ -54,7 +54,7 @@ describe("McpOAuthProvider", () => {
     const provider = new McpOAuthProvider(
       "plugin:server",
       new URL("https://mcp.notion.com/mcp"),
-      new URL("https://g4f4r0.getbb.app/api/v1/plugins/mcps/http/oauth/callback?id=mcp_notion0000"),
+      new URL("https://g4f4r0.getbb.app/api/v1/plugins/mcp/http/oauth/callback?id=mcp_notion0000"),
       new MemorySecrets(),
     );
     expect(provider.clientMetadata).toEqual(expect.objectContaining({

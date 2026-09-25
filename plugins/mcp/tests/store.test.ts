@@ -1,11 +1,11 @@
 import { afterEach, expect, it } from "vitest";
-import type { McpsStore } from "../src/store.js";
+import type { McpStore } from "../src/store.js";
 import { addSource, memoryStore } from "./helpers.js";
 
-const stores: McpsStore[] = [];
+const stores: McpStore[] = [];
 afterEach(() => { for (const store of stores.splice(0)) store.db.close(); });
 
-function createStore(): McpsStore {
+function createStore(): McpStore {
   const store = memoryStore();
   stores.push(store);
   return store;

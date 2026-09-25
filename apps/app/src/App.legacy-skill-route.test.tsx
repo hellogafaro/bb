@@ -111,9 +111,9 @@ describe("legacy resource redirects", () => {
     ["/skills?view=library", "/customize"],
     ["/skills/registry?sort=trending", "/customize"],
     ["/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
-    ["/plugins/mcps/mcps", "/customize/mcps"],
+    ["/plugins/mcp/mcp", "/customize/mcps"],
     [
-      "/plugins/mcps/mcps/installed/my%20server?tab=tools#auth",
+      "/plugins/mcp/mcp/installed/my%20server?tab=tools#auth",
       "/customize/mcps/installed/my%20server?tab=tools#auth",
     ],
     ["/tools", "/plugins"],

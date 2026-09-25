@@ -287,7 +287,7 @@ describe("togglePluginNavPanelVisibility", () => {
 
 describe("Customize page sidebar defaults", () => {
   it("hides the mcps panel by default but keeps it available to show", () => {
-    const mcps = panel("mcps", "mcps");
+    const mcps = panel("mcp", "mcp");
     const arranged = arrangePluginNavPanelPreferences({
       panels: [github, mcps],
       storedOrder: [],
@@ -302,18 +302,18 @@ describe("Customize page sidebar defaults", () => {
   });
 
   it("keeps the mcps panel hidden when a stored preference lists it", () => {
-    const mcps = panel("mcps", "mcps");
+    const mcps = panel("mcp", "mcp");
     const arranged = arrangePluginNavPanelPreferences({
       panels: [github, mcps],
       storedOrder: [],
-      storedVisibleKeys: ["github/pulls", "mcps/mcps"],
+      storedVisibleKeys: ["github/pulls", "mcp/mcp"],
       defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
     });
     expect(arranged.visible).toEqual([github]);
     expect(arranged.visibleKeys).toEqual(["github/pulls"]);
     expect(arranged.normalizedVisibleKeys).toEqual([
       "github/pulls",
-      "mcps/mcps",
+      "mcp/mcp",
     ]);
   });
 });

@@ -20,7 +20,7 @@ let home = "";
 
 beforeEach(async () => {
   saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
-  home = await mkdtemp(join(tmpdir(), "bb-mcps-home-"));
+  home = await mkdtemp(join(tmpdir(), "bb-mcp-home-"));
   process.env.HOME = home;
   process.env.CODEX_HOME = join(home, "codex-home");
   delete process.env.CLAUDE_CONFIG_DIR;
@@ -140,10 +140,10 @@ describe("provider MCP guard", () => {
   it("prints the status, fixes connectors, and targets a chosen machine over the CLI", async () => {
     await writeFixtures();
     const hostHarness = experimental_createHostEntryHarness(hostEntry);
-    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcps-providers-"));
+    const dataDir = await mkdtemp(join(tmpdir(), "bb-mcp-providers-"));
     const hostIds: string[] = [];
     const { bb, harness } = createFakePluginHost({
-      pluginId: "mcps",
+      pluginId: "mcp",
       sdk: { system: { config: async () => ({ dataDir, primaryHostId: "host_1" }) } },
       experimental_callHostRpc: async (call) => {
         hostIds.push(call.hostId);

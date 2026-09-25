@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isMcpRequest, redirectGuardFetch, McpGateway, type McpGatewayOptions, type McpStdioHost } from "../src/gateway.js";
-import type { McpsStore } from "../src/store.js";
+import type { McpStore } from "../src/store.js";
 import type { Tool } from "@modelcontextprotocol/client";
 import { addSource, memoryStore, serverDirs, silent, stdioHost } from "./helpers.js";
 
@@ -8,7 +8,7 @@ function hostWithTools(tools: Tool[], onCall: () => void = () => {}): McpStdioHo
   return stdioHost(() => ({ tools, prompts: [], resources: [], resourceTemplates: [] }), onCall);
 }
 
-function seed(store: McpsStore, name = "Fixture") {
+function seed(store: McpStore, name = "Fixture") {
   return addSource(store, { name, description: "test server", sourceRef: "echo" }).id;
 }
 
@@ -38,7 +38,7 @@ describe("lazy MCP gateway", () => {
   afterEach(async () => {
     await Promise.all(gateways.splice(0).map((gateway) => gateway.close()));
   });
-  const open = (store: McpsStore, options: Omit<McpGatewayOptions, "serverDirs">) => {
+  const open = (store: McpStore, options: Omit<McpGatewayOptions, "serverDirs">) => {
     const gateway = new McpGateway(store, silent, { serverDirs, ...options });
     gateways.push(gateway);
     return gateway;

@@ -37,7 +37,7 @@ function randomSuffix(length: number): string {
   return Array.from({ length }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join("");
 }
 
-export class McpsStore {
+export class McpStore {
   private readonly statements;
 
   constructor(

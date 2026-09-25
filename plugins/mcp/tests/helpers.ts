@@ -1,19 +1,19 @@
 import Database from "better-sqlite3";
 import type { McpStdioCatalog, McpStdioHost } from "../src/gateway.js";
-import { McpsStore, type NewMcpSource } from "../src/store.js";
+import { McpStore, type NewMcpSource } from "../src/store.js";
 import type { McpSource } from "../src/types.js";
 
 export const silent = { info() {}, warn() {}, error() {} };
 
-export const serverDirs = async () => ({ root: "/tmp/mcps-root", data: "/tmp/mcps-data" });
+export const serverDirs = async () => ({ root: "/tmp/mcp-root", data: "/tmp/mcp-data" });
 
-export function memoryStore(): McpsStore {
-  return new McpsStore(new Database(":memory:"), (db, statements) => {
+export function memoryStore(): McpStore {
+  return new McpStore(new Database(":memory:"), (db, statements) => {
     for (const statement of statements) db.exec(statement);
   });
 }
 
-export function addSource(store: McpsStore, input: Partial<NewMcpSource> & { name: string }, enabled = true): McpSource {
+export function addSource(store: McpStore, input: Partial<NewMcpSource> & { name: string }, enabled = true): McpSource {
   const source = store.insert({
     description: null,
     type: "stdio",

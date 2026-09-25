@@ -45,7 +45,7 @@ function McpsPanelFixture({ subPath }: { subPath: string }) {
       <button
         type="button"
         onClick={() =>
-          nav.toPluginPanel("mcps", { subPath: "installed/github" })
+          nav.toPluginPanel("mcp", { subPath: "installed/github" })
         }
       >
         Open GitHub
@@ -85,14 +85,14 @@ function renderRoutes(initialPath: string) {
   const fetchMock = vi.fn(async () => new Response(null, { status: 500 }));
   vi.stubGlobal("fetch", fetchMock);
   setPluginSlotRegistrations(
-    "mcps",
+    "mcp",
     makePluginRegistrationSet({
       navPanels: [
         {
-          id: "mcps",
+          id: "mcp",
           title: "MCPs",
           icon: "Layers",
-          path: "mcps",
+          path: "mcp",
           component: McpsPanelFixture,
         },
       ],

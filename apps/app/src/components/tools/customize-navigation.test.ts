@@ -37,13 +37,13 @@ describe("Customize routes", () => {
   it("sends mcps plugin navigation to the Customize page only", () => {
     expect(
       resolvePluginPanelRoutePath({
-        pluginId: "mcps",
-        path: "mcps",
+        pluginId: "mcp",
+        path: "mcp",
         subPath: "installed/github",
       }),
     ).toBe("/customize/mcps/installed/github");
     expect(
-      resolvePluginPanelRoutePath({ pluginId: "mcps", path: "mcps" }),
+      resolvePluginPanelRoutePath({ pluginId: "mcp", path: "mcp" }),
     ).toBe("/customize/mcps");
     expect(
       resolvePluginPanelRoutePath({ pluginId: "garden", path: "docs" }),
@@ -116,6 +116,6 @@ describe("Customize header", () => {
 
   it("leaves other routes alone", () => {
     expect(resolveCustomizeHeaderMeta("/plugins")).toBeNull();
-    expect(resolveCustomizeHeaderMeta("/plugins/mcps/mcps")).toBeNull();
+    expect(resolveCustomizeHeaderMeta("/plugins/mcp/mcp")).toBeNull();
   });
 });

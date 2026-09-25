@@ -15,7 +15,7 @@ export const BUILT_IN_SIDEBAR_NAVIGATION_KEYS = {
 } as const;
 
 export const FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS = FORK_CUSTOMIZE_PAGE
-  ? (["mcps/mcps"] as const)
+  ? (["mcp/mcp"] as const)
   : ([] as const);
 
 export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [
