@@ -170,7 +170,7 @@ describe("Agents page", () => {
     expect(screen.getByText("Default")).toBeTruthy();
     await waitFor(() =>
       expect(
-        screen.getByText("Codex · GPT-5 · 1 skill · 1 MCP"),
+        screen.getByText("Codex · GPT 5 · 1 skill · 1 MCP"),
       ).toBeTruthy(),
     );
     expect(
