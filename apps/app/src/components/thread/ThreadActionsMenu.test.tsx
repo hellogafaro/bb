@@ -11,11 +11,7 @@ import { CompactViewportOverrideProvider } from "@bb/shared-ui/hooks/use-compact
 import type { ReactNode } from "react";
 import { createStore, Provider } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  sidebarHiddenGroupsAtom,
-  sidebarManualSectionOrderAtom,
-  sidebarOrganizationModeAtom,
-} from "@/components/sidebar/sidebarCollapsedAtoms";
+import { sidebarOrganizationModeAtom } from "@/components/sidebar/sidebarCollapsedAtoms";
 import { makeThreadListEntry } from "../../../.ladle/story-fixtures";
 import {
   ThreadActionsContextMenu,
@@ -250,23 +246,9 @@ describe("ThreadActionsMenu", () => {
 });
 
 describe("ThreadActionsMenu section moves", () => {
-  it("keeps hidden sections selectable without restoring them to the list", async () => {
+  it("offers no section moves beside the built-in status list", async () => {
     const store = createStore();
-    const hidden = ["section:sec_planning", "section:sec_building"];
-    const order = [
-      "section:sec_building",
-      "pinned",
-      "threads",
-      "section:sec_planning",
-    ];
     store.set(sidebarOrganizationModeAtom, "chronological");
-    store.set(sidebarHiddenGroupsAtom, hidden);
-    store.set(sidebarManualSectionOrderAtom, order);
-    const unfiledThread = makeThreadListEntry({
-      ...thread,
-      parentThreadId: null,
-      sectionId: null,
-    });
     renderWide(
       <Provider store={store}>
         <AppThreadSectionMoveProvider
@@ -275,7 +257,13 @@ describe("ThreadActionsMenu section moves", () => {
             { id: "sec_building", name: "Building" },
           ]}
         >
-          <ThreadActionsMenu thread={unfiledThread} />
+          <ThreadActionsMenu
+            thread={makeThreadListEntry({
+              ...thread,
+              parentThreadId: null,
+              sectionId: null,
+            })}
+          />
         </AppThreadSectionMoveProvider>
       </Provider>,
       false,
@@ -285,16 +273,8 @@ describe("ThreadActionsMenu section moves", () => {
       screen.getByRole("button", { name: "Thread actions" }),
       { button: 0 },
     );
-    const building = await openMoveSubmenu();
-    expect(screen.getByRole("menuitem", { name: "Planning" })).not.toBeNull();
-    fireEvent.click(building);
-
-    expect(moveThreadToSection).toHaveBeenCalledWith({
-      thread: unfiledThread,
-      sectionId: "sec_building",
-    });
-    expect(store.get(sidebarHiddenGroupsAtom)).toEqual(hidden);
-    expect(store.get(sidebarManualSectionOrderAtom)).toEqual(order);
+    expect(await screen.findByRole("menuitem", { name: "Rename" })).not.toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Move to section" })).toBeNull();
   });
 
   it("moves from the overflow menu and indicates the current section", async () => {

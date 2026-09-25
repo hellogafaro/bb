@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import * as domain from "@bb/domain";
 import {
   setupCommandOutputTestEnvironment,
+  collectLogLines,
   collectLogPayloads,
   runCommand,
   stubServerApi,
@@ -49,6 +50,27 @@ describe("bb thread list command output", () => {
     expect(list).toHaveBeenCalledWith({
       query: { includeHidden: "true" },
     });
+  });
+
+  it("bb thread list --snoozed asks the server for snoozed threads", async () => {
+    const list = vi.fn(async () => [
+      fixtures.makeThread({
+        id: "thread-snoozed-1",
+        projectId: "proj-1",
+        providerId: "codex",
+        snoozedUntil: Date.now() + 60_000,
+      }),
+    ]);
+    stubServerApi({ "v1.threads.$get": list, "v1.projects.$get": async () => [] });
+
+    await runCommand(["thread", "list", "--snoozed"], register);
+
+    expect(list).toHaveBeenCalledWith({ query: { snoozed: "true" } });
+    expect(
+      collectLogLines(vi.mocked(console.log)).some((line) =>
+        line.includes("(snoozed)"),
+      ),
+    ).toBe(true);
   });
 
   it("bb thread list rejects invalid parent-thread values", async () => {

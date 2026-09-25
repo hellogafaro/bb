@@ -1,6 +1,7 @@
 import {
   setQueuedThreadMessageFailureReason,
   setQueuedThreadMessageWaitingOn,
+  wakeSnoozedThreadFamily,
 } from "@bb/db";
 import {
   QUEUED_MESSAGE_FAILURE_REASON_MAX_LENGTH,
@@ -76,11 +77,14 @@ export function recordQueuedMessageDrainFailure(
     return;
   }
 
-  setQueuedThreadMessageFailureReason(deps.db, deps.hub, {
+  const failed = setQueuedThreadMessageFailureReason(deps.db, deps.hub, {
     id: args.row.id,
     threadId: args.row.threadId,
     failureReason: describeDispatchFailure(args.error),
     now: args.now,
     retryDelaysMs: QUEUED_MESSAGE_RETRY_DELAYS_MS,
   });
+  if (failed) {
+    wakeSnoozedThreadFamily(deps.db, deps.hub, { threadId: failed.threadId });
+  }
 }

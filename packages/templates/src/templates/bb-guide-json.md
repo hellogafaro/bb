@@ -38,7 +38,7 @@ Fields beyond those shown exist; these are the ones scripts use.
     {project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}
 
   bb thread list --json
-    [{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, createdAt, updatedAt, activity}]    (bare array; title can be null)
+    [{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, createdAt, updatedAt, activity}]    (bare array; title can be null)
 
   bb thread show <id> --json
     {thread: {id, status, title, projectId, environmentId, parentThreadId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)
@@ -54,6 +54,9 @@ Fields beyond those shown exist; these are the ones scripts use.
 
   bb thread generate-title <id> --json
     the updated thread: {id, status, title, projectId, environmentId, ...}
+
+  bb thread snooze <id> <until> --json, bb thread unsnooze <id> --json
+    the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)
 
   bb thread tell <id> ... --json
     {threadId, ...delivery outcome}

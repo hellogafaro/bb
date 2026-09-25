@@ -279,6 +279,11 @@ export function registerThreadBaseRoutes(app: Hono, deps: AppDeps): void {
       ...(query.sourceThreadId ? { sourceThreadId: query.sourceThreadId } : {}),
       ...(query.sectionId ? { sectionId: query.sectionId } : {}),
       ...(query.unsectioned === "true" ? { unsectioned: true } : {}),
+      ...(query.snoozed === undefined
+        ? {}
+        : {
+            snoozeFilter: { now: Date.now(), snoozed: query.snoozed === "true" },
+          }),
       ...(query.originKind ? { originKind: query.originKind } : {}),
       ...(query.originPluginId ? { originPluginId: query.originPluginId } : {}),
       includeHidden: query.includeHidden === "true",

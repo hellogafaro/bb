@@ -107,6 +107,12 @@ hostId, providerId, projectId, parentThreadId, groupBy })`.
   `bb thread unarchive` inside that window leaves everything in place; bb stops
   the thread and closes its terminals once the grace elapses. Use
   `bb thread stop <thread-id>` when the run must end now.
+- `bb thread snooze <thread-id> <until>` moves a thread and its child threads
+  to the sidebar's Snoozed section until an ISO time or a duration (`2h`,
+  `1d`); `bb thread unsnooze <thread-id>` wakes it now and
+  `bb thread list --snoozed` lists sleepers. The server wakes a snooze early
+  when the thread needs attention (input, a finished turn, a failure), so
+  snoozing never hides a question.
 
 ## Inspecting Results
 

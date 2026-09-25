@@ -27,6 +27,16 @@ export type SidebarThreadGrouping = z.infer<typeof sidebarThreadGroupingSchema>;
 
 const collapsibleSidebarSectionIdSchema = z.enum(["pinned", "threads"]);
 
+export const SIDEBAR_STATUS_SECTION_IDS = [
+  "waiting",
+  "ready",
+  "working",
+  "done",
+  "snoozed",
+] as const;
+export type SidebarStatusSectionId = (typeof SIDEBAR_STATUS_SECTION_IDS)[number];
+const sidebarStatusSectionIdSchema = z.enum(SIDEBAR_STATUS_SECTION_IDS);
+
 const uiPreferenceStringSchema = z
   .string()
   .min(1)
@@ -49,6 +59,7 @@ export const UI_PREFERENCE_KEYS = [
   "sidebar.machineSectionOrder",
   "sidebar.hiddenGroups",
   "sidebar.collapsedSections",
+  "sidebar.collapsedStatusSections",
   "sidebar.collapsedProjects",
   "sidebar.collapsedThreads",
   "sidebar.collapsedEnvironments",
@@ -129,6 +140,14 @@ export const uiPreferenceDefinitions = {
       .max(UI_PREFERENCE_LIST_MAX_LENGTH),
     [],
     "Built-in sidebar sections that are collapsed.",
+  ),
+  "sidebar.collapsedStatusSections": defineUiPreference(
+    z
+      .array(sidebarStatusSectionIdSchema)
+      .max(SIDEBAR_STATUS_SECTION_IDS.length)
+      .transform((value) => [...new Set(value)]),
+    [],
+    "Sidebar status sections (waiting, ready, working, done, snoozed) that are collapsed.",
   ),
   "sidebar.collapsedProjects": defineUiPreference(
     uiPreferenceStringListSchema,

@@ -612,11 +612,11 @@ function HeaderSectionDestinations() {
 
 describe("thread header section moves", () => {
   it.each([
-    ["chronological", "Building,Planning,Threads"],
+    ["chronological", "unavailable"],
     ["project", "unavailable"],
     ["machine", "unavailable"],
   ] as const)(
-    "supplies destinations to thread content in %s mode",
+    "offers no section destinations beside the built-in status list in %s mode",
     (mode, expected) => {
       const store = createStore();
       store.set(sidebarOrganizationModeAtom, mode);

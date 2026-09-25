@@ -21,6 +21,9 @@ import { PluginThreadList } from "./PluginThreadList";
 
 const toast = vi.hoisted(() => ({ error: vi.fn() }));
 vi.mock("@/components/ui/app-toast", () => ({ appToast: toast }));
+vi.mock("./status-list/StatusThreadList", () => ({
+  StatusThreadList: () => <div data-testid="status-list">status list</div>,
+}));
 
 function pluginReplacement(
   component: (props: PluginThreadListProps) => React.ReactNode,
@@ -59,18 +62,19 @@ afterEach(() => {
 });
 
 describe("PluginThreadList", () => {
-  it("shows the loading placeholder until plugin frontends have booted, then the missing state", () => {
+  it("shows the loading placeholder until plugin frontends have booted, then the built-in status list", () => {
     const { container } = renderList({ kind: "owner" });
     expect(
       container.querySelector('[data-thread-list-placeholder="loading"]'),
     ).not.toBeNull();
+    expect(screen.queryByTestId("status-list")).toBeNull();
 
     act(() => markPluginFrontendsSettled());
 
+    expect(screen.getByTestId("status-list")).toBeDefined();
     expect(
-      container.querySelector('[data-thread-list-placeholder="missing"]'),
-    ).not.toBeNull();
-    expect(screen.getByText("No thread list plugin is enabled.")).toBeDefined();
+      container.querySelector("[data-thread-list-placeholder]"),
+    ).toBeNull();
   });
 
   it("renders the plugin list with the host props and no delegation component", () => {

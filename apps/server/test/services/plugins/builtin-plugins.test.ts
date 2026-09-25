@@ -307,7 +307,6 @@ describe("builtin plugin reconciliation", () => {
       ["provider-usage", "ChartColumn"],
       ["push-notifications", "BellDot"],
       ["drafts", "EditFile"],
-      ["thread-list", "ListView"],
       ["scheduled-send", "Calendar"],
       ["agent-annotations", "MessageSquarePlus"],
       ["secrets", "Lock"],

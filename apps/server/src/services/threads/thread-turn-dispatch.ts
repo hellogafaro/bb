@@ -72,7 +72,7 @@ export async function dispatchTurnDuringReprovision(
       beforeRequestAppendInTransaction: ({ tx }) => {
         args.beforeRequestAppendInTransaction?.({ tx });
         const prepared = applyLoggedThreadLifecycleEventInTransaction(
-          { db: tx, logger: args.deps.logger },
+          { db: tx, hub: args.deps.hub, logger: args.deps.logger },
           { event: { type: "run.preparing" }, threadId: args.thread.id },
         );
         if (!prepared.applied) {

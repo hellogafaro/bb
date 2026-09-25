@@ -111,7 +111,6 @@ function Preview() {
       >
         <ThreadRow
           projectId={thread.projectId}
-          crossProjectId={null}
           thread={row}
           isActive
           hasComposerDraft={false}

@@ -747,7 +747,7 @@ async function admitPendingThread(
           )({ tx });
         }
         const prepared = applyLoggedThreadLifecycleEventInTransaction(
-          { db: tx, logger: deps.logger },
+          { db: tx, hub: deps.hub, logger: deps.logger },
           { threadId: args.thread.id, event: { type: "run.preparing" } },
         );
         if (!prepared.applied) {

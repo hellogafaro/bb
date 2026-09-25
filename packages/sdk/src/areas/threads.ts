@@ -95,6 +95,7 @@ export interface ThreadListArgs {
   parentThreadId?: string;
   projectId?: string;
   signal?: AbortSignal;
+  snoozed?: boolean;
   sourceThreadId?: string;
   unsectioned?: boolean;
 }
@@ -291,6 +292,10 @@ export interface ThreadRetryArgs {
 export interface ThreadActionArgs {
   signal?: AbortSignal;
   threadId: string;
+}
+
+export interface ThreadSnoozeArgs extends ThreadActionArgs {
+  until: number;
 }
 
 export interface ThreadStatusArgs extends ThreadActionArgs {
@@ -596,6 +601,13 @@ export interface ThreadsArea {
   retry(args: ThreadRetryArgs): Promise<ThreadRetryResult>;
   search(args: ThreadSearchArgs): Promise<ThreadSearchResult>;
   send(args: ThreadSendArgs): Promise<ThreadSendResult>;
+  /**
+   * Hide a thread and its child threads in the Snoozed section until `until`
+   * (epoch milliseconds, in the future). The server wakes the thread early
+   * when it needs attention: a pending interaction, a finished turn, an
+   * error, or a failed queued message.
+   */
+  snooze(args: ThreadSnoozeArgs): Promise<ThreadMutationResult>;
   spawn(args: ThreadSpawnArgs): Promise<ThreadSpawnResult>;
   /**
    * Stop the thread's work and release its loaded runtime. An explicit stop
@@ -617,6 +629,7 @@ export interface ThreadsArea {
   storagePaths(args: ThreadStoragePathsArgs): Promise<ThreadStoragePathsResult>;
   unarchive(args: ThreadActionArgs): Promise<ThreadUnarchiveResult>;
   unpin(args: ThreadActionArgs): Promise<ThreadMutationResult>;
+  unsnooze(args: ThreadActionArgs): Promise<ThreadMutationResult>;
   update(args: ThreadUpdateArgs): Promise<ThreadMutationResult>;
   generateTitle(args: ThreadActionArgs): Promise<ThreadMutationResult>;
   wait(args: ThreadWaitArgs): Promise<ThreadWaitResult>;
@@ -637,6 +650,9 @@ function listQuery(args: ThreadListArgs | undefined): ThreadListQuery {
     ...(args?.unsectioned === undefined
       ? {}
       : { unsectioned: args.unsectioned ? "true" : "false" }),
+    ...(args?.snoozed === undefined
+      ? {}
+      : { snoozed: args.snoozed ? "true" : "false" }),
     ...(args?.includeHidden === undefined
       ? {}
       : { includeHidden: args.includeHidden ? "true" : "false" }),
@@ -1438,6 +1454,22 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
         transport.api.v1.threads[":id"].unpin.$post({
           param: { id: input.threadId },
         }),
+      );
+    },
+    async snooze(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"].snooze.$put(
+          { param: { id: input.threadId }, json: { until: input.until } },
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+    },
+    async unsnooze(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"].snooze.$put(
+          { param: { id: input.threadId }, json: { until: null } },
+          ...signalRequestArgs(input.signal),
+        ),
       );
     },
     async generateTitle(input) {

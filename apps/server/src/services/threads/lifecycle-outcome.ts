@@ -1,6 +1,7 @@
 import {
   applyThreadLifecycleEvent,
   applyThreadLifecycleEventInTransaction,
+  notifyThreadSnoozeChanged,
   type ApplyThreadLifecycleEventArgs,
   type ApplyThreadLifecycleEventOutcome,
   type DbConnection,
@@ -42,7 +43,18 @@ interface ApplyLoggedThreadLifecycleEventDeps {
 
 interface ApplyLoggedThreadLifecycleEventTransactionDeps {
   db: DbTransaction;
+  hub: Pick<NotificationHub, "notifyThread">;
   logger: ServerLogger;
+}
+
+function notifyWokenSnoozes(
+  hub: Pick<NotificationHub, "notifyThread">,
+  outcome: ApplyThreadLifecycleEventOutcome,
+): void {
+  if (!outcome.applied) return;
+  for (const thread of outcome.wokenThreads) {
+    notifyThreadSnoozeChanged(hub, thread);
+  }
 }
 
 function logUnappliedThreadLifecycleEvent(
@@ -76,6 +88,7 @@ export function applyLoggedThreadLifecycleEvent(
       buildThreadStatusChangeMetadata(deps, outcome.thread),
     );
   }
+  notifyWokenSnoozes(deps.hub, outcome);
   logUnappliedThreadLifecycleEvent(deps.logger, args, outcome);
   emitPluginThreadLifecycleOutcome(outcome);
   announceTurnFailed(args, outcome);
@@ -87,6 +100,7 @@ export function applyLoggedThreadLifecycleEventInTransaction(
   args: ApplyThreadLifecycleEventArgs,
 ): ApplyThreadLifecycleEventOutcome {
   const outcome = applyThreadLifecycleEventInTransaction(deps.db, args);
+  notifyWokenSnoozes(deps.hub, outcome);
   logUnappliedThreadLifecycleEvent(deps.logger, args, outcome);
   emitPluginThreadLifecycleOutcome(outcome);
   announceTurnFailed(args, outcome);

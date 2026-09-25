@@ -13,12 +13,12 @@ every window and client sees the same value.
 
 ## Sidebar preferences
 
-The sidebar thread list uses an explicit plugin selection and defaults to the bundled
-Thread list plugin (`thread-list/thread-list`). Existing `__automatic__` and
-`__builtin__` selections resolve to that default; other plugin selections are preserved.
-Use `bb settings ui reset sidebar.threadListProvider` to restore the default, or
-`bb settings ui set sidebar.threadListProvider <plugin-id>/<slot-id>` to select
-another plugin. The SDK exposes the same setting through `uiPreferences`.
+The sidebar thread list is built in: Pinned, Waiting, Ready, Working, Done,
+and Snoozed. `sidebar.collapsedStatusSections` lists collapsed status sections
+(`waiting`, `ready`, `working`, `done`, `snoozed`); Pinned collapses through
+`sidebar.collapsedSections`. A plugin registering the thread-list slot replaces
+the built-in list, and `sidebar.threadListProvider` is not consulted. Snoozing is
+a thread command (`bb thread snooze|unsnooze`), not a preference.
 
 - The server keeps a keyed, revisioned registry of sidebar layout preferences
   (`sidebar.organizationMode`, `sidebar.threadGrouping.environment`,
@@ -54,15 +54,6 @@ another plugin. The SDK exposes the same setting through `uiPreferences`.
   revision, writes with it, and retries once on a conflict.
 - `bb settings ui reset <key> [--json]` writes the default and advances the
   revision.
-
-### Thread-list visibility
-
-- The bundled Thread list plugin owns its layout preferences, including hidden
-  groups. Use `bb thread-list prefs list [--json]` to inspect them and
-  `bb thread-list prefs get/set/reset <key>` to change them.
-- Its installed `thread-list` skill documents accepted keys and values. Keep
-  plugin-specific settings out of `bb settings ui`; those legacy values are
-  read only during one-time migration.
 
 ## Keyboard shortcuts
 

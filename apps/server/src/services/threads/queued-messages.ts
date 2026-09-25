@@ -578,7 +578,7 @@ async function sendClaimedQueuedMessageForIdleProviderThread(
         preparedCommand,
       });
       const outcome = applyLoggedThreadLifecycleEventInTransaction(
-        { db: tx, logger: deps.logger },
+        { db: tx, hub: deps.hub, logger: deps.logger },
         { event: { type: "run.started" }, threadId: thread.id },
       );
       if (!outcome.applied) {

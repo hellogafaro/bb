@@ -418,6 +418,26 @@ export function beginUnpinThreadTransaction({
   });
 }
 
+export function beginThreadSnoozeTransaction({
+  queryClient,
+  snoozedUntil,
+  threadId,
+}: ThreadIdCacheArgs & {
+  snoozedUntil: number | null;
+}): Promise<ThreadListMutationTransaction> {
+  return runOptimisticThreadFieldTransaction({
+    applyToLists: (queryClient, threadId) =>
+      applyToCachedThreadListsAndSidebarNavigation(queryClient, (list) =>
+        list.map((thread) =>
+          thread.id === threadId ? { ...thread, snoozedUntil } : thread,
+        ),
+      ),
+    patch: { snoozedUntil },
+    queryClient,
+    threadId,
+  });
+}
+
 export function beginUnpinAndMoveThreadTransaction({
   sectionId,
   queryClient,

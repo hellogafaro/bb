@@ -7,10 +7,12 @@ import {
   eq,
   exists,
   getTableColumns,
+  gt,
   inArray,
   isNotNull,
   isNull,
   lt,
+  lte,
   ne,
   or,
   sql,
@@ -46,6 +48,7 @@ import { createThreadId } from "../ids.js";
 import { NON_TERMINAL_SESSION_STATUSES } from "./terminal-sessions.js";
 import { createOrderKeyBetween } from "./order-keys.js";
 import { insertThreadPluginMetadata } from "./thread-plugin-metadata.js";
+import { wakeSnoozedThreadAncestorsInTransaction } from "./thread-snooze.js";
 
 type ThreadWriteConnection = DbConnection | DbTransaction;
 
@@ -429,6 +432,7 @@ export interface ListThreadsOptions {
   archived?: boolean;
   sectionId?: string;
   unsectioned?: boolean;
+  snoozeFilter?: { now: number; snoozed: boolean };
   parentThreadId?: string;
   hasParent?: boolean;
   sourceThreadId?: string;
@@ -698,6 +702,14 @@ function buildListThreadsFilters(options: ListThreadsOptions) {
       : undefined,
     options.sectionId ? eq(threads.sectionId, options.sectionId) : undefined,
     options.unsectioned ? isNull(threads.sectionId) : undefined,
+    options.snoozeFilter === undefined
+      ? undefined
+      : options.snoozeFilter.snoozed
+        ? gt(threads.snoozedUntil, options.snoozeFilter.now)
+        : or(
+            isNull(threads.snoozedUntil),
+            lte(threads.snoozedUntil, options.snoozeFilter.now),
+          ),
     nonDeletedThreads(),
     options.includeHidden ? undefined : eq(threads.visibility, "visible"),
     options.parentThreadId
@@ -2039,7 +2051,7 @@ export function archiveThread(
   const now = Date.now();
   const updated = db
     .update(threads)
-    .set({ archivedAt: now, updatedAt: now })
+    .set({ archivedAt: now, snoozedUntil: null, updatedAt: now })
     .where(
       and(
         inArray(threads.id, lifecycleThreadTreeIdsForThread(id)),
@@ -2096,7 +2108,7 @@ export type ApplyThreadLifecycleEventNoopReason =
   | "cas-conflict";
 
 export type ApplyThreadLifecycleEventOutcome =
-  | { applied: true; thread: ThreadRow }
+  | { applied: true; thread: ThreadRow; wokenThreads: ThreadRow[] }
   | {
       applied: false;
       detail: string;
@@ -2176,14 +2188,14 @@ export function applyThreadLifecycleEventInTransaction(
   ) {
     set.startupContext = null;
   }
-  if (
-    statusTransitionNeedsAttention({
-      currentStatus: thread.status,
-      newStatus: evaluation.to,
-      parentThreadId: thread.parentThreadId,
-    })
-  ) {
+  const needsAttention = statusTransitionNeedsAttention({
+    currentStatus: thread.status,
+    newStatus: evaluation.to,
+    parentThreadId: thread.parentThreadId,
+  });
+  if (needsAttention) {
     set.latestAttentionAt = now;
+    set.snoozedUntil = null;
   }
 
   const updated = db
@@ -2201,7 +2213,17 @@ export function applyThreadLifecycleEventInTransaction(
       reason: "cas-conflict",
     };
   }
-  return { applied: true, thread: updated };
+  if (!needsAttention) {
+    return { applied: true, thread: updated, wokenThreads: [] };
+  }
+  return {
+    applied: true,
+    thread: updated,
+    wokenThreads: [
+      ...(thread.snoozedUntil !== null ? [updated] : []),
+      ...wakeSnoozedThreadAncestorsInTransaction(db, args.threadId),
+    ],
+  };
 }
 
 export function applyThreadLifecycleEvent(

@@ -111,6 +111,7 @@ export function makeThreadResponse(
     visibility: "visible",
     archivedAt: null,
     pinnedAt: null,
+    snoozedUntil: null,
     deletedAt: null,
     lastReadAt: null,
     latestAttentionAt: 0,

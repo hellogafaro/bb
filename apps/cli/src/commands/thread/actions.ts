@@ -32,7 +32,7 @@ import {
   buildPromptInputs,
   uploadClientAttachmentInputs,
 } from "./helpers.js";
-import { SEND_AT_HELP, parseSendAt } from "./send-time.js";
+import { SEND_AT_HELP, parseFutureTime, parseSendAt } from "./send-time.js";
 
 interface ThreadUpdateCommandOptions {
   self?: boolean;
@@ -358,6 +358,44 @@ export function registerActionsCommands(
         ),
       );
   }
+
+  parent
+    .command("snooze <id> <until>")
+    .description(
+      "Move a thread and its child threads to Snoozed until a time. <until> is an ISO 8601 timestamp (2026-08-25T09:00) or a duration from now (30m, 2h, 1d). The thread wakes early when it needs attention.",
+    )
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(
+        async (id: string, until: string, opts: ThreadPinCommandOptions) => {
+          const snoozedUntil = parseFutureTime(until, "<until>");
+          const sdk = createCliBbSdk(getUrl());
+          const thread = await sdk.threads.snooze({
+            threadId: id,
+            until: snoozedUntil,
+          });
+          if (outputJson(opts, thread)) return;
+          console.log(
+            `Thread ${thread.id} snoozed until ${new Date(snoozedUntil).toLocaleString()}`,
+          );
+        },
+      ),
+    );
+
+  parent
+    .command("unsnooze [id]")
+    .description("Wake a snoozed thread now")
+    .option("--self", "Target the current thread (from BB_THREAD_ID)")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (id: string | undefined, opts: ThreadPinCommandOptions) => {
+        const threadId = requireThreadIdOrSelf(id, opts);
+        const sdk = createCliBbSdk(getUrl());
+        const thread = await sdk.threads.unsnooze({ threadId });
+        if (outputJson(opts, thread)) return;
+        console.log(`Thread ${thread.id} unsnoozed`);
+      }),
+    );
 
   parent
     .command("delete <id>")

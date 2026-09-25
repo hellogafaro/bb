@@ -133,6 +133,7 @@ export function makeThread(overrides: Partial<Thread> = {}): Thread {
     visibility: "visible",
     archivedAt: null,
     pinnedAt: null,
+    snoozedUntil: null,
     deletedAt: null,
     lastReadAt: 100,
     latestAttentionAt: 100,

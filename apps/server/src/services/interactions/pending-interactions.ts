@@ -10,9 +10,11 @@ import {
   interruptPendingInteractionsForPlugin,
   listActivePluginPendingInteractions,
   listPendingInteractionsByThread,
+  notifyThreadSnoozeChanged,
   setPendingInteractionInterrupted,
   setPendingInteractionResolved,
   setPendingInteractionResolving,
+  wakeSnoozedThreadFamilyInTransaction,
   type PendingInteractionRow,
   type DbNotifier,
   type DbTransaction,
@@ -340,6 +342,14 @@ function notifyInteractionChanged({
   hasPendingInteraction,
   threadId,
 }: NotifyInteractionChangedArgs): void {
+  if (hasPendingInteraction) {
+    for (const woken of wakeSnoozedThreadFamilyInTransaction(
+      deps.db,
+      threadId,
+    )) {
+      notifyThreadSnoozeChanged(deps.hub, woken);
+    }
+  }
   deps.hub.notifyThread(
     threadId,
     ["interactions-changed"],

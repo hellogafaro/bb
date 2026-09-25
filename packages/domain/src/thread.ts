@@ -410,6 +410,7 @@ export const threadSchema = z.object({
   visibility: threadVisibilitySchema,
   archivedAt: z.number().nullable(),
   pinnedAt: z.number().nullable(),
+  snoozedUntil: z.number().nullable(),
   deletedAt: z.number().nullable(),
   lastReadAt: z.number().nullable(),
   latestAttentionAt: z.number(),

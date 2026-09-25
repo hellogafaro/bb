@@ -8,6 +8,7 @@ import { sidebarOrganizationModeAtom } from "@/components/sidebar/sidebarCollaps
 import { useSidebarModeSectionOrder } from "@/components/sidebar/useSidebarModeSectionOrder";
 import type { Thread } from "@bb/domain";
 import { useMoveThreadToSection } from "@/hooks/mutations/thread-state-mutations";
+import { FORK_BUILTIN_THREAD_LIST } from "@/lib/fork-flags";
 
 export interface ThreadSectionMoveDestination {
   label: string;
@@ -90,7 +91,7 @@ export function AppThreadSectionMoveProvider({
   return (
     <ThreadSectionMoveProvider
       destinations={destinations}
-      enabled={mode === "chronological"}
+      enabled={!FORK_BUILTIN_THREAD_LIST && mode === "chronological"}
     >
       {children}
     </ThreadSectionMoveProvider>

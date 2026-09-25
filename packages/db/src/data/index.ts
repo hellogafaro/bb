@@ -15,6 +15,17 @@ export {
 export type { ProjectRow, ReorderProjectResult } from "./projects.js";
 
 export {
+  notifyThreadSnoozeChanged,
+  setThreadSnoozedUntil,
+  wakeSnoozedThreadFamily,
+  wakeSnoozedThreadFamilyInTransaction,
+} from "./thread-snooze.js";
+export type {
+  SetThreadSnoozedUntilArgs,
+  WakeSnoozedThreadFamilyArgs,
+} from "./thread-snooze.js";
+
+export {
   getThreadConversationOutlineRecord,
   upsertThreadConversationOutlineRecord,
 } from "./thread-conversation-outlines.js";

@@ -389,7 +389,7 @@ async function queueReadyParentSystemMessage(
       }
       return requireThreadLifecycleEventApplied(
         applyLoggedThreadLifecycleEventInTransaction(
-          { db: tx, logger: deps.logger },
+          { db: tx, hub: deps.hub, logger: deps.logger },
           { event: { type: "run.started" }, threadId: args.thread.id },
         ),
       );

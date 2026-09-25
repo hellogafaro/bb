@@ -1,7 +1,11 @@
 import { useAtomValue } from "jotai";
+import { FORK_BUILTIN_THREAD_LIST } from "@/lib/fork-flags";
 import { resolvePreferredReplacement } from "@/lib/plugin-replacement-preference";
 import { createSyncedPreferenceAtom } from "@/lib/ui-preferences/synced-preference-atom";
-import type { ResolvedReplacement } from "@/lib/plugin-slot-resolvers";
+import {
+  resolveReplacement,
+  type ResolvedReplacement,
+} from "@/lib/plugin-slot-resolvers";
 import { usePluginSlots, type PluginThreadListSlot } from "@/lib/plugin-slots";
 
 export const threadListProviderAtom = createSyncedPreferenceAtom(
@@ -11,5 +15,7 @@ export const threadListProviderAtom = createSyncedPreferenceAtom(
 export function useThreadListReplacement(): ResolvedReplacement<PluginThreadListSlot> {
   const { threadLists } = usePluginSlots();
   const preference = useAtomValue(threadListProviderAtom);
-  return resolvePreferredReplacement(threadLists, preference);
+  return FORK_BUILTIN_THREAD_LIST
+    ? resolveReplacement(threadLists)
+    : resolvePreferredReplacement(threadLists, preference);
 }

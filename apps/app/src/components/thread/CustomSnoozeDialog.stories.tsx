@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@bb/shared-ui/button";
-import { CustomSnoozeDialog } from "../../../../../plugins/thread-list/app/snooze/SnoozeControls";
+import { CustomSnoozeDialog } from "./ThreadSnoozeControls";
 
 export default { title: "thread/Custom snooze" };
 

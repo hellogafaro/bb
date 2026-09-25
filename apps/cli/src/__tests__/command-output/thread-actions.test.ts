@@ -267,6 +267,107 @@ describe("bb thread action command output", () => {
     );
   });
 
+  it("bb thread snooze resolves a duration to a wake time", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
+    try {
+      const until = Date.parse("2026-09-25T12:00:00Z");
+      const snoozedThread = fixtures.makeThread({
+        id: "thread-snooze-1",
+        projectId: "proj-1",
+        providerId: "codex",
+        snoozedUntil: until,
+      });
+      const snoozePut = vi.fn(async () => snoozedThread);
+      stubServerApi({ "v1.threads.:id.snooze.$put": snoozePut });
+
+      await runCommand(["thread", "snooze", "thread-snooze-1", "2h"], register);
+
+      expect(snoozePut).toHaveBeenCalledWith({
+        param: { id: "thread-snooze-1" },
+        json: { until },
+      });
+      expect(collectLogLines(vi.mocked(console.log))).toContain(
+        `Thread thread-snooze-1 snoozed until ${new Date(until).toLocaleString()}`,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bb thread snooze --json prints the thread", async () => {
+    const snoozedThread = fixtures.makeThread({
+      id: "thread-snooze-2",
+      projectId: "proj-1",
+      providerId: "codex",
+      snoozedUntil: Date.parse("2099-01-01T09:00:00Z"),
+    });
+    const snoozePut = vi.fn(async () => snoozedThread);
+    stubServerApi({ "v1.threads.:id.snooze.$put": snoozePut });
+
+    await runCommand(
+      ["thread", "snooze", "thread-snooze-2", "2099-01-01T09:00:00Z", "--json"],
+      register,
+    );
+
+    expect(snoozePut).toHaveBeenCalledWith({
+      param: { id: "thread-snooze-2" },
+      json: { until: Date.parse("2099-01-01T09:00:00Z") },
+    });
+    expect(
+      JSON.parse(collectLogLines(vi.mocked(console.log)).join("\n")),
+    ).toMatchObject({
+      id: "thread-snooze-2",
+      snoozedUntil: Date.parse("2099-01-01T09:00:00Z"),
+    });
+  });
+
+  it("bb thread snooze rejects unreadable and past wake times", async () => {
+    const snoozePut = vi.fn();
+    stubServerApi({ "v1.threads.:id.snooze.$put": snoozePut });
+
+    await expect(
+      runCommand(["thread", "snooze", "thread-snooze-3", "soon"], register),
+    ).rejects.toThrow("process.exit:1");
+    await expect(
+      runCommand(
+        ["thread", "snooze", "thread-snooze-3", "2001-01-01T09:00"],
+        register,
+      ),
+    ).rejects.toThrow("process.exit:1");
+
+    const errors = collectLogLines(vi.mocked(console.error));
+    expect(errors.some((line) => line.includes("Invalid <until> value 'soon'"))).toBe(
+      true,
+    );
+    expect(
+      errors.some((line) => line.includes("<until> must be in the future")),
+    ).toBe(true);
+    expect(snoozePut).not.toHaveBeenCalled();
+  });
+
+  it("bb thread unsnooze --self clears the snooze", async () => {
+    vi.stubEnv("BB_THREAD_ID", "thread-unsnooze-1");
+    const awakeThread = fixtures.makeThread({
+      id: "thread-unsnooze-1",
+      projectId: "proj-1",
+      providerId: "codex",
+      snoozedUntil: null,
+    });
+    const snoozePut = vi.fn(async () => awakeThread);
+    stubServerApi({ "v1.threads.:id.snooze.$put": snoozePut });
+
+    await runCommand(["thread", "unsnooze", "--self"], register);
+
+    expect(snoozePut).toHaveBeenCalledWith({
+      param: { id: "thread-unsnooze-1" },
+      json: { until: null },
+    });
+    expect(collectLogLines(vi.mocked(console.log))).toContain(
+      "Thread thread-unsnooze-1 unsnoozed",
+    );
+  });
+
   it("bb thread delete prompts before deleting", async () => {
     const thread: domain.Thread = fixtures.makeThread({
       id: "thread-delete-1",

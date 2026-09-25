@@ -7,33 +7,33 @@ import {
   type MouseEventHandler,
   type PointerEventHandler,
   type ReactNode,
-  useRef,
 } from "react";
 import { useSetAtom } from "jotai";
 import { useIsMutating } from "@tanstack/react-query";
 import type { ThreadListEntry } from "@bb/domain";
 import type { PluginComposerThreadRowStatus } from "@get-bb/plugin-sdk";
 import { getThreadConversationCollapsedAtom } from "@/components/secondary-panel/threadSecondaryPanelAtoms";
-import { Icon } from "@bb/shared-ui/icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { SidebarStickyTier } from "@/components/ui/sidebar.js";
 import { NavLink } from "react-router-dom";
 import {
   ThreadActionsContextMenu,
   ThreadActionsMenu,
   ThreadArchiveQuickAction,
+  ThreadPinQuickAction,
 } from "@/components/thread/ThreadActionsMenu";
+import {
+  ThreadSnoozeQuickAction,
+  useThreadSnoozeState,
+} from "@/components/thread/ThreadSnoozeControls";
 import { useThreadActions } from "@/components/thread/ThreadActionsProvider";
 import { useSidebarRename } from "./SidebarInlineRename";
 import {
   COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS,
   COARSE_POINTER_ROW_ACTION_SIZE_CLASS,
-  COARSE_POINTER_ROW_HEIGHT_CLASS,
 } from "@bb/shared-ui/coarse-pointer-sizing";
 import {
   SIDEBAR_HOVER_ACTIONS_CLASS,
   SIDEBAR_HOVER_ACTIONS_FADE_CLASS,
-  SIDEBAR_HOVER_ACTIONS_INSET_CLASS,
   SIDEBAR_HOVER_ACTIONS_ROW_CLASS,
 } from "@/components/ui/sidebar-hover-actions.js";
 import {
@@ -49,7 +49,7 @@ import { getThreadRoutePath } from "@/lib/route-paths";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { LIST_HOVER_TRANSITION } from "@bb/shared-ui/motion";
 import {
-  SIDEBAR_ROW_BASE_CLASS,
+  SIDEBAR_ROW_ACTION_BUTTON_CLASS,
   SIDEBAR_ROW_GLYPH_SLOT_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
   SIDEBAR_ROW_SELECTED_STATE_CLASS,
@@ -75,9 +75,9 @@ import { useThreadRowSplitDrag } from "./useThreadRowSplitDrag";
 import { AppCommandShortcutPill } from "@/components/commands/AppCommandShortcutHint";
 import {
   ThreadTitleMentions,
-  useSidebarProjectName,
   useThreadTitleDisplayText,
 } from "@/components/thread/ThreadTitleMentions";
+import { ThreadRowMeta } from "./ThreadRowMeta";
 import {
   ThreadStatusGlyph,
   resolveThreadStatus,
@@ -86,6 +86,12 @@ import {
 import { usePluginThreadRowStatus } from "@/lib/plugin-thread-row-status";
 
 const SIDEBAR_TITLE_DOUBLE_CLICK_MS = 400;
+
+const THREAD_ROW_BASE_CLASS =
+  "grid h-[var(--bb-sidebar-thread-row-height)] w-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[20px_16px] content-center items-center gap-x-2 rounded-md py-1.5 pr-0 text-sm transition-colors";
+
+const DRAFT_ROW_CLASS =
+  "[background-image:linear-gradient(var(--surface-draft),var(--surface-draft))] hover:[background-image:none] has-[[data-state=open]]:[background-image:none]";
 
 let lastSidebarTitleClick: { at: number; threadId: string } | null = null;
 
@@ -128,7 +134,6 @@ export type ThreadRowOptions =
 interface ThreadRowProps {
   projectId: string;
   thread: ThreadListEntry;
-  crossProjectId: string | null;
   isActive: boolean;
   hasComposerDraft: boolean;
   onProjectSelect?: () => void;
@@ -165,10 +170,18 @@ export const REORDER_PLACEMENT_CLASS: Record<SidebarReorderPlacement, string> =
       "after:pointer-events-none after:absolute after:inset-x-1 after:-bottom-px after:h-0.5 after:rounded-full after:bg-sidebar-ring after:content-['']",
   };
 
-function getThreadRowStyle(depth: number): CSSProperties {
-  return {
+function getThreadRowStyle(
+  depth: number,
+  stickyLevel: number | undefined,
+): CSSProperties {
+  const style: CSSProperties & Record<`--${string}`, string> = {
     paddingLeft: getSidebarThreadRowPaddingLeft(depth),
   };
+  if (stickyLevel !== undefined) {
+    style["--bb-sidebar-sticky-tier-height"] =
+      "var(--bb-sidebar-thread-row-height)";
+  }
+  return style;
 }
 
 function renderThreadRowContainer({
@@ -299,7 +312,6 @@ function ThreadRestoreStatusAction({ thread }: { thread: ThreadListEntry }) {
 function ThreadRowComponent({
   projectId,
   thread,
-  crossProjectId,
   isActive,
   hasComposerDraft,
   onProjectSelect,
@@ -320,13 +332,7 @@ function ThreadRowComponent({
   );
   const threadTitle = getThreadDisplayTitle(thread);
   const labelTitle = useThreadTitleDisplayText(threadTitle);
-  const crossProjectName = useSidebarProjectName(crossProjectId);
-  const crossProjectLabel =
-    crossProjectId === null
-      ? null
-      : crossProjectName
-        ? `In project ${crossProjectName}`
-        : "In another project";
+  const snoozeState = useThreadSnoozeState();
   const handleRename = useCallback(
     (nextTitle: string) => renameThreadAsync(thread.id, nextTitle),
     [renameThreadAsync, thread.id],
@@ -423,12 +429,10 @@ function ThreadRowComponent({
   const rowClassName = cn(
     SIDEBAR_HOVER_ACTIONS_ROW_CLASS,
     "group/thread-row cursor-pointer",
-    SIDEBAR_ROW_BASE_CLASS,
+    THREAD_ROW_BASE_CLASS,
     LIST_HOVER_TRANSITION,
     parentOptions?.stickyLevel === undefined && "relative",
-    options.isCompact
-      ? COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS
-      : COARSE_POINTER_ROW_HEIGHT_CLASS,
+    hasComposerDraft && !showActive && DRAFT_ROW_CLASS,
     showActive
       ? SIDEBAR_ROW_SELECTED_STATE_CLASS
       : SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
@@ -441,7 +445,7 @@ function ThreadRowComponent({
     nestTargetState && NEST_TARGET_STATE_CLASS[nestTargetState],
     reorderPlacement && REORDER_PLACEMENT_CLASS[reorderPlacement],
   );
-  const rowStyle = getThreadRowStyle(options.depth);
+  const rowStyle = getThreadRowStyle(options.depth, parentOptions?.stickyLevel);
   const parentGuideLeft =
     options.depth > 0 ? getSidebarThreadGroupLineLeft(options.depth - 1) : null;
   const isActionsOpen = isDropdownActionsOpen || isContextActionsOpen;
@@ -456,7 +460,11 @@ function ThreadRowComponent({
     [options],
   );
 
-  const rowLinkRef = useRef<HTMLAnchorElement>(null);
+  const isSnoozeRoot = snoozeState?.isSnoozeRoot(thread.id) ?? false;
+  const wakesAt = snoozeState?.activeUntil(thread.id) ?? null;
+  const extraHoverActionsWidth = `${(isSnoozeRoot ? 3 : 2) * 30}px`;
+  const reservesActionsBesideDisclosure =
+    parentOptions !== null && hasChildren && !shortcut && !isEditing;
   const rowContent = (
     <>
       {parentOptions?.stickyLevel !== undefined && parentGuideLeft !== null ? (
@@ -466,54 +474,18 @@ function ThreadRowComponent({
           style={{ left: parentGuideLeft }}
         />
       ) : null}
-      {crossProjectLabel !== null ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              data-sidebar-thread-cross-project=""
-              role="img"
-              aria-label={crossProjectLabel}
-              className={cn(
-                "z-[31] flex size-5 shrink-0 items-center justify-center rounded-sm bg-sidebar text-muted-foreground",
-                parentGuideLeft === null
-                  ? "relative"
-                  : "absolute top-1/2 -translate-x-1/2 -translate-y-1/2",
-                !showActive && "group-hover/thread-row:bg-sidebar-accent",
-                !showActive && isActionsOpen && "bg-sidebar-accent",
-                !showActive &&
-                  splitIndicator.isOpenInSplit &&
-                  SIDEBAR_ROW_OPEN_IN_SPLIT_STATE_CLASS,
-              )}
-              style={{
-                left: parentGuideLeft ?? undefined,
-                backgroundImage: showActive
-                  ? "linear-gradient(var(--state-active), var(--state-active))"
-                  : undefined,
-              }}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                rowLinkRef.current?.click();
-              }}
-            >
-              <Icon name="FolderExport" className="size-3.5" aria-hidden />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top">{crossProjectLabel}</TooltipContent>
-        </Tooltip>
-      ) : null}
       <span
         className={cn(
-          "relative flex min-w-0 flex-1 items-center gap-1.5 self-stretch",
-          !shortcut &&
-            !isEditing &&
-            (parentOptions && hasChildren
-              ? "pr-7.5 max-md:pointer-coarse:pr-0"
-              : SIDEBAR_HOVER_ACTIONS_INSET_CLASS),
+          "col-start-1 row-start-1 flex min-w-0 items-center gap-1.5 self-stretch",
+          reservesActionsBesideDisclosure && "bb-sidebar-thread-disclosure-row",
         )}
+        style={
+          {
+            "--bb-sidebar-row-actions-extra": extraHoverActionsWidth,
+          } as CSSProperties
+        }
       >
         <NavLink
-          ref={rowLinkRef}
           to={getThreadRoutePath({ projectId, threadId: thread.id })}
           data-sidebar-thread-shortcut-target=""
           data-sidebar-thread-id={thread.id}
@@ -550,8 +522,16 @@ function ThreadRowComponent({
             </span>
           ) : (
             <span
-              className="bb-thread-title flex-1"
+              className="bb-thread-title bb-sidebar-thread-title"
               title={labelTitle}
+              style={
+                shortcut || reservesActionsBesideDisclosure
+                  ? undefined
+                  : ({
+                      "--bb-sidebar-thread-title-hover-cover":
+                        "var(--bb-sidebar-row-actions-extra)",
+                    } as CSSProperties)
+              }
               onDoubleClick={startTitleEditing}
             >
               <TextSkeleton
@@ -577,7 +557,7 @@ function ThreadRowComponent({
       </span>
       <span
         className={cn(
-          "flex shrink-0 items-center gap-0.5",
+          "col-start-2 row-start-1 flex shrink-0 items-center gap-0.5",
           isEditing && "hidden",
         )}
       >
@@ -604,7 +584,7 @@ function ThreadRowComponent({
             <ThreadRestoreStatusAction thread={thread} />
           </span>
         ) : shortcut ? (
-          <AppCommandShortcutPill shortcut={shortcut} />
+          <AppCommandShortcutPill shortcut={shortcut} className="mr-2" />
         ) : (
           <span
             className={cn(
@@ -663,15 +643,25 @@ function ThreadRowComponent({
               >
                 <SidebarRowControls
                   primaryAction={
-                    <ThreadArchiveQuickAction
-                      thread={thread}
-                      className={SIDEBAR_CONTROL_BUTTON_CLASS}
-                    />
+                    <>
+                      <ThreadPinQuickAction
+                        thread={thread}
+                        className={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
+                      />
+                      <ThreadSnoozeQuickAction
+                        threadId={thread.id}
+                        className={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
+                      />
+                      <ThreadArchiveQuickAction
+                        thread={thread}
+                        className={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
+                      />
+                    </>
                   }
                 >
                   <ThreadActionsMenu
                     thread={thread}
-                    triggerClassName={SIDEBAR_CONTROL_BUTTON_CLASS}
+                    triggerClassName={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
                     onOpenInSplit={splitAvailable ? openInSplit : undefined}
                     onOpenChange={setIsDropdownActionsOpen}
                     onRename={rename.startEditingFromMenu}
@@ -683,6 +673,7 @@ function ThreadRowComponent({
           </span>
         )}
       </span>
+      {isEditing ? null : <ThreadRowMeta thread={thread} wakesAt={wakesAt} />}
     </>
   );
 

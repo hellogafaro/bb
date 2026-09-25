@@ -421,6 +421,7 @@ type ExpectedThreadsKey =
   | "retry"
   | "search"
   | "send"
+  | "snooze"
   | "spawn"
   | "stop"
   | "storageFiles"
@@ -431,6 +432,7 @@ type ExpectedThreadsKey =
   | "timelineTurnSummaryDetails"
   | "unarchive"
   | "unpin"
+  | "unsnooze"
   | "update"
   | "wait";
 

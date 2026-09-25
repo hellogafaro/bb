@@ -80,3 +80,7 @@ export const sidebarCollapsedThreadSectionsAtom = createSyncedPreferenceAtom(
 export const sidebarCollapsedMachinesAtom = createSyncedPreferenceAtom(
   "sidebar.collapsedMachines",
 );
+
+export const collapsedStatusSectionsAtom = createSyncedPreferenceAtom(
+  "sidebar.collapsedStatusSections",
+);

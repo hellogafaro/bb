@@ -56,7 +56,6 @@ describe("fork plugin skill exclusions", () => {
     await withTestHarness(async (harness) => {
       await harness.pluginService.installPath(
         await writeSkillPlugin([
-          "thread-list",
           "provider-retry",
           "codex-provider",
           "workflows",

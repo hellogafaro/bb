@@ -41,25 +41,25 @@ function makeSdk() {
 describe("bindSdkToPlugin", () => {
   it("stamps the plugin as the origin of spawned and forked threads", async () => {
     const { sdk, queryClient, threads } = makeSdk();
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
     await bound.threads.spawn({ projectId: "proj_1", prompt: "hi" } as never);
     expect(threads.spawn).toHaveBeenCalledWith({
       projectId: "proj_1",
       prompt: "hi",
       origin: "plugin",
-      originPluginId: "thread-list",
+      originPluginId: "demo-plugin",
     });
     await bound.threads.fork({ sourceThreadId: "thr_1" } as never);
     expect(threads.fork).toHaveBeenCalledWith({
       sourceThreadId: "thr_1",
       origin: "plugin",
-      originPluginId: "thread-list",
+      originPluginId: "demo-plugin",
     });
   });
 
   it("keeps an explicit non-plugin origin and an explicit plugin id", async () => {
     const { sdk, queryClient, threads } = makeSdk();
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
     await bound.threads.spawn({ prompt: "hi", origin: "user" } as never);
     expect(threads.spawn).toHaveBeenLastCalledWith({
       prompt: "hi",
@@ -83,18 +83,18 @@ describe("bindSdkToPlugin", () => {
     expect(threads.spawn).toHaveBeenLastCalledWith({
       prompt: "hi",
       origin: "plugin",
-      originPluginId: "thread-list",
+      originPluginId: "demo-plugin",
       pluginMetadata: { note: 1 },
     });
   });
 
   it("defaults the plugin id on metadata calls without hiding an explicit one", async () => {
     const { sdk, queryClient, threads } = makeSdk();
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
     await bound.threads.getPluginMetadata({ threadId: "thr_1" });
     expect(threads.getPluginMetadata).toHaveBeenCalledWith({
       threadId: "thr_1",
-      pluginId: "thread-list",
+      pluginId: "demo-plugin",
     });
     await bound.threads.updatePluginMetadata({
       threadId: "thr_1",
@@ -110,7 +110,7 @@ describe("bindSdkToPlugin", () => {
 
   it("passes every other area and method through untouched", async () => {
     const { sdk, queryClient, threads, threadSections } = makeSdk();
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
     await bound.threads.pin({ threadId: "thr_1" });
     await bound.threadSections.create({ name: "Later" });
     expect(threads.pin).toHaveBeenCalledWith({ threadId: "thr_1" });
@@ -128,7 +128,7 @@ describe("bindSdkToPlugin", () => {
       environmentQueryKey("env_1"),
       makeEnvironment({ id: "env_1", name: "Original environment" }),
     );
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
 
     const update = bound.environments.update({
       environmentId: "env_1",
@@ -159,7 +159,7 @@ describe("bindSdkToPlugin", () => {
       environmentQueryKey("env_1"),
       makeEnvironment({ id: "env_1", name: "Original environment" }),
     );
-    const bound = bindSdkToPlugin(sdk, "thread-list", queryClient);
+    const bound = bindSdkToPlugin(sdk, "demo-plugin", queryClient);
 
     const update = bound.environments.update({
       environmentId: "env_1",

@@ -21,6 +21,7 @@ import {
   beginPinThreadTransaction,
   beginThreadReadStateTransaction,
   beginThreadMetadataTransaction,
+  beginThreadSnoozeTransaction,
   beginReorderPinnedThreadTransaction,
   beginUnarchiveThreadTransaction,
   beginUnpinAndMoveThreadTransaction,
@@ -228,6 +229,41 @@ export function useUnpinThread() {
         queryClient,
         threadId: variables.id,
       });
+    },
+  });
+}
+
+interface SnoozeThreadMutationRequest {
+  id: string;
+  until: number | null;
+}
+
+export function useSnoozeThread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: {
+      errorMessage: "Failed to update the thread's snooze.",
+    },
+    mutationFn: ({ id, until }: SnoozeThreadMutationRequest) =>
+      until === null
+        ? sdk.threads.unsnooze({ threadId: id })
+        : sdk.threads.snooze({ threadId: id, until }),
+    onMutate: ({ id, until }): Promise<ThreadListMutationTransaction> =>
+      beginThreadSnoozeTransaction({
+        queryClient,
+        snoozedUntil: until,
+        threadId: id,
+      }),
+    onError: (_error, variables, context) => {
+      rollbackThreadListMutationTransaction({
+        queryClient,
+        threadId: variables.id,
+        transaction: context,
+      });
+    },
+    onSuccess: (thread) => {
+      applyThreadUpdateResult({ queryClient, thread });
     },
   });
 }

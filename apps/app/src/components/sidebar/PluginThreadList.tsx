@@ -9,7 +9,9 @@ import type { ResolvedReplacement } from "@/lib/plugin-slot-resolvers";
 import type { PluginThreadListSlot } from "@/lib/plugin-slots";
 import { appToast } from "@/components/ui/app-toast";
 import { usePluginFrontendsSettled } from "@/lib/plugin-frontend-boot-state";
+import { FORK_BUILTIN_THREAD_LIST } from "@/lib/fork-flags";
 import { ThreadListPlaceholder } from "./ThreadListPlaceholder";
+import { StatusThreadList } from "./status-list/StatusThreadList";
 
 const THREAD_LIST_SLOT_KIND = "threadList";
 
@@ -45,10 +47,13 @@ export function PluginThreadList({
   }, [pluginId]);
 
   if (registration === null) {
-    return (
-      <ThreadListPlaceholder
-        state={bootSettled ? { kind: "missing" } : { kind: "loading" }}
-      />
+    if (!bootSettled) {
+      return <ThreadListPlaceholder state={{ kind: "loading" }} />;
+    }
+    return FORK_BUILTIN_THREAD_LIST ? (
+      <StatusThreadList onNavigate={onNavigate} />
+    ) : (
+      <ThreadListPlaceholder state={{ kind: "missing" }} />
     );
   }
   const List = registration.component;

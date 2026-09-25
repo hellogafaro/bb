@@ -4,7 +4,7 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   status:
     "{project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}",
   "thread list":
-    "[{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, createdAt, updatedAt, activity}]    (bare array; title can be null)",
+    "[{id, projectId, environmentId, providerId, title, status, parentThreadId, sectionId, visibility, archivedAt, pinnedAt, snoozedUntil, createdAt, updatedAt, activity}]    (bare array; title can be null)",
   "thread show":
     "{thread: {id, status, title, projectId, environmentId, parentThreadId, ...}, environment: {id, hostId, path, branchName, ...} | null, pendingTodos}    (thread fields are under .thread)",
   "thread log":
@@ -13,6 +13,10 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "thread spawn":
     "the created thread: {id, status, title, projectId, environmentId, ...}",
   "thread wait": "{threadId, matched: true, target}",
+  "thread snooze":
+    "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
+  "thread unsnooze":
+    "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
   "thread search": "{active: {total, results}, archived: {total, results}}",
   "project list":
     "[{id, kind, name, gitRemoteUrl, sources: [{id, hostId, path, isDefault}]}]    (bare array)",

@@ -189,6 +189,8 @@ server.
 - `bb thread unarchive`
 - `bb thread pin`
 - `bb thread unpin`
+- `bb thread snooze`
+- `bb thread unsnooze`
 - `bb thread delete`
 - `bb thread edit-message`
 - `bb thread tell`

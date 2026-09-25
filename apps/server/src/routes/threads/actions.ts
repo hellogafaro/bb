@@ -9,6 +9,7 @@ import {
   reorderPinnedThread,
   reorderQueuedThreadMessage,
   setQueuedThreadMessageGroupBoundary,
+  setThreadSnoozedUntil,
   unarchiveThread,
   unpinThread,
   updateQueuedThreadMessage,
@@ -222,7 +223,7 @@ function assertPinnedThreadOrderResult(
 }
 
 export function registerThreadActionRoutes(app: Hono, deps: AppDeps): void {
-  const { post, patch, del } = typedRoutes<PublicApiSchema>(app, {
+  const { post, patch, put, del } = typedRoutes<PublicApiSchema>(app, {
     onValidationError: (msg) => new ApiError(400, "invalid_request", msg),
   });
   const routes = publicApiRoutes.threads;
@@ -518,6 +519,25 @@ export function registerThreadActionRoutes(app: Hono, deps: AppDeps): void {
     const publicThread = requirePublicThread(deps.db, context.req.param("id"));
     const thread = unpinThread(deps.db, deps.hub, {
       threadId: publicThread.id,
+    });
+    if (!thread) {
+      throw new ApiError(404, "thread_not_found", "Thread not found");
+    }
+    return context.json(toThreadResponseFromThread(deps, { thread }));
+  });
+
+  put(routes.snooze, (context, payload) => {
+    const publicThread = requirePublicThread(deps.db, context.req.param("id"));
+    if (payload.until !== null && payload.until <= Date.now()) {
+      throw new ApiError(
+        400,
+        "invalid_request",
+        "Snooze time must be in the future",
+      );
+    }
+    const thread = setThreadSnoozedUntil(deps.db, deps.hub, {
+      threadId: publicThread.id,
+      snoozedUntil: payload.until,
     });
     if (!thread) {
       throw new ApiError(404, "thread_not_found", "Thread not found");

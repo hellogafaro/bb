@@ -25,11 +25,7 @@ import {
 } from "@/hooks/queries/query-keys";
 import { updateCachedThreadListStatusState } from "@/hooks/cache-owners/query-cache";
 import { Sidebar, SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
-import { installPluginRuntime } from "@/lib/plugin-frontend";
-import type { ResolvedReplacement } from "@/lib/plugin-slot-resolvers";
-import type { PluginThreadListSlot } from "@/lib/plugin-slots";
-import { collectPluginAppRegistrations } from "@get-bb/plugin-sdk/internal/plugin-app-collector";
-import { PluginThreadList } from "./PluginThreadList";
+import { StatusThreadList } from "./status-list/StatusThreadList";
 
 const BENCH_ENABLED = process.env.BB_SIDEBAR_BENCH === "1";
 const THREAD_COUNT = Number(process.env.BB_SIDEBAR_BENCH_THREADS ?? 3000);
@@ -61,42 +57,6 @@ vi.mock("@/lib/ws", () => ({
     },
   ),
 }));
-
-function stubPluginRpcFetch(): void {
-  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
-    if (!url.includes("/rpc/")) {
-      return new Response("{}", { status: 404 });
-    }
-    const method = url.split("/rpc/")[1] ?? "";
-    let result: unknown = null;
-    if (method === "listPreferences") {
-      result = { preferences: {} };
-    } else if (method === "setPreference" || method === "resetPreference") {
-      result = JSON.parse(String(init?.body ?? "{}"));
-    }
-    return new Response(JSON.stringify({ ok: true, result }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  });
-}
-
-async function loadPluginThreadListReplacement(): Promise<
-  ResolvedReplacement<PluginThreadListSlot>
-> {
-  installPluginRuntime();
-  const module = await import("../../../../../plugins/thread-list/app");
-  const collected = collectPluginAppRegistrations(module.default);
-  const registration = collected.threadLists[0];
-  if (registration === undefined) {
-    throw new Error("thread-list plugin registered no thread list");
-  }
-  return {
-    kind: "plugin",
-    registration: { ...registration, pluginId: "thread-list", generation: 1 },
-  };
-}
 
 vi.mock("@/hooks/useLocalPathPicker", () => ({
   usePathPickerHost: () => ({ hostId: null, hostName: null }),
@@ -432,17 +392,14 @@ async function runScenario(
 describe.skipIf(!BENCH_ENABLED)("sidebar thread list benchmark", () => {
   const collected: BenchResults[] = [];
 
-  it(`mounts and updates the plugin list with ${THREAD_COUNT} threads`, { timeout: 180_000 }, async () => {
-    stubPluginRpcFetch();
-    const replacement = await loadPluginThreadListReplacement();
+  it(`mounts and updates the status list with ${THREAD_COUNT} threads`, { timeout: 180_000 }, async () => {
     collected.push(
       await runScenario(
-        "plugin",
+        "status",
         seedQueryClient(),
-        <PluginThreadList replacement={replacement} onNavigate={() => {}} />,
+        <StatusThreadList onNavigate={() => {}} />,
       ),
     );
-    vi.unstubAllGlobals();
   });
 
   it("writes the comparison", () => {

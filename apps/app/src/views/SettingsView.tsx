@@ -55,6 +55,7 @@ import { useAppThemePreview } from "@/hooks/useAppThemePreview";
 import { ProvidersSettingsSection } from "@/components/settings/ProvidersSettingsSection";
 import { CodeRendererSettings } from "@/components/settings/CodeRendererSettings";
 import { SidebarThreadListSetting } from "@/components/settings/SidebarThreadListSetting";
+import { FORK_BUILTIN_THREAD_LIST } from "@/lib/fork-flags";
 import { SidebarFooterSettings } from "@/components/settings/SidebarFooterSettings";
 import { SidebarNavigationSetting } from "@/components/settings/SidebarNavigationSetting";
 import { SplitDimmingSetting } from "@/components/settings/SplitDimmingSetting";
@@ -807,7 +808,7 @@ export function AppearanceSettingsSection({
   return (
     <SettingsSection title="Appearance">
       <div className="space-y-5">
-        <SidebarThreadListSetting />
+        {FORK_BUILTIN_THREAD_LIST ? null : <SidebarThreadListSetting />}
         <SidebarNavigationSetting />
         <CodeRendererSettings />
         <SettingsWithControl settingId="theme" label="Theme">

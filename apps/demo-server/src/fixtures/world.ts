@@ -58,6 +58,7 @@ export function threadListEntry(
     visibility: "visible",
     archivedAt: null,
     pinnedAt: null,
+    snoozedUntil: null,
     deletedAt: null,
     lastReadAt: now,
     latestAttentionAt: updatedAt,

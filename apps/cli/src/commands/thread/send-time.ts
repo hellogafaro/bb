@@ -24,9 +24,9 @@ const ISO_PATTERN =
 export const SEND_AT_HELP =
   "Dispatch at an ISO 8601 timestamp (2026-08-25T09:00) or a duration from now (30s, 10m, 2h, 7d)";
 
-function formatInvalid(value: string, detail: string): Error {
+function formatInvalid(label: string, value: string, detail: string): Error {
   return new Error(
-    `Invalid --send-at value '${value}'. ${detail} Expected an ISO 8601 timestamp such as 2026-08-25T09:00 or a duration such as 30s, 10m, 2h, or 7d.`,
+    `Invalid ${label} value '${value}'. ${detail} Expected an ISO 8601 timestamp such as 2026-08-25T09:00 or a duration such as 30s, 10m, 2h, or 7d.`,
   );
 }
 
@@ -35,9 +35,17 @@ function formatInvalid(value: string, detail: string): Error {
  * the tests) can pin the clock a duration is measured from.
  */
 export function parseSendAt(value: string, now = Date.now()): number {
+  return parseFutureTime(value, "--send-at", now);
+}
+
+export function parseFutureTime(
+  value: string,
+  label: string,
+  now = Date.now(),
+): number {
   const trimmed = value.trim();
   if (trimmed === "") {
-    throw formatInvalid(value, "It is empty.");
+    throw formatInvalid(label, value, "It is empty.");
   }
 
   const duration = matchDuration(trimmed);
@@ -47,7 +55,7 @@ export function parseSendAt(value: string, now = Date.now()): number {
     );
     if (resolved <= now) {
       throw new Error(
-        `--send-at must be in the future; '${value}' is zero time from now.`,
+        `${label} must be in the future; '${value}' is zero time from now.`,
       );
     }
     return resolved;
@@ -55,22 +63,23 @@ export function parseSendAt(value: string, now = Date.now()): number {
 
   if (DATE_ONLY_PATTERN.test(trimmed)) {
     throw formatInvalid(
+      label,
       value,
       "A date alone has no time of day, and the time zone it means is ambiguous.",
     );
   }
 
   if (!ISO_PATTERN.test(trimmed)) {
-    throw formatInvalid(value, "It is neither a timestamp nor a duration.");
+    throw formatInvalid(label, value, "It is neither a timestamp nor a duration.");
   }
 
   const resolved = Date.parse(trimmed.replace(" ", "T"));
   if (!Number.isFinite(resolved)) {
-    throw formatInvalid(value, "It is not a real date.");
+    throw formatInvalid(label, value, "It is not a real date.");
   }
   if (resolved <= now) {
     throw new Error(
-      `--send-at must be in the future; '${value}' resolves to ${new Date(resolved).toLocaleString()}, which has already passed.`,
+      `${label} must be in the future; '${value}' resolves to ${new Date(resolved).toLocaleString()}, which has already passed.`,
     );
   }
   return resolved;

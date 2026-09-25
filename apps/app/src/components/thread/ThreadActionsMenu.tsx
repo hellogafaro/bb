@@ -36,6 +36,7 @@ import { copyToClipboardWithToast } from "@/lib/clipboard";
 import { getThreadRoutePath } from "@/lib/route-paths";
 import { useThreadActions } from "./ThreadActionsProvider";
 import { useThreadSectionMove } from "./ThreadSectionMoveProvider";
+import { ThreadSnoozeMenuItem } from "./ThreadSnoozeControls";
 
 interface ThreadActionsMenuBaseProps {
   thread: Thread;
@@ -279,6 +280,7 @@ function ThreadActionsMenuItems({
       >
         {isPinned ? "Unpin" : "Pin"}
       </ActionMenuItem>
+      <ThreadSnoozeMenuItem threadId={thread.id} surface={surface} />
       <ThreadSectionMoveMenu
         isDrawer={isDrawer}
         onOpenDrawerStep={() => onCompactStepChange?.("move")}
@@ -392,6 +394,42 @@ export function ThreadArchiveQuickAction({
         >
           <Icon
             name={isArchived ? "ArchiveRestore" : "Archive"}
+            className={COARSE_POINTER_ICON_SIZE_CLASS}
+          />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function ThreadPinQuickAction({
+  thread,
+  className,
+}: {
+  thread: Thread;
+  className?: string;
+}) {
+  const { togglePin } = useThreadActions();
+  const isPinned = thread.pinnedAt !== null;
+  const label = isPinned ? "Unpin" : "Pin";
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("rounded-md p-0", className)}
+          aria-label={`${label} thread`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            togglePin(thread);
+          }}
+        >
+          <Icon
+            name={isPinned ? "PinOff" : "Pin"}
             className={COARSE_POINTER_ICON_SIZE_CLASS}
           />
         </Button>

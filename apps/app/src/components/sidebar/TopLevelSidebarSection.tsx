@@ -59,6 +59,7 @@ interface TopLevelSidebarSectionCollapseControl {
 
 export interface TopLevelSidebarSectionProps {
   label: string;
+  labelAccessory?: ReactNode;
   labelEditor?: ReactNode;
   onRename?: () => void;
   children: ReactNode;
@@ -82,6 +83,7 @@ export interface TopLevelSidebarSectionProps {
 
 export function TopLevelSidebarSection({
   label,
+  labelAccessory,
   labelEditor,
   onRename,
   children,
@@ -221,6 +223,7 @@ export function TopLevelSidebarSection({
               {label}
             </span>
           )}
+          {labelEditor ? null : labelAccessory}
           {collapseControl ? (
             <button
               type="button"

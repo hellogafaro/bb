@@ -734,8 +734,9 @@ client wrote first, so a stale window cannot silently clobber a newer value.
 | `sidebar.sectionOrder`            | Section id list for **By project**                  |
 | `sidebar.manualSectionOrder`      | Section id list for **Manually**                    |
 | `sidebar.machineSectionOrder`     | Section id list for **By machine**                  |
-| `sidebar.hiddenGroups`            | Legacy project, custom section, and machine ids migrated once into the Thread list plugin |
+| `sidebar.hiddenGroups`            | Legacy project, custom section, and machine ids; unused by the built-in list |
 | `sidebar.collapsedSections`       | Collapsed built-in sections (`pinned`, `threads`)   |
+| `sidebar.collapsedStatusSections` | Collapsed status sections (`waiting`, `ready`, `working`, `done`, `snoozed`) |
 | `sidebar.collapsedProjects`       | Collapsed project ids                               |
 | `sidebar.collapsedThreads`        | Thread ids whose children are collapsed             |
 | `sidebar.collapsedEnvironments`   | Collapsed environment ids                           |
@@ -746,14 +747,15 @@ client wrote first, so a stale window cannot silently clobber a newer value.
 | `sidebar.pluginPanelOrder`        | Navigation entry order                              |
 | `sidebar.visiblePluginPanels`     | Navigation entries shown, or `null` for every entry |
 | `sidebar.navigationProvider`      | Plugin key, `__automatic__`, or `__builtin__`       |
-| `sidebar.threadListProvider`      | Plugin key; defaults to `thread-list/thread-list` |
+| `sidebar.threadListProvider`      | Upstream plugin selection; unused by the built-in list |
 
-The sidebar thread list uses an explicit plugin selection and defaults to the bundled
-Thread list plugin (`thread-list/thread-list`). Existing `__automatic__` and
-`__builtin__` selections resolve to that default; other plugin selections are preserved.
-Use `bb settings ui reset sidebar.threadListProvider` to restore the default, or
-`bb settings ui set sidebar.threadListProvider <plugin-id>/<slot-id>` to select
-another plugin. The SDK exposes the same setting through `uiPreferences`.
+The sidebar thread list is built in: Pinned, then Waiting, Ready, Working,
+Done, and Snoozed, each with a count and hidden while empty. A thread family
+(a root thread and its child threads) sits in exactly one section, chosen in
+that order of urgency. Collapsing a section writes
+`sidebar.collapsedStatusSections` (Pinned uses `sidebar.collapsedSections`), so
+every window agrees. A plugin that registers `app.slots.experimental_threadList`
+replaces the built-in list; `sidebar.threadListProvider` is not consulted.
 
 New installations default to Custom (`chronological`) for `sidebar.organizationMode`.
 Migrated installations with existing projects, threads, or UI preferences fall back
@@ -827,33 +829,19 @@ value. A change on one device reaches every other connected window through the
 Sidebar width and open state stay in the browser because they depend on the
 window size.
 
-### Thread-list visibility
+### Snoozed threads
 
-Choose **Hide from list** in Threads, a project, custom section, or machine's menu to
-move it into **More**. Its menu in More offers **Add to list** to restore it.
-**Customize list** manages visibility and order for the current
-organization. Hiding a group preserves its threads, saved order, and collapse
-state; pinned threads stay in Pinned. Hidden work remains reachable through More,
-search, and direct links. More shows activity without automatically restoring
-hidden groups.
-
-The Thread list plugin's `hiddenGroups` preference defaults to `[]` and accepts `threads`,
-`project:<projectId>`, `section:<sectionId>`, and `machine:<hostId>` keys
-(`machine:no-machine` for the unassigned machine group). Each organization uses
-only its matching keys; `threads` applies to every organization. Pinned cannot
-be hidden. Duplicate keys are deduplicated; unavailable IDs are retained
-without creating sidebar rows, and new groups default to visible.
-
-```sh
-bb thread-list prefs get hiddenGroups
-bb thread-list prefs set hiddenGroups '["threads","project:proj_example","section:sec_example"]'
-bb thread-list prefs reset hiddenGroups
-```
-
-`set` replaces the complete list across organizations, so include any existing
-keys you want to keep hidden. `reset` restores the default empty list and shows
-every group. The plugin's `setPreference` and `resetPreference` RPCs expose the
-same operations to its app client.
+Snooze a root thread from its row (the clock button or the row menu) to move it
+and its child threads into **Snoozed** until a chosen time. The wake time is the
+thread's `snoozedUntil` (epoch ms or `null`), set with
+`bb thread snooze <id> <until>`, cleared with `bb thread unsnooze <id>`, and
+listed with `bb thread list --snoozed`. SDK callers use
+`sdk.threads.snooze({ threadId, until })` and `sdk.threads.unsnooze({ threadId })`;
+the route is `PUT /api/v1/threads/:id/snooze` with `{until: number | null}` and
+rejects past times. The server clears a snooze early when the thread or a child
+asks for input, finishes a turn, fails, or a queued message fails to send, and
+when the thread is archived. Working threads and threads with a pending question
+never sit in Snoozed.
 
 ### Sidebar footer
 
@@ -1646,10 +1634,3 @@ or with `bb settings general telemetryEnabled false`. The saved server-wide pref
 takes effect immediately and persists across restarts. SDK callers can use
 `system.updateGeneralSettings` with `telemetryEnabled`. `BB_TELEMETRY=false`
 always disables telemetry, even when the saved preference is enabled.
-
-### Thread list lifecycle filter
-
-The Thread list plugin's `threadLifecycles` preference selects `["active"]`
-(the default), `["archived"]`, or `["active","archived"]`. Set it with
-`bb thread-list prefs set threadLifecycles '["archived"]'` or the header's
-Filter menu. It syncs to every window and rejects empty or duplicate values.

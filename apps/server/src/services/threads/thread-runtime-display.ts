@@ -176,6 +176,7 @@ function toPublicThread(thread: Thread): Thread {
     visibility: thread.visibility,
     archivedAt: thread.archivedAt,
     pinnedAt: thread.pinnedAt,
+    snoozedUntil: thread.snoozedUntil,
     deletedAt: thread.deletedAt,
     lastReadAt: thread.lastReadAt,
     latestAttentionAt: thread.latestAttentionAt,

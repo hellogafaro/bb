@@ -96,15 +96,16 @@ uses an automatic per-host limit of one thread per available processor. Use
 `bb concurrency-limit global [unlimited|<limit>]` and `bb
 concurrency-limit host <host-id> [auto|<limit>]`; 0 pauses new work.
 
-The sidebar thread list is owned by the Thread list builtin plugin. Its
-layout preferences (active/archived filter, organization mode, sort, section order, hidden and
-collapsed groups) live in the plugin and sync to every window:
-`bb thread-list prefs list [--json]`, `prefs get <key>`,
-`prefs set <key> <value>`, and `prefs reset <key>`. `set` takes JSON; a bare
-word is a string. On first load the plugin copies non-default `sidebar.*`
-values from `bb settings ui` once. The `threadLifecycles` preference defaults
-to `["active"]`; `bb thread-list prefs set threadLifecycles '["archived"]'`
-shows archived threads, and `'["active","archived"]'` shows both.
+The sidebar thread list is built in. It shows Pinned, then Waiting, Ready,
+Working, Done, and Snoozed, each with its count and hidden while empty. A
+thread family takes its most urgent state and appears in one section only.
+Rows show the title, then the project and last update (or the wake time for a
+snoozed thread); child threads nest under a disclosure chevron. Collapsed
+sections sync to every window through `sidebar.collapsedStatusSections`
+(`waiting`, `ready`, `working`, `done`, `snoozed`) and Pinned through
+`sidebar.collapsedSections`. An unread thread you open stays in Ready for five
+seconds, and leaving sooner marks it unread again. A plugin registering the
+`experimental_threadList` slot replaces the built-in list.
 
 Settings → Keyboard also includes `showKeyboardHints`, which defaults to true.
 Turn it off to hide the delayed shortcut badges shown while holding Command or
@@ -306,10 +307,10 @@ or exact root-relative paths using `/` separators. Use
 Server-backed sidebar preferences
 
 Sidebar layout lives on the server in a keyed, revisioned registry so every
-window, device, and the CLI share it: organization mode, chronological sort,
-section orders, collapsed rows and sections, navigation entry order and
-visibility, hidden thread-list groups, and the navigation and thread-list
-provider pickers. The sidebar waits for them alongside the project list, and
+window, device, and the CLI share it: collapsed status sections, Pinned, and
+parent threads, navigation entry order and visibility, and the navigation
+provider picker. The organization, sort, and hidden-group keys remain for
+plugin thread lists; the built-in list does not read them. The sidebar waits for them alongside the project list, and
 an upgrade uploads the old browser-stored layout once.
 
   bb settings ui list [--json]
@@ -317,31 +318,11 @@ an upgrade uploads the old browser-stored layout once.
   bb settings ui set <key> <value> [--json]
   bb settings ui reset <key> [--json]
 
-The sidebar thread list uses an explicit plugin selection and defaults to the bundled
-Thread list plugin (`thread-list/thread-list`). Existing `__automatic__` and
-`__builtin__` selections resolve to that default; other plugin selections are preserved.
-Use `bb settings ui reset sidebar.threadListProvider` to restore the default, or
-`bb settings ui set sidebar.threadListProvider <plugin-id>/<slot-id>` to select
-another plugin. The SDK exposes the same setting through `uiPreferences`.
-
 `bb settings ui list` prints every key with its value, revision, and a short
 description. `set` takes plain strings for enum and provider keys and JSON for
 lists and `null`; it reads the current revision, writes with it, and retries
 once on a conflict. `reset` writes the default. The SDK offers
 `sdk.system.uiPreferences.list()`, `.set()`, and `.reset()`.
-
-New installations default to Custom (`chronological`) for `sidebar.organizationMode`.
-Migrated installations with existing projects, threads, or UI preferences fall back
-to By project (`project`). Explicit server choices take precedence over legacy
-browser choices, which take precedence over this installation fallback. Reset
-saves the installation fallback as an explicit choice.
-
-The built-in sidebar's Filter selects Active and Archived, defaulting to Active.
-The selection is browser-local, not a server-backed preference or SDK/CLI setting.
-Active includes threads with saved messages; there is no separate
-Drafts section or filter. Archived threads use their preserved placement and a
-restore action. Archived pages load only while selected.
-Plugin sidebar replacements own their filters.
 
 Global Search opens from the sidebar or Mod+K and finds threads, projects, settings,
 machines, and actions together. Active and archived threads appear in the same
@@ -350,49 +331,14 @@ Show more expands a result group in place. Use `bb search <query>` or
 `sdk.search.query` for structured discovery, and `bb thread search` for the
 existing thread-specific interface.
 
-Every thread-list header's actions menu offers New project, New section,
-Organize, Sort by, and Filter. Organize selects By status (the Thread list
-default), By project, By machine, or Custom and retains Groups → By environment.
-By status groups threads under Pinned, Waiting, Ready, Working, Done, and
-Snoozed, with each row showing its project and last update. A family takes its
-most urgent state. Snooze a quiet thread from its row's clock or menu, or with
-`bb thread-list snooze set <thread-id> <1h|3h|tomorrow|week|45m|2d|ISO date>`;
-`bb thread-list snooze list` and `bb thread-list snooze clear <thread-id>`
-inspect and wake it. A snooze ends at its time or when the thread gets new
-activity, and working or asking threads cannot be snoozed. By status section
-headers show only their count, with no actions; change Organize and the
-Active/Archived filter in Settings → Thread list or with `bb thread-list prefs`.
-The separate `sidebar.threadGrouping.environment` preference
-decides whether sibling threads sharing one worktree collapse into a single row.
-It defaults to `auto`, which groups them
-everywhere except Custom and By status: `bb settings ui set sidebar.threadGrouping.environment
-false` keeps every thread on its own row, and `true` groups them in every mode.
-Sort by selects a field, and selecting it again reverses its arrow/direction.
-`sidebar.sortDirection` accepts `ascending`, `descending`, or `default`.
-The default preserves each field's original order (newest first for dates,
-A–Z for titles). For example: `bb settings ui set sidebar.sortDirection ascending`.
-
-Thread-list visibility
-
-Threads, a project, custom section, or machine's menu offers Hide from list;
-its menu inside More offers Add to list. Customize list manages visibility and
-order for the current organization. Hiding preserves the group's threads, order,
-and collapse state. Pinned threads remain in Pinned; More carries hidden activity.
-
-The Thread list plugin's `hiddenGroups` preference defaults to `[]`. Its keys
-are `threads`, `project:<projectId>`, `section:<sectionId>`, and
-`machine:<hostId>` (`machine:no-machine` for the unassigned group). Each
-organization uses its own keys, while `threads` applies to every organization.
-Pinned cannot be hidden. Duplicate keys are deduplicated, and unavailable IDs
-remain saved without producing rows. New groups default visible.
-
-  bb thread-list prefs get hiddenGroups
-  bb thread-list prefs set hiddenGroups '["threads","project:proj_example","section:sec_example"]'
-  bb thread-list prefs reset hiddenGroups
-
-`set` replaces the entire list across organizations; include existing keys you
-want to keep hidden. `reset` shows all groups. The plugin's `setPreference` and
-`resetPreference` RPCs expose the same operations to its app client.
+Snooze a quiet root thread from its row's clock or menu, or with
+`bb thread snooze <thread-id> <until>` (an ISO timestamp or a duration such as
+`2h` or `1d`); `bb thread unsnooze <thread-id>` wakes it and
+`bb thread list --snoozed` lists sleepers. The SDK uses
+`sdk.threads.snooze({ threadId, until })` and `sdk.threads.unsnooze({ threadId })`.
+A snooze ends at its time, or earlier when the server sees the thread or a child
+ask for input, finish a turn, fail, or fail to send a queued message. Working
+and asking threads cannot be snoozed.
 
 Sidebar footer actions
 

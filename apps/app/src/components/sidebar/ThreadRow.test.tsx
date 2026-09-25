@@ -23,6 +23,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   renameThread: vi.fn(),
+  togglePin: vi.fn(),
   unarchiveThread: vi.fn(),
 }));
 
@@ -31,11 +32,16 @@ vi.mock("@/components/thread/ThreadActionsProvider", () => ({
     generatingTitleIds: new Set<string>(),
     generateTitle: vi.fn(),
     renameThreadAsync: mocks.renameThread,
+    togglePin: mocks.togglePin,
     unarchiveThread: mocks.unarchiveThread,
   }),
 }));
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { ThreadTitleMentionResourcesProvider } from "@/components/thread/ThreadTitleMentions";
+import {
+  ThreadSnoozeContext,
+  type ThreadSnoozeState,
+} from "@/components/thread/ThreadSnoozeControls";
 import {
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
   SIDEBAR_WORKING_STATUS_COLOR_CLASS,
@@ -89,14 +95,12 @@ const DEFAULT_OPTIONS: ThreadRowOptions = {
 };
 
 function ThreadRowTestHarness({
-  crossProjectId = null,
   hasComposerDraft = false,
   isActive = false,
   options = DEFAULT_OPTIONS,
   shortcutKey,
   thread,
 }: {
-  crossProjectId?: string | null;
   hasComposerDraft?: boolean;
   isActive?: boolean;
   options?: ThreadRowOptions;
@@ -119,7 +123,6 @@ function ThreadRowTestHarness({
           <ThreadRow
             projectId={thread.projectId}
             thread={thread}
-            crossProjectId={crossProjectId}
             isActive={isActive}
             hasComposerDraft={hasComposerDraft}
             options={options}
@@ -828,64 +831,6 @@ describe("ThreadRow", () => {
     }
   });
 
-  it("marks a child from another project with the project name", () => {
-    const { container } = render(
-      <ThreadTitleMentionResourcesProvider
-        sectionNamesById={new Map()}
-        projectNamesById={new Map([["proj_other", "Web App"]])}
-        threadById={new Map()}
-      >
-        <ThreadRowTestHarness
-          crossProjectId="proj_other"
-          thread={createThread({
-            parentThreadId: "thr_parent",
-            projectId: "proj_other",
-          })}
-        />
-      </ThreadTitleMentionResourcesProvider>,
-    );
-
-    const marker = container.querySelector(
-      "[data-sidebar-thread-cross-project]",
-    );
-    expect(marker?.getAttribute("aria-label")).toBe("In project Web App");
-    expect(marker?.querySelector('[data-icon="FolderExport"]')).not.toBeNull();
-    expect(
-      marker?.closest("[data-sidebar-thread-trailing-indicator]"),
-    ).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Open Thread" }).getAttribute("href"),
-    ).toBe("/projects/proj_other/threads/thr_test");
-  });
-
-  it("opens the thread when the cross-project marker is clicked", () => {
-    const { container } = render(
-      <ThreadRowTestHarness
-        crossProjectId="proj_other"
-        thread={createThread({
-          parentThreadId: "thr_parent",
-          projectId: "proj_other",
-        })}
-      />,
-    );
-    const link = screen.getByRole("link", { name: "Open Thread" });
-    const onLinkClick = vi.fn();
-    link.addEventListener("click", onLinkClick);
-
-    fireEvent.click(
-      container.querySelector("[data-sidebar-thread-cross-project]")!,
-    );
-
-    expect(onLinkClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("omits the cross-project marker for same-project rows", () => {
-    const { container } = renderThreadRow({});
-    expect(
-      container.querySelector("[data-sidebar-thread-cross-project]"),
-    ).toBeNull();
-  });
-
   it("renders a complete Unicode path mention instead of an ASCII prefix", () => {
     const { container } = renderThreadRow({
       thread: createThread({
@@ -946,7 +891,119 @@ describe("ThreadRow", () => {
         .querySelector('[data-prompt-mention="true"]')
         ?.getAttribute("data-prompt-mention-serialized-text"),
     ).toBe("@docs/foo.test.ts");
-    expect(container.textContent).toBe("Review foo.test.ts.");
+    expect(container.querySelector(".bb-sidebar-thread-title")?.textContent).toBe(
+      "Review foo.test.ts.",
+    );
+  });
+
+  it("shows the project and last activity on the second line", () => {
+    vi.useFakeTimers({ now: 10 * 60_000 });
+    try {
+      const { container } = render(
+        <ThreadTitleMentionResourcesProvider
+          sectionNamesById={new Map()}
+          projectNamesById={new Map([["proj_web", "Web App"]])}
+          threadById={new Map()}
+        >
+          <ThreadRowTestHarness
+            thread={createThread({
+              projectId: "proj_web",
+              updatedAt: 5 * 60_000,
+              latestAttentionAt: 7 * 60_000,
+            })}
+          />
+        </ThreadTitleMentionResourcesProvider>,
+      );
+      const meta = container.querySelector("[data-sidebar-thread-meta]");
+      expect(meta?.querySelector('[data-icon="Folder"]')).not.toBeNull();
+      expect(meta?.textContent).toBe("Web App·3m");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("labels personal threads Personal on the second line", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({ projectId: "proj_personal" }),
+    });
+    expect(
+      container.querySelector("[data-sidebar-thread-meta]")?.textContent,
+    ).toMatch(/^Personal·/);
+  });
+
+  it("shows the wake time instead of the last activity for a snoozed root", () => {
+    vi.useFakeTimers({ now: 60_000 });
+    try {
+      const snooze: ThreadSnoozeState = {
+        now: 60_000,
+        activeUntil: () => 60_000 + 2 * 60 * 60_000,
+        isSnoozeRoot: () => true,
+        canSnooze: () => true,
+        snooze: vi.fn(),
+        unsnooze: vi.fn(),
+        openCustom: vi.fn(),
+      };
+      const { container } = render(
+        <ThreadSnoozeContext.Provider value={snooze}>
+          <ThreadRowTestHarness thread={createThread()} />
+        </ThreadSnoozeContext.Provider>,
+      );
+      const time = container.querySelector("[data-sidebar-thread-meta] time");
+      expect(time?.textContent).toBe("2h");
+      expect(time?.getAttribute("title")).toMatch(/^Wakes /);
+      expect(
+        screen.getByRole("button", { name: "Snoozed thread" }),
+      ).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("offers snooze only on rows the status list marks as snooze roots", () => {
+    const snooze: ThreadSnoozeState = {
+      now: 0,
+      activeUntil: () => null,
+      isSnoozeRoot: (threadId) => threadId === "thr_root",
+      canSnooze: () => true,
+      snooze: vi.fn(),
+      unsnooze: vi.fn(),
+      openCustom: vi.fn(),
+    };
+    render(
+      <ThreadSnoozeContext.Provider value={snooze}>
+        <ThreadRowTestHarness thread={createThread({ id: "thr_root" })} />
+        <ThreadRowTestHarness
+          thread={createThread({ id: "thr_pinned", title: "Pinned one" })}
+        />
+      </ThreadSnoozeContext.Provider>,
+    );
+    expect(screen.getAllByRole("button", { name: "Snooze thread" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("toggles the pin from the row's quick action", () => {
+    renderThreadRow({ thread: createThread({ pinnedAt: null }) });
+    fireEvent.click(screen.getByRole("button", { name: "Pin thread" }));
+    expect(mocks.togglePin).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "thr_test" }),
+    );
+  });
+
+  it("tints a row that holds an unsubmitted draft until it is selected", () => {
+    const idle = renderThreadRow({ hasComposerDraft: true });
+    const idleRow = idle.container.querySelector("[data-sidebar-rename-row]");
+    expect(idleRow?.className).toContain("var(--surface-draft)");
+    idle.unmount();
+
+    const selected = renderThreadRow({
+      hasComposerDraft: true,
+      isActive: true,
+    });
+    const selectedRow = selected.container.querySelector(
+      "[data-sidebar-rename-row]",
+    );
+    expect(selectedRow?.className).not.toContain("var(--surface-draft)");
   });
 
   it("uses the circle-question glyph when the thread needs user input", () => {
@@ -1038,7 +1095,7 @@ describe("ThreadRow", () => {
   });
 
   it.each([true, false])(
-    "reserves a stable action slot beside a parent disclosure (collapsed: %s)",
+    "reserves the action slot beside a parent disclosure only on hover (collapsed: %s)",
     (isCollapsed) => {
       const onToggleCollapsed = vi.fn();
       renderThreadRow({
@@ -1067,11 +1124,11 @@ describe("ThreadRow", () => {
       expect(
         titleContainer?.classList.contains("bb-sidebar-hover-actions-inset"),
       ).toBe(false);
-      expect(titleContainer?.classList.contains("pr-7.5")).toBe(true);
       expect(
-        titleContainer?.classList.contains("max-md:pointer-coarse:pr-0"),
+        titleContainer?.classList.contains("bb-sidebar-thread-disclosure-row"),
       ).toBe(true);
-      expect(navigationTarget?.classList.contains("flex-1")).toBe(true);
+      expect(titleContainer?.className).not.toMatch(/(?:^|\s)pr-/);
+      expect(navigationTarget?.classList.contains("col-start-1")).toBe(true);
       expect(titleWrapper?.classList.contains("flex-1")).toBe(true);
       fireEvent.click(toggle);
       expect(onToggleCollapsed).toHaveBeenCalledWith("thr_test");

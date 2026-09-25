@@ -642,6 +642,13 @@ export type ReorderPinnedThreadRequest = z.infer<
   typeof reorderPinnedThreadRequestSchema
 >;
 
+export const snoozeThreadRequestSchema = z
+  .object({
+    until: z.number().int().positive().nullable(),
+  })
+  .strict();
+export type SnoozeThreadRequest = z.infer<typeof snoozeThreadRequestSchema>;
+
 export const panelFileSourceSchema = z.enum(["workspace", "thread-storage"]);
 export type PanelFileSource = z.infer<typeof panelFileSourceSchema>;
 
@@ -759,6 +766,7 @@ export const threadListQuerySchema = z.object({
   archived: z.enum(["true", "false"]).optional(),
   sectionId: z.string().min(1).optional(),
   unsectioned: z.enum(["true", "false"]).optional(),
+  snoozed: z.enum(["true", "false"]).optional(),
   hasParent: z.enum(["true", "false"]).optional(),
   originKind: threadOriginKindSchema.optional(),
   originPluginId: z.string().min(1).optional(),

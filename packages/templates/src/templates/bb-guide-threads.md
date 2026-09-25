@@ -154,6 +154,7 @@ Listing:
     --environment <id>                     Filter by environment
     --parent-thread <id>                   Filter by parent thread
     --archived                             Show only archived threads
+    --snoozed                              Show only threads snoozed into the future
     --section <id>                         Filter by section
     --unsectioned                          Show only threads outside sections
     --include-hidden                       Include hidden threads
@@ -334,6 +335,20 @@ Ownership:
   bb thread read [id]                      Mark read
   bb thread unread [id]                    Mark unread
   bb thread reorder-pinned <id> [--after <id>] [--before <id>]
+  bb thread snooze <id> <until>            Move a thread to Snoozed until a time
+    --json                                 Print the updated thread as JSON
+  bb thread unsnooze [id]                  Wake a snoozed thread now
+    --self                                 Target current thread
+    --json                                 Print the updated thread as JSON
+
+  <until> is an ISO 8601 timestamp (2026-08-25T09:00) or a duration from now
+  (30m, 2h, 1d) and must be in the future. A snoozed thread and its child
+  threads sit in the sidebar's Snoozed section until then. The server wakes it
+  early (clears snoozedUntil) when the thread or a child asks for input,
+  finishes a turn, fails, or a queued message fails to send; archiving also
+  clears it. The SDK equivalents are sdk.threads.snooze({ threadId, until })
+  and sdk.threads.unsnooze({ threadId }); the route is
+  PUT /api/v1/threads/:id/snooze with {until: number | null}.
 
 Interactions:
 

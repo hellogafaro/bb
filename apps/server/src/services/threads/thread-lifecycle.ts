@@ -1783,7 +1783,7 @@ function interruptActiveThreads(
       appendThreadEventsInTransaction(tx, eventArgs);
       for (const thread of args.threads) {
         applyLoggedThreadLifecycleEventInTransaction(
-          { db: tx, logger: deps.logger },
+          { db: tx, hub: deps.hub, logger: deps.logger },
           { event: lifecycleEvent, threadId: thread.threadId },
         );
       }

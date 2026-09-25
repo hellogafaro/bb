@@ -17,6 +17,7 @@ interface ThreadListCommandOptions {
   archived?: boolean;
   section?: string;
   unsectioned?: boolean;
+  snoozed?: boolean;
   json?: boolean;
   includeHidden?: boolean;
 }
@@ -34,6 +35,7 @@ export function registerListCommand(
     .option("--section <id>", "Filter by thread section ID")
     .option("--unsectioned", "Show only threads outside sections")
     .option("--archived", "Show only archived threads")
+    .option("--snoozed", "Show only threads snoozed into the future")
     .option("--include-hidden", "Include hidden threads")
     .option("--json", "Print machine-readable JSON output")
     .action(
@@ -65,6 +67,7 @@ export function registerListCommand(
           ...(opts.archived ? { archived: true } : {}),
           ...(sectionId ? { sectionId } : {}),
           ...(opts.unsectioned ? { unsectioned: true } : {}),
+          ...(opts.snoozed ? { snoozed: true } : {}),
           ...(opts.includeHidden ? { includeHidden: true } : {}),
         });
         if (outputJson(opts, threads)) return;
@@ -125,6 +128,9 @@ function formatThreadListStatus(thread: Thread): string {
   }
   if (thread.pinnedAt !== null) {
     flags.push("pinned");
+  }
+  if (thread.snoozedUntil !== null && thread.snoozedUntil > Date.now()) {
+    flags.push("snoozed");
   }
   if (flags.length === 0) {
     return thread.status;
