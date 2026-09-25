@@ -1,5 +1,4 @@
 import type { Agent, ProviderInfo } from "@bb/domain";
-import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
 
 export function providerDisplayName(
   providers: readonly ProviderInfo[] | undefined,
@@ -11,10 +10,29 @@ export function providerDisplayName(
   );
 }
 
-export function agentModelLabel(
-  agent: Pick<Agent, "model">,
-): string {
-  return agent.model === null ? "Default model" : formatModelLabel(agent.model);
+export function formatAgentModel(model: string): string {
+  const words: string[] = [];
+  for (const part of model.split("-")) {
+    const previous = words.at(-1);
+    if (
+      /^\d+(\.\d+)*$/.test(part) &&
+      previous !== undefined &&
+      /\d$/.test(previous)
+    ) {
+      words[words.length - 1] = `${previous}.${part}`;
+    } else if (/^gpt$/i.test(part)) {
+      words.push("GPT");
+    } else if (/^[a-z]+$/i.test(part)) {
+      words.push(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+    } else {
+      words.push(part);
+    }
+  }
+  return words.join(" ");
+}
+
+export function agentModelLabel(agent: Pick<Agent, "model">): string {
+  return agent.model === null ? "Default model" : formatAgentModel(agent.model);
 }
 
 export function agentExecutionLabel(

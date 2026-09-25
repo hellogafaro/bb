@@ -974,7 +974,7 @@ describe("ThreadRow", () => {
     expect(mark?.hasAttribute("data-sidebar-thread-agent")).toBe(true);
     expect(mark?.querySelector("img")).toBeNull();
     const mascot = mark?.querySelector<SVGElement>('[data-agent-mascot="crab"]');
-    expect(mascot?.classList.contains("size-3")).toBe(true);
+    expect(mascot?.classList.contains("size-3.5")).toBe(true);
     expect(mascot?.style.color).toBe("var(--agent-color-6)");
     expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
   });

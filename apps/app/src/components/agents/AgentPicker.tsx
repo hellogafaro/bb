@@ -176,7 +176,7 @@ export const AgentPicker = memo(function AgentPicker({
           mascot={agent.mascot}
           color={agent.color}
           active={active}
-          className="size-3.5"
+          className="size-4"
         />
         <span className="min-w-0 truncate">{agent.name}</span>
       </span>

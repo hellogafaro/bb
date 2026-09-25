@@ -91,7 +91,7 @@ export function ThreadRowMeta({
             mascot={agent.mascot}
             color={agent.color}
             active={isThreadWorking(thread)}
-            className="size-3"
+            className="size-3.5"
           />
         </span>
       )}
