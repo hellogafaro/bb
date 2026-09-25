@@ -120,6 +120,11 @@ export const CORE_COMMAND_GROUPS: readonly CommandGroup[] = [
     (m) => (program) => m.registerGuideCommand(program),
   ),
   group(
+    "mcp",
+    () => import("./commands/mcp.js"),
+    (m) => (program, deps) => m.registerMcpCommands(program, deps.getUrl),
+  ),
+  group(
     "diagnostics",
     () => import("./commands/diagnostics.js"),
     (m) => (program) => m.registerDiagnosticsCommands(program),

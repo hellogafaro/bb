@@ -12,6 +12,8 @@ import {
   isApprovalPendingInteraction,
   isApprovalPendingInteractionPayload,
   isApprovalPendingInteractionResolution,
+  isCorePendingInteraction,
+  isCorePendingInteractionResolution,
   isPluginPendingInteraction,
   isPluginPendingInteractionPayload,
   isUserQuestionPendingInteraction,
@@ -20,6 +22,8 @@ import {
   parseExtensionKind,
   PendingInteraction,
   type ApprovalPendingInteraction,
+  type CorePendingInteraction,
+  type CorePendingInteractionResolution,
   type JsonValue,
   type PluginExtensionPendingInteraction,
   type PluginPendingInteraction,
@@ -128,6 +132,12 @@ function parsePermissionGrantScope(
 function formatInteractionKind(interaction: PendingInteraction): string {
   if (isUserQuestionPendingInteractionPayload(interaction.payload)) {
     return "question";
+  }
+
+  if (isCorePendingInteraction(interaction)) {
+    return interaction.payload.kind === "mcp_approval"
+      ? "mcp-approval"
+      : "mcp-question";
   }
 
   if (isPluginPendingInteractionPayload(interaction.payload)) {
@@ -315,7 +325,73 @@ function printInteraction(interaction: PendingInteraction): void {
     printApprovalInteraction(interaction);
     return;
   }
+  if (isCorePendingInteraction(interaction)) {
+    printCoreInteraction(interaction);
+    return;
+  }
   printPluginRequestInteraction(interaction);
+}
+
+function printCoreInteraction(interaction: CorePendingInteraction): void {
+  const { payload, resolution } = interaction;
+  console.log(`  Title: ${payload.title}`);
+  console.log(`  Server: ${payload.server}`);
+  if (payload.kind === "mcp_approval") {
+    console.log(`  Tool: ${payload.tool}`);
+    console.log(`  Risk: ${payload.risk}`);
+    console.log(
+      `  Arguments${payload.truncated ? " (truncated)" : ""}: ${payload.args}`,
+    );
+    console.log(
+      "  Answer: bb thread interactions approve|deny <interactionId>",
+    );
+  } else {
+    console.log(`  Message: ${payload.message}`);
+    if (payload.fields.length > 0) {
+      console.log("  Fields:");
+      for (const field of payload.fields) {
+        const details = [
+          field.type,
+          field.required ? "required" : "optional",
+          ...(field.options
+            ? [
+                `one of ${field.options.map((option) => option.value).join(", ")}`,
+              ]
+            : []),
+          ...(field.defaultValue !== null
+            ? [`default ${JSON.stringify(field.defaultValue)}`]
+            : []),
+        ];
+        const label = field.title ?? field.description;
+        console.log(
+          `    - ${field.name} (${details.join(", ")})${label ? `: ${label}` : ""}`,
+        );
+      }
+    }
+    console.log(
+      `  Answer: bb thread interactions respond <interactionId> --value '{"action":"accept","content":{...}}'`,
+    );
+    console.log("  Decline: bb thread interactions deny <interactionId>");
+  }
+
+  if (!resolution) {
+    return;
+  }
+  console.log("");
+  console.log("Resolution:");
+  console.log(`  ${formatCoreResolutionOutcome(resolution)}`);
+  if (resolution.kind === "mcp_elicitation" && resolution.action === "accept") {
+    console.log(`  Content: ${JSON.stringify(resolution.content)}`);
+  }
+}
+
+function formatCoreResolutionOutcome(
+  resolution: CorePendingInteractionResolution,
+): string {
+  if (resolution.kind === "mcp_approval") {
+    return resolution.allowed ? "allowed" : "denied";
+  }
+  return resolution.action === "accept" ? "answered" : "declined";
 }
 
 function printPluginRequestInteraction(
@@ -611,10 +687,28 @@ function pickApprovalDecision(
   );
 }
 
+function buildCoreBinaryResolution(
+  interaction: CorePendingInteraction,
+  action: "approve" | "deny",
+): CorePendingInteractionResolution {
+  if (interaction.payload.kind === "mcp_approval") {
+    return { kind: "mcp_approval", allowed: action === "approve" };
+  }
+  if (action === "deny") {
+    return { kind: "mcp_elicitation", action: "decline" };
+  }
+  throw new Error(
+    `Interaction ${interaction.id} is an MCP question; answer it with bb thread interactions respond --value '{"action":"accept","content":{...}}'.`,
+  );
+}
+
 function buildBinaryResolution(
   interaction: PendingInteraction,
   action: "approve" | "deny",
 ): PendingInteractionResolution {
+  if (isCorePendingInteraction(interaction)) {
+    return buildCoreBinaryResolution(interaction, action);
+  }
   const approvalInteraction = requireApprovalInteraction(interaction);
   if (
     action === "approve" &&
@@ -651,6 +745,9 @@ function buildPermissionGrantResolution(
 function formatBinaryResolutionMessage(
   resolution: PendingInteractionResolution,
 ): string {
+  if (isCorePendingInteractionResolution(resolution)) {
+    return formatCoreResolutionOutcome(resolution);
+  }
   if (!isApprovalPendingInteractionResolution(resolution)) {
     throw new Error("Expected an approval resolution");
   }
@@ -795,7 +892,7 @@ export function registerInteractionCommands(
     interactions,
     getUrl,
     "approve",
-    "Approve a command, file-change, or plan interaction for this turn",
+    "Approve a command, file-change, plan, or MCP tool-call interaction for this turn",
   );
 
   interactions
@@ -873,13 +970,13 @@ export function registerInteractionCommands(
   interactions
     .command("respond <interactionId> [id]")
     .description(
-      "Answer a plugin form (a plugin's request or a provider's plugin-defined request) with a JSON value",
+      "Answer a plugin form, a provider's plugin-defined request, or an MCP approval or question with a JSON value",
     )
     .option("--self", "Target the current thread (from BB_THREAD_ID)")
     .option("--json", "Print machine-readable JSON output")
     .requiredOption(
       "--value <json>",
-      "The form's answer as JSON, in the shape the plugin's form defines",
+      'The answer as JSON: the shape the plugin\'s form defines, {"allowed": true|false} for an MCP approval, or {"action": "accept", "content": {...}} / {"action": "decline"} for an MCP question',
     )
     .action(
       action(
@@ -903,7 +1000,9 @@ export function registerInteractionCommands(
             return;
           }
           console.log(
-            formatAnswerResolutionSuccessMessage({ interactionId, updated }),
+            isCorePendingInteraction(updated) && updated.resolution
+              ? `Interaction ${interactionId} ${formatCoreResolutionOutcome(updated.resolution)}`
+              : formatAnswerResolutionSuccessMessage({ interactionId, updated }),
           );
         },
       ),
@@ -913,6 +1012,6 @@ export function registerInteractionCommands(
     interactions,
     getUrl,
     "deny",
-    "Deny a command, file-change, plan, or permission interaction",
+    "Deny a command, file-change, plan, permission, or MCP tool-call interaction, or decline an MCP question",
   );
 }

@@ -109,6 +109,42 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb skill list --json
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
 
+  bb mcp list [--details] --json
+    [{id, handle, type, status, tools}]    (bare array; tools is absent until the catalog is known; --details prints full records as in bb mcp show)
+
+  bb mcp show <server> --json
+    {id, handle, name, description, type, status, sourceKind, enabled, authStatus, lastError, sourceRef, registryName, registryVersion, config, toolCount, promptCount, resourceCount, guide}
+
+  bb mcp add ... --json
+    {id, handle, name}
+
+  bb mcp registry <query> --json
+    [{name, description, version, status, installable, sourceRef, type, remote, requiredHeaders}]    (bare array)
+
+  bb mcp auth <server> --json
+    {url, status}    (url is null when no browser step is needed)
+
+  bb mcp header <server> ... --json, bb mcp remove <server> --json
+    {updated: true, id}, {deleted: true, id}
+
+  bb mcp enable <server> --json, bb mcp disable <server> --json
+    {enabled, status}
+
+  bb mcp guide <server> [text] [--clear] --json
+    {id, handle, guide}
+
+  bb mcp call <tool-id> [json-args] --json
+    the MCP tool result: {content, isError?, structuredContent?} or {isError: true, error}
+
+  bb mcp tools <query> --json
+    {tools: [{id, server, name, description, risk?, policy?, input?, schemaRequired?}], unavailable?}    (wrapped in .tools)
+
+  bb mcp policy <server> [tool] [mode] --json
+    [{tool, risk, mode, policy}]    (bare array; one object when a tool is named)
+
+  bb mcp providers --json
+    {hostId, status: {claude: {settingsPath, connectorsDisabled, mcpServers}, codex: {configPath, mcpServers}}, issues: [{provider, message}], text}
+
   bb marketplace list --json
     bare array
 

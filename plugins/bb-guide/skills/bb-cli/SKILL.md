@@ -63,6 +63,8 @@ BB_HOST_DAEMON_PORT only for an intentional non-default target.
 - Read references/plugins.md for plugin discovery, install, build, update,
   configuration, runtime, and contributed commands.
 - Read references/app-settings.md for complete app setting keys and effects.
+- Read references/mcp.md for MCP servers, tool policies, guides, approvals,
+  and the provider guard.
 
 ## Command habits
 

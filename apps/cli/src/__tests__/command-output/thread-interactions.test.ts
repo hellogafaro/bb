@@ -9,6 +9,70 @@ import {
 import type { CommandRegistrar } from "../helpers/command-output-harness.js";
 import * as fixtures from "../helpers/command-output-fixtures.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
+import type {
+  CorePendingInteraction,
+  CorePendingInteractionPayload,
+  CorePendingInteractionResolution,
+} from "@bb/domain";
+
+const mcpApprovalPayload: CorePendingInteractionPayload = {
+  kind: "mcp_approval",
+  title: "Allow linear to delete_issue?",
+  server: "linear",
+  tool: "delete_issue",
+  risk: "destructive",
+  args: '{"id":"ENG-1"}',
+  truncated: false,
+};
+
+const mcpQuestionPayload: CorePendingInteractionPayload = {
+  kind: "mcp_elicitation",
+  title: "linear needs input",
+  server: "linear",
+  message: "Pick a team",
+  fields: [
+    {
+      name: "team",
+      title: "Team",
+      description: null,
+      type: "string",
+      options: [
+        { value: "eng", label: "Engineering" },
+        { value: "ops", label: "Operations" },
+      ],
+      required: true,
+      defaultValue: "eng",
+    },
+    {
+      name: "notify",
+      title: null,
+      description: "Notify the team",
+      type: "boolean",
+      options: null,
+      required: false,
+      defaultValue: null,
+    },
+  ],
+};
+
+function makeCoreInteraction(
+  id: string,
+  payload: CorePendingInteractionPayload,
+  resolution: CorePendingInteractionResolution | null = null,
+): CorePendingInteraction {
+  return {
+    id,
+    threadId: "thread-mcp",
+    status: resolution === null ? "pending" : "resolved",
+    statusReason: null,
+    createdAt: Date.now(),
+    resolvedAt: resolution === null ? null : Date.now(),
+    turnId: "turn-mcp",
+    origin: { kind: "core" },
+    payload,
+    resolution,
+  };
+}
 
 describe("bb thread interactions command output", () => {
   setupCommandOutputTestEnvironment();
@@ -1041,6 +1105,188 @@ describe("bb thread interactions command output", () => {
     });
     expect(collectLogLines(vi.mocked(console.log))).toEqual([
       "Interaction int-permission-deny submitted (denied); delivering to provider",
+    ]);
+  });
+
+  it("bb thread interactions show prints an MCP approval with its tool call", async () => {
+    stubServerApi({
+      "v1.threads.:id.interactions.:interactionId.$get": vi.fn(async () =>
+        makeCoreInteraction("int-mcp-approval", mcpApprovalPayload),
+      ),
+    });
+
+    await runCommand(
+      ["thread", "interactions", "show", "int-mcp-approval", "thread-mcp"],
+      register,
+    );
+
+    const lines = collectLogLines(vi.mocked(console.log));
+    expect(lines).toContain("  Kind: mcp-approval");
+    expect(lines.slice(5)).toEqual([
+      "  Title: Allow linear to delete_issue?",
+      "  Server: linear",
+      "  Tool: delete_issue",
+      "  Risk: destructive",
+      '  Arguments: {"id":"ENG-1"}',
+      "  Answer: bb thread interactions approve|deny <interactionId>",
+    ]);
+  });
+
+  it("bb thread interactions show prints an MCP question's fields and its answer", async () => {
+    stubServerApi({
+      "v1.threads.:id.interactions.:interactionId.$get": vi.fn(async () =>
+        makeCoreInteraction("int-mcp-question", mcpQuestionPayload, {
+          kind: "mcp_elicitation",
+          action: "accept",
+          content: { team: "ops" },
+        }),
+      ),
+    });
+
+    await runCommand(
+      ["thread", "interactions", "show", "int-mcp-question", "thread-mcp"],
+      register,
+    );
+
+    const lines = collectLogLines(vi.mocked(console.log));
+    expect(lines).toContain("  Kind: mcp-question");
+    expect(lines).toContain("  Message: Pick a team");
+    expect(lines).toContain(
+      '    - team (string, required, one of eng, ops, default "eng"): Team',
+    );
+    expect(lines).toContain("    - notify (boolean, optional): Notify the team");
+    expect(lines.slice(-3)).toEqual([
+      "Resolution:",
+      "  answered",
+      '  Content: {"team":"ops"}',
+    ]);
+  });
+
+  it("bb thread interactions list labels MCP interactions by kind and title", async () => {
+    stubServerApi({
+      "v1.threads.:id.interactions.$get": vi.fn(async () => [
+        makeCoreInteraction("int-mcp-approval", mcpApprovalPayload),
+      ]),
+    });
+
+    await runCommand(["thread", "interactions", "list", "thread-mcp"], register);
+
+    const table = collectLogPayloads(vi.mocked(console.log)).join("\n");
+    expect(table).toContain("mcp-approval");
+    expect(table).toContain("Allow linear to delete_issue?");
+  });
+
+  it("bb thread interactions approve and deny answer an MCP approval", async () => {
+    const resolveInteraction = vi.fn(async () =>
+      makeCoreInteraction("int-mcp-approval", mcpApprovalPayload, {
+        kind: "mcp_approval",
+        allowed: false,
+      }),
+    );
+    stubServerApi({
+      "v1.threads.:id.interactions.:interactionId.$get": vi.fn(async () =>
+        makeCoreInteraction("int-mcp-approval", mcpApprovalPayload),
+      ),
+      "v1.threads.:id.interactions.:interactionId.resolve.$post":
+        resolveInteraction,
+    });
+
+    await runCommand(
+      ["thread", "interactions", "approve", "int-mcp-approval", "thread-mcp"],
+      register,
+    );
+    await runCommand(
+      ["thread", "interactions", "deny", "int-mcp-approval", "thread-mcp"],
+      register,
+    );
+
+    expect(resolveInteraction).toHaveBeenNthCalledWith(1, {
+      param: { id: "thread-mcp", interactionId: "int-mcp-approval" },
+      json: { kind: "mcp_approval", allowed: true },
+    });
+    expect(resolveInteraction).toHaveBeenNthCalledWith(2, {
+      param: { id: "thread-mcp", interactionId: "int-mcp-approval" },
+      json: { kind: "mcp_approval", allowed: false },
+    });
+    expect(collectLogLines(vi.mocked(console.log))).toEqual([
+      "Interaction int-mcp-approval denied",
+      "Interaction int-mcp-approval denied",
+    ]);
+  });
+
+  it("bb thread interactions deny declines an MCP question and approve points to respond", async () => {
+    const resolveInteraction = vi.fn(async () =>
+      makeCoreInteraction("int-mcp-question", mcpQuestionPayload, {
+        kind: "mcp_elicitation",
+        action: "decline",
+      }),
+    );
+    stubServerApi({
+      "v1.threads.:id.interactions.:interactionId.$get": vi.fn(async () =>
+        makeCoreInteraction("int-mcp-question", mcpQuestionPayload),
+      ),
+      "v1.threads.:id.interactions.:interactionId.resolve.$post":
+        resolveInteraction,
+    });
+
+    await runCommand(
+      ["thread", "interactions", "deny", "int-mcp-question", "thread-mcp"],
+      register,
+    );
+    await expect(
+      runCommand(
+        ["thread", "interactions", "approve", "int-mcp-question", "thread-mcp"],
+        register,
+      ),
+    ).rejects.toThrow("process.exit:1");
+
+    expect(resolveInteraction).toHaveBeenCalledTimes(1);
+    expect(resolveInteraction).toHaveBeenCalledWith({
+      param: { id: "thread-mcp", interactionId: "int-mcp-question" },
+      json: { kind: "mcp_elicitation", action: "decline" },
+    });
+    expect(collectLogLines(vi.mocked(console.log))).toEqual([
+      "Interaction int-mcp-question declined",
+    ]);
+    expect(collectLogLines(vi.mocked(console.error)).join("\n")).toContain(
+      "bb thread interactions respond",
+    );
+  });
+
+  it("bb thread interactions respond answers an MCP question with content", async () => {
+    const respond = vi.fn(async () =>
+      makeCoreInteraction("int-mcp-question", mcpQuestionPayload, {
+        kind: "mcp_elicitation",
+        action: "accept",
+        content: { team: "eng", notify: true },
+      }),
+    );
+    stubServerApi({
+      "v1.threads.:id.interactions.:interactionId.respond.$post": respond,
+    });
+
+    await runCommand(
+      [
+        "thread",
+        "interactions",
+        "respond",
+        "int-mcp-question",
+        "thread-mcp",
+        "--value",
+        '{"action":"accept","content":{"team":"eng","notify":true}}',
+      ],
+      register,
+    );
+
+    expect(respond).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          value: { action: "accept", content: { team: "eng", notify: true } },
+        },
+      }),
+    );
+    expect(collectLogLines(vi.mocked(console.log))).toEqual([
+      "Interaction int-mcp-question answered",
     ]);
   });
 });

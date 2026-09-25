@@ -64,5 +64,6 @@ Run `bb guide <chapter>` for command details:
   plugins              Installing plugins, plugin marketplaces, and their
                        contributed bb commands
   automations          Scheduling and editing recurring or one-shot work
+  mcp                  MCP servers, tool policies, and the provider guard
   json                 The --json contract: output shapes and the error envelope
   commands [group]     Every core command on one page; add a group for options

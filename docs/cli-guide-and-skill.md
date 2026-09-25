@@ -36,3 +36,10 @@ Modal connection and machine commands are documented in [modal-sandboxes](../plu
 `--environment-provider`; a composition rejects separate machine selectors.
 
 Modal image debugging uses `bb modal image build`, `bb modal sandbox run`, `bb modal sandbox exec ID [--json] -- COMMAND...`, and `bb modal sandbox stop ID`. Debug compute expires after 30 minutes and skips BB enrollment and project setup. See the plugin skill for output limits and typed RPC equivalents.
+
+`bb mcp` is a core command group over `sdk.mcp`. When its commands, flags, or
+`--json` shapes change, update `bb guide mcp` (`bb-guide-mcp.md`), the MCP
+entries in `bb guide json` and `apps/cli/src/json-shapes.ts`, and the bb-cli
+skill's `references/mcp.md` and command index. MCP approvals and questions are
+answered through `bb thread interactions approve|deny|respond`; keep the threads
+chapter aligned with them.

@@ -341,19 +341,20 @@ Interactions:
   bb thread interactions show <interaction-id> [id]
                                            Show one interaction (approval details, questions, or a plugin form's data)
   bb thread interactions approve <interaction-id> [id]
-                                           Allow a command, file-change, plan, or tool-use approval
+                                           Allow a command, file-change, plan, tool-use, or MCP tool-call approval
   bb thread interactions deny <interaction-id> [id]
-                                           Deny an approval
+                                           Deny an approval, or decline an MCP question
   bb thread interactions grant <interaction-id> [id] --scope turn|session
                                            Grant a permission interaction
   bb thread interactions answer <interaction-id> [id] --choice <questionId=value> --text <questionId=text>
                                            Answer a provider's user question
   bb thread interactions respond <interaction-id> [id] --value '<json>'
-                                           Answer a plugin form: a plugin's own request, or a request the agent raised through a provider (kind `<pluginId>/<name>`)
+                                           Answer a plugin form: a plugin's own request, or a request the agent raised through a provider (kind `<pluginId>/<name>`); or an MCP approval ({"allowed": true|false}) or question ({"action": "accept", "content": {...}})
     --self                                 Target current thread (every subcommand)
     --json                                 Machine-readable output (every subcommand)
 
-  `show` prints a plugin form's `Data` so you can shape the `--value` JSON.
+  `show` prints a plugin form's `Data` so you can shape the `--value` JSON,
+  and an MCP question's fields. `bb guide mcp` covers MCP approvals.
   A provider's plugin-defined request cannot be cancelled; stop the thread to
   back out of it.
 

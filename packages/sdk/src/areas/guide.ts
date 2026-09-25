@@ -25,6 +25,7 @@ const guideChapters: Record<string, TemplateId> = {
   customization: "bbGuideCustomization",
   plugins: "bbGuidePlugins",
   automations: "bbGuideAutomations",
+  mcp: "bbGuideMcp",
   json: "bbGuideJson",
 };
 
@@ -59,6 +60,7 @@ const guideChapterAliases: Record<string, string> = {
   plugin: "plugins",
   marketplace: "plugins",
   automation: "automations",
+  mcps: "mcp",
   "json-output": "json",
   output: "json",
   errors: "json",

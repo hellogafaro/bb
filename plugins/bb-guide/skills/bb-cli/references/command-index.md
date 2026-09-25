@@ -307,6 +307,26 @@ server.
 - `bb skill cli-skills-status`
 - `bb skill install-cli-skills`
 
+## mcp
+
+- `bb mcp`
+- `bb mcp list`
+- `bb mcp show`
+- `bb mcp add`
+- `bb mcp registry`
+- `bb mcp tools`
+- `bb mcp auth`
+- `bb mcp header`
+- `bb mcp enable`
+- `bb mcp disable`
+- `bb mcp remove`
+- `bb mcp call`
+- `bb mcp guide`
+- `bb mcp policy`
+- `bb mcp providers`
+
+`bb mcp` manages MCP servers for every provider. Read references/mcp.md before you add servers, change policies, or answer MCP approvals.
+
 ## guide
 
 - `bb guide`

@@ -33,6 +33,16 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "{plugins: [{id, version, enabled, status, source, rootDir}]}    (wrapped in .plugins)",
   "skill list":
     "{skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)",
+  "mcp list":
+    "[{id, handle, type, status, tools}]    (bare array; tools is absent until the catalog is known; --details prints full records as in bb mcp show)",
+  "mcp show":
+    "{id, handle, name, description, type, status, sourceKind, enabled, authStatus, lastError, sourceRef, registryName, registryVersion, config, toolCount, promptCount, resourceCount, guide}",
+  "mcp tools":
+    "{tools: [{id, server, name, description, risk?, policy?, input?, schemaRequired?}], unavailable?}    (wrapped in .tools)",
+  "mcp policy":
+    "[{tool, risk, mode, policy}]    (bare array; one object when a tool is named)",
+  "mcp providers":
+    "{hostId, status: {claude: {settingsPath, connectorsDisabled, mcpServers}, codex: {configPath, mcpServers}}, issues: [{provider, message}], text}",
 };
 
 export function jsonShapeHelp(commandPath: string): string | null {
