@@ -25,11 +25,7 @@ export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
 ] as const;
 
-function placeAfter(
-  keys: string[],
-  key: string,
-  anchor: string,
-): string[] {
+function placeAfter(keys: string[], key: string, anchor: string): string[] {
   if (!keys.includes(anchor) || !keys.includes(key)) return keys;
   const rest = keys.filter((item) => item !== key);
   rest.splice(rest.indexOf(anchor) + 1, 0, key);
@@ -57,14 +53,18 @@ export function seedSkillsNavigationPreference(
       );
     }
   }
-  const { agents } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
   return {
-    order: placeAfter(nextOrder, agents, skills),
+    order: placeAgentsAfterCustomize(nextOrder),
     visibleKeys:
-      nextVisibleKeys === null || !nextVisibleKeys.includes(agents)
-        ? nextVisibleKeys
-        : placeAfter(nextVisibleKeys, agents, skills),
+      nextVisibleKeys === null
+        ? null
+        : placeAgentsAfterCustomize(nextVisibleKeys),
   };
+}
+
+export function placeAgentsAfterCustomize(keys: string[]): string[] {
+  const { agents, skills } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+  return placeAfter(keys, agents, skills);
 }
 
 export function getPluginNavPanelKey(panel: PluginNavPanelIdentity): string {

@@ -41,6 +41,7 @@ import {
   arrangePluginNavPanelPreferences,
   DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
   getPluginNavPanelKey,
+  placeAgentsAfterCustomize,
   seedSkillsNavigationPreference,
 } from "./pluginNavSidebarOrder";
 import { haveSameOrder, reorderStoredOrder } from "@/lib/stored-order";
@@ -150,15 +151,19 @@ function PluginNavSidebarItemList({
       () =>
         arrangePluginNavPanelPreferences({
           panels: rows,
-          storedOrder:
+          storedOrder: placeAgentsAfterCustomize(
             newLeadingKeys.length === 0
               ? seededPreferences.order
               : [...newLeadingKeys, ...seededPreferences.order],
+          ),
           storedVisibleKeys:
             seededPreferences.visibleKeys === null ||
             newVisibleKeys.length === 0
               ? seededPreferences.visibleKeys
-              : [...newVisibleKeys, ...seededPreferences.visibleKeys],
+              : placeAgentsAfterCustomize([
+                  ...newVisibleKeys,
+                  ...seededPreferences.visibleKeys,
+                ]),
           defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
         }),
       [newLeadingKeys, newVisibleKeys, rows, seededPreferences],

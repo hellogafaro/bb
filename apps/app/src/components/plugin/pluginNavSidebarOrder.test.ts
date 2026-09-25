@@ -5,6 +5,7 @@ import {
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS,
   DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
   getPluginNavPanelKey,
+  placeAgentsAfterCustomize,
   seedSkillsNavigationPreference,
   togglePluginNavPanelVisibility,
 } from "./pluginNavSidebarOrder";
@@ -16,6 +17,22 @@ function panel(pluginId: string, id: string) {
 const github = panel("github", "pulls");
 const docs = panel("docs", "vault");
 const tasks = panel("tasks", "board");
+
+describe("placeAgentsAfterCustomize", () => {
+  it("moves a newly prepended Agents key to right after Customize", () => {
+    const { agents, automations, newThread, searchThreads, skills } =
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(
+      placeAgentsAfterCustomize([
+        agents,
+        newThread,
+        searchThreads,
+        skills,
+        automations,
+      ]),
+    ).toEqual([newThread, searchThreads, skills, agents, automations]);
+  });
+});
 
 describe("seedSkillsNavigationPreference", () => {
   it("keeps Agents directly below Customize even when stored after Automations", () => {
