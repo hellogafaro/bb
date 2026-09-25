@@ -72,6 +72,11 @@ const HOST_PATH_EXISTENCE_QUERY_KEY = "hostPathExistence";
 const PROJECT_SKILLS_QUERY_KEY = "projectSkills";
 export const SKILL_CONTENT_QUERY_KEY = "skillContent";
 export const SKILL_FILES_QUERY_KEY = "skillFiles";
+const MCP_SERVERS_QUERY_KEY = "mcpServers";
+const MCP_SERVER_QUERY_KEY = "mcpServer";
+const MCP_SERVER_TOOLS_QUERY_KEY = "mcpServerTools";
+const MCP_TOOL_POLICIES_QUERY_KEY = "mcpToolPolicies";
+const MCP_PROVIDER_STATUS_QUERY_KEY = "mcpProviderStatus";
 const PLUGIN_LIST_QUERY_KEY = "plugin-list";
 const PLUGIN_SETTINGS_VIEW_QUERY_KEY = "plugin-settings-view";
 const PLUGIN_CONTRIBUTIONS_QUERY_KEY = "plugin-contributions";
@@ -1213,6 +1218,38 @@ export function skillContentQueryKey(
 
 export function skillFilesQueryKey(projectId: string, skillId: string) {
   return [SKILL_FILES_QUERY_KEY, projectId, skillId] as const;
+}
+
+export function mcpServersQueryKey() {
+  return [MCP_SERVERS_QUERY_KEY] as const;
+}
+
+export function mcpServerQueryKey(ref: string) {
+  return [MCP_SERVER_QUERY_KEY, ref] as const;
+}
+
+export function allMcpServerQueryKeyPrefix() {
+  return [MCP_SERVER_QUERY_KEY] as const;
+}
+
+export function mcpServerToolsQueryKey(serverId: string) {
+  return [MCP_SERVER_TOOLS_QUERY_KEY, serverId] as const;
+}
+
+export function allMcpServerToolsQueryKeyPrefix() {
+  return [MCP_SERVER_TOOLS_QUERY_KEY] as const;
+}
+
+export function mcpToolPoliciesQueryKey(serverId: string) {
+  return [MCP_TOOL_POLICIES_QUERY_KEY, serverId] as const;
+}
+
+export function allMcpToolPoliciesQueryKeyPrefix() {
+  return [MCP_TOOL_POLICIES_QUERY_KEY] as const;
+}
+
+export function mcpProviderStatusQueryKey() {
+  return [MCP_PROVIDER_STATUS_QUERY_KEY] as const;
 }
 
 export function pluginListQueryKey(enabled: boolean) {

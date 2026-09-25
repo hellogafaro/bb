@@ -283,7 +283,7 @@ describe("canonical thread routes", () => {
 describe("Customize page sidebar", () => {
   it.each([
     ["/customize", "app"],
-    ["/customize/mcps/installed/github", "app"],
+    ["/customize/mcps/github", "app"],
     ["/skills/library/skill_abc123", "app"],
     ["/plugins", "plugins"],
   ])("renders the %s sidebar as %s", (route, mode) => {

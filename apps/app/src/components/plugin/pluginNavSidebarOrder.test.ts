@@ -304,22 +304,7 @@ describe("Customize page sidebar defaults", () => {
     expect(customized.visible).toEqual([]);
   });
 
-  it("hides the mcps panel by default but keeps it available to show", () => {
-    const mcps = panel("mcp", "mcp");
-    const arranged = arrangePluginNavPanelPreferences({
-      panels: [github, mcps],
-      storedOrder: [],
-      storedVisibleKeys: null,
-      defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
-    });
-    expect(arranged.visible).toEqual([github]);
-    expect(arranged.ordered).toEqual([github, mcps]);
-    expect(DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS).not.toContain(
-      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
-    );
-  });
-
-  it("keeps the mcps panel hidden when a stored preference lists it", () => {
+  it("treats an mcp plugin panel like any other panel", () => {
     const mcps = panel("mcp", "mcp");
     const arranged = arrangePluginNavPanelPreferences({
       panels: [github, mcps],
@@ -327,11 +312,7 @@ describe("Customize page sidebar defaults", () => {
       storedVisibleKeys: ["github/pulls", "mcp/mcp"],
       defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
     });
-    expect(arranged.visible).toEqual([github]);
-    expect(arranged.visibleKeys).toEqual(["github/pulls"]);
-    expect(arranged.normalizedVisibleKeys).toEqual([
-      "github/pulls",
-      "mcp/mcp",
-    ]);
+    expect(arranged.visible).toEqual([github, mcps]);
+    expect(DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS).toEqual([]);
   });
 });

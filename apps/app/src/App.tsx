@@ -70,10 +70,7 @@ import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provi
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
 import { FORK_CUSTOMIZE_PAGE } from "./lib/fork-flags";
-import {
-  CUSTOMIZE_MCPS_PANEL_ROUTE_PATH,
-  getCustomizeRoutePath,
-} from "./components/tools/customize-navigation";
+import { getCustomizeRoutePath } from "./components/tools/customize-navigation";
 
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((m) => ({
@@ -198,15 +195,6 @@ const skillsCollectionElement = FORK_CUSTOMIZE_PAGE ? (
 ) : (
   <SkillsView />
 );
-
-function CustomizeMcpsRedirect() {
-  const location = useLocation();
-  return (
-    <NavigatePreservingLocation
-      pathname={`${getCustomizeRoutePath("mcps")}${location.pathname.slice(CUSTOMIZE_MCPS_PANEL_ROUTE_PATH.length)}`}
-    />
-  );
-}
 
 export function LegacySkillsPathRedirect() {
   const location = useLocation();
@@ -404,16 +392,10 @@ export function AppRoutes() {
             element={<LegacyToolsPathRedirect />}
           />
           {FORK_CUSTOMIZE_PAGE ? (
-            <>
-              <Route
-                path={`${CUSTOMIZE_ROUTE_PATH}/*`}
-                element={<CustomizeView />}
-              />
-              <Route
-                path={`${CUSTOMIZE_MCPS_PANEL_ROUTE_PATH}/*`}
-                element={<CustomizeMcpsRedirect />}
-              />
-            </>
+            <Route
+              path={`${CUSTOMIZE_ROUTE_PATH}/*`}
+              element={<CustomizeView />}
+            />
           ) : null}
           <Route path={SKILLS_ROUTE_PATH} element={skillsCollectionElement} />
           <Route path={SKILL_DETAIL_ROUTE_PATH} element={<SkillsView />} />

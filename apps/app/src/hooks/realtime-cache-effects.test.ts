@@ -48,7 +48,15 @@ import {
   threadTimelineQueryKeyPrefix,
   threadTimelineTurnSummaryDetailsQueryKey,
 } from "./queries/query-keys";
-import { pluginContributionsQueryKey } from "./queries/query-keys";
+import {
+  mcpServerQueryKey,
+  mcpServersQueryKey,
+  mcpServerToolsQueryKey,
+  mcpToolPoliciesQueryKey,
+  pluginContributionsQueryKey,
+  projectSkillsQueryKey,
+} from "./queries/query-keys";
+import { makeMcpServer } from "@/test/fixtures/mcp";
 import { systemEnvironmentProvidersQueryKey } from "./queries/environment-provider-queries";
 import {
   createRealtimeCacheEffects,
@@ -315,6 +323,91 @@ describe("createRealtimeCacheEffects", () => {
 
     expect(queryClient.getQueryState(statusKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(configKey)?.isInvalidated).toBe(false);
+    effects.dispose();
+  });
+
+  it("scopes MCP server changes to the list and that server's queries", () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext();
+    const listKey = mcpServersQueryKey();
+    const byHandleKey = mcpServerQueryKey("github");
+    const byIdKey = mcpServerQueryKey("mcp_github");
+    const otherKey = mcpServerQueryKey("notion");
+    const toolsKey = mcpServerToolsQueryKey("mcp_github");
+    const policiesKey = mcpToolPoliciesQueryKey("mcp_github");
+    const otherToolsKey = mcpServerToolsQueryKey("mcp_notion");
+    const skillsKey = projectSkillsQueryKey("proj_personal");
+    queryClient.setQueryData(listKey, []);
+    queryClient.setQueryData(byHandleKey, makeMcpServer());
+    queryClient.setQueryData(byIdKey, makeMcpServer());
+    queryClient.setQueryData(
+      otherKey,
+      makeMcpServer({ id: "mcp_notion", handle: "notion" }),
+    );
+    queryClient.setQueryData(toolsKey, { tools: [], error: null });
+    queryClient.setQueryData(policiesKey, []);
+    queryClient.setQueryData(otherToolsKey, { tools: [], error: null });
+    queryClient.setQueryData(skillsKey, { skills: [] });
+
+    effects.handleChanged({
+      type: "changed",
+      entity: "mcp",
+      id: "mcp_github",
+      changes: ["servers-changed"],
+    });
+
+    for (const key of [listKey, byHandleKey, byIdKey, toolsKey, policiesKey]) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    }
+    for (const key of [otherKey, otherToolsKey, skillsKey]) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+    }
+    effects.dispose();
+  });
+
+  it("refreshes only tool policies when an MCP policy changes", () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext();
+    const listKey = mcpServersQueryKey();
+    const toolsKey = mcpServerToolsQueryKey("mcp_github");
+    const policiesKey = mcpToolPoliciesQueryKey("mcp_github");
+    queryClient.setQueryData(listKey, []);
+    queryClient.setQueryData(toolsKey, { tools: [], error: null });
+    queryClient.setQueryData(policiesKey, []);
+
+    effects.handleChanged({
+      type: "changed",
+      entity: "mcp",
+      id: "mcp_github",
+      changes: ["policies-changed"],
+    });
+
+    expect(queryClient.getQueryState(policiesKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(toolsKey)?.isInvalidated).toBe(false);
+    effects.dispose();
+  });
+
+  it("refreshes every MCP query on an unscoped runtime change", () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext();
+    const keys = [
+      mcpServersQueryKey(),
+      mcpServerQueryKey("github"),
+      mcpServerToolsQueryKey("mcp_github"),
+      mcpToolPoliciesQueryKey("mcp_notion"),
+    ];
+    const skillsKey = projectSkillsQueryKey("proj_personal");
+    for (const key of keys) queryClient.setQueryData(key, []);
+    queryClient.setQueryData(skillsKey, { skills: [] });
+
+    effects.handleChanged({
+      type: "changed",
+      entity: "mcp",
+      changes: ["runtime-changed"],
+    });
+
+    for (const key of keys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    }
+    expect(queryClient.getQueryState(skillsKey)?.isInvalidated).toBe(false);
     effects.dispose();
   });
 

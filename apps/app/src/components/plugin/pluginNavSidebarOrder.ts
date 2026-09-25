@@ -1,5 +1,4 @@
 import { arrangeByStoredOrder } from "@/lib/stored-order";
-import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 interface PluginNavPanelIdentity {
   pluginId: string;
@@ -14,13 +13,7 @@ export const BUILT_IN_SIDEBAR_NAVIGATION_KEYS = {
   automations: "__bb__/automations",
 } as const;
 
-export const FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS = FORK_CUSTOMIZE_PAGE
-  ? (["mcp/mcp"] as const)
-  : ([] as const);
-
-export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [
-  ...FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
-] as const;
+export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [] as const;
 
 export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
@@ -117,7 +110,6 @@ export function arrangePluginNavPanelPreferences<
       .map(getPluginNavPanelKey)
       .filter((key) => !defaultHiddenKeySet.has(key));
   const visibleSet = new Set(visibleKeys);
-  for (const key of FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS) visibleSet.delete(key);
 
   return {
     ordered,

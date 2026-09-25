@@ -33,6 +33,10 @@ import {
 } from "./interaction-request";
 import { getMutationErrorMessage } from "@/lib/mutation-errors";
 import {
+  McpApprovalBanner,
+  McpElicitationBanner,
+} from "./McpPendingInteractionBanners";
+import {
   presentationIconName,
   presentationTintStyle,
 } from "@/components/thread/timeline/presentation-display";
@@ -125,6 +129,24 @@ function PendingInteractionBanner({
         <ThreadUserQuestionPendingInteractionBanner
           interaction={interaction}
           questions={request.questions}
+          sourceThread={sourceThread}
+          threadId={threadId}
+        />
+      );
+    case "mcp_approval":
+      return (
+        <McpApprovalBanner
+          interaction={interaction}
+          payload={request.payload}
+          sourceThread={sourceThread}
+          threadId={threadId}
+        />
+      );
+    case "mcp_elicitation":
+      return (
+        <McpElicitationBanner
+          interaction={interaction}
+          payload={request.payload}
           sourceThread={sourceThread}
           threadId={threadId}
         />

@@ -45,16 +45,16 @@ describe("CustomizeTabs", () => {
   });
 
   it("opens the Skills tab from an MCP detail", () => {
-    renderTabs("mcps", "/customize/mcps/installed/github");
+    renderTabs("mcps", "/customize/mcps/github");
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Skills" }));
     expect(screen.getByTestId("location").textContent).toBe("/customize");
   });
 
   it("stays put when the active tab is pressed again", () => {
-    renderTabs("mcps", "/customize/mcps/installed/github");
+    renderTabs("mcps", "/customize/mcps/github");
     fireEvent.mouseDown(screen.getByRole("tab", { name: "MCPs" }));
     expect(screen.getByTestId("location").textContent).toBe(
-      "/customize/mcps/installed/github",
+      "/customize/mcps/github",
     );
   });
 });

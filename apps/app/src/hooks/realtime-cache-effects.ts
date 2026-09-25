@@ -17,6 +17,7 @@ import {
   refetchErroredRealtimeQueriesOnInitialConnect,
 } from "./cache-owners/system-cache-effects";
 import { createBufferedEnvironmentInvalidator } from "./buffered-environment-invalidator";
+import { invalidateMcpRealtimeChange } from "./cache-owners/mcp-cache-owner";
 import {
   isDocumentVisible,
   subscribeToDocumentVisibility,
@@ -575,6 +576,13 @@ export function createRealtimeCacheEffects({
             break;
           }
           applySystemChanges(message.changes);
+          break;
+        case "mcp":
+          invalidateMcpRealtimeChange({
+            queryClient,
+            serverId: message.id,
+            changes: message.changes,
+          });
           break;
         default:
           assertNever(message);

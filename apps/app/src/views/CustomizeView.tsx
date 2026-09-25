@@ -1,13 +1,13 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { McpDetailView } from "@/components/mcp/McpDetailView";
+import { McpsView } from "@/components/mcp/McpsView";
 import { CustomizeTabs } from "@/components/tools/CustomizeTabs";
 import {
-  CUSTOMIZE_MCPS_PANEL,
   getCustomizeRoutePath,
   resolveCustomizeRoute,
 } from "@/components/tools/customize-navigation";
 import { SkillsLibrary } from "@/components/tools/SkillsLibrary";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
-import { PluginPanelView } from "./PluginPanelView";
 
 export function CustomizeView() {
   const location = useLocation();
@@ -28,14 +28,10 @@ export function CustomizeView() {
           <div className="box-border h-full w-full pb-4 pt-3 md:pt-4">
             <SkillsLibrary />
           </div>
+        ) : route.mcpRef === null ? (
+          <McpsView />
         ) : (
-          <div className="flex h-full min-h-0 flex-col p-4 md:p-5">
-            <PluginPanelView
-              pluginId={CUSTOMIZE_MCPS_PANEL.pluginId}
-              panelPath={CUSTOMIZE_MCPS_PANEL.path}
-              subPath={route.subPath}
-            />
-          </div>
+          <McpDetailView key={route.mcpRef} serverRef={route.mcpRef} />
         )}
       </div>
     </div>

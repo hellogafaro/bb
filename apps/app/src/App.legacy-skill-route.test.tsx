@@ -111,11 +111,6 @@ describe("legacy resource redirects", () => {
     ["/skills?view=library", "/customize"],
     ["/skills/registry?sort=trending", "/customize"],
     ["/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
-    ["/plugins/mcp/mcp", "/customize/mcps"],
-    [
-      "/plugins/mcp/mcp/installed/my%20server?tab=tools#auth",
-      "/customize/mcps/installed/my%20server?tab=tools#auth",
-    ],
     ["/tools", "/plugins"],
     ["/tools/plugins/browse", "/plugins"],
     ["/tools/plugins/browse/?sort=name#catalog", "/plugins?sort=name#catalog"],
@@ -137,5 +132,20 @@ describe("legacy resource redirects", () => {
     );
 
     expect(await screen.findByText(expected)).toBeTruthy();
+  });
+
+  it("leaves the retired MCP plugin panel path to the workspace", async () => {
+    render(
+      <MemoryRouter initialEntries={["/plugins/mcp/mcp/installed/github"]}>
+        <AppRoutes />
+        <LocationPath />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "App workspace" }),
+    ).toBeTruthy();
+    expect(screen.getByText("/plugins/mcp/mcp/installed/github")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Customize" })).toBeNull();
   });
 });

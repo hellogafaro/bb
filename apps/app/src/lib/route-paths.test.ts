@@ -102,7 +102,7 @@ describe("route path helpers", () => {
     expect(isPluginsRoutePath("/extensions/plugins/github")).toBe(false);
     expect(isPluginsRoutePath("/skills")).toBe(false);
     expect(isSkillsRoutePath("/skills/library/skill_abc123")).toBe(true);
-    expect(isSkillsRoutePath("/customize/mcps/installed/github")).toBe(true);
+    expect(isSkillsRoutePath("/customize/mcps/github")).toBe(true);
     expect(isSkillsRoutePath("/extensions/skills")).toBe(false);
     expect(isSkillsRoutePath("/plugins")).toBe(false);
     for (const path of [
@@ -110,7 +110,7 @@ describe("route path helpers", () => {
       "/plugins/github",
       "/skills",
       "/customize",
-      "/customize/mcps/installed/github",
+      "/customize/mcps/github",
       "/skills/library/skill_abc123",
       "/skills/registry/moss-skills%2Fmoss-notes",
       "/extensions",

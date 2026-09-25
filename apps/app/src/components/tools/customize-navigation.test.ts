@@ -1,53 +1,42 @@
 import { describe, expect, it } from "vitest";
 import {
   getCustomizeRoutePath,
+  getMcpDetailRoutePath,
   resolveCustomizeBreadcrumbs,
   resolveCustomizeHeaderMeta,
   resolveCustomizeRoute,
-  resolvePluginPanelRoutePath,
 } from "./customize-navigation";
 import { getToolsOwnedCollectionRoutePath } from "./tools-navigation";
 
 describe("Customize routes", () => {
-  it("builds tab paths with an encoded MCP sub path", () => {
+  it("builds tab and encoded MCP detail paths", () => {
     expect(getCustomizeRoutePath("skills")).toBe("/customize");
     expect(getCustomizeRoutePath("mcps")).toBe("/customize/mcps");
-    expect(getCustomizeRoutePath("mcps", "installed/my server")).toBe(
-      "/customize/mcps/installed/my%20server",
+    expect(getMcpDetailRoutePath("mcp_abc")).toBe("/customize/mcps/mcp_abc");
+    expect(getMcpDetailRoutePath("my server/x")).toBe(
+      "/customize/mcps/my%20server%2Fx",
     );
   });
 
-  it("resolves the active tab and sub path", () => {
-    expect(resolveCustomizeRoute("/customize")).toEqual({
-      tab: "skills",
-      subPath: "",
-    });
+  it("resolves the active tab and MCP ref", () => {
+    expect(resolveCustomizeRoute("/customize")).toEqual({ tab: "skills" });
     expect(resolveCustomizeRoute("/customize/mcps")).toEqual({
       tab: "mcps",
-      subPath: "",
+      mcpRef: null,
     });
-    expect(resolveCustomizeRoute("/customize/mcps/installed/github")).toEqual({
+    expect(resolveCustomizeRoute("/customize/mcps/github")).toEqual({
       tab: "mcps",
-      subPath: "installed/github",
+      mcpRef: "github",
     });
+    expect(resolveCustomizeRoute("/customize/mcps/my%20server%2Fx")).toEqual({
+      tab: "mcps",
+      mcpRef: "my server/x",
+    });
+    expect(
+      resolveCustomizeRoute("/customize/mcps/installed/github"),
+    ).toBeNull();
     expect(resolveCustomizeRoute("/customize/other")).toBeNull();
     expect(resolveCustomizeRoute("/skills")).toBeNull();
-  });
-
-  it("sends mcps plugin navigation to the Customize page only", () => {
-    expect(
-      resolvePluginPanelRoutePath({
-        pluginId: "mcp",
-        path: "mcp",
-        subPath: "installed/github",
-      }),
-    ).toBe("/customize/mcps/installed/github");
-    expect(
-      resolvePluginPanelRoutePath({ pluginId: "mcp", path: "mcp" }),
-    ).toBe("/customize/mcps");
-    expect(
-      resolvePluginPanelRoutePath({ pluginId: "garden", path: "docs" }),
-    ).toBe("/plugins/garden/docs");
   });
 
   it("closes skill details back to the Customize page", () => {
@@ -75,25 +64,16 @@ describe("Customize header", () => {
 
   it("adds the published MCP detail label", () => {
     expect(
-      resolveCustomizeBreadcrumbs("/customize/mcps/installed/github", "GitHub"),
+      resolveCustomizeBreadcrumbs("/customize/mcps/mcp_abc", "GitHub"),
     ).toEqual([
       { label: "Customize", to: "/customize" },
       { label: "MCPs", to: "/customize/mcps" },
       { label: "GitHub" },
     ]);
-    expect(
-      resolveCustomizeBreadcrumbs("/customize/mcps/installed/my%20server"),
-    ).toEqual([
+    expect(resolveCustomizeBreadcrumbs("/customize/mcps/my%20server")).toEqual([
       { label: "Customize", to: "/customize" },
       { label: "MCPs", to: "/customize/mcps" },
       { label: "my server" },
-    ]);
-  });
-
-  it("treats single-segment MCP paths as the list", () => {
-    expect(resolveCustomizeBreadcrumbs("/customize/mcps/installed")).toEqual([
-      { label: "Customize", to: "/customize" },
-      { label: "MCPs" },
     ]);
   });
 

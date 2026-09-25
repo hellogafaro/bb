@@ -92,6 +92,16 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
     "threadsQueryKey",
   ],
   "hooks/cache-owners/host-directory-cache-owner.ts": ["hostDirectoryQueryKey"],
+  "hooks/cache-owners/mcp-cache-owner.ts": [
+    "allMcpServerQueryKeyPrefix",
+    "allMcpServerToolsQueryKeyPrefix",
+    "allMcpToolPoliciesQueryKeyPrefix",
+    "mcpProviderStatusQueryKey",
+    "mcpServerQueryKey",
+    "mcpServersQueryKey",
+    "mcpServerToolsQueryKey",
+    "mcpToolPoliciesQueryKey",
+  ],
   "hooks/cache-owners/mutation-cache-effects.ts": [
     "hostsQueryKey",
     "projectPathsQueryKeyPrefix",

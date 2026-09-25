@@ -288,7 +288,7 @@ describe("Customize page header", () => {
     ["/customize", ["Customize", "Skills"], "Skills · Customize"],
     ["/customize/mcps", ["Customize", "MCPs"], "MCPs · Customize"],
     [
-      "/customize/mcps/installed/github",
+      "/customize/mcps/github",
       ["Customize", "MCPs", "github"],
       "github · Customize",
     ],

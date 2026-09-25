@@ -4,6 +4,8 @@ import {
   type ApprovalPendingInteractionPayload,
   type ExtensionKind,
   type JsonValue,
+  type McpApprovalPendingInteractionPayload,
+  type McpElicitationPendingInteractionPayload,
   type PendingInteraction,
   type PendingInteractionApprovalSubject,
   type PendingInteractionUserQuestionQuestion,
@@ -25,6 +27,16 @@ export type InteractionRequestView =
       kind: "plan_review";
       review: Extract<PendingInteractionApprovalSubject, { kind: "plan" }>;
       approval: ApprovalPendingInteractionPayload;
+    }
+  | {
+      family: "request";
+      kind: "mcp_approval";
+      payload: McpApprovalPendingInteractionPayload;
+    }
+  | {
+      family: "request";
+      kind: "mcp_elicitation";
+      payload: McpElicitationPendingInteractionPayload;
     }
   | {
       family: "request";
@@ -65,6 +77,10 @@ export function classifyInteractionRequest(
         data: payload.data,
       };
     }
+    case "mcp_approval":
+      return { family: "request", kind: "mcp_approval", payload };
+    case "mcp_elicitation":
+      return { family: "request", kind: "mcp_elicitation", payload };
     case "approval": {
       const { subject } = payload;
       if (subject.kind === "plan") {
