@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Button } from "@bb/shared-ui/button";
 import { Calendar } from "@bb/shared-ui/calendar";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -19,7 +20,7 @@ import {
 import { Icon } from "@bb/shared-ui/icon";
 import { Input } from "@bb/shared-ui/input";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
+import { Label } from "@bb/shared-ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { COARSE_POINTER_ICON_SIZE_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { snoozePresets } from "../../shared/snoozes.js";
@@ -175,13 +176,15 @@ export function CustomSnoozeDialog({
   onSnooze: (threadId: string, until: number) => void;
 }) {
   const [day, setDay] = useState<Date | undefined>();
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [month, setMonth] = useState(() => new Date());
+  const timeId = useId();
   const [time, setTime] = useState("09:00");
   useEffect(() => {
     if (!threadId) return;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setDay(tomorrow);
+    setMonth(tomorrow);
     setTime("09:00");
   }, [threadId]);
   const until = useMemo(() => combineDayAndTime(day, time), [day, time]);
@@ -200,98 +203,53 @@ export function CustomSnoozeDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="w-auto max-w-fit">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Snooze thread</DialogTitle>
+          <DialogDescription>
+            Choose when to bring this thread back.
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap gap-2">
-          {snoozePresets(new Date()).map((preset) => (
-            <Button
-              key={preset.id}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => submit(preset.until)}
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (valid) submit(until);
+            if (Number.isFinite(until) && until > Date.now()) submit(until);
           }}
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
         >
-          <div className="flex items-end gap-3">
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="thread-snooze-date"
-                className="text-sm font-medium"
-              >
-                Date
-              </label>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    id="thread-snooze-date"
-                    className="w-40 justify-between font-normal"
-                  >
-                    {day
-                      ? day.toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
-                      : "Select date"}
-                    <Icon
-                      name="ChevronDown"
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto overflow-hidden p-0"
-                  align="start"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={day}
-                    captionLayout="dropdown"
-                    defaultMonth={day}
-                    disabled={{ before: today }}
-                    startMonth={today}
-                    endMonth={new Date(today.getFullYear() + 2, 11)}
-                    onSelect={(next) => {
-                      setDay(next);
-                      setCalendarOpen(false);
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="flex w-32 flex-col gap-2">
-              <label
-                htmlFor="thread-snooze-time"
-                className="text-sm font-medium"
-              >
-                Time
-              </label>
-              <Input
-                id="thread-snooze-time"
-                type="time"
-                step={60}
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-                className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-              />
-            </div>
+          <div className="flex justify-center rounded-lg border bg-background p-1">
+            <Calendar
+              mode="single"
+              required
+              selected={day}
+              month={month}
+              onMonthChange={setMonth}
+              disabled={{ before: today }}
+              startMonth={today}
+              endMonth={new Date(today.getFullYear() + 2, 11)}
+              onSelect={setDay}
+            />
           </div>
-          <p className="text-xs text-muted-foreground" aria-live="polite">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={timeId}>Time</Label>
+              <span className="text-meta text-muted-foreground">
+                {Intl.DateTimeFormat()
+                  .resolvedOptions()
+                  .timeZone.replaceAll("_", " ")}
+              </span>
+            </div>
+            <Input
+              id={timeId}
+              type="time"
+              step={60}
+              required
+              value={time}
+              onChange={(event) => setTime(event.target.value)}
+              className="w-32"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
             {Number.isFinite(until)
               ? valid
                 ? new Date(until).toLocaleString([], {
@@ -302,7 +260,7 @@ export function CustomSnoozeDialog({
                     minute: "2-digit",
                   })
                 : "Pick a time in the future"
-              : "Pick a day"}
+              : "Choose a date and time"}
           </p>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
