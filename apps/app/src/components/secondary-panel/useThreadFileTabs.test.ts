@@ -30,6 +30,15 @@ import {
 import { makeTerminalSession as terminalSession } from "@/test/fixtures/terminal-sessions";
 import { makePluginRegistrationSet } from "@/test/fixtures/plugins";
 
+const forkFlags = vi.hoisted(() => ({ builtinFileOpener: false }));
+
+vi.mock("@/lib/fork-flags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
+  get FORK_BUILTIN_FILE_OPENER() {
+    return forkFlags.builtinFileOpener;
+  },
+}));
+
 const syncMocks = vi.hoisted(() => ({
   scheduleLocalThreadTabsMigration: vi.fn(),
   scheduleThreadTabsPersistence: vi.fn(),
@@ -96,6 +105,7 @@ function createDeferred<T>() {
 
 afterEach(() => {
   cleanup();
+  forkFlags.builtinFileOpener = false;
   queryClient.clear();
   window.localStorage.clear();
   resetRecentlyClosedPanelTabsForTest();
@@ -1430,6 +1440,55 @@ describe("useThreadFileTabs file opener diversion", () => {
       actionId: "file-opener:editor",
       title: "other.md",
     });
+  });
+
+  it("opens every file in the built-in viewer under the fork's built-in file opener", () => {
+    forkFlags.builtinFileOpener = true;
+    window.localStorage.setItem(
+      "bb.fileOpenerByExtension",
+      JSON.stringify({ md: "notes:editor" }),
+    );
+    registerNotesOpener();
+    const { result } = renderThreadHook(() =>
+      useThreadFileTabsWithActiveTab({
+        panelStateId: "opener-fork-built-in",
+        syncThreadId: "opener-fork-built-in",
+        environmentId: "env_1",
+        storageFiles: undefined,
+        terminalSessions: undefined,
+      }),
+    );
+
+    act(() =>
+      result.current.openTab({
+        kind: "workspace-file-preview",
+        tab: {
+          lineRange: null,
+          path: "notes/todo.md",
+          source: { kind: "working-tree" },
+          statusLabel: null,
+        },
+      }),
+    );
+    expect(result.current.activeTab?.kind).toBe("workspace-file-preview");
+    expect(result.current.activeWorkspaceFilePath).toBe("notes/todo.md");
+
+    act(() =>
+      result.current.openTab(
+        {
+          kind: "workspace-file-preview",
+          tab: {
+            lineRange: null,
+            path: "notes/other.md",
+            source: { kind: "working-tree" },
+            statusLabel: null,
+          },
+        },
+        { viewer: { pluginId: "notes", openerId: "editor" } },
+      ),
+    );
+    expect(result.current.activeTab?.kind).toBe("workspace-file-preview");
+    expect(result.current.activeWorkspaceFilePath).toBe("notes/other.md");
   });
 });
 

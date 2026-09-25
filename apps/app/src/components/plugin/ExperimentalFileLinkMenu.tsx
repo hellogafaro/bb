@@ -10,6 +10,7 @@ import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { useResolvedLiveFileTarget } from "@/hooks/useResolvedLiveFileTarget";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
 import { copyToClipboardWithToast } from "@/lib/clipboard";
+import { FORK_BUILTIN_FILE_OPENER } from "@/lib/fork-flags";
 import {
   getFileBasename,
   getExperimentalFileLocationStart,
@@ -40,7 +41,7 @@ export function ExperimentalFileLinkMenu({
   const { fileOpeners } = usePluginSlots();
   const extension = getFileExtension(intent.target.path);
   const matchingOpeners =
-    extension === null
+    extension === null || FORK_BUILTIN_FILE_OPENER
       ? []
       : fileOpeners.filter((opener) => opener.extensions.includes(extension));
   const location = getExperimentalFileLocationStart(intent.location);

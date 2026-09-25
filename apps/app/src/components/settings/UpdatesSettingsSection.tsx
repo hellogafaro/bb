@@ -871,7 +871,7 @@ function machineHasRelevantHealthStatus(
   );
 }
 
-function visibleProviderUpdateIssues(
+export function visibleProviderUpdateIssues(
   machine: UpdateInventoryMachine,
 ): ProviderCliIssue[] {
   if (
@@ -886,7 +886,7 @@ function visibleProviderUpdateIssues(
   return machine.issues.filter(isProviderCliUpdateIssue);
 }
 
-function visibleInstalledProviderEntries(
+export function visibleInstalledProviderEntries(
   machine: UpdateInventoryMachine,
 ): ProviderCliStatusEntry[] {
   if (

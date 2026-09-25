@@ -10,6 +10,7 @@ import type {
   PluginPendingInteractionSlot,
   PluginTimelineRendererSlot,
 } from "./plugin-slots";
+import { FORK_BUILTIN_FILE_OPENER } from "./fork-flags";
 
 type ComposerAction = NonNullable<ComposerCustomization["actions"]>[number];
 type ComposerBanner = NonNullable<ComposerCustomization["banners"]>[number];
@@ -303,6 +304,7 @@ export function resolveFileOpenerReplacement(args: {
   path: string;
   override?: FileOpenerOverride;
 }): ResolvedReplacement<PluginFileOpenerSlot> {
+  if (FORK_BUILTIN_FILE_OPENER) return OWNER_REPLACEMENT;
   const override = args.override;
   if (override === "builtin") return OWNER_REPLACEMENT;
   if (override !== undefined) {

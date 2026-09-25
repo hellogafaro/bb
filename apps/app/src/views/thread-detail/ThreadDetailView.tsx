@@ -211,6 +211,7 @@ import {
 import { ThreadTimelineNavigationProvider } from "@/components/thread/timeline/ThreadTimelineNavigationContext";
 import { usePluginSlots } from "@/lib/plugin-slots";
 import { getFileExtension } from "@/lib/plugin-slot-resolvers";
+import { FORK_BUILTIN_FILE_OPENER } from "@/lib/fork-flags";
 import { Icon } from "@bb/shared-ui/icon";
 import {
   getBbDesktopInfo,
@@ -2270,7 +2271,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     (link: ThreadTimelineLocalFileLink) => {
       const extension = getFileExtension(link.path);
       const matching =
-        extension === null
+        extension === null || FORK_BUILTIN_FILE_OPENER
           ? []
           : pluginFileOpeners.filter((opener) =>
               opener.extensions.includes(extension),

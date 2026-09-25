@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { threadTabsSchema } from "@bb/server-contract";
 import type { PluginFileOpenerSlot } from "@/lib/plugin-slots";
 import type { OpenSecondaryPanelTabRequest } from "@/components/secondary-panel/useThreadFileTabs";
@@ -8,6 +8,19 @@ import {
   createFileOpenerTabForRequest,
   parseFileOpenerParams,
 } from "./file-opener-tabs";
+
+const forkFlags = vi.hoisted(() => ({ builtinFileOpener: false }));
+
+vi.mock("@/lib/fork-flags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
+  get FORK_BUILTIN_FILE_OPENER() {
+    return forkFlags.builtinFileOpener;
+  },
+}));
+
+afterEach(() => {
+  forkFlags.builtinFileOpener = false;
+});
 
 const MARKDOWN_OPENER = {
   component: () => null,

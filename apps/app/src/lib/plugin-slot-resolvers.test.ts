@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   PluginComposerCustomizationSlot,
   PluginFileOpenerSlot,
@@ -18,6 +18,19 @@ import {
   resolvePendingInteraction,
   resolveReplacement,
 } from "./plugin-slot-resolvers";
+
+const forkFlags = vi.hoisted(() => ({ builtinFileOpener: false }));
+
+vi.mock("@/lib/fork-flags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
+  get FORK_BUILTIN_FILE_OPENER() {
+    return forkFlags.builtinFileOpener;
+  },
+}));
+
+afterEach(() => {
+  forkFlags.builtinFileOpener = false;
+});
 
 function Component() {
   return null;
@@ -239,6 +252,39 @@ describe("replacement resolvers", () => {
         registrations: [second],
         preference: { md: buildFileOpenerRef(first) },
         path: "README.md",
+      }),
+    ).toEqual({ kind: "owner" });
+  });
+
+  it("resolves every file to the built-in viewer under the fork's built-in file opener", () => {
+    forkFlags.builtinFileOpener = true;
+    const markdown: PluginFileOpenerSlot = {
+      pluginId: "docs",
+      generation: 1,
+      id: "markdown",
+      title: "Editor",
+      extensions: ["md"],
+      component: Component,
+    };
+
+    expect(
+      resolveFileOpenerReplacement({
+        registrations: [markdown],
+        preference: { md: buildFileOpenerRef(markdown) },
+        path: "README.md",
+      }),
+    ).toEqual({ kind: "owner" });
+    expect(
+      resolveFileOpenerReplacement({
+        registrations: [markdown],
+        path: "README.md",
+      }),
+    ).toEqual({ kind: "owner" });
+    expect(
+      resolveFileOpenerReplacement({
+        registrations: [markdown],
+        path: "README.md",
+        override: { pluginId: "docs", openerId: "markdown" },
       }),
     ).toEqual({ kind: "owner" });
   });

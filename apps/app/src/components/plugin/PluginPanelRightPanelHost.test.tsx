@@ -168,6 +168,7 @@ vi.mock("@/hooks/queries/plugin-catalog-queries", () => ({
 vi.mock("@/lib/fork-flags", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
   FORK_HIDE_BROWSER: false,
+  FORK_BUILTIN_FILE_OPENER: false,
 }));
 vi.mock("@/lib/split-layout/openPaneContentInSplit", () => ({
   openPaneContentInSplit: vi.fn(),

@@ -13,7 +13,25 @@ import { makeInstalledPlugin } from "@/test/fixtures/plugins";
 
 const mocks = vi.hoisted(() => ({
   accessState: "unavailable",
+  builtinFileOpener: true,
 }));
+
+vi.mock("@/lib/fork-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/fork-flags")>();
+  return {
+    ...actual,
+    get FORK_BUILTIN_FILE_OPENER() {
+      return mocks.builtinFileOpener;
+    },
+    get FORK_HIDDEN_SETTINGS_SECTIONS() {
+      return mocks.builtinFileOpener
+        ? actual.FORK_HIDDEN_SETTINGS_SECTIONS
+        : actual.FORK_HIDDEN_SETTINGS_SECTIONS.filter(
+            (section) => section !== "files",
+          );
+    },
+  };
+});
 
 vi.mock("@/hooks/useHostDaemon", () => ({
   useHostDaemon: () => ({ hasDaemon: false }),
@@ -49,6 +67,7 @@ afterEach(() => {
   cleanup();
   resetPluginSlotStoreForTest();
   mocks.accessState = "unavailable";
+  mocks.builtinFileOpener = true;
 });
 
 describe("useSettingsNavState", () => {
@@ -62,7 +81,13 @@ describe("useSettingsNavState", () => {
   });
 
   it("omits the fork-hidden sections and treats their routes as unknown", () => {
-    for (const section of ["browser", "marketplaces", "community", "updates"]) {
+    for (const section of [
+      "browser",
+      "marketplaces",
+      "community",
+      "updates",
+      "files",
+    ]) {
       const { result } = renderHook(() => useSettingsNavState(), {
         wrapper: wrapperFor(`/settings/${section}`),
       });
@@ -71,6 +96,19 @@ describe("useSettingsNavState", () => {
         section,
       );
     }
+  });
+
+  it("hides Files under the built-in file opener even when local helper access can be enabled", () => {
+    mocks.accessState = "permission-required";
+    const { result } = renderHook(() => useSettingsNavState(), {
+      wrapper: wrapperFor("/settings/files"),
+    });
+
+    expect(result.current.hasUnknownSection).toBe(true);
+    expect(result.current.activeSection).toBe("general");
+    expect(result.current.sections.map((entry) => entry.id)).not.toContain(
+      "files",
+    );
   });
 
   it("shows the Machines section", () => {
@@ -84,6 +122,7 @@ describe("useSettingsNavState", () => {
   });
 
   it("shows Files when local helper access can be enabled", () => {
+    mocks.builtinFileOpener = false;
     mocks.accessState = "permission-required";
     const { result } = renderHook(() => useSettingsNavState(), {
       wrapper: wrapperFor("/settings/files"),
