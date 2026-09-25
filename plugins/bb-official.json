@@ -58,10 +58,6 @@
     "category": "utilities",
     "screenshots": []
   },
-  "mcp": {
-    "category": "agents-and-providers",
-    "screenshots": []
-  },
   "plugin-api-docs": {
     "category": "plugin-development",
     "screenshots": [

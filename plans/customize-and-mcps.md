@@ -1,5 +1,7 @@
 # Customize page and MCPs in the fork
 
+> Phases A–I built MCPs as a built-in plugin and are kept as history. Phase J replaced the plugin with core code; the current design is the Phase J section.
+
 One page called **Customize** with two buttons, **Skills** and **MCPs**. No left resource sidebar, no marketplaces, no registry browsing in the UI. "New" on either tab opens a new chat with a prefilled prompt, the way Automations does. The `mcps` plugin moves into the fork and gets the context, policy, and performance improvements from the Craft Agents comparison.
 
 Everything here is a fork change. Keep core edits small and behind constants so upstream merges stay clean.
@@ -88,11 +90,11 @@ Core edits, kept minimal.
 
 ## Phase H: providers use only our MCPs
 
-The providers must not bring their own MCP servers. The provider plugins cannot be edited in the fork, so this is done with settings on each machine, a guard in the mcps plugin, and upstream PRs for the robust version.
+The providers must not bring their own MCP servers. The provider plugins cannot be edited in the fork, so this is done with settings on each machine, a guard in the MCP service, and upstream PRs for the robust version.
 
 1. **Claude Code.** BB passes `settingSources: ["user", "project", "local"]`, so `~/.claude/settings.json` with `"disableClaudeAiConnectors": true` stops the claude.ai connectors (Notion, Slack, Gmail, Composio, Claude Docs) from being auto-fetched. `~/.claude.json` and project `.mcp.json` `mcpServers` entries must stay empty. Today there are none.
 2. **Codex.** `~/.codex/config.toml` must have no `[mcp_servers]` table. Today it has none.
-3. **Guard in the mcps plugin.** A host RPC `providerMcpStatus` reads those files on the machine and reports: Claude connectors disabled or not, Claude `mcpServers` entries, Codex `mcp_servers` entries. `experimental_contributeEnvHealth` for `provider-claude-code` and `provider-codex` surfaces a warning in BB when the guard fails. `bb mcps providers [--fix]` prints the status; `--fix` merges `disableClaudeAiConnectors: true` into `~/.claude/settings.json` (creating it if missing, never removing other keys) and lists any MCP entries to remove by hand.
+3. **Guard in the mcps plugin.** A host RPC `providerMcpStatus` reads those files on the machine and reports: Claude connectors disabled or not, Claude `mcpServers` entries, Codex `mcp_servers` entries. `experimental_contributeEnvHealth` for `provider-claude-code` and `provider-codex` surfaces a warning in BB when the guard fails. `bb mcp providers [--fix]` prints the status; `--fix` merges `disableClaudeAiConnectors: true` into `~/.claude/settings.json` (creating it if missing, never removing other keys) and lists any MCP entries to remove by hand.
 4. **Replace the connectors we used.** Add Notion (`https://mcp.notion.com/mcp`) through `bb mcps add` and authenticate. Other connectors are added the same way when a task needs them.
 5. **Upstream PRs.** `strictMcpConfig: true` as a BB setting in `provider-claude-code`; `config.mcp_servers = {}` in `ThreadStartParams` as a BB setting in `provider-codex`. Until merged, the guard is the enforcement.
 

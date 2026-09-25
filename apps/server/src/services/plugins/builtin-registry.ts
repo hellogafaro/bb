@@ -123,11 +123,6 @@ export const BUILTIN_PLUGINS = [
     defaultEnabled: true,
   },
   {
-    name: "mcp",
-    pluginId: "mcp",
-    defaultEnabled: true,
-  },
-  {
     name: "plugin-api-docs",
     pluginId: "plugin-api-docs",
     defaultEnabled: false,
