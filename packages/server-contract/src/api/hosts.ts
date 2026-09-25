@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { jsonValueSchema, permissionModeSchema } from "@bb/domain";
+import {
+  hostTypeSchema,
+  jsonValueSchema,
+  permissionModeSchema,
+} from "@bb/domain";
 import {
   pathsExistRequestSchema,
   providerCliInstallEventSchema,
@@ -138,5 +142,6 @@ export type HostProviderCliInstallEvent = ProviderCliInstallEvent;
 
 export const hostListQuerySchema = z.object({
   includeCreating: z.enum(["true", "false"]).optional(),
+  type: hostTypeSchema.optional(),
 });
 export type HostListQuery = z.input<typeof hostListQuerySchema>;
