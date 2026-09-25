@@ -34,7 +34,10 @@ import {
   formatGitRemote,
   pluralize,
 } from "@/components/settings/ProjectsSettingsSection";
-import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import {
+  ProjectColorDot,
+  projectDotColor,
+} from "@/components/projects/ProjectColorDot";
 import { ProjectColorPicker } from "@/components/projects/ProjectColorPicker";
 import { PageShell } from "@/components/ui/page-shell.js";
 import {
@@ -353,7 +356,10 @@ export function ProjectDetailSettingsView() {
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <ProjectColorDot color={project.color} className="size-4" />
+                <ProjectColorDot
+                  color={projectDotColor(project)}
+                  className="size-4"
+                />
                 <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">
                   {project.name}
                 </h1>

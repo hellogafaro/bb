@@ -9,6 +9,7 @@ import {
 } from "./injected-skills.js";
 
 interface ResolveSkillCatalogSourcesArgs {
+  agentSkillsRootPath?: string;
   pluginSkillSelections?: ReadonlyMap<string, ReadonlySet<string>>;
   projectSkillSources?: readonly ProjectInjectedSkillSource[];
   sharedSkillSources?: readonly SharedInjectedSkillSource[];
@@ -21,6 +22,9 @@ export function resolveSkillCatalog(
 ): ResolvedSkillCatalogEntry[] {
   const entries = resolveSkillCatalogEntries(deps.logger, {
     additionalSkillsRootPaths: [...deps.config.inheritedSkillsRootPaths],
+    ...(args.agentSkillsRootPath !== undefined
+      ? { agentSkillsRootPath: args.agentSkillsRootPath }
+      : {}),
     dataDir: deps.config.dataDir,
     pluginSkillRoots: getPluginSkillRootContributions(),
     ...(args.pluginSkillSelections !== undefined
@@ -42,6 +46,8 @@ export function resolveSkillCatalog(
     ({ provenance, runtimeSource }) =>
       (provenance.kind !== "plugin" ||
         !FORK_EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name)) &&
-      (selected === null || selected.has(runtimeSource.name)),
+      (selected === null ||
+        provenance.kind === "agent" ||
+        selected.has(runtimeSource.name)),
   );
 }

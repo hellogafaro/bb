@@ -34,7 +34,10 @@ import { selectHosts, useHosts } from "@/hooks/queries/host-queries";
 import { useSidebarNavigation } from "@/hooks/queries/sidebar-navigation-query";
 import { useQuickCreateProject } from "@/hooks/useQuickCreateProject";
 import { getSettingsProjectRoutePath } from "@/lib/route-paths";
-import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import {
+  ProjectColorDot,
+  projectDotColor,
+} from "@/components/projects/ProjectColorDot";
 import {
   SortableSettingsRowList,
   useSortableSettingsRow,
@@ -164,7 +167,10 @@ function SortableProjectRow({
         >
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="flex min-w-0 items-center gap-1.5">
-              <ProjectColorDot color={project.color} className="size-4" />
+              <ProjectColorDot
+                color={projectDotColor(project)}
+                className="size-4"
+              />
               <span className="min-w-0 truncate text-sm font-medium text-foreground">
                 {project.name}
               </span>

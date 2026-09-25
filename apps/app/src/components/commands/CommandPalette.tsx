@@ -72,10 +72,9 @@ import {
 import { getThreadDisplayTitle } from "@/lib/thread-title";
 import { usePromptDraftHasInput } from "@/hooks/usePromptDraftStorage";
 import { usePluginThreadRowStatus } from "@/lib/plugin-thread-row-status";
-import {
-  resolveThreadStatus,
-  ThreadStatusGlyph,
-} from "@/components/thread/ThreadStatusGlyph";
+import { resolveThreadStatus } from "@/components/thread/ThreadStatusGlyph";
+import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import {
   setPreferredTheme,
   useThemePreference,
@@ -269,17 +268,19 @@ export function CommandPalette({
       { value: "dark", title: "Switch to dark theme" },
       { value: "system", title: "Use system theme" },
     ];
-    return themes.map(({ value, title }): PaletteAction => ({
-      id: `theme:${value}`,
-      bucket: "Actions",
-      group: "Appearance",
-      title,
-      aliases: value === "system" ? ["system appearance"] : [`${value} mode`],
-      shortcut: null,
-      run: () => {
-        if (themePreference !== value) setPreferredTheme(value);
-      },
-    }));
+    return themes.map(
+      ({ value, title }): PaletteAction => ({
+        id: `theme:${value}`,
+        bucket: "Actions",
+        group: "Appearance",
+        title,
+        aliases: value === "system" ? ["system appearance"] : [`${value} mode`],
+        shortcut: null,
+        run: () => {
+          if (themePreference !== value) setPreferredTheme(value);
+        },
+      }),
+    );
   }, [themePreference]);
   const themeActions = useMemo(
     () => localActionResults(themeCatalog, normalizedQuery),
@@ -1240,7 +1241,7 @@ function SearchResultRow({
       : entry.highlights.filter((range) => range.field === "label");
   return (
     <>
-      {projectColor !== null ? (
+      {entry.kind === "project" ? (
         <ProjectColorDot color={projectColor} className="size-4" />
       ) : (
         <Icon
@@ -1291,11 +1292,13 @@ function ThreadSearchStatus({
   });
   const status = threadListIndicatorStateForThread(thread, draft);
   const pluginStatus = usePluginThreadRowStatus(thread.id);
-  const { accessibleLabel } = resolveThreadStatus(
+  const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
+  const { accessibleLabel: statusLabel } = resolveThreadStatus(
     status,
     pluginStatus,
     thread.archivedAt !== null,
   );
+  const accessibleLabel = statusLabel ?? agent?.name ?? null;
   if (!accessibleLabel) return null;
   return (
     <Tooltip>
@@ -1306,8 +1309,9 @@ function ThreadSearchStatus({
           className="inline-flex size-3.5 shrink-0 items-center justify-center text-subtle-foreground"
           data-palette-thread-status
         >
-          <ThreadStatusGlyph
+          <ThreadStatusMascot
             {...status}
+            agent={agent}
             archived={thread.archivedAt !== null}
             pluginStatus={pluginStatus}
             size="compact"

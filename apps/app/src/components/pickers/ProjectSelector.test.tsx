@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import { ProjectSelector } from "./ProjectSelector";
 
 const PROJECTS = [
@@ -113,6 +114,38 @@ describe("ProjectSelector", () => {
           ?.getAttribute("data-project-color-dot"),
       ),
     ).toEqual(["1", "5", "9", "13", "17", "21"]);
+  });
+
+  it("marks the Personal workspace with the neutral ring", () => {
+    render(
+      <ProjectSelector
+        projects={[
+          { id: PERSONAL_PROJECT_ID, name: "Personal", color: 4 },
+          ...PROJECTS,
+        ]}
+        value={PERSONAL_PROJECT_ID}
+        onChange={() => {}}
+        defaultOpen
+        modal={false}
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: /^Project: Personal/,
+    });
+    expect(trigger.querySelector('[data-icon="Folder"]')).toBeNull();
+    expect(
+      trigger
+        .querySelector("[data-project-color-dot]")
+        ?.getAttribute("data-project-color-dot"),
+    ).toBe("neutral");
+    const personalOption = screen
+      .getAllByRole("option")
+      .find((option) => option.textContent?.includes("Personal"));
+    expect(
+      personalOption
+        ?.querySelector("[data-project-color-dot]")
+        ?.getAttribute("data-project-color-dot"),
+    ).toBe("neutral");
   });
 
   it("keeps the no-project icon when no project is selected", () => {

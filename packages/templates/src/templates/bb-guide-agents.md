@@ -27,12 +27,36 @@ Fields:
 - instructions — text appended to every thread's instructions under
   "The following instructions come from the BB agent ...".
 - mascot — the pixel sprite the app shows for the agent: invader, ghost,
-  robot, cat, skull, crab, mushroom, rocket, dino, or frog. It animates while
-  a thread running as the agent has a turn in flight.
+  robot, cat, skull, crab, mushroom, rocket, dino, or frog. Thread lists show
+  it as the thread's status: animated while a turn or background work runs,
+  red after an unread failure, amber while waiting on the user, with a green
+  dot when unread, and still otherwise.
 - color — the mascot's palette color, 1-8 (0 is neutral gray, API only).
 
 create picks the mascot and color from a stable hash of the name when they
 are omitted; renaming keeps them. The default "bb" agent is a blue robot.
+
+Home folder:
+
+Every agent has a persistent home folder at `<data-dir>/agents/<slug>/` on the
+server's machine (`~/.bb/agents/<slug>/` by default). The slug is the
+lowercased name with other characters replaced by `-` ("Code Reviewer" is
+`code-reviewer`); two agents cannot share a slug. BB creates the folder with
+the agent (and for existing agents on start), renames it with the agent, and
+moves it to `<data-dir>/agents/.deleted/<slug>-<timestamp>/` when the agent is
+deleted.
+
+- Threads that run as the agent on the server's machine get
+  `BB_AGENT_HOME=<abs path>` and the instruction "Your home folder is
+  $BB_AGENT_HOME. ..." after the agent's instructions. Threads on other
+  machines get neither. The thread's project and workspace do not change.
+- `<home>/skills/<name>/SKILL.md` are private skills injected only into the
+  agent's threads, even when `skills` limits the shared ones. They override
+  same-named user skills.
+- `<data-dir>/agents/` is one git repo (created on first use; `.deleted/` is
+  ignored). After each turn BB commits the agent's folder if it changed, as
+  `<agent>: <thread title> (<thread id>)`. Nothing is pushed.
+- The app's agent page has a Files section to browse and edit the folder.
 
 The default agent is the first agent (the oldest). BB creates one named "bb"
 on first start from the current default provider and model. Threads without
@@ -43,6 +67,7 @@ Manage agents:
 
   bb agent list [--json]
   bb agent show <agent> [--json]
+  bb agent home <agent> [--json]
   bb agent create <name> [--provider <id>] [--model <model>]
       [--reasoning <level>] [--skill <name>]... [--mcp <handle>]...
       [--description <text>] [--instructions <text> | --instructions-file <path>]
@@ -60,6 +85,7 @@ Manage agents:
   `bb agent set Coder color 3`).
   --clear resets model (provider default), skills and mcp (all), description,
   or instructions. Changing the provider without a model clears the model.
+  home prints the home folder path; show prints it as `Home:`.
 
 Spawn as an agent:
 
@@ -72,7 +98,8 @@ Spawn as an agent:
 SDK and API:
 
   sdk.agents.list(), get({ agent }), create({ name, ... }),
-  update({ agent, ...fields }), remove({ agent })
+  update({ agent, ...fields }), remove({ agent }); every agent carries
+  homePath
   sdk.threads.spawn({ agent: "Coder", ... }) or { agentId }
   REST: GET/POST /api/v1/agents, GET/PATCH/DELETE /api/v1/agents/<agent>
   Realtime: `changed` messages with entity "agent" (agent-changed,

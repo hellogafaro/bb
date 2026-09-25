@@ -10,7 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
-import type { Agent } from "@bb/domain";
+import type { AgentResponse } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
 import {
   ExecutionControls,
@@ -59,7 +59,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function makeAgent(overrides: Partial<Agent>): Agent {
+function makeAgent(overrides: Partial<AgentResponse>): AgentResponse {
   return {
     id: "agent_default01",
     name: "BB",
@@ -74,6 +74,7 @@ function makeAgent(overrides: Partial<Agent>): Agent {
     color: 1,
     createdAt: 1,
     updatedAt: 1,
+    homePath: "/home/me/.bb/agents/coder",
     ...overrides,
   };
 }

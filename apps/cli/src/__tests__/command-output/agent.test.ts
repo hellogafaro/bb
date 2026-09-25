@@ -34,6 +34,7 @@ function agentRecord(overrides: Partial<AgentResult> = {}): AgentResult {
     color: 4,
     createdAt: 1,
     updatedAt: 1,
+    homePath: "/home/me/.bb/agents/coder",
     ...overrides,
   };
 }
@@ -99,9 +100,9 @@ describe("bb agent commands", () => {
 
     await runCommand(["agent", "list", "--json"], register);
 
-    expect(JSON.parse(collectLogPayloads(vi.mocked(console.log))[0]!)).toEqual(
-      [defaultAgent],
-    );
+    expect(JSON.parse(collectLogPayloads(vi.mocked(console.log))[0]!)).toEqual([
+      defaultAgent,
+    ]);
   });
 
   it("shows an agent by name", async () => {
@@ -128,11 +129,28 @@ describe("bb agent commands", () => {
         "  Permissions: full",
         "  Skills: bb-cli",
         "  MCPs: all enabled",
+        "  Home: /home/me/.bb/agents/coder",
         "  Instructions:",
         "    Keep diffs small.",
         "    Run tests.",
       ].join("\n"),
     ]);
+  });
+
+  it("prints the agent's home folder as a path or JSON", async () => {
+    const get = vi.spyOn(sdk.agents, "get").mockResolvedValue(agentRecord());
+
+    await runCommand(["agent", "home", "coder"], register);
+    await runCommand(["agent", "home", "coder", "--json"], register);
+
+    expect(get).toHaveBeenCalledWith({ agent: "coder" });
+    const payloads = collectLogPayloads(vi.mocked(console.log));
+    expect(payloads[0]).toBe("/home/me/.bb/agents/coder");
+    expect(JSON.parse(payloads[1]!)).toEqual({
+      id: "agent_coder00001",
+      name: "Coder",
+      homePath: "/home/me/.bb/agents/coder",
+    });
   });
 
   it("creates an agent with repeated skills and MCPs and instructions from a file", async () => {
@@ -209,16 +227,19 @@ describe("bb agent commands", () => {
     [["--color", "0"], "Invalid color '0'"],
     [["--color", "9"], "Invalid color '9'"],
     [["--color", "2.5"], "Invalid color '2.5'"],
-  ] as const)("rejects create %j before calling the server", async (args, message) => {
-    const create = vi.spyOn(sdk.agents, "create");
+  ] as const)(
+    "rejects create %j before calling the server",
+    async (args, message) => {
+      const create = vi.spyOn(sdk.agents, "create");
 
-    await expect(
-      runCommand(["agent", "create", "Coder", ...args], register),
-    ).rejects.toThrow("process.exit:1");
+      await expect(
+        runCommand(["agent", "create", "Coder", ...args], register),
+      ).rejects.toThrow("process.exit:1");
 
-    expect(errorOutput()).toContain(message);
-    expect(create).not.toHaveBeenCalled();
-  });
+      expect(errorOutput()).toContain(message);
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     [["skills", "bb-cli, notion ,"], { skills: ["bb-cli", "notion"] }],
@@ -294,9 +315,9 @@ describe("bb agent commands", () => {
     expect(remove).toHaveBeenCalledWith({ agent: "Coder" });
     expect(logLines()).toEqual(["Removed agent Coder (agent_coder00001)"]);
 
-    await expect(
-      runCommand(["agent", "rm", "BB"], register),
-    ).rejects.toThrow("process.exit:1");
+    await expect(runCommand(["agent", "rm", "BB"], register)).rejects.toThrow(
+      "process.exit:1",
+    );
     expect(errorOutput()).toContain("Cannot delete the last agent");
   });
 
@@ -314,8 +335,9 @@ describe("bb agent commands", () => {
       providerId: "codex",
     });
     stubServerApi({
-      "v1.threads.:id.$get": vi.fn(async ({ param }: { param: { id: string } }) =>
-        param.id === withAgent.id ? withAgent : withoutAgent,
+      "v1.threads.:id.$get": vi.fn(
+        async ({ param }: { param: { id: string } }) =>
+          param.id === withAgent.id ? withAgent : withoutAgent,
       ),
       "v1.threads.:id.timeline.$get": fixtures.makeEmptyTimelineGetMock(),
     });

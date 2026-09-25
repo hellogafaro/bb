@@ -34,6 +34,7 @@ const skillFrontmatterSchema = z
 
 export interface ResolveInjectedSkillSourcesArgs {
   additionalSkillsRootPaths?: readonly string[];
+  agentSkillsRootPath?: string;
   dataDir: string;
   pluginSkillRoots?: readonly PluginSkillRoot[];
   pluginSkillSelections?: ReadonlyMap<string, ReadonlySet<string>>;
@@ -76,6 +77,7 @@ export function discoverPluginSkillIds(
 }
 
 type SkillCatalogProvenance =
+  | { kind: "agent" }
   | { kind: "builtin" }
   | { kind: "plugin"; pluginId: string }
   | { kind: "project" }
@@ -617,12 +619,28 @@ export function resolveSkillCatalogEntries(
     (source) => source.sourceType === "shared-user",
   );
 
+  const agentSources =
+    args.agentSkillsRootPath === undefined
+      ? []
+      : readSkillsRoot({
+          logger,
+          skillTreeRegistry,
+          skillsRootPath: args.agentSkillsRootPath,
+          sourceType: "data-dir",
+        });
   const dataDirSources = readSkillsRoot({
     logger,
     skillTreeRegistry,
     skillsRootPath: resolveDataDirSkillsRootPath(args.dataDir),
     sourceType: "data-dir",
   });
+  const ownedUserSources = [
+    ...agentSources,
+    ...excludeOverriddenLowerPriorityUserSources(logger, {
+      higherPrioritySources: agentSources,
+      lowerPrioritySources: dataDirSources,
+    }),
+  ];
   const inheritedSourceGroups = (args.additionalSkillsRootPaths ?? []).map(
     (skillsRootPath) =>
       readSkillsRoot({
@@ -634,9 +652,9 @@ export function resolveSkillCatalogEntries(
   );
 
   const configuredUserSources = [
-    ...dataDirSources,
+    ...ownedUserSources,
     ...excludeOverriddenLowerPriorityUserSources(logger, {
-      higherPrioritySources: dataDirSources,
+      higherPrioritySources: ownedUserSources,
       lowerPrioritySources: sharedUserSources,
     }),
   ];
@@ -719,6 +737,9 @@ export function resolveSkillCatalogEntries(
   }
   for (const source of [...dataDirSources, ...inheritedSourceGroups.flat()]) {
     provenanceBySource.set(source, { kind: "user" });
+  }
+  for (const source of agentSources) {
+    provenanceBySource.set(source, { kind: "agent" });
   }
   for (const group of pluginSourceGroups) {
     for (const source of group.sources) {

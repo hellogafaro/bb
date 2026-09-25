@@ -119,16 +119,19 @@ Fields beyond those shown exist; these are the ones scripts use.
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
 
   bb agent list --json
-    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8)
+    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)
 
   bb agent show <agent> --json
-    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}
 
   bb agent create <name> --json
-    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}
 
   bb agent set <agent> <field> <value> --json
-    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}
+    {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}
+
+  bb agent home <agent> --json
+    {id, name, homePath}
 
   bb agent remove <agent> --json
     {deleted: true, id}

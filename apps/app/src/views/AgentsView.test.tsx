@@ -12,7 +12,7 @@ import {
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CREATE_AGENT_PROMPT } from "@bb/client-core";
-import type { Agent } from "@bb/domain";
+import type { AgentResponse } from "@bb/server-contract";
 import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { makeMcpServer } from "@/test/fixtures/mcp";
@@ -30,7 +30,7 @@ vi.mock("./SplitWorkspaceRoute", () => ({
   default: () => <h1>App workspace</h1>,
 }));
 
-function makeAgent(overrides: Partial<Agent> = {}): Agent {
+function makeAgent(overrides: Partial<AgentResponse> = {}): AgentResponse {
   return {
     id: "agent_default01",
     name: "BB",
@@ -45,6 +45,7 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     color: 1,
     createdAt: 1,
     updatedAt: 1,
+    homePath: "/home/me/.bb/agents/coder",
     ...overrides,
   };
 }
@@ -75,7 +76,7 @@ function LocationPath() {
   );
 }
 
-function renderRoutes(initialPath: string, agents: Agent[]) {
+function renderRoutes(initialPath: string, agents: AgentResponse[]) {
   const list = vi.spyOn(sdk.agents, "list").mockResolvedValue(agents);
   const update = vi
     .spyOn(sdk.agents, "update")
@@ -169,9 +170,7 @@ describe("Agents page", () => {
     expect(screen.getByText(AGENTS_PAGE_DESCRIPTION)).toBeTruthy();
     expect(screen.getByText("Default")).toBeTruthy();
     await waitFor(() =>
-      expect(
-        screen.getByText("Codex · GPT 5 · 1 skill · 1 MCP"),
-      ).toBeTruthy(),
+      expect(screen.getByText("Codex · GPT 5 · 1 skill · 1 MCP")).toBeTruthy(),
     );
     expect(
       screen.getByText("Codex · Default model · all skills · all MCPs"),

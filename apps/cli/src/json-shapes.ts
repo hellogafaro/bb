@@ -17,8 +17,6 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
   "thread unsnooze":
     "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
-  "thread unsnooze":
-    "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
   "thread search": "{active: {total, results}, archived: {total, results}}",
   "project list":
     "[{id, kind, name, gitRemoteUrl, color, sources: [{id, hostId, path, isDefault}]}]    (bare array; color is the label palette index 1-24)",
@@ -42,13 +40,14 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "skill list":
     "{skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)",
   "agent list":
-    "[{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8)",
+    "[{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)",
   "agent show":
-    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}",
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}",
   "agent create":
-    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}",
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}",
   "agent set":
-    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt}",
+    "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}",
+  "agent home": "{id, name, homePath}",
   "agent remove": "{deleted: true, id}",
   "mcp list":
     "[{id, handle, type, status, tools}]    (bare array; tools is absent until the catalog is known; --details prints full records as in bb mcp show)",

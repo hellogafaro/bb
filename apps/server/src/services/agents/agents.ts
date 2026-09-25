@@ -22,6 +22,7 @@ import {
   type Thread,
 } from "@bb/domain";
 import type {
+  AgentResponse,
   CreateAgentRequest,
   UpdateAgentRequest,
 } from "@bb/server-contract";
@@ -31,8 +32,20 @@ import { currentMcpService } from "../mcp/mcp-service-registry.js";
 import type { ProviderRegistryService } from "../providers/provider-registry.js";
 import { DEFAULT_REASONING_LEVEL } from "../threads/thread-default-policy.js";
 import { getSupportedReasoningLevelsForProvider } from "../threads/thread-reasoning-policy.js";
+import {
+  agentHomePath,
+  agentHomeSlug,
+  commitAgentHomeBestEffort,
+  ensureAgentHome,
+  ensureAgentHomesRepo,
+  renameAgentHome,
+  retireAgentHome,
+} from "./agent-home.js";
 
-type AgentDeps = Pick<AppDeps, "db" | "hub" | "providerRegistry">;
+type AgentDeps = Pick<
+  AppDeps,
+  "config" | "db" | "hub" | "logger" | "providerRegistry"
+>;
 type AgentReadDeps = Pick<AppDeps, "db">;
 
 interface AgentExecutionSeed {
@@ -82,10 +95,7 @@ export function agentPermissionMode(
   return supported[0] ?? AGENT_PERMISSION_MODE;
 }
 
-export function findAgentByRef(
-  deps: AgentReadDeps,
-  ref: string,
-): Agent | null {
+export function findAgentByRef(deps: AgentReadDeps, ref: string): Agent | null {
   return getAgent(deps.db, ref) ?? getAgentByName(deps.db, ref);
 }
 
@@ -110,6 +120,13 @@ export function listAllAgents(deps: AgentReadDeps): Agent[] {
   return listAgents(deps.db);
 }
 
+export function toAgentResponse(
+  deps: Pick<AppDeps, "config">,
+  agent: Agent,
+): AgentResponse {
+  return { ...agent, homePath: agentHomePath(deps.config.dataDir, agent) };
+}
+
 function assertNameAvailable(
   deps: AgentReadDeps,
   name: string,
@@ -121,6 +138,17 @@ function assertNameAvailable(
       409,
       "agent_name_taken",
       `An agent named "${existing.name}" already exists`,
+    );
+  }
+  const slug = agentHomeSlug(name);
+  const sharesHome = listAgents(deps.db).find(
+    (agent) => agent.id !== exceptId && agentHomeSlug(agent.name) === slug,
+  );
+  if (sharesHome !== undefined) {
+    throw new ApiError(
+      409,
+      "agent_name_taken",
+      `The agent "${sharesHome.name}" already uses the home folder "${slug}"`,
     );
   }
 }
@@ -158,8 +186,7 @@ function assertReasoningLevel(
 
 function normalizeMcpServers(servers: readonly string[]): string[] {
   const mcp = currentMcpService();
-  if (mcp === null || servers.length === 0)
-    return [...servers];
+  if (mcp === null || servers.length === 0) return [...servers];
   const known = mcp.admin.summaries();
   return servers.map((ref) => {
     const server = known.find(
@@ -170,6 +197,18 @@ function normalizeMcpServers(servers: readonly string[]): string[] {
     }
     return server.handle;
   });
+}
+
+function runHomeStep(
+  deps: Pick<AppDeps, "logger">,
+  failure: string,
+  step: () => unknown,
+): void {
+  try {
+    step();
+  } catch (error) {
+    deps.logger.warn({ err: error }, failure);
+  }
 }
 
 function notifyAgentChanged(deps: Pick<AppDeps, "hub">, agent: Agent): void {
@@ -216,6 +255,7 @@ export function createAgent(
     mascot: request.mascot ?? agentMascotForName(name),
     color: request.color ?? agentColorForName(name),
   });
+  ensureAgentHome(deps.config.dataDir, agent);
   notifyAgentChanged(deps, agent);
   return agent;
 }
@@ -263,6 +303,20 @@ export function updateAgentByRef(
   if (updated === null) {
     throw new ApiError(404, "agent_not_found", `Agent not found: ${ref}`);
   }
+  const fromSlug = agentHomeSlug(existing.name);
+  const toSlug = agentHomeSlug(updated.name);
+  runHomeStep(deps, "Agent home rename failed", () =>
+    renameAgentHome(deps.config.dataDir, { from: existing, to: updated }),
+  );
+  if (fromSlug !== toSlug) {
+    commitAgentHomeBestEffort(
+      { dataDir: deps.config.dataDir, logger: deps.logger },
+      {
+        slugs: [fromSlug, toSlug],
+        message: `${updated.name}: renamed from ${existing.name}`,
+      },
+    );
+  }
   notifyAgentChanged(deps, updated);
   return updated;
 }
@@ -282,12 +336,19 @@ export function deleteAgentByRef(deps: AgentDeps, ref: string): Agent {
   if (!removed) {
     throw new ApiError(404, "agent_not_found", `Agent not found: ${ref}`);
   }
+  runHomeStep(deps, "Agent home retirement failed", () =>
+    retireAgentHome(deps.config.dataDir, agent),
+  );
+  commitAgentHomeBestEffort(
+    { dataDir: deps.config.dataDir, logger: deps.logger },
+    { slugs: [agentHomeSlug(agent.name)], message: `${agent.name}: deleted` },
+  );
   deps.hub.notifyAgent(agent.id, ["agent-deleted"]);
   return agent;
 }
 
 export function ensureDefaultAgent(
-  deps: Pick<AppDeps, "db" | "hub" | "providerRegistry">,
+  deps: Pick<AppDeps, "config" | "db" | "hub" | "providerRegistry">,
 ): Agent | null {
   if (countAgents(deps.db) > 0) return null;
   const seed = resolveDefaultAgentSeed(deps);
@@ -307,12 +368,24 @@ export function ensureDefaultAgent(
       color: DEFAULT_AGENT_COLOR,
     });
   });
-  if (agent !== null) notifyAgentChanged(deps, agent);
+  if (agent !== null) {
+    ensureAgentHome(deps.config.dataDir, agent);
+    notifyAgentChanged(deps, agent);
+  }
   return agent;
 }
 
+export async function ensureAgentHomes(
+  deps: Pick<AppDeps, "config" | "db">,
+): Promise<void> {
+  for (const agent of listAgents(deps.db)) {
+    ensureAgentHome(deps.config.dataDir, agent);
+  }
+  await ensureAgentHomesRepo(deps.config.dataDir);
+}
+
 export async function seedDefaultAgent(
-  deps: Pick<AppDeps, "db" | "hub" | "logger" | "providerRegistry">,
+  deps: Pick<AppDeps, "config" | "db" | "hub" | "logger" | "providerRegistry">,
 ): Promise<void> {
   await deps.providerRegistry.whenRegistrationsSettled();
   try {
@@ -329,5 +402,10 @@ export async function seedDefaultAgent(
     }
   } catch (error) {
     deps.logger.error({ err: error }, "Default agent seeding failed");
+  }
+  try {
+    await ensureAgentHomes(deps);
+  } catch (error) {
+    deps.logger.error({ err: error }, "Agent home setup failed");
   }
 }

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useSetAtom } from "jotai";
 import { useIsMutating } from "@tanstack/react-query";
-import type { ThreadListEntry } from "@bb/domain";
+import type { Agent, ThreadListEntry } from "@bb/domain";
 import type { PluginComposerThreadRowStatus } from "@get-bb/plugin-sdk";
 import { getThreadConversationCollapsedAtom } from "@/components/secondary-panel/threadSecondaryPanelAtoms";
 import { SidebarStickyTier } from "@/components/ui/sidebar.js";
@@ -83,6 +83,8 @@ import {
   resolveThreadStatus,
   type ThreadStatusGlyphProps,
 } from "@/components/thread/ThreadStatusGlyph";
+import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { usePluginThreadRowStatus } from "@/lib/plugin-thread-row-status";
 
 const SIDEBAR_TITLE_DOUBLE_CLICK_MS = 400;
@@ -252,10 +254,12 @@ export function CollapsedThreadStatusGlyph({
   return <ThreadStatusGlyph {...statusProps} pluginStatus={pluginStatus} />;
 }
 type ThreadTrailingIndicatorProps = ThreadStatusGlyphProps & {
+  agent: Agent | null;
   pluginStatus: PluginComposerThreadRowStatus | null;
 };
 
 function ThreadTrailingIndicator({
+  agent,
   pluginStatus,
   ...statusProps
 }: ThreadTrailingIndicatorProps) {
@@ -264,7 +268,7 @@ function ThreadTrailingIndicator({
     pluginStatus,
   );
 
-  if (indicatorKind === "none" && !pluginStatusIsVisible) {
+  if (agent === null && indicatorKind === "none" && !pluginStatusIsVisible) {
     return null;
   }
 
@@ -276,7 +280,11 @@ function ThreadTrailingIndicator({
         SIDEBAR_STATUS_GLYPH_BOX_CLASS,
       )}
     >
-      <ThreadStatusGlyph {...statusProps} pluginStatus={pluginStatus} />
+      <ThreadStatusMascot
+        {...statusProps}
+        agent={agent}
+        pluginStatus={pluginStatus}
+      />
     </span>
   );
 }
@@ -325,6 +333,7 @@ function ThreadRowComponent({
   );
   const shortcut = useSidebarThreadShortcut(thread.id);
   const pluginThreadRowStatus = usePluginThreadRowStatus(thread.id);
+  const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
   const showActive = isActive;
   const threadStatus = threadListIndicatorStateForThread(
     thread,
@@ -624,6 +633,7 @@ function ThreadRowComponent({
                 ) : (
                   <ThreadTrailingIndicator
                     {...trailingIndicatorState}
+                    agent={agent}
                     hideIdleDraftLabel={
                       !hasHiddenChildren && trailingIndicatorKind === "draft"
                     }

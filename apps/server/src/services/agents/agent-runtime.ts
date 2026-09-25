@@ -1,16 +1,41 @@
-import { patchThreadPluginMetadata } from "@bb/db";
+import { getThread, patchThreadPluginMetadata } from "@bb/db";
 import type { Agent } from "@bb/domain";
+import type { HostDaemonContributedEnvEntry } from "@bb/host-daemon-contract";
 import type { AppDeps } from "../../types.js";
+import {
+  AGENT_HOME_ENV_NAME,
+  AGENT_HOME_INSTRUCTION,
+  commitAgentHomeAfterTurn,
+} from "./agent-home.js";
+import { resolveThreadAgent } from "./agents.js";
 
 export const AGENT_MCP_METADATA_KEY = "mcp";
 
-export function agentInstructionSection(agent: Agent): string[] {
-  const instructions = agent.instructions.trim();
-  if (instructions.length === 0) return [];
+export function agentInstructionSection(
+  agent: Agent,
+  options: { hasHome: boolean },
+): string[] {
+  const body = [
+    agent.instructions.trim(),
+    options.hasHome ? AGENT_HOME_INSTRUCTION : "",
+  ].filter((part) => part.length > 0);
+  if (body.length === 0) return [];
   return [
     `The following instructions come from the BB agent "${agent.name}":`,
-    instructions,
+    body.join("\n\n"),
   ];
+}
+
+export function agentHomeEnvEntry(
+  agent: Agent,
+  homePath: string,
+): HostDaemonContributedEnvEntry {
+  return {
+    name: AGENT_HOME_ENV_NAME,
+    value: homePath,
+    source: { core: "agent-home" },
+    reason: `Home folder of the BB agent "${agent.name}"`,
+  };
 }
 
 export function syncThreadAgentMcpScope(
@@ -26,5 +51,20 @@ export function syncThreadAgentMcpScope(
         ? { servers: args.agent.mcpServers }
         : {},
     remove: args.agent.mcpServers.length > 0 ? [] : ["servers"],
+  });
+}
+
+export async function commitThreadAgentHome(
+  deps: Pick<AppDeps, "config" | "db">,
+  threadId: string,
+): Promise<boolean> {
+  const thread = getThread(deps.db, threadId);
+  if (thread === null) return false;
+  const agent = resolveThreadAgent(deps, thread);
+  if (agent === null) return false;
+  return commitAgentHomeAfterTurn(deps.config.dataDir, {
+    agent,
+    threadId: thread.id,
+    threadTitle: thread.title,
   });
 }

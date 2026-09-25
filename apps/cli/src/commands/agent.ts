@@ -127,7 +127,10 @@ function formatAgent(agent: AgentResult, isDefault: boolean): string {
     "  Permissions: full",
     `  Skills: ${agent.skills.length === 0 ? "all" : agent.skills.join(", ")}`,
     `  MCPs: ${agent.mcpServers.length === 0 ? "all enabled" : agent.mcpServers.join(", ")}`,
-    agent.instructions ? `  Instructions:\n${indent(agent.instructions)}` : null,
+    `  Home: ${agent.homePath}`,
+    agent.instructions
+      ? `  Instructions:\n${indent(agent.instructions)}`
+      : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -269,6 +272,30 @@ export function registerAgentCommands(
         const record = await sdk.agents.get({ agent: ref });
         if (outputJson(opts, record)) return;
         console.log(formatAgent(record, await isDefaultAgent(sdk, record)));
+      }),
+    );
+
+  agent
+    .command("home <agent>")
+    .description(
+      "Print the agent's home folder: persistent notes, scripts, and private skills (<home>/skills) shared by its threads",
+    )
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (ref: string, opts: JsonOutputOptions) => {
+        const record = await createCliBbSdk(getUrl()).agents.get({
+          agent: ref,
+        });
+        if (
+          outputJson(opts, {
+            id: record.id,
+            name: record.name,
+            homePath: record.homePath,
+          })
+        ) {
+          return;
+        }
+        console.log(record.homePath);
       }),
     );
 

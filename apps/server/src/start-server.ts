@@ -354,7 +354,13 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     pluginCatalogService.startPeriodicRefresh();
     mcpService.start();
     providerGuard.start();
-    void seedDefaultAgent({ db, hub, logger, providerRegistry });
+    void seedDefaultAgent({
+      config: runtimeConfig,
+      db,
+      hub,
+      logger,
+      providerRegistry,
+    });
     sweepInterval = setInterval(() => {
       if (!isServerMoveFrozen(db)) {
         void runPeriodicSweeps(sweepDeps);

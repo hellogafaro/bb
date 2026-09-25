@@ -1676,7 +1676,7 @@ export function ThreadDetailPromptArea({
       thread.environmentId !== null ? (
         <ThreadEnvironmentSummary
           projectName={projectName}
-          {...(projectColor === null ? {} : { projectColor })}
+          projectColor={projectColor}
           environmentLabel={environmentLabel}
           environmentCompactLabel={environmentCompactLabel}
           environmentHost={environmentHost}

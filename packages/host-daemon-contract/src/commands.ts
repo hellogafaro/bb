@@ -208,6 +208,7 @@ export const hostDaemonContributedEnvEntrySchema = z
             "machine-git",
             "machine-environment",
             "project-environment",
+            "agent-home",
           ]),
         })
         .strict(),
@@ -2070,9 +2071,7 @@ type HostDaemonRetryableOnlineRpcCommandSchema =
 type HostDaemonResultSchemaMapForTransport<
   Transport extends HostDaemonCommandTransport,
 > = {
-  [
-    Descriptor in HostDaemonCommandDescriptorForTransport<Transport> as Descriptor["type"]
-  ]: Descriptor["resultSchema"];
+  [Descriptor in HostDaemonCommandDescriptorForTransport<Transport> as Descriptor["type"]]: Descriptor["resultSchema"];
 };
 
 type HostDaemonCommandResultSchemaMap =

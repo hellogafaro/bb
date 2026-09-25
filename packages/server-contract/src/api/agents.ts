@@ -15,11 +15,13 @@ const agentNameListSchema = z
   .max(200)
   .transform((names) => [...new Set(names)]);
 
-export const agentResponseSchema = agentSchema;
+export const agentResponseSchema = agentSchema
+  .extend({ homePath: z.string() })
+  .strict();
 export type AgentResponse = z.infer<typeof agentResponseSchema>;
 
 export const agentListResponseSchema = z
-  .object({ agents: z.array(agentSchema) })
+  .object({ agents: z.array(agentResponseSchema) })
   .strict();
 export type AgentListResponse = z.infer<typeof agentListResponseSchema>;
 

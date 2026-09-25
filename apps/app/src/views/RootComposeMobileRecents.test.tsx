@@ -16,6 +16,7 @@ import {
   RootComposeMobileRecents,
 } from "./RootComposeMobileRecents";
 import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+import { agentsQueryKey } from "@/hooks/queries/query-keys";
 
 const personalProvider: SystemEnvironmentProvider = {
   machineProviderId: null,
@@ -40,13 +41,15 @@ const personalProvider: SystemEnvironmentProvider = {
 function TestProviders({
   children,
   store = createStore(),
+  queryClient = new QueryClient(),
 }: {
   children: ReactNode;
   store?: ReturnType<typeof createStore>;
+  queryClient?: QueryClient;
 }) {
   return (
     <Provider store={store}>
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={queryClient}>
         <MemoryRouter>{children}</MemoryRouter>
       </QueryClientProvider>
     </Provider>
@@ -327,7 +330,9 @@ describe("mobile recents hierarchy interaction", () => {
     });
     expect(collapse.getAttribute("aria-expanded")).toBe("true");
 
-    const providerTile = collapse.querySelector("[data-mobile-recent-provider-tile]");
+    const providerTile = collapse.querySelector(
+      "[data-mobile-recent-provider-tile]",
+    );
     if (!(providerTile instanceof HTMLElement)) {
       throw new Error("Expected provider tile inside the disclosure button");
     }
@@ -477,8 +482,12 @@ describe("mobile recents hierarchy interaction", () => {
     renderTree();
 
     const [parentRow, childRow] = screen.getAllByRole("listitem");
-    const parentTile = parentRow?.querySelector("[data-mobile-recent-provider-tile]");
-    const childTile = childRow?.querySelector("[data-mobile-recent-provider-tile]");
+    const parentTile = parentRow?.querySelector(
+      "[data-mobile-recent-provider-tile]",
+    );
+    const childTile = childRow?.querySelector(
+      "[data-mobile-recent-provider-tile]",
+    );
     if (
       !(parentTile instanceof HTMLElement) ||
       !(childTile instanceof HTMLElement)
@@ -788,5 +797,85 @@ describe("RootComposeMobileRecents", () => {
       }),
     ).not.toBeNull();
     expect(screen.queryByLabelText("Plan mode active")).toBeNull();
+  });
+});
+
+describe("RootComposeMobileRecents agent", () => {
+  it("shows each thread's agent mascot in the status slot", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { enabled: false, retry: false } },
+    });
+    queryClient.setQueryData(agentsQueryKey(), [
+      {
+        id: "agent_default01",
+        name: "BB",
+        description: "",
+        providerId: "codex",
+        model: null,
+        reasoningLevel: "medium",
+        skills: [],
+        mcpServers: [],
+        instructions: "",
+        mascot: "robot",
+        color: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        homePath: "/home/me/.bb/agents/bb",
+      },
+      {
+        id: "agent_coder0001",
+        name: "Coder",
+        description: "",
+        providerId: "codex",
+        model: null,
+        reasoningLevel: "medium",
+        skills: [],
+        mcpServers: [],
+        instructions: "",
+        mascot: "crab",
+        color: 6,
+        createdAt: 1,
+        updatedAt: 1,
+        homePath: "/home/me/.bb/agents/coder",
+      },
+    ]);
+    const { container } = render(
+      <TestProviders queryClient={queryClient}>
+        <RootComposeMobileRecents
+          highlightedThreadId={null}
+          projectNamesById={new Map([["proj_mobile", "Mobile"]])}
+          providersById={new Map()}
+          showCreatingRow={false}
+          threads={[
+            makeIdleThread({
+              id: "thr_coder",
+              agentId: "agent_coder0001",
+              hasPendingInteraction: true,
+            }),
+            makeIdleThread({
+              id: "thr_default",
+              agentId: null,
+              latestAttentionAt: 1,
+            }),
+          ]}
+        />
+      </TestProviders>,
+    );
+    const marks = container.querySelectorAll(
+      "[data-mobile-recent-status] [data-thread-status-mascot]",
+    );
+    expect(marks).toHaveLength(2);
+    expect(marks[0]?.getAttribute("data-thread-status-mascot")).toBe("waiting");
+    expect(marks[0]?.getAttribute("aria-label")).toBe(
+      "Thread needs user input",
+    );
+    expect(
+      marks[0]?.querySelector('[data-agent-mascot="crab"]'),
+    ).not.toBeNull();
+    expect(marks[1]?.getAttribute("data-thread-status-mascot")).toBe("idle");
+    expect(
+      marks[1]?.querySelector('[data-agent-mascot="robot"]'),
+    ).not.toBeNull();
+    expect(container.querySelector("[data-status-ring]")).toBeNull();
   });
 });

@@ -8,19 +8,24 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import type { Agent, AvailableModel } from "@bb/domain";
+import type { AvailableModel } from "@bb/domain";
+import type { AgentResponse } from "@bb/server-contract";
 import type { SystemExecutionOptionsResponse } from "@bb/server-contract";
 import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sdk } from "@/lib/sdk";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
+import {
+  FilesTransportContext,
+  type FilesTransport,
+} from "@/components/files/files-transport";
 import { AgentDetailView } from "./AgentDetailView";
 
 vi.mock("@/lib/sdk", () => ({
   sdk: {
     agents: { list: vi.fn(), update: vi.fn(), remove: vi.fn() },
     providers: { list: vi.fn() },
-    system: { executionOptions: vi.fn() },
+    system: { config: vi.fn(), executionOptions: vi.fn() },
   },
 }));
 
@@ -40,7 +45,7 @@ vi.mock("@/hooks/queries/skills-queries", () => ({
   useProjectSkills: () => ({ data: { skills: [] } }),
 }));
 
-function makeAgent(overrides: Partial<Agent> = {}): Agent {
+function makeAgent(overrides: Partial<AgentResponse> = {}): AgentResponse {
   return {
     id: "agent_coder0001",
     name: "Coder",
@@ -55,6 +60,7 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     color: 1,
     createdAt: 1,
     updatedAt: 1,
+    homePath: "/home/me/.bb/agents/coder",
     ...overrides,
   };
 }
@@ -92,22 +98,58 @@ const modelsByProvider: Record<string, AvailableModel[]> = {
   "claude-code": [availableModel("claude-opus-4-7", "Claude Opus 4.7", true)],
 };
 
-function renderDetail(agent: Agent) {
+function renderDetail(agent: AgentResponse, files?: FilesTransport) {
   vi.mocked(sdk.agents.list).mockResolvedValue([agent]);
   vi.mocked(sdk.agents.update).mockImplementation(
     async ({ agent: _ref, ...update }) =>
       ({
         ...agent,
         ...update,
-      }) as Agent,
+      }) as AgentResponse,
   );
   const { wrapper } = createQueryClientTestHarness();
-  render(
+  const view = (
     <MemoryRouter>
       <AgentDetailView agentRef={agent.id} />
-    </MemoryRouter>,
+    </MemoryRouter>
+  );
+  render(
+    files === undefined ? (
+      view
+    ) : (
+      <FilesTransportContext.Provider value={files}>
+        {view}
+      </FilesTransportContext.Provider>
+    ),
     { wrapper },
   );
+}
+
+function homeTransport(): FilesTransport {
+  return {
+    read: vi.fn(),
+    readIfChanged: vi.fn(),
+    write: vi.fn(),
+    remove: vi.fn(),
+    listDirectory: vi.fn(async (_directory, path: string) =>
+      path === ""
+        ? [
+            {
+              name: "skills",
+              kind: "directory" as const,
+              relativePath: "skills",
+            },
+            {
+              name: "inventory.md",
+              kind: "file" as const,
+              relativePath: "inventory.md",
+            },
+          ]
+        : [],
+    ),
+    search: vi.fn(async () => []),
+    isMissing: () => false,
+  };
 }
 
 async function openPicker() {
@@ -224,5 +266,40 @@ describe("AgentDetailView appearance", () => {
         color: 7,
       }),
     );
+  });
+});
+
+describe("AgentDetailView files section", () => {
+  it("renders the agent home as a file tree on the primary host", async () => {
+    vi.mocked(sdk.system.config).mockResolvedValue({
+      primaryHostId: "host-1",
+    } as Awaited<ReturnType<typeof sdk.system.config>>);
+    const files = homeTransport();
+    renderDetail(makeAgent(), files);
+
+    expect(await screen.findByRole("heading", { name: "Files" })).toBeTruthy();
+    expect(screen.getByText("/home/me/.bb/agents/coder")).toBeTruthy();
+    expect(await screen.findByText("inventory.md")).toBeTruthy();
+    expect(screen.getByText("skills")).toBeTruthy();
+    expect(files.listDirectory).toHaveBeenCalledWith(
+      { hostId: "host-1", rootPath: "/home/me/.bb/agents/coder" },
+      "",
+      expect.anything(),
+    );
+  });
+
+  it("explains when the server's machine is not connected", async () => {
+    vi.mocked(sdk.system.config).mockResolvedValue({
+      primaryHostId: null,
+    } as Awaited<ReturnType<typeof sdk.system.config>>);
+    const files = homeTransport();
+    renderDetail(makeAgent(), files);
+
+    expect(
+      await screen.findByText(
+        "This agent's home lives on the server's machine, which isn't connected.",
+      ),
+    ).toBeTruthy();
+    expect(files.listDirectory).not.toHaveBeenCalled();
   });
 });

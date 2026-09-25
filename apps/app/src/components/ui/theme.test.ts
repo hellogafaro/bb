@@ -511,6 +511,12 @@ describe("theme.css label and agent palettes", () => {
     });
   }
 
+  it("derives the neutral label color from the ink and canvas anchors", () => {
+    expect(variableValue(rootBlock, "label-color-neutral")).toBe(
+      "color-mix(in oklch, var(--ink) 55%, var(--canvas))",
+    );
+  });
+
   it("defines the neutral and eight MonoCode agent colors", () => {
     for (let index = 0; index <= 8; index++) {
       expect(variableValue(rootBlock, `agent-color-${index}`)).toMatch(

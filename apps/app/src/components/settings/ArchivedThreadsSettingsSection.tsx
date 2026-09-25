@@ -251,8 +251,9 @@ export function ArchivedThreadsSettingsSection() {
           {groupedThreads.map(([groupProjectId, threads]) => (
             <section key={groupProjectId} className="space-y-2">
               <div className="flex items-center gap-2 px-0.5 text-xs font-medium text-muted-foreground">
-                <ArchivedGroupProjectMark
+                <ProjectColorDot
                   color={projectColors.get(groupProjectId) ?? null}
+                  className="size-3.5"
                 />
                 <h3 className="min-w-0 flex-1 truncate">
                   {projectNames.get(groupProjectId) ?? "Unknown project"}
@@ -325,9 +326,4 @@ export function ArchivedThreadsSettingsSection() {
       ) : null}
     </section>
   );
-}
-
-function ArchivedGroupProjectMark({ color }: { color: number | null }) {
-  if (color === null) return <Icon name="Folder" className="size-3.5" />;
-  return <ProjectColorDot color={color} className="size-3.5" />;
 }

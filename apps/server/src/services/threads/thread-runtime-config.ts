@@ -47,10 +47,13 @@ import {
 } from "./workspace-agent-instructions.js";
 import { resolveDeprecatedWorkspaceProvisionType } from "../environments/environment-response.js";
 import {
+  agentHomeEnvEntry,
   agentInstructionSection,
   syncThreadAgentMcpScope,
 } from "../agents/agent-runtime.js";
 import { resolveThreadAgent } from "../agents/agents.js";
+import { agentSkillsRootPath, ensureAgentHome } from "../agents/agent-home.js";
+import { isServerMachineHost } from "../hosts/primary-host.js";
 
 const UPDATE_ENVIRONMENT_DIRECTORY_INSTRUCTIONS =
   "If the user asks you to move this thread to another checkout, worktree, or directory, make sure the target directory exists, then call `update_environment_directory` with its absolute path. After it succeeds, stop work in the current turn; future turns will run in the updated environment.";
@@ -230,7 +233,20 @@ export async function resolveThreadRuntimeCommandConfig(
     }),
   );
   const agent = resolveThreadAgent(deps, args.thread);
+  const agentHomePath =
+    agent !== null && isServerMachineHost(deps, host.id)
+      ? ensureAgentHome(deps.config.dataDir, agent)
+      : null;
+  const runtimeEnv =
+    agent !== null && agentHomePath !== null
+      ? mergeHostAndProviderEnvironment(contributedEnv, [
+          agentHomeEnvEntry(agent, agentHomePath),
+        ])
+      : contributedEnv;
   const injectedSkillSources = resolveSkillCatalog(deps, {
+    ...(agent !== null
+      ? { agentSkillsRootPath: agentSkillsRootPath(deps.config.dataDir, agent) }
+      : {}),
     projectSkillSources,
     sharedSkillSources: sharedSkills.runtimeSources,
     pluginSkillSelections: conditionalConfiguration.selectedSkillIdsByPlugin,
@@ -316,7 +332,9 @@ export async function resolveThreadRuntimeCommandConfig(
     );
   }
   if (agent !== null) {
-    instructionSections.push(...agentInstructionSection(agent));
+    instructionSections.push(
+      ...agentInstructionSection(agent, { hasHome: agentHomePath !== null }),
+    );
   }
   const instructions = instructionSections.join("\n\n");
   const threadStoragePath = await requireLiveThreadStoragePath(deps, {
@@ -324,7 +342,7 @@ export async function resolveThreadRuntimeCommandConfig(
     threadId: args.thread.id,
   });
   return {
-    contributedEnv,
+    contributedEnv: runtimeEnv,
     dynamicTools,
     injectedSkillSources,
     instructionMode: "append",

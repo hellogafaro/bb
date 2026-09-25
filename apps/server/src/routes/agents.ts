@@ -13,6 +13,7 @@ import {
   deleteAgentByRef,
   listAllAgents,
   requireAgentByRef,
+  toAgentResponse,
   updateAgentByRef,
 } from "../services/agents/agents.js";
 import type { AppDeps } from "../types.js";
@@ -36,27 +37,34 @@ async function parseBody<Schema extends z.ZodType>(
 
 export function registerAgentRoutes(app: Hono, deps: AppDeps): void {
   app.get("/agents", (context) =>
-    context.json({ agents: listAllAgents(deps) } satisfies AgentListResponse),
+    context.json({
+      agents: listAllAgents(deps).map((agent) => toAgentResponse(deps, agent)),
+    } satisfies AgentListResponse),
   );
 
   app.post("/agents", async (context) => {
     const body = await parseBody(context, createAgentRequestSchema);
-    return context.json(createAgent(deps, body) satisfies AgentResponse, 201);
+    return context.json(
+      toAgentResponse(deps, createAgent(deps, body)) satisfies AgentResponse,
+      201,
+    );
   });
 
   app.get("/agents/:ref", (context) =>
     context.json(
-      requireAgentByRef(deps, context.req.param("ref")) satisfies AgentResponse,
+      toAgentResponse(
+        deps,
+        requireAgentByRef(deps, context.req.param("ref")),
+      ) satisfies AgentResponse,
     ),
   );
 
   app.patch("/agents/:ref", async (context) => {
     const body = await parseBody(context, updateAgentRequestSchema);
     return context.json(
-      updateAgentByRef(
+      toAgentResponse(
         deps,
-        context.req.param("ref"),
-        body,
+        updateAgentByRef(deps, context.req.param("ref"), body),
       ) satisfies AgentResponse,
     );
   });

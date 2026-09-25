@@ -547,21 +547,57 @@ export function FilesPanel({
   isActive: boolean;
   onOpenFile: (path: string) => void;
 }) {
-  const transport = useFilesTransport();
   const environment = useEnvironment(environmentId, {
     enabled: environmentId !== null,
   });
-  const scroller = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const edges = useOverflowEdges(scroller, content);
-  const [filter, setFilter] = useState("");
-  const query = filter.trim();
   const hostId = environment.data?.hostId ?? null;
   const rootPath = environment.data?.path ?? null;
   const directory = useMemo<DirectoryLocation | null>(
     () => (hostId === null || rootPath === null ? null : { hostId, rootPath }),
     [hostId, rootPath],
   );
+  let status: FilesBrowserStatus | null = null;
+  if (environmentId === null) {
+    status = { message: FILES_COPY.noEnvironment, destructive: false };
+  } else if (environment.data === undefined && environment.error !== null) {
+    status = { message: environment.error.message, destructive: true };
+  } else if (environment.data !== undefined && rootPath === null) {
+    status = { message: FILES_COPY.noEnvironment, destructive: false };
+  }
+  return (
+    <FilesBrowser
+      directory={directory}
+      status={status}
+      isActive={isActive}
+      onOpenFile={onOpenFile}
+    />
+  );
+}
+
+export interface FilesBrowserStatus {
+  message: string;
+  destructive: boolean;
+}
+
+export function FilesBrowser({
+  className,
+  directory,
+  status,
+  isActive,
+  onOpenFile,
+}: {
+  className?: string;
+  directory: DirectoryLocation | null;
+  status: FilesBrowserStatus | null;
+  isActive: boolean;
+  onOpenFile: (path: string) => void;
+}) {
+  const transport = useFilesTransport();
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const edges = useOverflowEdges(scroller, content);
+  const [filter, setFilter] = useState("");
+  const query = filter.trim();
   const search = useFileSearch(directory, query, transport);
   const filtering = query !== "";
   const onOpenFileRef = useRef(onOpenFile);
@@ -572,12 +608,10 @@ export function FilesPanel({
   }, []);
 
   let tree: ReactNode;
-  if (environmentId === null) {
-    tree = <StatusLine>{FILES_COPY.noEnvironment}</StatusLine>;
-  } else if (environment.data === undefined && environment.error !== null) {
-    tree = <StatusLine destructive>{environment.error.message}</StatusLine>;
-  } else if (environment.data !== undefined && rootPath === null) {
-    tree = <StatusLine>{FILES_COPY.noEnvironment}</StatusLine>;
+  if (status !== null) {
+    tree = (
+      <StatusLine destructive={status.destructive}>{status.message}</StatusLine>
+    );
   } else if (directory === null) {
     tree = <TreeSkeleton rows={8} />;
   } else {
@@ -609,7 +643,10 @@ export function FilesPanel({
   return (
     <div
       data-files-panel=""
-      className="flex h-full min-h-0 flex-col gap-1.5 px-4 pt-0.5 pb-1.5"
+      className={cn(
+        "flex h-full min-h-0 flex-col gap-1.5 px-4 pt-0.5 pb-1.5",
+        className,
+      )}
     >
       <div className="relative min-w-0 shrink-0">
         <Icon

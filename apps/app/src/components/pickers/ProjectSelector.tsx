@@ -20,7 +20,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import { searchPickerOptions } from "./picker-search";
 import { useResetPickerScroll } from "./useResetPickerScroll";
-import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import {
+  ProjectColorDot,
+  projectDotColor,
+} from "@/components/projects/ProjectColorDot";
 
 const PROJECT_SEARCH_MIN_OPTIONS = 5;
 const NO_HIGHLIGHT_VALUE = "__project-picker-idle__";
@@ -143,7 +146,7 @@ export function ProjectSelector({
           <span className={OPTION_TRIGGER_CONTENT_CLASS_NAME}>
             {triggerProject ? (
               <ProjectColorDot
-                color={triggerProject.color}
+                color={projectDotColor(triggerProject)}
                 className="size-3.5"
               />
             ) : (
@@ -216,7 +219,10 @@ export function ProjectSelector({
                     onSelect={() => selectProject(project.id)}
                     className={PROJECT_PICKER_ITEM_CLASS_NAME}
                   >
-                    <ProjectColorDot color={project.color} className="size-4" />
+                    <ProjectColorDot
+                      color={projectDotColor(project)}
+                      className="size-4"
+                    />
                     <span className="min-w-0 flex-1 truncate">
                       {project.name}
                     </span>

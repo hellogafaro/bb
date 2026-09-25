@@ -12,10 +12,10 @@ export function useAgents() {
   });
 }
 
-export function findAgentByRef(
-  agents: readonly Agent[],
+export function findAgentByRef<T extends Agent>(
+  agents: readonly T[],
   ref: string,
-): Agent | null {
+): T | null {
   const lowered = ref.trim().toLowerCase();
   return (
     agents.find((agent) => agent.id === ref) ??
@@ -24,14 +24,14 @@ export function findAgentByRef(
   );
 }
 
-export function defaultAgent(agents: readonly Agent[]): Agent | null {
+export function defaultAgent<T extends Agent>(agents: readonly T[]): T | null {
   return agents[0] ?? null;
 }
 
-export function resolveThreadAgent(
-  agents: readonly Agent[],
+export function resolveThreadAgent<T extends Agent>(
+  agents: readonly T[],
   agentId: string | null,
-): Agent | null {
+): T | null {
   const agent =
     agentId === null ? null : agents.find((entry) => entry.id === agentId);
   return agent ?? defaultAgent(agents);

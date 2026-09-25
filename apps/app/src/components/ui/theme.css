@@ -943,6 +943,7 @@
   --label-color-22: oklch(0.53 0.18 295);
   --label-color-23: oklch(0.53 0.18 325);
   --label-color-24: oklch(0.53 0.18 355);
+  --label-color-neutral: color-mix(in oklch, var(--ink) 55%, var(--canvas));
 }
 
 @layer base {

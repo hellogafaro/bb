@@ -19,7 +19,7 @@ const CHECKOUT_CHIP_BUTTON_CLASS_NAME = `${CHECKOUT_CHIP_BASE_CLASS_NAME} cursor
 
 interface ThreadEnvironmentSummaryProps {
   projectName?: string;
-  projectColor?: number;
+  projectColor?: number | null;
   environmentLabel?: string;
   environmentCompactLabel?: string;
   environmentIcon?: IconName;
@@ -61,11 +61,7 @@ export const ThreadEnvironmentSummary = memo(function ThreadEnvironmentSummary({
           value={projectName}
           compactValue={projectName}
           leading={
-            projectColor === undefined ? (
-              <Icon name="Folder" className="size-4 shrink-0" />
-            ) : (
-              <ProjectColorDot color={projectColor} className="size-4" />
-            )
+            <ProjectColorDot color={projectColor ?? null} className="size-4" />
           }
           className="h-6 min-w-0 max-w-[10rem] shrink"
         />

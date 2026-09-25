@@ -11,9 +11,10 @@ import {
   type Agent,
   type ProviderInfo,
 } from "@bb/domain";
-import type { UpdateAgentRequest } from "@bb/server-contract";
+import type { AgentResponse, UpdateAgentRequest } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
 import { Checkbox } from "@bb/shared-ui/checkbox";
+import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Input } from "@bb/shared-ui/input";
 import {
@@ -27,6 +28,13 @@ import {
   ConfirmDeleteDialog,
   ConfirmDeleteDialogContent,
 } from "@/components/dialogs/ConfirmDeleteDialog";
+import {
+  FilesBrowser,
+  type FilesBrowserStatus,
+} from "@/components/files/FilesPanel";
+import { LazyFileEditor } from "@/components/files/LazyFileEditor";
+import { joinRoot } from "@/components/files/file-paths";
+import type { DirectoryLocation } from "@/components/files/files-transport";
 import { McpPageShell } from "@/components/mcp/McpPageShell";
 import { ModelReasoningPicker } from "@/components/pickers/ModelReasoningPicker";
 import type { ProviderPickerOption } from "@/components/pickers/model-brand-prefix";
@@ -39,6 +47,7 @@ import { useAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useMcpServers } from "@/hooks/queries/mcp-queries";
 import { useProjectSkills } from "@/hooks/queries/skills-queries";
 import {
+  useSystemConfig,
   useSystemExecutionOptions,
   useSystemProviders,
 } from "@/hooks/queries/system-queries";
@@ -108,7 +117,7 @@ function AgentDetail({
   agent,
   onDeleted,
 }: {
-  agent: Agent;
+  agent: AgentResponse;
   onDeleted: () => void;
 }) {
   const agentsQuery = useAgents();
@@ -209,6 +218,7 @@ function AgentDetail({
         pending={update.isPending}
         onSave={save}
       />
+      <AgentFilesSection homePath={agent.homePath} />
       <ConfirmDeleteDialog
         open={confirmingDelete}
         onOpenChange={(open) => {
@@ -685,6 +695,84 @@ function AgentInstructionsSection({
         maxLength={AGENT_INSTRUCTIONS_MAX_CHARS}
         rows={6}
       />
+    </SectionCard>
+  );
+}
+
+const AGENT_HOME_UNAVAILABLE =
+  "This agent's home lives on the server's machine, which isn't connected.";
+
+function AgentFilesSection({ homePath }: { homePath: string }) {
+  const systemConfig = useSystemConfig();
+  const hostId = systemConfig.data?.primaryHostId ?? null;
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const directory = useMemo<DirectoryLocation | null>(
+    () => (hostId === null ? null : { hostId, rootPath: homePath }),
+    [homePath, hostId],
+  );
+  let status: FilesBrowserStatus | null = null;
+  if (systemConfig.data === undefined && systemConfig.error !== null) {
+    status = { message: systemConfig.error.message, destructive: true };
+  } else if (systemConfig.data !== undefined && hostId === null) {
+    status = { message: AGENT_HOME_UNAVAILABLE, destructive: false };
+  }
+  const openFile = openPath === null ? null : joinRoot(homePath, openPath);
+
+  return (
+    <SectionCard
+      title="Files"
+      action={
+        openPath === null ? undefined : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setOpenPath(null)}
+          >
+            <Icon name="X" aria-hidden />
+            Close file
+          </Button>
+        )
+      }
+    >
+      <p className="truncate font-mono text-xs text-subtle-foreground">
+        {homePath}
+      </p>
+      <div
+        data-agent-files=""
+        className="grid h-96 min-h-0 grid-cols-1 overflow-hidden rounded-lg border border-border md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]"
+      >
+        <FilesBrowser
+          className={cn("px-2 pt-2", openFile !== null && "max-md:hidden")}
+          directory={directory}
+          status={status}
+          isActive
+          onOpenFile={setOpenPath}
+        />
+        <div
+          className={cn(
+            "min-h-0 flex-col md:flex md:border-l md:border-border",
+            openFile === null
+              ? "hidden md:items-center md:justify-center"
+              : "flex",
+          )}
+        >
+          {openFile !== null && openPath !== null && hostId !== null ? (
+            <LazyFileEditor
+              key={openFile}
+              source={{ kind: "host", hostId, path: openFile }}
+              displayPath={openPath}
+              copyPath={openFile}
+              lineRange={null}
+              isPanelOpen
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select a file to open it.
+            </p>
+          )}
+        </div>
+      </div>
     </SectionCard>
   );
 }

@@ -341,6 +341,7 @@ server.
 - `bb agent`
 - `bb agent list`
 - `bb agent show`
+- `bb agent home`
 - `bb agent create`
 - `bb agent set`
 - `bb agent remove`

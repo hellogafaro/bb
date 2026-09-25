@@ -74,7 +74,9 @@ import {
 import { makeThreadListEntry as makeThreadListEntryFixture } from "@bb/test-helpers/domain-fixtures";
 
 vi.mock("@/components/thread/ThreadActionsMenu", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/components/thread/ThreadActionsMenu")>()),
+  ...(await importOriginal<
+    typeof import("@/components/thread/ThreadActionsMenu")
+  >()),
   ThreadActionsContextMenu: ({ children }: { children: ReactNode }) => (
     <>{children}</>
   ),
@@ -307,15 +309,20 @@ describe("ThreadRow", () => {
     let rejectRestore!: (error: Error) => void;
     const mutation = client.getMutationCache().build(client, {
       mutationKey: ["unarchive-thread"],
-      mutationFn: (_input: { id: string }) => new Promise<void>((_resolve, reject) => {
-        rejectRestore = reject;
-      }),
+      mutationFn: (_input: { id: string }) =>
+        new Promise<void>((_resolve, reject) => {
+          rejectRestore = reject;
+        }),
     });
     render(<ThreadRowTestHarness queryClient={client} thread={thread} />);
-    const restore = screen.getByRole<HTMLButtonElement>("button", { name: "Unarchive thread" });
+    const restore = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Unarchive thread",
+    });
     let completion: Promise<unknown>;
     act(() => {
-      completion = mutation.execute({ id: "another-thread" }).catch(() => undefined);
+      completion = mutation
+        .execute({ id: "another-thread" })
+        .catch(() => undefined);
     });
     await waitFor(() => expect(rejectRestore).toBeTypeOf("function"));
     expect(restore.disabled).toBe(false);
@@ -580,7 +587,9 @@ describe("ThreadRow", () => {
     });
 
     expect(screen.queryByLabelText("Plugin improving draft")).toBeNull();
-    expect(container.querySelector('[data-status-ring="draft"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-status-ring="draft"]'),
+    ).not.toBeNull();
   });
 
   it("shows a keyboard shortcut in place of a plugin status", () => {
@@ -924,9 +933,9 @@ describe("ThreadRow", () => {
         .querySelector('[data-prompt-mention="true"]')
         ?.getAttribute("data-prompt-mention-serialized-text"),
     ).toBe("@docs/foo.test.ts");
-    expect(container.querySelector(".bb-sidebar-thread-title")?.textContent).toBe(
-      "Review foo.test.ts.",
-    );
+    expect(
+      container.querySelector(".bb-sidebar-thread-title")?.textContent,
+    ).toBe("Review foo.test.ts.");
   });
 
   it("shows the project and last activity on the second line", () => {
@@ -948,14 +957,20 @@ describe("ThreadRow", () => {
         </ThreadTitleMentionResourcesProvider>,
       );
       const meta = container.querySelector("[data-sidebar-thread-meta]");
-      expect(meta?.querySelector('[data-icon="Folder"]')).not.toBeNull();
+      expect(meta?.querySelector("[data-project-color-dot]")).not.toBeNull();
       expect(meta?.textContent).toBe("Web App·3m");
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("leads the second line with the thread's agent mascot", () => {
+  function trailingMascot(container: HTMLElement) {
+    return container.querySelector(
+      "[data-sidebar-thread-trailing-indicator] [data-thread-status-mascot]",
+    );
+  }
+
+  it("shows the thread's agent mascot where the status glyph sits", () => {
     const coder = createAgent({
       id: "agent_coder0001",
       name: "Coder",
@@ -969,14 +984,17 @@ describe("ThreadRow", () => {
         thread={createThread({ agentId: coder.id })}
       />,
     );
-    const meta = container.querySelector("[data-sidebar-thread-meta]");
-    const mark = meta?.firstElementChild;
-    expect(mark?.hasAttribute("data-sidebar-thread-agent")).toBe(true);
-    expect(mark?.querySelector("img")).toBeNull();
-    const mascot = mark?.querySelector<SVGElement>('[data-agent-mascot="crab"]');
-    expect(mascot?.classList.contains("size-3.5")).toBe(true);
+    const status = trailingMascot(container);
+    expect(status?.getAttribute("data-thread-status-mascot")).toBe("idle");
+    const mascot = status?.querySelector<SVGElement>(
+      '[data-agent-mascot="crab"]',
+    );
     expect(mascot?.style.color).toBe("var(--agent-color-6)");
     expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
+    expect(container.querySelector("[data-status-ring]")).toBeNull();
+    expect(
+      container.querySelector("[data-sidebar-thread-meta] [data-agent-mascot]"),
+    ).toBeNull();
   });
 
   it("animates the agent mascot while the thread has a turn in flight", () => {
@@ -991,16 +1009,68 @@ describe("ThreadRow", () => {
         })}
       />,
     );
-    const mascot = container.querySelector(
-      '[data-sidebar-thread-agent] [data-agent-mascot="robot"]',
-    );
+    const status = trailingMascot(container);
+    expect(status?.getAttribute("data-thread-status-mascot")).toBe("working");
+    const mascot = status?.querySelector('[data-agent-mascot="robot"]');
     expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(true);
     expect(mascot?.classList.contains("mascot-active")).toBe(true);
     expect(mascot?.querySelector(".mascot-talk")).not.toBeNull();
   });
 
-  it("shows the project's color dot instead of the folder glyph", () => {
-    const queryClient = createTestQueryClient([]);
+  it.each([
+    {
+      label: "Unread thread failed",
+      thread: createThread({
+        status: "error",
+        lastReadAt: 0,
+        latestAttentionAt: 10,
+      }),
+      tone: "error",
+      color: "var(--destructive)",
+    },
+    {
+      label: "Thread needs user input",
+      thread: createThread({ hasPendingInteraction: true }),
+      tone: "waiting",
+      color: "var(--status-waiting)",
+    },
+  ])("tints the mascot for $tone", ({ label, thread, tone, color }) => {
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={createTestQueryClient([createAgent()])}
+        thread={thread}
+      />,
+    );
+    const status = screen.getByLabelText(label);
+    expect(status).toBe(trailingMascot(container));
+    expect(status.getAttribute("data-thread-status-mascot")).toBe(tone);
+    const mascot = status.querySelector<SVGElement>("[data-agent-mascot]");
+    expect(mascot?.style.color).toBe(color);
+    expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
+  });
+
+  it("keeps the unread marker next to the static mascot", () => {
+    const { container } = render(
+      <ThreadRowTestHarness
+        queryClient={createTestQueryClient([createAgent()])}
+        thread={createThread({
+          status: "idle",
+          lastReadAt: 1_000,
+          latestAttentionAt: 2_000,
+        })}
+      />,
+    );
+    const status = screen.getByLabelText("Unread thread succeeded");
+    expect(status).toBe(trailingMascot(container));
+    expect(status.hasAttribute("data-thread-status-unread")).toBe(true);
+    expect(status.querySelector(".bg-status-ready")).not.toBeNull();
+    expect(
+      status.querySelector<SVGElement>("[data-agent-mascot]")?.style.color,
+    ).toBe("var(--agent-color-1)");
+  });
+
+  it("leads the second line with the project's color ring", () => {
+    const queryClient = createTestQueryClient([createAgent()]);
     queryClient.setQueryData(
       sidebarNavigationQueryKey(),
       makeSidebarBootstrapResponse({
@@ -1030,10 +1100,12 @@ describe("ThreadRow", () => {
     const dot = meta?.querySelector("[data-project-color-dot]");
     expect(dot?.getAttribute("data-project-color-dot")).toBe("19");
     expect(dot?.classList.contains("size-3")).toBe(true);
+    expect(dot?.querySelector("circle")?.getAttribute("fill")).toBe("none");
+    expect(meta?.firstElementChild).toBe(dot);
     expect(meta?.textContent).toMatch(/^Web App·/);
   });
 
-  it("keeps the folder glyph for personal threads", () => {
+  it("shows a neutral gray ring for personal threads", () => {
     const queryClient = createTestQueryClient([]);
     queryClient.setQueryData(
       sidebarNavigationQueryKey(),
@@ -1046,20 +1118,24 @@ describe("ThreadRow", () => {
       />,
     );
     const meta = container.querySelector("[data-sidebar-thread-meta]");
-    expect(meta?.querySelector('[data-icon="Folder"]')).not.toBeNull();
-    expect(meta?.querySelector("[data-project-color-dot]")).toBeNull();
+    expect(meta?.querySelector('[data-icon="Folder"]')).toBeNull();
+    const dot = meta?.querySelector("[data-project-color-dot]");
+    expect(dot?.getAttribute("data-project-color-dot")).toBe("neutral");
   });
 
-  it("omits the agent mark when no agent resolves", () => {
+  it("falls back to the status glyph when no agent resolves", () => {
     const { container } = render(
       <ThreadRowTestHarness
         queryClient={createTestQueryClient([])}
-        thread={createThread({ agentId: "agent_deleted01" })}
+        thread={createThread({ agentId: "agent_deleted01", status: "error" })}
       />,
     );
+    expect(container.querySelector("[data-thread-status-mascot]")).toBeNull();
     expect(
-      container.querySelector("[data-sidebar-thread-agent]"),
-    ).toBeNull();
+      screen
+        .getByLabelText("Unread thread failed")
+        .getAttribute("data-status-ring"),
+    ).toBe("failed");
   });
 
   it("labels personal threads Personal on the second line", () => {
@@ -1117,9 +1193,9 @@ describe("ThreadRow", () => {
         />
       </ThreadSnoozeContext.Provider>,
     );
-    expect(screen.getAllByRole("button", { name: "Snooze thread" })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByRole("button", { name: "Snooze thread" }),
+    ).toHaveLength(1);
   });
 
   it("toggles the pin from the row's quick action", () => {
@@ -1676,9 +1752,9 @@ describe("ThreadRow", () => {
         },
       });
 
-      expect(screen.getByLabelText(label).getAttribute("data-status-ring")).toBe(
-        "working",
-      );
+      expect(
+        screen.getByLabelText(label).getAttribute("data-status-ring"),
+      ).toBe("working");
       expect(screen.queryByLabelText("Thread working")).toBeNull();
     },
   );

@@ -51,6 +51,7 @@ import {
 } from "../services/lib/error-log-fields.js";
 import { applyLoggedThreadLifecycleEvent } from "../services/threads/lifecycle-outcome.js";
 import { applyTurnCompletedEvent } from "./turn-completed-events.js";
+import { commitThreadAgentHome } from "../services/agents/agent-runtime.js";
 import {
   getInactiveSessionLogFields,
   requireAuthenticatedDaemonSession,
@@ -237,7 +238,13 @@ interface QueuedMessageDispatchFollowUp {
   >;
 }
 
+interface AgentHomeCommitFollowUp {
+  kind: "agent-home-commit";
+  threadId: string;
+}
+
 type EventEffectFollowUp =
+  | AgentHomeCommitFollowUp
   | ParentTurnNotificationFollowUp
   | QueuedMessageDispatchFollowUp;
 
@@ -432,6 +439,12 @@ async function applyEventEffects(
           ...event,
           threadId: entry.threadId,
         });
+        if (turnCompleted.thread && turnCompleted.isRootTurnCompletion) {
+          followUps.push({
+            kind: "agent-home-commit",
+            threadId: turnCompleted.thread.id,
+          });
+        }
         if (
           turnCompleted.thread &&
           turnCompleted.isRootTurnCompletion &&
@@ -511,6 +524,9 @@ async function executeEventFollowUpBestEffort(
 ): Promise<void> {
   try {
     switch (followUp.kind) {
+      case "agent-home-commit":
+        await commitThreadAgentHome(deps, followUp.threadId);
+        return;
       case "parent-turn-notification":
         await queueChildThreadTurnNotificationBestEffort(deps, {
           childThread: {

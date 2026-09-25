@@ -654,6 +654,7 @@ const unscopedProviderEventSchema = z.discriminatedUnion("type", [
                   "machine-git",
                   "machine-environment",
                   "project-environment",
+                  "agent-home",
                 ]),
               })
               .strict(),

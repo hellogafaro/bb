@@ -24,6 +24,7 @@ const agent = {
   color: 1,
   createdAt: 1,
   updatedAt: 2,
+  homePath: "/home/me/.bb/agents/coder",
 };
 
 const thread = {

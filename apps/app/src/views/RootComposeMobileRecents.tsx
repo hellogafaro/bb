@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAtom } from "jotai";
 import type { ProviderInfo, ThreadListEntry } from "@bb/domain";
 import { RouteAnchor } from "@/components/ui/app-route-anchor";
-import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
 import { getSidebarThreadRowPaddingLeft } from "@/components/sidebar/sidebarRowClasses";
 import { SIDEBAR_WORKING_STATUS_COLOR_CLASS } from "@/components/sidebar/sidebarRowClasses";
 import { CHROME_SECTION_LABEL_CLASS } from "@bb/shared-ui/chrome-style-tokens";
@@ -34,6 +33,8 @@ import { ProviderIconMark } from "@/components/settings/ProviderIconMark";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { usePromptDraftInputThreadIds } from "@/hooks/usePromptDraftStorage";
 import { collapsedThreadIdsAtom } from "@/components/sidebar/sidebarCollapsedAtoms";
+import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 
 export const MOBILE_RECENT_ROW_HEIGHT_PX = 60;
 export const MOBILE_RECENT_LABEL_HEIGHT_PX = 24;
@@ -233,6 +234,7 @@ function MobileRecentThreadRow({
   } = row;
   const touchStartedBeforeLink = useRef(false);
   const { providers: environmentProviders } = useSystemEnvironmentProviders();
+  const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
   const threadTitle = getThreadDisplayTitle(thread);
   const indicatorState: ThreadListIndicatorState =
     threadListIndicatorStateForThread(thread, hasUnsubmittedDraft);
@@ -393,9 +395,12 @@ function MobileRecentThreadRow({
             <span className="min-w-0 truncate">{metadataText}</span>
           </span>
         </span>
-        {indicatorKind !== "none" ? (
-          <span className="flex size-6 shrink-0 items-center justify-center">
-            <ThreadStatusGlyph {...trailingIndicatorState} />
+        {indicatorKind !== "none" || agent !== null ? (
+          <span
+            data-mobile-recent-status=""
+            className="flex size-6 shrink-0 items-center justify-center"
+          >
+            <ThreadStatusMascot {...trailingIndicatorState} agent={agent} />
           </span>
         ) : null}
       </RouteAnchor>
