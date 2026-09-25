@@ -1,4 +1,5 @@
 import { reportEnvironmentHookProgress } from "../services/environments/environment-hooks.js";
+import type { McpService } from "../services/mcp/service.js";
 import { syncDesktopBrowserTabs } from "../services/desktop-browsers.js";
 import { heartbeatSession } from "@bb/db";
 import {
@@ -87,6 +88,8 @@ export const SERVER_MOVE_FENCED_DAEMON_MESSAGE_TYPES: ReadonlySet<
   "desktop-browser.changed",
   "plugin-host.signal",
   "plugin-host.worker-exited",
+  "mcp.catalog-changed",
+  "mcp.connection-changed",
   "terminal.opened",
   "terminal.exited",
 ]);
@@ -141,6 +144,7 @@ export function onDaemonSocketMessage(
   args: DaemonSocketMessageArgs,
   plugins?: Pick<PluginService, "handleHostSignal" | "handleHostWorkerExit">,
   serverMove?: Pick<ServerMoveCoordinator, "handleProgress">,
+  mcp?: Pick<McpService, "handleDaemonMessage">,
 ): void {
   const message = parseSocketMessage(
     args.socket,
@@ -277,6 +281,13 @@ export function onDaemonSocketMessage(
           signal: message.signal,
           payload: message.payload,
         });
+        return;
+      }
+      if (
+        message.type === "mcp.catalog-changed" ||
+        message.type === "mcp.connection-changed"
+      ) {
+        mcp?.handleDaemonMessage(args.hostId, message);
         return;
       }
       if (message.type === "heartbeat") {

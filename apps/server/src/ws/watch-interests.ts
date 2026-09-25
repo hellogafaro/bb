@@ -332,6 +332,7 @@ export class WatchInterestCoordinator {
       case "project":
       case "host":
       case "system":
+      case "mcp":
         return keys;
     }
   }

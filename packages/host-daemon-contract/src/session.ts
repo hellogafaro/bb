@@ -1,6 +1,10 @@
 import { hostDaemonContributedEnvEntrySchema } from "./commands.js";
 import { desktopBrowserChangedSchema } from "./desktop-browser.js";
 import {
+  mcpCatalogChangedMessageSchema,
+  mcpConnectionChangedMessageSchema,
+} from "./mcp.js";
+import {
   serverMovedMessageSchema,
   serverMoveProgressMessageSchema,
 } from "./server-move.js";
@@ -459,6 +463,14 @@ const hostDaemonOnlineRpcResponseSuccessSchema = z.discriminatedUnion(
     onlineRpcResponseSuccessSchemaFor("server_move.activate"),
     onlineRpcResponseSuccessSchemaFor("server_move.abort"),
     onlineRpcResponseSuccessSchemaFor("server_move.delete_old_copy"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.start"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.refresh"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.close"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.callTool"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.getPrompt"),
+    onlineRpcResponseSuccessSchemaFor("mcp.stdio.readResource"),
+    onlineRpcResponseSuccessSchemaFor("mcp.providerStatus"),
+    onlineRpcResponseSuccessSchemaFor("mcp.providerFix"),
     commandRpcResponseSuccessSchemaFor("thread.rewind.discard"),
     commandRpcResponseSuccessSchemaFor("thread.rewind.prepare"),
     commandRpcResponseSuccessSchemaFor("thread.start"),
@@ -758,6 +770,8 @@ export const hostDaemonDaemonWsMessageSchema = z.union([
   hostDaemonConnectTunnelIdentityMessageSchema,
   pluginHostWorkerExitedMessageSchema,
   pluginHostSignalMessageSchema,
+  mcpCatalogChangedMessageSchema,
+  mcpConnectionChangedMessageSchema,
   environmentHookProgressMessageSchema,
   serverMoveProgressMessageSchema,
   hostDaemonTerminalOpenedMessageSchema,

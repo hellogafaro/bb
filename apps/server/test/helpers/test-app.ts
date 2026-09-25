@@ -52,6 +52,7 @@ export interface TestAppHarness {
   hub: NotificationHub;
   pluginService: ReturnType<typeof createApp>["pluginService"];
   pluginCatalogService: ReturnType<typeof createApp>["pluginCatalogService"];
+  mcpService: ReturnType<typeof createApp>["mcpService"];
   serverMove: ReturnType<typeof createApp>["serverMove"];
   cleanup(): Promise<void>;
 }
@@ -285,7 +286,7 @@ export async function createTestAppHarness(
     sharedPorts,
     workspaceReadCaches,
   };
-  const { app, pluginCatalogService, pluginService, serverMove } =
+  const { app, mcpService, pluginCatalogService, pluginService, serverMove } =
     createApp(deps);
   installDefaultEnvironmentProviders();
 
@@ -297,10 +298,12 @@ export async function createTestAppHarness(
     hub,
     pluginService,
     pluginCatalogService,
+    mcpService,
     serverMove,
     async cleanup(): Promise<void> {
       clearAllThreadProvisionSchedules();
       setPluginEnvironmentProviderBridge(undefined);
+      await mcpService.dispose();
       await pluginService.stop();
       await rm(dataDir, {
         recursive: true,
@@ -346,8 +349,14 @@ export async function startTestServer(
 ): Promise<RunningTestServer> {
   const harness = await createTestAppHarness(overrides);
   let addressInfo: AddressInfo | null = null;
-  const { app, closeWebSockets, injectWebSocket, pluginService, serverMove } =
-    createApp(harness.deps);
+  const {
+    app,
+    closeWebSockets,
+    injectWebSocket,
+    mcpService,
+    pluginService,
+    serverMove,
+  } = createApp(harness.deps);
   const server = serve(
     {
       hostname: TEST_SERVER_HOST,
@@ -369,6 +378,7 @@ export async function startTestServer(
   return {
     ...harness,
     app,
+    mcpService,
     pluginService,
     serverMove,
     baseUrl: `http://${TEST_SERVER_HOST}:${resolvedAddress.port}`,
@@ -384,6 +394,7 @@ export async function startTestServer(
       });
       await closeWebSockets();
       await closeServer;
+      await mcpService.dispose();
       await harness.cleanup();
     },
   };

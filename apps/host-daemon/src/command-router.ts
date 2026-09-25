@@ -75,6 +75,7 @@ export interface CommandRouterOptions {
   pluginHostManager?: PluginHostManager;
   ensureConnectTunnelIdentity?: CommandDispatchOptions["ensureConnectTunnelIdentity"];
   serverMove?: CommandDispatchOptions["serverMove"];
+  mcpStdio?: CommandDispatchOptions["mcpStdio"];
   threadStorageRootPath: string;
   logger: CommandRouterLogger;
 }
@@ -282,6 +283,7 @@ export class CommandRouter {
       resolveInteractiveRequest: this.options.resolveInteractiveRequest,
       ensureConnectTunnelIdentity: this.options.ensureConnectTunnelIdentity,
       serverMove: this.options.serverMove,
+      mcpStdio: this.options.mcpStdio,
       threadStorageRootPath: this.options.threadStorageRootPath,
       logger: this.options.logger,
     };

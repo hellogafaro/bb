@@ -231,6 +231,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     app,
     closeWebSockets,
     injectWebSocket,
+    mcpService,
     pluginCatalogService,
     pluginService,
     serverMove,
@@ -349,6 +350,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
       });
     }
     pluginCatalogService.startPeriodicRefresh();
+    mcpService.start();
     sweepInterval = setInterval(() => {
       if (!isServerMoveFrozen(db)) {
         void runPeriodicSweeps(sweepDeps);
@@ -375,6 +377,9 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
         clearInterval(sweepInterval);
       }
       pluginCatalogService.stopPeriodicRefresh();
+      await mcpService.dispose().catch((error: unknown) => {
+        logger.warn({ err: error }, "MCP shutdown failed");
+      });
       await pluginService.stopPeriodicUpdateChecks();
       if (pendingServerMove === null) {
         await pluginService.stop().catch((error: unknown) => {

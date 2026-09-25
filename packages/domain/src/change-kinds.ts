@@ -68,7 +68,15 @@ export const SYSTEM_CHANGE_KINDS = [
 ] as const;
 export type SystemChangeKind = (typeof SYSTEM_CHANGE_KINDS)[number];
 
+export const MCP_CHANGE_KINDS = [
+  "servers-changed",
+  "runtime-changed",
+  "policies-changed",
+] as const;
+export type McpChangeKind = (typeof MCP_CHANGE_KINDS)[number];
+
 export const threadChangeKindSchema = z.enum(THREAD_CHANGE_KINDS);
+export const mcpChangeKindSchema = z.enum(MCP_CHANGE_KINDS);
 export const projectChangeKindSchema = z.enum(PROJECT_CHANGE_KINDS);
 export const environmentChangeKindSchema = z.enum(ENVIRONMENT_CHANGE_KINDS);
 export const hostChangeKindSchema = z.enum(HOST_CHANGE_KINDS);
@@ -271,12 +279,23 @@ export const systemChangedMessageSchema = z
   .strict();
 export type SystemChangedMessage = z.infer<typeof systemChangedMessageSchema>;
 
+export const mcpChangedMessageSchema = z
+  .object({
+    type: z.literal("changed"),
+    entity: z.literal("mcp"),
+    id: z.string().optional(),
+    changes: z.array(mcpChangeKindSchema).readonly(),
+  })
+  .strict();
+export type McpChangedMessage = z.infer<typeof mcpChangedMessageSchema>;
+
 export const changedMessageSchema = z.discriminatedUnion("entity", [
   threadChangedMessageSchema,
   projectChangedMessageSchema,
   environmentChangedMessageSchema,
   hostChangedMessageSchema,
   systemChangedMessageSchema,
+  mcpChangedMessageSchema,
 ]);
 export type ChangedMessage = z.infer<typeof changedMessageSchema>;
 
@@ -343,10 +362,18 @@ const systemChangedMessageLenientSchema = z.object({
   changes: lenientKinds(SYSTEM_CHANGE_KINDS),
 });
 
+const mcpChangedMessageLenientSchema = z.object({
+  type: z.literal("changed"),
+  entity: z.literal("mcp"),
+  id: z.string().optional(),
+  changes: lenientKinds(MCP_CHANGE_KINDS),
+});
+
 export const changedMessageLenientSchema = z.discriminatedUnion("entity", [
   threadChangedMessageLenientSchema,
   projectChangedMessageLenientSchema,
   environmentChangedMessageLenientSchema,
   hostChangedMessageLenientSchema,
   systemChangedMessageLenientSchema,
+  mcpChangedMessageLenientSchema,
 ]);

@@ -19,6 +19,13 @@ import {
   UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
 } from "../services/threads/thread-environment-directory.js";
 import { requireAuthenticatedDaemonSession } from "./session-state.js";
+import {
+  executeMcpToolCall,
+  isMcpToolName,
+} from "../services/threads/mcp-tools.js";
+import type { McpService } from "../services/mcp/service.js";
+
+const MCP_TOOL_CALL_OWNER_ID = "core:mcp";
 
 const textEncoder = new TextEncoder();
 
@@ -49,7 +56,11 @@ function streamToolCallResponse(
   });
 }
 
-export function registerInternalToolCallRoutes(app: Hono, deps: AppDeps): void {
+export function registerInternalToolCallRoutes(
+  app: Hono,
+  deps: AppDeps,
+  mcp: McpService,
+): void {
   const { post } = typedRoutes<HostDaemonInternalSchema>(app, {
     onValidationError: (msg) => new ApiError(400, "invalid_request", msg),
   });
@@ -84,6 +95,35 @@ export function registerInternalToolCallRoutes(app: Hono, deps: AppDeps): void {
             turnId: payload.turnId,
           }),
         );
+      }
+
+      if (isMcpToolName(payload.tool)) {
+        const toolName = payload.tool;
+        const roundTrip = new AbortController();
+        const response = requirePluginToolCallRegistry().run({
+          pluginId: MCP_TOOL_CALL_OWNER_ID,
+          threadId: thread.id,
+          callId: payload.callId,
+          toolName,
+          roundTrip: AbortSignal.any([
+            context.req.raw.signal,
+            roundTrip.signal,
+          ]),
+          invoke: (signal) =>
+            executeMcpToolCall(mcp, {
+              name: toolName,
+              input: payload.arguments,
+              ctx: { threadId: thread.id, signal },
+            }),
+          onDetachedResult: (result) =>
+            deliverDetachedToolResult(deps, {
+              threadId: thread.id,
+              toolName,
+              presentation: null,
+              response: result,
+            }),
+        });
+        return streamToolCallResponse(response, roundTrip);
       }
 
       const pluginTool = findPluginAgentTool(payload.tool);

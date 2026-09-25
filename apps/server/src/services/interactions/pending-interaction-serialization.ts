@@ -32,6 +32,26 @@ function parseStoredPendingInteractionJson(
   }
 }
 
+function storedOrigin(row: PendingInteractionRow) {
+  switch (row.originKind) {
+    case "provider":
+      return {
+        kind: "provider",
+        providerId: row.providerId,
+        providerThreadId: row.providerThreadId,
+        providerRequestId: row.providerRequestId,
+      };
+    case "plugin":
+      return {
+        kind: "plugin",
+        pluginId: row.pluginId,
+        rendererId: row.rendererId,
+      };
+    case "core":
+      return { kind: "core" };
+  }
+}
+
 export function toPendingInteraction(
   row: PendingInteractionRow,
 ): PendingInteraction {
@@ -53,19 +73,7 @@ export function toPendingInteraction(
             providerRequestId: row.providerRequestId,
           }
         : {}),
-      origin:
-        row.originKind === "provider"
-          ? {
-              kind: "provider",
-              providerId: row.providerId,
-              providerThreadId: row.providerThreadId,
-              providerRequestId: row.providerRequestId,
-            }
-          : {
-              kind: "plugin",
-              pluginId: row.pluginId,
-              rendererId: row.rendererId,
-            },
+      origin: storedOrigin(row),
       status: row.status,
       payload,
       resolution,

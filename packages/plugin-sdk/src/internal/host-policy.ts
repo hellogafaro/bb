@@ -93,6 +93,14 @@ export function pluginCliCollisionWarning(
  */
 export const RESERVED_AGENT_TOOL_NAMES: readonly string[] = [
   "update_environment_directory",
+  "mcp_servers",
+  "mcp_search",
+  "mcp_schema",
+  "mcp_call",
+  "mcp_prompts",
+  "mcp_get_prompt",
+  "mcp_resources",
+  "mcp_read_resource",
 ];
 
 /** JSON values ≤256KB; larger writes are rejected with a clear error. */

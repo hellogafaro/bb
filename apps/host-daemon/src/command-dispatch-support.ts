@@ -28,6 +28,7 @@ import { RuntimeManager, type RuntimeEntry } from "./runtime-manager.js";
 import type { FetchProjectAttachment } from "./project-attachments.js";
 import type { FetchSkillTree } from "./skill-trees.js";
 import type { HostDaemonLogger } from "./logger.js";
+import type { McpStdioManager } from "./command-handlers/mcp-stdio.js";
 import type { ServerMoveService } from "./server-move/service.js";
 import {
   ensureCachedPluginHostArtifact,
@@ -99,6 +100,7 @@ export interface CommandDispatchOptions {
   ) => Promise<void>;
   ensureConnectTunnelIdentity?: () => Promise<HostDaemonConnectTunnelIdentity>;
   serverMove?: ServerMoveService;
+  mcpStdio?: McpStdioManager;
   threadStorageRootPath: string;
 }
 

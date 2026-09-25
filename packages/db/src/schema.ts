@@ -1189,7 +1189,7 @@ export const pendingInteractions = sqliteTable(
       .notNull()
       .references(() => threads.id, { onDelete: "cascade" }),
     originKind: text("origin_kind")
-      .$type<"provider" | "plugin">()
+      .$type<"provider" | "plugin" | "core">()
       .notNull()
       .default("provider"),
     turnId: text("turn_id"),
@@ -1318,4 +1318,68 @@ export const projectAttachmentBackfills = sqliteTable(
     attemptedAt: integer("attempted_at").notNull(),
     error: text("error"),
   },
+);
+
+export const mcpServers = sqliteTable(
+  "mcp_servers",
+  {
+    id: text("id").primaryKey(),
+    handle: text("handle").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    type: text("type").$type<"stdio" | "streamable-http" | "sse">().notNull(),
+    configJson: text("config_json").notNull(),
+    status: text("status")
+      .$type<"idle" | "ready" | "error" | "disabled" | "needs-auth">()
+      .notNull(),
+    lastError: text("last_error"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    guide: text("guide"),
+    sourceKind: text("source_kind").$type<"manual" | "registry">().notNull(),
+    sourceRef: text("source_ref"),
+    registryName: text("registry_name"),
+    registryVersion: text("registry_version"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("mcp_servers_handle_idx").on(table.handle),
+    check(
+      "mcp_servers_type_check",
+      sql`${table.type} IN ('stdio', 'streamable-http', 'sse')`,
+    ),
+    check(
+      "mcp_servers_status_check",
+      sql`${table.status} IN ('idle', 'ready', 'error', 'disabled', 'needs-auth')`,
+    ),
+    check(
+      "mcp_servers_source_kind_check",
+      sql`${table.sourceKind} IN ('manual', 'registry')`,
+    ),
+  ],
+);
+
+export const mcpToolPolicies = sqliteTable(
+  "mcp_tool_policies",
+  {
+    serverId: text("server_id")
+      .notNull()
+      .references(() => mcpServers.id, { onDelete: "cascade" }),
+    toolName: text("tool_name").notNull(),
+    risk: text("risk").$type<"read" | "write" | "destructive">().notNull(),
+    mode: text("mode")
+      .$type<"inherit" | "allow" | "deny" | "confirm">()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.serverId, table.toolName] }),
+    check(
+      "mcp_tool_policies_risk_check",
+      sql`${table.risk} IN ('read', 'write', 'destructive')`,
+    ),
+    check(
+      "mcp_tool_policies_mode_check",
+      sql`${table.mode} IN ('inherit', 'allow', 'deny', 'confirm')`,
+    ),
+  ],
 );

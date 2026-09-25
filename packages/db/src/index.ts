@@ -12,6 +12,7 @@ export {
   createQueuedThreadMessageId,
   createEventId,
   createHostId,
+  createMcpServerId,
   createThreadProvisioningId,
 } from "./ids.js";
 

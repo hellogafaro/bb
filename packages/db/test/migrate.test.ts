@@ -675,9 +675,15 @@ function dropMarketplaceCatalogSchema(db: DbConnection): void {
   }
 }
 
+function dropMcpTables(db: DbConnection): void {
+  db.$client.exec("DROP TABLE IF EXISTS mcp_tool_policies");
+  db.$client.exec("DROP TABLE IF EXISTS mcp_servers");
+}
+
 function dropEventToolNameColumn(db: DbConnection): void {
   db.$client.prepare("DROP TABLE IF EXISTS provider_model_catalogs").run();
   db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
+  dropMcpTables(db);
   db.$client.prepare("DROP TABLE IF EXISTS ui_preferences").run();
   db.$client.prepare("DROP TABLE IF EXISTS retained_event_outputs").run();
   dropThreadConversationOutlinesTable(db);
@@ -873,6 +879,7 @@ function rewindEnvironmentRowFactsMigration(db: DbConnection): void {
 
 function rewindMachineProvidersMigration(db: DbConnection): void {
   db.$client.exec("DROP TABLE IF EXISTS ui_preference_defaults");
+  dropMcpTables(db);
   const queuedDispatchOrigin = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(queued_thread_messages)")
     .all();
@@ -1766,6 +1773,7 @@ describe("migrate", () => {
 
       db.$client.prepare("DROP TABLE provider_model_catalogs").run();
       db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
+      dropMcpTables(db);
       db.$client.prepare("DROP TABLE ui_preferences").run();
       db.$client.prepare("DROP TABLE retained_event_outputs").run();
       db.$client
@@ -5720,6 +5728,7 @@ describe("environment providers migration", () => {
   function seedPreProviderEnvironments(db: DbConnection): void {
     db.$client.prepare("DROP TABLE provider_model_catalogs").run();
     db.$client.prepare("DROP TABLE IF EXISTS ui_preference_defaults").run();
+    dropMcpTables(db);
     db.$client.prepare("DROP TABLE ui_preferences").run();
     db.$client.prepare("DROP TABLE retained_event_outputs").run();
     rewindEnvironmentRowFactsMigration(db);

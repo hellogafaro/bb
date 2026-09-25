@@ -29,6 +29,10 @@ export type CreatePendingInteractionInput =
       pluginId: string;
       rendererId: string;
       turnId: string | null;
+    })
+  | (CreatePendingInteractionInputBase & {
+      originKind: "core";
+      turnId: string | null;
     });
 
 export interface PendingInteractionProviderRequestIdentity {
@@ -136,11 +140,18 @@ export function createPendingInteraction(
       threadId: input.threadId,
       originKind: input.originKind ?? "provider",
       turnId: input.turnId,
-      providerId: input.originKind !== "plugin" ? input.providerId : null,
+      providerId:
+        input.originKind === undefined || input.originKind === "provider"
+          ? input.providerId
+          : null,
       providerThreadId:
-        input.originKind !== "plugin" ? input.providerThreadId : null,
+        input.originKind === undefined || input.originKind === "provider"
+          ? input.providerThreadId
+          : null,
       providerRequestId:
-        input.originKind !== "plugin" ? input.providerRequestId : null,
+        input.originKind === undefined || input.originKind === "provider"
+          ? input.providerRequestId
+          : null,
       pluginId: input.originKind === "plugin" ? input.pluginId : null,
       rendererId: input.originKind === "plugin" ? input.rendererId : null,
       status: "pending",
@@ -197,7 +208,7 @@ export function listActivePluginPendingInteractions(
     .from(pendingInteractions)
     .where(
       and(
-        eq(pendingInteractions.originKind, "plugin"),
+        inArray(pendingInteractions.originKind, ["plugin", "core"]),
         inArray(pendingInteractions.status, ["pending", "resolving"]),
       ),
     )

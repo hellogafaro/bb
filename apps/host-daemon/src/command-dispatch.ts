@@ -88,6 +88,12 @@ import {
 } from "./workspace-resolution.js";
 import { userExecutableProcessOptions } from "./user-executable-env.js";
 import type { ServerMoveService } from "./server-move/service.js";
+import type { McpStdioManager } from "./command-handlers/mcp-stdio.js";
+import {
+  fixProviderMcpStatus,
+  providerGuardPaths,
+  readProviderMcpStatus,
+} from "./command-handlers/mcp-provider-guard.js";
 
 const THREAD_STOP_ACTIVE_TURN_WAIT_MS = 5_000;
 
@@ -364,6 +370,13 @@ async function withRetainedThreadEnvironment<TResult>(
   } finally {
     release();
   }
+}
+
+function requireMcpStdio(options: CommandDispatchOptions): McpStdioManager {
+  if (!options.mcpStdio) {
+    throw new Error("MCP stdio servers are unavailable on this daemon");
+  }
+  return options.mcpStdio;
 }
 
 function requireServerMove(options: CommandDispatchOptions): ServerMoveService {
@@ -755,6 +768,22 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
     requireServerMove(options).abort(command),
   "server_move.delete_old_copy": (_command, options) =>
     requireServerMove(options).deleteOldCopy(),
+  "mcp.stdio.start": (command, options) =>
+    requireMcpStdio(options).start(command),
+  "mcp.stdio.refresh": (command, options) =>
+    requireMcpStdio(options).refresh(command),
+  "mcp.stdio.close": (command, options) =>
+    requireMcpStdio(options).close(command),
+  "mcp.stdio.callTool": (command, options) =>
+    requireMcpStdio(options).callTool(command),
+  "mcp.stdio.getPrompt": (command, options) =>
+    requireMcpStdio(options).getPrompt(command),
+  "mcp.stdio.readResource": (command, options) =>
+    requireMcpStdio(options).readResource(command),
+  "mcp.providerStatus": async (command) =>
+    readProviderMcpStatus(providerGuardPaths(process.env), command.projectPath),
+  "mcp.providerFix": async (command) =>
+    fixProviderMcpStatus(providerGuardPaths(process.env), command.projectPath),
 };
 
 export async function dispatchCommand<

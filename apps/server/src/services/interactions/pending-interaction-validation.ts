@@ -15,8 +15,14 @@ import {
   isUserQuestionPendingInteraction,
   isUserQuestionPendingInteractionResolution,
   isPluginPendingInteractionResolution,
+  isCorePendingInteraction,
+  isCorePendingInteractionResolution,
 } from "@bb/domain";
 import { ApiError } from "../../errors.js";
+import {
+  coreResolutionEquals,
+  validateCoreInteractionResolution,
+} from "./core-interaction-validation.js";
 
 type GrantedPendingInteractionResolution = Extract<
   ApprovalPendingInteractionResolution,
@@ -112,6 +118,12 @@ export function pendingInteractionResolutionEquals(
 ): boolean {
   if (left === null || right === null) {
     return left === right;
+  }
+  if (
+    isCorePendingInteractionResolution(left) ||
+    isCorePendingInteractionResolution(right)
+  ) {
+    return coreResolutionEquals(left, right);
   }
   if (
     isPluginPendingInteractionResolution(left) ||
@@ -307,6 +319,10 @@ export function validatePendingInteractionResolution(
       "invalid_request",
       "Plugin interactions must be submitted through the respond endpoint",
     );
+  }
+  if (isCorePendingInteraction(interaction)) {
+    validateCoreInteractionResolution(interaction, resolution);
+    return;
   }
   if (isUserQuestionPendingInteraction(interaction)) {
     validateUserQuestionResolution(interaction, resolution);

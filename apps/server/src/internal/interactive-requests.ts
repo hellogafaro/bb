@@ -42,6 +42,12 @@ function pendingInteractionBlockerLabel(
   if (isPluginExtensionInteractionRequestPayload(interaction.payload)) {
     return `${parseExtensionKind(interaction.payload.kind).pluginId} request`;
   }
+  if (interaction.payload.kind === "mcp_approval") {
+    return "MCP tool approval";
+  }
+  if (interaction.payload.kind === "mcp_elicitation") {
+    return "MCP question";
+  }
   if (!isApprovalPendingInteractionPayload(interaction.payload)) {
     return "plugin request";
   }

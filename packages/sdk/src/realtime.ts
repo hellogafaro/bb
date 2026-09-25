@@ -17,6 +17,8 @@ export type {
   EnvironmentRealtimeSubscribeArgs,
   HostRealtimeEvent,
   HostRealtimeSubscribeArgs,
+  McpRealtimeEvent,
+  McpRealtimeSubscribeArgs,
   ProjectRealtimeEvent,
   ProjectRealtimeSubscribeArgs,
   RealtimeConnectionSubscribeArgs,

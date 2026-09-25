@@ -48,7 +48,8 @@ type IdScopedChangedEventName =
   | "thread:changed"
   | "project:changed"
   | "environment:changed"
-  | "host:changed";
+  | "host:changed"
+  | "mcp:changed";
 
 type UnscopedChangedEventName = "system:changed" | "system:config-changed";
 
@@ -238,6 +239,14 @@ export class BbRealtimeClient implements BbRealtime {
           active: true,
           callback: args.callback,
           event: args.event,
+          target: { kind: "system" },
+        });
+      case "mcp:changed":
+        return this.activateListener({
+          active: true,
+          callback: args.callback,
+          event: args.event,
+          selectorId: args.serverId,
           target: { kind: "system" },
         });
       case "system:config-changed":
@@ -538,6 +547,9 @@ export class BbRealtimeClient implements BbRealtime {
         break;
       case "system":
         this.dispatchSystemChangedMessage(message);
+        break;
+      case "mcp":
+        this.dispatchIdScopedChangedMessage("mcp:changed", message);
         break;
     }
   }

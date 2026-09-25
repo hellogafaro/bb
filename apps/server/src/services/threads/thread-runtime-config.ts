@@ -2,7 +2,12 @@ import {
   resolveHostEnvironment,
   mergeHostAndProviderEnvironment,
 } from "../hosts/host-environment.js";
-import { getEnvironment, getHost, getProject } from "@bb/db";
+import {
+  getEnvironment,
+  getHost,
+  getProject,
+  getThreadPluginMetadata,
+} from "@bb/db";
 import type {
   DynamicTool,
   InstructionMode,
@@ -31,6 +36,9 @@ import { discoverPluginSkillIds } from "../skills/injected-skills.js";
 import { resolveWorkspaceProjectSkills } from "../skills/workspace-skills.js";
 import { resolveSharedSkills } from "../skills/shared-skills.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL } from "./thread-environment-directory.js";
+import { mcpDynamicToolContributions } from "./mcp-tools.js";
+import { currentMcpService } from "../mcp/mcp-service-registry.js";
+import { threadServerSelection } from "../mcp/context.js";
 import {
   DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH,
   WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
@@ -43,6 +51,7 @@ const UPDATE_ENVIRONMENT_DIRECTORY_INSTRUCTIONS =
   "If the user asks you to move this thread to another checkout, worktree, or directory, make sure the target directory exists, then call `update_environment_directory` with its absolute path. After it succeeds, stop work in the current turn; future turns will run in the updated environment.";
 
 const PLUGIN_INSTRUCTION_CONTRIBUTION_MAX_CHARS = 4096;
+const MCP_THREAD_METADATA_KEY = "mcp";
 
 export interface ThreadRuntimeCommandEnvironment {
   hostId: string;
@@ -91,6 +100,7 @@ interface DynamicToolContribution {
 
 function resolveDynamicTools(
   pluginTools: ReturnType<typeof listPluginAgentTools>,
+  includeMcpTools: boolean,
 ): DynamicToolContribution[] {
   return [
     {
@@ -98,6 +108,12 @@ function resolveDynamicTools(
       instructions: UPDATE_ENVIRONMENT_DIRECTORY_INSTRUCTIONS,
       pluginId: null,
     },
+    ...(includeMcpTools
+      ? mcpDynamicToolContributions().map((contribution) => ({
+          ...contribution,
+          pluginId: null,
+        }))
+      : []),
     ...pluginTools.map((contribution) => ({
       tool: contribution.tool,
       instructions: contribution.instructions,
@@ -217,8 +233,10 @@ export async function resolveThreadRuntimeCommandConfig(
     deps.logger,
     deps.config.dataDir,
   );
+  const mcpService = currentMcpService();
   const dynamicToolContributions = resolveDynamicTools(
     conditionalConfiguration.tools,
+    mcpService?.hasEnabledServers() ?? false,
   );
   const dynamicTools = dynamicToolContributions.map(
     (contribution) => contribution.tool,
@@ -234,6 +252,15 @@ export async function resolveThreadRuntimeCommandConfig(
         contribution.instructions,
       );
     }
+  }
+  const mcpInstructions = mcpService?.instructions(
+    threadServerSelection(
+      getThreadPluginMetadata(deps.db, args.thread.id, MCP_THREAD_METADATA_KEY)
+        .metadata,
+    ),
+  );
+  if (mcpInstructions) {
+    instructionSections.push(mcpInstructions);
   }
   for (const contribution of listPluginInstructionContributions()) {
     let text: string | null;

@@ -6,6 +6,15 @@ import {
 export default defineWorkspaceTestConfig({
   test: {
     silent: "passed-only",
+    server: {
+      deps: {
+        inline: [
+          "@modelcontextprotocol/client",
+          "eventsource",
+          "eventsource-parser",
+        ],
+      },
+    },
     setupFiles: [
       "test/setup/stored-event-decode-freeze.ts",
       "test/setup/warm-test-harness.ts",

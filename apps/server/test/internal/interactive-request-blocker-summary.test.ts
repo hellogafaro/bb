@@ -20,6 +20,15 @@ function interaction(
         throw new Error("a plugin payload takes a plugin origin");
       }
       return { ...base, turnId: null, origin, payload, resolution: null };
+    case "mcp_approval":
+    case "mcp_elicitation":
+      return {
+        ...base,
+        turnId: null,
+        origin: { kind: "core" },
+        payload,
+        resolution: null,
+      };
     case "approval":
     case "user_question":
     default: {

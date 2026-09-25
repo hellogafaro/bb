@@ -13,6 +13,17 @@ import {
   extensionKindSchema,
   isExtensionKind,
 } from "./provider-extension-kind.js";
+import {
+  corePendingInteractionPayloadSchema,
+  corePendingInteractionResolutionSchema,
+  isCorePendingInteractionPayloadKind,
+  mcpApprovalPendingInteractionPayloadSchema,
+  mcpApprovalResolutionSchema,
+  mcpElicitationPendingInteractionPayloadSchema,
+  pendingInteractionCoreOriginSchema,
+  type CorePendingInteractionPayload,
+  type CorePendingInteractionResolution,
+} from "./mcp-interactions.js";
 
 export {
   PLUGIN_INTERACTION_MAX_PAYLOAD_BYTES,
@@ -377,7 +388,8 @@ export type PendingInteractionPayload = z.infer<
 
 type AnyPendingInteractionPayload =
   | PendingInteractionPayload
-  | PluginPendingInteractionPayload;
+  | PluginPendingInteractionPayload
+  | CorePendingInteractionPayload;
 
 export function isApprovalPendingInteractionPayload(
   payload: AnyPendingInteractionPayload,
@@ -496,6 +508,7 @@ export const pendingInteractionResolutionSchema = z.union(
     userQuestionPendingInteractionResolutionSchema,
     pluginPendingInteractionResolutionSchema,
     pluginExtensionInteractionResolutionSchema,
+    corePendingInteractionResolutionSchema,
   ],
   approvalDecisionDiscriminatorError,
 );
@@ -519,6 +532,14 @@ export function isPluginPendingInteractionResolution(
   resolution: PendingInteractionResolution,
 ): resolution is PluginPendingInteractionResolution {
   return "kind" in resolution && resolution.kind === "plugin_submitted";
+}
+
+export function isCorePendingInteractionResolution(
+  resolution: PendingInteractionResolution,
+): resolution is CorePendingInteractionResolution {
+  return (
+    "kind" in resolution && isCorePendingInteractionPayloadKind(resolution.kind)
+  );
 }
 
 export function isPluginExtensionInteractionResolution(
@@ -653,13 +674,31 @@ export type PluginPendingInteraction = z.infer<
   typeof pluginPendingInteractionSchema
 >;
 
+const corePendingInteractionSchema = pendingInteractionBaseSchema.extend({
+  turnId: z.string().min(1).nullable(),
+  origin: pendingInteractionCoreOriginSchema,
+  payload: corePendingInteractionPayloadSchema,
+  resolution: corePendingInteractionResolutionSchema.nullable(),
+});
+export type CorePendingInteraction = z.infer<
+  typeof corePendingInteractionSchema
+>;
+
 export const pendingInteractionSchema = z.union([
   providerPendingInteractionSchema,
   pluginPendingInteractionSchema,
+  corePendingInteractionSchema,
 ]);
 export type PendingInteraction =
   | ProviderPendingInteraction
-  | PluginPendingInteraction;
+  | PluginPendingInteraction
+  | CorePendingInteraction;
+
+export function isCorePendingInteraction(
+  interaction: PendingInteraction,
+): interaction is CorePendingInteraction {
+  return isCorePendingInteractionPayloadKind(interaction.payload.kind);
+}
 
 export function isPluginPendingInteraction(
   interaction: PendingInteraction,
@@ -741,11 +780,45 @@ const pluginExtensionInteractionLifecycleSchema =
       .nullable(),
   });
 
+const coreInteractionLifecycleSchema =
+  interactionLifecycleRecordBaseSchema.extend({
+    origin: pendingInteractionCoreOriginSchema,
+    payload: z.union([
+      mcpApprovalPendingInteractionPayloadSchema.pick({
+        kind: true,
+        title: true,
+        server: true,
+        tool: true,
+        risk: true,
+      }),
+      mcpElicitationPendingInteractionPayloadSchema.pick({
+        kind: true,
+        title: true,
+        server: true,
+      }),
+    ]),
+    resolution: z
+      .union([
+        mcpApprovalResolutionSchema,
+        z
+          .object({
+            kind: z.literal("mcp_elicitation"),
+            action: z.enum(["accept", "decline"]),
+          })
+          .strict(),
+      ])
+      .nullable(),
+  });
+export type CoreInteractionLifecycle = z.infer<
+  typeof coreInteractionLifecycleSchema
+>;
+
 export const interactionLifecycleSchema = z.union([
   approvalInteractionLifecycleSchema,
   userQuestionInteractionLifecycleSchema,
   pluginInteractionLifecycleSchema,
   pluginExtensionInteractionLifecycleSchema,
+  coreInteractionLifecycleSchema,
 ]);
 export type InteractionLifecycle = z.infer<typeof interactionLifecycleSchema>;
 
@@ -775,6 +848,14 @@ export function toInteractionLifecycle(
     status: interaction.status,
     statusReason: interaction.statusReason,
   };
+  if (isCorePendingInteraction(interaction)) {
+    return {
+      ...base,
+      origin: interaction.origin,
+      payload: coreLifecyclePayload(interaction.payload),
+      resolution: coreLifecycleResolution(interaction.resolution),
+    };
+  }
   if (isPluginPendingInteraction(interaction)) {
     const { data: _data, ...payload } = interaction.payload;
     return {
@@ -817,4 +898,28 @@ export function toInteractionLifecycle(
     resolution:
       interaction.resolution === null ? null : { kind: "request_answer" },
   };
+}
+
+function coreLifecyclePayload(
+  payload: CorePendingInteractionPayload,
+): CoreInteractionLifecycle["payload"] {
+  if (payload.kind === "mcp_approval") {
+    return {
+      kind: payload.kind,
+      title: payload.title,
+      server: payload.server,
+      tool: payload.tool,
+      risk: payload.risk,
+    };
+  }
+  return { kind: payload.kind, title: payload.title, server: payload.server };
+}
+
+function coreLifecycleResolution(
+  resolution: CorePendingInteractionResolution | null,
+): CoreInteractionLifecycle["resolution"] {
+  if (resolution === null || resolution.kind === "mcp_approval") {
+    return resolution;
+  }
+  return { kind: resolution.kind, action: resolution.action };
 }

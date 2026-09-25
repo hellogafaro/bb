@@ -5,7 +5,10 @@
   ],
   "compilerOptions": {
     "rootDir": ".",
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "eventsource": ["./node_modules/eventsource/dist/index.d.ts"]
+    }
   },
   "include": ["scripts", "src", "test", "tests", "fixtures", "stories"]
 }

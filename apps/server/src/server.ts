@@ -28,6 +28,10 @@ import { registerQueueRoutes } from "./routes/queue.js";
 import { registerPluginRoutes } from "./routes/plugins.js";
 import { registerPluginCatalogRoutes } from "./routes/plugin-catalog.js";
 import { registerSkillsRegistryRoutes } from "./routes/skills-registry.js";
+import { registerMcpRoutes } from "./routes/mcp.js";
+import { createMcpService } from "./services/mcp/create-mcp-service.js";
+import { setMcpService } from "./services/mcp/mcp-service-registry.js";
+import type { McpService } from "./services/mcp/service.js";
 import {
   createPluginService,
   type PluginService,
@@ -138,6 +142,7 @@ interface ServerApp {
   injectWebSocket: ReturnType<typeof createNodeWebSocket>["injectWebSocket"];
   pluginService: PluginService;
   pluginCatalogService: PluginCatalogService;
+  mcpService: McpService;
   serverMove: ServerMoveCoordinator;
 }
 
@@ -680,6 +685,8 @@ export function createApp(
       threadId,
     });
   });
+  const mcpService = createMcpService(deps);
+  setMcpService(mcpService);
   setPluginThreadEventEmitter(pluginService.events);
   // Bridge the dispatch pipeline to this service's hooks. Until this runs
   // there are no hooks, which is exactly the zero-overhead path.
@@ -771,6 +778,7 @@ export function createApp(
   registerPluginCatalogRoutes(publicApi, pluginCatalogService);
   registerPluginRoutes(publicApi, deps, pluginService, upgradeWebSocket);
   registerSkillsRegistryRoutes(publicApi, deps);
+  registerMcpRoutes(publicApi, deps, mcpService);
   registerServerMoveRoutes(publicApi, deps, serverMove);
   app.route("/api/v1", publicApi);
   app.use("/api/v1/*", () => {
@@ -794,7 +802,7 @@ export function createApp(
   registerInternalSkillRoutes(internalApi, deps);
   registerInternalPluginHostArtifactRoutes(internalApi, deps);
   registerInternalEventRoutes(internalApi, deps);
-  registerInternalToolCallRoutes(internalApi, deps);
+  registerInternalToolCallRoutes(internalApi, deps, mcpService);
   registerInternalInteractiveRequestRoutes(internalApi, deps);
   app.route("/internal", internalApi);
 
@@ -887,8 +895,12 @@ export function createApp(
             },
             pluginService,
             serverMove,
+            mcpService,
           ),
-        onClose: () => onDaemonSocketClose(deps, websocketContext.sessionId),
+        onClose: () => {
+          onDaemonSocketClose(deps, websocketContext.sessionId);
+          mcpService.handleHostDisconnected(websocketContext.hostId);
+        },
       };
     }),
   );
@@ -910,6 +922,7 @@ export function createApp(
     injectWebSocket,
     pluginService,
     pluginCatalogService,
+    mcpService,
     serverMove,
   };
 }

@@ -19,6 +19,8 @@ const SNAPSHOT_FENCE_CLASSIFICATION: Record<
   heartbeat: "unfenced",
   "host-rpc.response": "unfenced",
   "machine.shutdown-ack": "unfenced",
+  "mcp.catalog-changed": "fenced",
+  "mcp.connection-changed": "fenced",
   "plugin-host.signal": "fenced",
   "plugin-host.worker-exited": "fenced",
   "server_move.progress": "unfenced",

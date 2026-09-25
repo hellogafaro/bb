@@ -6,6 +6,7 @@ import {
   type ChangedMessage,
   type EnvironmentChangeKind,
   type HostChangeKind,
+  type McpChangeKind,
   type ProjectChangeKind,
   type SystemChangeKind,
   type ThreadChangeKind,
@@ -56,7 +57,7 @@ export type ServerChangedMessage =
       ChangedMessage,
       { entity: "thread" | "project" | "environment" | "host" }
     > & { id: string })
-  | Extract<ChangedMessage, { entity: "system" }>;
+  | Extract<ChangedMessage, { entity: "system" | "mcp" }>;
 
 type ChangedMessageListener = (message: ServerChangedMessage) => void;
 
@@ -115,6 +116,7 @@ function subscriptionKeysForMessage(message: ServerChangedMessage): string[] {
         subscriptionKey({ kind: "host-detail", hostId: message.id }),
       ];
     case "system":
+    case "mcp":
       return [subscriptionKey({ kind: "system" })];
   }
 }
@@ -931,6 +933,15 @@ export class NotificationHub implements DbNotifier {
     }
     this.hostProtocolUpdateRetryRequests.delete(hostId);
     return true;
+  }
+
+  notifyMcp(id: string | null, changes: McpChangeKind[]): void {
+    this.notifyClients({
+      type: "changed",
+      entity: "mcp",
+      ...(id === null ? {} : { id }),
+      changes,
+    });
   }
 
   notifySystem(changes: SystemChangeKind[]): void {

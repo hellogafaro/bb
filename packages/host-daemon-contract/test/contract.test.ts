@@ -520,6 +520,44 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   "server_move.activate": { ok: true },
   "server_move.abort": { ok: true },
   "server_move.delete_old_copy": { deleted: true },
+  "mcp.stdio.start": {
+    tools: [{ name: "echo", inputSchema: { type: "object" } }],
+    prompts: [],
+    resources: [],
+    resourceTemplates: [],
+  },
+  "mcp.stdio.refresh": {
+    tools: [{ name: "echo", inputSchema: { type: "object" } }],
+    prompts: [],
+    resources: [],
+    resourceTemplates: [],
+  },
+  "mcp.stdio.close": { closed: true },
+  "mcp.stdio.callTool": { content: [{ type: "text", text: "ok" }] },
+  "mcp.stdio.getPrompt": { messages: [] },
+  "mcp.stdio.readResource": { contents: [] },
+  "mcp.providerStatus": {
+    claude: {
+      settingsPath: "/h/.claude/settings.json",
+      connectorsDisabled: true,
+      mcpServers: [],
+    },
+    codex: {
+      configPath: "/h/.codex/config.toml",
+      mcpServers: [{ name: "x", file: "/h/.codex/config.toml", scope: "user" }],
+    },
+  },
+  "mcp.providerFix": {
+    claude: {
+      settingsPath: "/h/.claude/settings.json",
+      connectorsDisabled: true,
+      mcpServers: [],
+    },
+    codex: {
+      configPath: "/h/.codex/config.toml",
+      mcpServers: [{ name: "x", file: "/h/.codex/config.toml", scope: "user" }],
+    },
+  },
 };
 
 const SETTLED_RESPONSE_RESULT_FIXTURES: SettledResponseResultFixtures = {
@@ -1136,7 +1174,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(217);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(218);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -4109,5 +4147,44 @@ describe("host-daemon session schemas", () => {
     const client = createHostDaemonClient("http://localhost:3334", "secret");
 
     expect(client.session.open.$url().pathname).toBe("/internal/session/open");
+  });
+});
+
+describe("mcp host commands", () => {
+  it("parses stdio commands strictly and daemon MCP notifications", () => {
+    expect(
+      hostDaemonOnlineRpcCommandSchema.safeParse({
+        type: "mcp.stdio.start",
+        id: "mcp_abcdefghij",
+        command: "node",
+        args: ["server.js"],
+        cwd: "/tmp",
+        env: { PATH: "/usr/bin" },
+      }).success,
+    ).toBe(true);
+    expect(
+      hostDaemonOnlineRpcCommandSchema.safeParse({
+        type: "mcp.stdio.callTool",
+        id: "mcp_abcdefghij",
+        name: "echo",
+        args: {},
+      }).success,
+    ).toBe(false);
+    expect(
+      hostDaemonDaemonWsMessageSchema.safeParse({
+        type: "mcp.catalog-changed",
+        id: "mcp_abcdefghij",
+        kind: "tools",
+        error: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      hostDaemonDaemonWsMessageSchema.safeParse({
+        type: "mcp.connection-changed",
+        id: "mcp_abcdefghij",
+        status: "closed",
+        error: "exited",
+      }).success,
+    ).toBe(true);
   });
 });
