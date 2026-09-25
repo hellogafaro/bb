@@ -45,6 +45,7 @@ export interface LoadedPlugin {
   manifest: PluginManifest;
   handle: PluginApiHandle;
   services: ServiceRuntime[];
+  moduleRootUrls: Set<string>;
 }
 
 export interface PluginHostArtifactSnapshot {

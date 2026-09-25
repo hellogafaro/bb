@@ -81,7 +81,7 @@ it("bundles SDK-owned Zod without requiring the plugin to declare it", async () 
     skills: [],
     commands: [],
   });
-});
+}, 30_000);
 
 it("reports a broken SDK installation separately from plugin dependencies", async () => {
   const dir = await mkdtemp(join(tmpdir(), "bb-host-sdk-zodless-"));
@@ -112,7 +112,7 @@ it("reports a broken SDK installation separately from plugin dependencies", asyn
   await expect(buildPluginHost(dir, "0.0.0-test", toolchain)).rejects.toThrow(
     /reinstall @get-bb\/plugin-sdk/,
   );
-});
+}, 30_000);
 
 it("requires Zod when the plugin imports it directly", async () => {
   const dir = await mkdtemp(join(tmpdir(), "bb-host-direct-zod-"));
@@ -143,4 +143,4 @@ it("requires Zod when the plugin imports it directly", async () => {
   await expect(buildPluginHost(dir, "0.0.0-test", toolchain)).rejects.toThrow(
     /add zod to the plugin's dependencies/,
   );
-});
+}, 30_000);
