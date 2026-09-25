@@ -18,6 +18,20 @@ const docs = panel("docs", "vault");
 const tasks = panel("tasks", "board");
 
 describe("seedSkillsNavigationPreference", () => {
+  it("keeps Agents directly below Customize even when stored after Automations", () => {
+    const { skills, agents, automations, newThread } =
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(
+      seedSkillsNavigationPreference(
+        [newThread, skills, automations, agents],
+        [newThread, skills, automations, agents],
+      ),
+    ).toEqual({
+      order: [newThread, skills, agents, automations],
+      visibleKeys: [newThread, skills, agents, automations],
+    });
+  });
+
   it("places Skills beside the existing Plugins row and inherits its visibility", () => {
     expect(
       seedSkillsNavigationPreference(

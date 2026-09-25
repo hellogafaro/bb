@@ -75,10 +75,11 @@ describe("BuiltInSidebarNavigation agents entry", () => {
     expect(screen.getByTestId("pathname").textContent).toBe("/agents");
   });
 
-  it("orders Agents right after Automations by default", () => {
-    expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER.slice(-2)).toEqual([
-      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
+  it("orders Agents right after Customize by default", () => {
+    expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER.slice(-3)).toEqual([
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.skills,
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS.agents,
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
     ]);
     expect(BUILT_IN_SIDEBAR_NAVIGATION_KEYS.agents).toBe("__bb__/agents");
   });

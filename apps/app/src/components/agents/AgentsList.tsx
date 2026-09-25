@@ -107,7 +107,7 @@ export function AgentsList() {
                 >
                   <span className="flex size-6 shrink-0 items-center justify-center">
                     <Icon
-                      name="Bot"
+                      name="UserSmile"
                       className="size-4 text-muted-foreground"
                       aria-hidden="true"
                     />

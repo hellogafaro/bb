@@ -21,9 +21,20 @@ export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.skills,
-  BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.agents,
+  BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
 ] as const;
+
+function placeAfter(
+  keys: string[],
+  key: string,
+  anchor: string,
+): string[] {
+  if (!keys.includes(anchor) || !keys.includes(key)) return keys;
+  const rest = keys.filter((item) => item !== key);
+  rest.splice(rest.indexOf(anchor) + 1, 0, key);
+  return rest;
+}
 
 export function seedSkillsNavigationPreference(
   order: readonly string[],
@@ -46,7 +57,14 @@ export function seedSkillsNavigationPreference(
       );
     }
   }
-  return { order: nextOrder, visibleKeys: nextVisibleKeys };
+  const { agents } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+  return {
+    order: placeAfter(nextOrder, agents, skills),
+    visibleKeys:
+      nextVisibleKeys === null || !nextVisibleKeys.includes(agents)
+        ? nextVisibleKeys
+        : placeAfter(nextVisibleKeys, agents, skills),
+  };
 }
 
 export function getPluginNavPanelKey(panel: PluginNavPanelIdentity): string {

@@ -13,7 +13,7 @@ export function ThreadAgentRow({ thread }: { thread: Pick<Thread, "agentId"> }) 
   if (agent === null) return null;
   return (
     <DetailRow
-      label={<DetailRowIconLabel icon="Bot">Agent</DetailRowIconLabel>}
+      label={<DetailRowIconLabel icon="UserSmile">Agent</DetailRowIconLabel>}
       valueClassName="min-w-0"
     >
       <span className="flex min-w-0 flex-col">

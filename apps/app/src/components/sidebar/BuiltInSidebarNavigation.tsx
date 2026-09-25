@@ -66,7 +66,7 @@ export function BuiltInSidebarNavigation({
       id: "agents",
       content: (
         <ResourceNavSidebarItem
-          icon="Bot"
+          icon="UserSmile"
           title="Agents"
           routePath={getAgentsRoutePath()}
           onNavigate={onNavigate}
