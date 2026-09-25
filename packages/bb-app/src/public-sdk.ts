@@ -60,15 +60,18 @@ export type ThreadWaitUnreachableErrorConstructor =
   typeof ThreadWaitUnreachableError;
 
 export class BBSdk implements BbSdk {
+  readonly agents: BbSdk["agents"];
   readonly environments: BbSdk["environments"];
   readonly experimental_desktopBrowsers: BbSdk["experimental_desktopBrowsers"];
   readonly experimental_server: BbSdk["experimental_server"];
   readonly files: BbSdk["files"];
   readonly guide: BbSdk["guide"];
   readonly hosts: BbSdk["hosts"];
+  readonly mcp: BbSdk["mcp"];
   readonly plugins: BbSdk["plugins"];
   readonly projects: BbSdk["projects"];
   readonly providers: BbSdk["providers"];
+  readonly search: BbSdk["search"];
   readonly skills: BbSdk["skills"];
   readonly status: BbSdk["status"];
   readonly system: BbSdk["system"];
@@ -80,15 +83,18 @@ export class BBSdk implements BbSdk {
 
   constructor(options: BBSdkOptions = {}) {
     const sdk = createNodeBbSdk(options);
+    this.agents = sdk.agents;
     this.environments = sdk.environments;
     this.experimental_desktopBrowsers = sdk.experimental_desktopBrowsers;
     this.experimental_server = sdk.experimental_server;
     this.files = sdk.files;
     this.guide = sdk.guide;
     this.hosts = sdk.hosts;
+    this.mcp = sdk.mcp;
     this.plugins = sdk.plugins;
     this.projects = sdk.projects;
     this.providers = sdk.providers;
+    this.search = sdk.search;
     this.skills = sdk.skills;
     this.status = sdk.status;
     this.system = sdk.system;

@@ -10,7 +10,7 @@
   "files": [
     {
       "path": "registry/components/ui/skeleton.tsx",
-      "content": "import type { HTMLAttributes } from \"react\";\nimport { cn } from \"../../lib/utils\";\n\nexport function Skeleton({\n  className,\n  ...props\n}: HTMLAttributes<HTMLDivElement>) {\n  return (\n    <div\n      className={cn(\"animate-pulse rounded-md bg-muted\", className)}\n      {...props}\n    />\n  );\n}\n",
+      "content": "import type { HTMLAttributes, ReactNode } from \"react\";\nimport { cn } from \"../../lib/utils\";\n\nexport function Skeleton({\n  className,\n  ...props\n}: HTMLAttributes<HTMLDivElement>) {\n  return (\n    <div\n      className={cn(\"animate-pulse rounded-md bg-muted\", className)}\n      {...props}\n    />\n  );\n}\n\nexport function TextSkeleton({\n  children,\n  loading,\n  label,\n}: {\n  children: ReactNode;\n  loading: boolean;\n  label: string;\n}) {\n  return (\n    <span\n      className=\"relative flex min-w-0 flex-1 items-baseline\"\n      role={loading ? \"status\" : undefined}\n      aria-label={loading ? label : undefined}\n      aria-busy={loading || undefined}\n    >\n      <span\n        aria-hidden={loading || undefined}\n        className={cn(\n          \"flex min-w-0 flex-1 items-baseline\",\n          loading && \"invisible\",\n        )}\n      >\n        {children}\n      </span>\n      {loading ? (\n        <span\n          aria-hidden=\"true\"\n          className=\"absolute inset-x-0 top-1/2 h-3.5 max-w-64 -translate-y-1/2 animate-pulse rounded-sm bg-muted motion-reduce:animate-none\"\n        />\n      ) : null}\n    </span>\n  );\n}\n",
       "type": "registry:ui",
       "target": "components/ui/skeleton.tsx"
     }
