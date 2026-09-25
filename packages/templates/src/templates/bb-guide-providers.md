@@ -57,8 +57,8 @@ machine; the current directory is the project for `.mcp.json` unless
 alias, and the MCPs page shows the same issues with a Fix button.
 
 Claude Code: `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`) must set
-`"disableClaudeAiConnectors": true`, `"disableBundledSkills": true`, and
-`"enabledPlugins": {}`. The guard also reports `mcpServers` in `~/.claude.json`
+`"disableClaudeAiConnectors": true`, `"disableBundledSkills": true`,
+`"syncClaudeAiSkills": false`, and `"enabledPlugins": {}`. The guard also reports `mcpServers` in `~/.claude.json`
 (top level and per project) and the project's `.mcp.json`, marketplace clones
 under `~/.claude/plugins/marketplaces/` and `known_marketplaces.json`, and
 skill folders in `~/.claude/skills` other than bb-cli.

@@ -14,6 +14,7 @@ export const providerGuardStatusSchema = z
         settingsPath: z.string(),
         connectorsDisabled: z.boolean(),
         bundledSkillsDisabled: z.boolean(),
+        skillSyncDisabled: z.boolean(),
         enabledPlugins: z.array(z.string()),
         mcpServers: z.array(providerGuardMcpEntrySchema),
         pluginsDir: z.string(),

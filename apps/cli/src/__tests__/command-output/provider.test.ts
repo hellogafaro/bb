@@ -22,6 +22,7 @@ const guardResult: ProviderGuardResult = {
       settingsPath: "/home/me/.claude/settings.json",
       connectorsDisabled: true,
       bundledSkillsDisabled: false,
+      skillSyncDisabled: false,
       enabledPlugins: [],
       mcpServers: [],
       pluginsDir: "/home/me/.claude/plugins",

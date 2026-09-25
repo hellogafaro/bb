@@ -70,6 +70,11 @@ export function providerGuardIssues(
       `Claude Code bundled skills are enabled; set "disableBundledSkills": true in ${claude.settingsPath} (${FIX_HINT})`,
       true,
     );
+  if (!claude.skillSyncDisabled)
+    claudeIssue(
+      `claude.ai skill sync is enabled; set "syncClaudeAiSkills": false in ${claude.settingsPath} (${FIX_HINT})`,
+      true,
+    );
   if (claude.enabledPlugins.length > 0)
     claudeIssue(
       `Claude Code plugins are enabled (${list(claude.enabledPlugins)}); set "enabledPlugins": {} in ${claude.settingsPath} (${FIX_HINT})`,
@@ -158,6 +163,7 @@ export function formatProviderGuard(result: {
     "Claude Code",
     `  claude.ai connectors: ${state(claude.connectorsDisabled, "disabled", "ENABLED")} (${claude.settingsPath})`,
     `  bundled skills: ${state(claude.bundledSkillsDisabled, "disabled", "ENABLED")}`,
+    `  claude.ai skill sync: ${state(claude.skillSyncDisabled, "disabled", "ENABLED")}`,
     `  enabled plugins: ${claude.enabledPlugins.length === 0 ? "none" : list(claude.enabledPlugins)}`,
     `  plugin marketplaces: ${marketplaces.length === 0 ? "none" : `${list(marketplaces)} (${claude.pluginsDir})`}`,
     ...(claude.installedPlugins.length > 0

@@ -531,6 +531,7 @@ export async function readProviderGuardStatus(
       settingsPath: paths.claudeSettings,
       connectorsDisabled: settings?.disableClaudeAiConnectors === true,
       bundledSkillsDisabled: settings?.disableBundledSkills === true,
+      skillSyncDisabled: settings?.syncClaudeAiSkills === false,
       enabledPlugins: enabledPluginNames(settings?.enabledPlugins),
       mcpServers: await readClaudeMcpServers(paths, projectPath),
       pluginsDir: paths.claudePluginsDir,
@@ -589,6 +590,10 @@ export async function mergeClaudeGuardSettings(
   if (next.disableBundledSkills !== true) {
     next.disableBundledSkills = true;
     changes.push(`Set "disableBundledSkills": true in ${settingsPath}`);
+  }
+  if (next.syncClaudeAiSkills !== false) {
+    next.syncClaudeAiSkills = false;
+    changes.push(`Set "syncClaudeAiSkills": false in ${settingsPath}`);
   }
   if (
     !isRecord(next.enabledPlugins) ||

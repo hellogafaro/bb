@@ -11,6 +11,7 @@ const guardResponse = {
       settingsPath: "/h/.claude/settings.json",
       connectorsDisabled: true,
       bundledSkillsDisabled: true,
+      skillSyncDisabled: true,
       enabledPlugins: [],
       mcpServers: [],
       pluginsDir: "/h/.claude/plugins",

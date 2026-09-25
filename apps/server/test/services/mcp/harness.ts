@@ -41,6 +41,7 @@ export const cleanProviderStatus = {
     settingsPath: "/home/u/.claude/settings.json",
     connectorsDisabled: true,
     bundledSkillsDisabled: true,
+    skillSyncDisabled: true,
     enabledPlugins: [],
     mcpServers: [],
     pluginsDir: "/home/u/.claude/plugins",

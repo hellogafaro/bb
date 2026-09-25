@@ -139,6 +139,7 @@ describe("provider guard status", () => {
         settingsPath: resolved.claudeSettings,
         connectorsDisabled: false,
         bundledSkillsDisabled: false,
+        skillSyncDisabled: false,
         enabledPlugins: ["notes@official"],
         mcpServers: [
           { name: "notion", file: resolved.claudeJson, scope: "user" },
@@ -202,6 +203,7 @@ describe("provider guard status", () => {
     expect(status.claude).toMatchObject({
       connectorsDisabled: false,
       bundledSkillsDisabled: false,
+      skillSyncDisabled: false,
       enabledPlugins: [],
       mcpServers: [],
       marketplaces: [],
@@ -258,6 +260,7 @@ describe("Claude settings merge", () => {
     expect(await mergeClaudeGuardSettings(settingsPath)).toEqual([
       `Set "disableClaudeAiConnectors": true in ${settingsPath}`,
       `Set "disableBundledSkills": true in ${settingsPath}`,
+      `Set "syncClaudeAiSkills": false in ${settingsPath}`,
       `Set "enabledPlugins": {} in ${settingsPath}`,
     ]);
     const written = await readFile(settingsPath, "utf8");
@@ -268,6 +271,7 @@ describe("Claude settings merge", () => {
       enabledPlugins: {},
       disableClaudeAiConnectors: true,
       disableBundledSkills: true,
+      syncClaudeAiSkills: false,
     });
     expect(written).toContain('\n  "theme": "dark"');
     expect(await readdir(join(home, ".claude"))).toEqual([
@@ -286,6 +290,7 @@ describe("Claude settings merge", () => {
     expect(JSON.parse(await readFile(settingsPath, "utf8"))).toEqual({
       disableClaudeAiConnectors: true,
       disableBundledSkills: true,
+      syncClaudeAiSkills: false,
       enabledPlugins: {},
     });
     await writeFile(settingsPath, "{ broken");
@@ -403,6 +408,7 @@ describe("provider guard fix", () => {
     expect(first.status.claude).toMatchObject({
       connectorsDisabled: true,
       bundledSkillsDisabled: true,
+      skillSyncDisabled: true,
       enabledPlugins: [],
       marketplaces: [],
       knownMarketplacesFile: null,

@@ -10,6 +10,7 @@ const status: ProviderGuardStatus = {
     settingsPath: "/home/u/.claude/settings.json",
     connectorsDisabled: false,
     bundledSkillsDisabled: false,
+    skillSyncDisabled: false,
     enabledPlugins: ["notes@official"],
     mcpServers: [
       { name: "notion", file: "/home/u/.claude.json", scope: "user" },
@@ -67,6 +68,7 @@ const clean: ProviderGuardStatus = {
     ...status.claude,
     connectorsDisabled: true,
     bundledSkillsDisabled: true,
+    skillSyncDisabled: true,
     enabledPlugins: [],
     mcpServers: [],
     marketplaces: [],
@@ -96,6 +98,7 @@ describe("provider guard issues", () => {
     ).toEqual([
       ["claude", true, expect.stringContaining("disableClaudeAiConnectors")],
       ["claude", true, expect.stringContaining("disableBundledSkills")],
+      ["claude", true, expect.stringContaining("syncClaudeAiSkills")],
       ["claude", true, expect.stringContaining("(notes@official)")],
       ["claude", true, expect.stringContaining("claude-plugins-official")],
       ["claude", false, expect.stringContaining('"notion" (user)')],
@@ -149,6 +152,7 @@ describe("provider guard text", () => {
       "claude.ai connectors: ENABLED (/home/u/.claude/settings.json)",
     );
     expect(text).toContain("bundled skills: ENABLED");
+    expect(text).toContain("claude.ai skill sync: ENABLED");
     expect(text).toContain(
       "plugin marketplaces: claude-plugins-official (/home/u/.claude/plugins)",
     );
@@ -169,7 +173,7 @@ describe("provider guard text", () => {
       'Delete the [mcp_servers."quoted name"] table by hand.',
     );
     expect(text).toContain(
-      "guard: 13 issue(s); run bb provider guard --fix to apply 7 fix(es)",
+      "guard: 14 issue(s); run bb provider guard --fix to apply 8 fix(es)",
     );
   });
 
