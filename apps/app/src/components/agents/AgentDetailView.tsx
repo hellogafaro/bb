@@ -13,7 +13,7 @@ import {
 import type { UpdateAgentRequest } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
 import { Checkbox } from "@bb/shared-ui/checkbox";
-import { Icon } from "@bb/shared-ui/icon";
+import { AgentIcon } from "./AgentIcon";
 import { Input } from "@bb/shared-ui/input";
 import {
   ResourceListState,
@@ -29,7 +29,10 @@ import {
 import { McpPageShell } from "@/components/mcp/McpPageShell";
 import { OptionPicker } from "@/components/pickers/OptionPicker";
 import { appToast } from "@/components/ui/app-toast";
-import { useDeleteAgent, useUpdateAgent } from "@/hooks/mutations/agent-mutations";
+import {
+  useDeleteAgent,
+  useUpdateAgent,
+} from "@/hooks/mutations/agent-mutations";
 import { useAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useMcpServers } from "@/hooks/queries/mcp-queries";
 import { useProjectSkills } from "@/hooks/queries/skills-queries";
@@ -76,7 +79,12 @@ export function AgentDetailView({ agentRef }: { agentRef: string }) {
       ) : agent === null ? (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">That agent is gone.</p>
-          <Button type="button" variant="outline" size="sm" onClick={backToList}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={backToList}
+          >
             Back to agents
           </Button>
         </div>
@@ -132,11 +140,7 @@ function AgentDetail({
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Icon
-              name="UserSmile"
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            />
+            <AgentIcon providerId={agent.providerId} className="size-5" />
             <h1 className="min-w-0 truncate text-base font-semibold">
               {agent.name}
             </h1>
@@ -147,8 +151,7 @@ function AgentDetail({
             ) : null}
           </div>
           <p className="text-xs text-subtle-foreground">
-            {agentExecutionLabel(agent, providersQuery.data)} · full
-            permissions
+            {agentExecutionLabel(agent, providersQuery.data)} · full permissions
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
@@ -172,8 +175,16 @@ function AgentDetail({
         pending={update.isPending}
         onSave={save}
       />
-      <AgentModelSection agent={agent} pending={update.isPending} onSave={save} />
-      <AgentSkillsSection agent={agent} pending={update.isPending} onSave={save} />
+      <AgentModelSection
+        agent={agent}
+        pending={update.isPending}
+        onSave={save}
+      />
+      <AgentSkillsSection
+        agent={agent}
+        pending={update.isPending}
+        onSave={save}
+      />
       <AgentMcpSection agent={agent} pending={update.isPending} onSave={save} />
       <AgentInstructionsSection
         key={agent.instructions}

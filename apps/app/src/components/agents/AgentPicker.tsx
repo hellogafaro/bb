@@ -1,11 +1,9 @@
 import { memo } from "react";
 import { OptionPicker } from "@/components/pickers/OptionPicker";
-import {
-  resolveThreadAgent,
-  useAgents,
-} from "@/hooks/queries/agent-queries";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentExecutionLabel } from "./agent-display";
+import { agentIconComponent } from "./AgentIcon";
 
 export interface ExecutionAgentConfig {
   agentId: string | null;
@@ -38,6 +36,7 @@ export const AgentPicker = memo(function AgentPicker({
         value: entry.id,
         label: entry.name,
         description: agentExecutionLabel(entry, providersQuery.data),
+        icon: agentIconComponent(entry.providerId),
       }))}
       onChange={(value) => onChange?.(value)}
     />

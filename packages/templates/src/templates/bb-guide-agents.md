@@ -27,7 +27,7 @@ Fields:
 - instructions — text appended to every thread's instructions under
   "The following instructions come from the BB agent ...".
 
-The default agent is the first agent (the oldest). BB creates one named "BB"
+The default agent is the first agent (the oldest). BB creates one named "bb"
 on first start from the current default provider and model. Threads without
 an agent, or whose agent was deleted, run as the default agent. The last agent
 cannot be deleted.

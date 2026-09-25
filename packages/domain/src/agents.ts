@@ -5,7 +5,7 @@ export const AGENT_NAME_MAX_CHARS = 80;
 export const AGENT_DESCRIPTION_MAX_CHARS = 500;
 export const AGENT_INSTRUCTIONS_MAX_CHARS = 20_000;
 export const AGENT_PERMISSION_MODE = "full";
-export const DEFAULT_AGENT_NAME = "BB";
+export const DEFAULT_AGENT_NAME = "bb";
 
 export const agentSchema = z
   .object({

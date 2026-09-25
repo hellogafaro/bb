@@ -76,7 +76,7 @@ function seedAgentThread(
 }
 
 describe("default agent seeding", () => {
-  it("creates BB from the latest remembered execution defaults once", async () => {
+  it("creates bb from the latest remembered execution defaults once", async () => {
     await withTestHarness(async (harness) => {
       const { host } = seedHostSession(harness.deps);
       const { project } = seedProjectWithSource(harness.deps, {
@@ -93,7 +93,7 @@ describe("default agent seeding", () => {
 
       const created = ensureDefaultAgent(harness.deps);
       expect(created).toMatchObject({
-        name: "BB",
+        name: "bb",
         providerId: "codex",
         model: "gpt-5-mini",
         reasoningLevel: "medium",

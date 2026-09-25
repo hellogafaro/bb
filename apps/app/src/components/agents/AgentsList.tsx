@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAgentDetailRoutePath } from "@bb/client-core";
 import type { Agent } from "@bb/domain";
-import { Icon } from "@bb/shared-ui/icon";
 import {
   ResourceCollectionViewport,
   ResourceListState,
@@ -11,6 +10,7 @@ import {
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 import { useAgents } from "@/hooks/queries/agent-queries";
+import { AgentIcon } from "./AgentIcon";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentExecutionLabel, agentRowSubtitle } from "./agent-display";
 
@@ -106,10 +106,9 @@ export function AgentsList() {
                   onClick={() => navigate(getAgentDetailRoutePath(agent.id))}
                 >
                   <span className="flex size-6 shrink-0 items-center justify-center">
-                    <Icon
-                      name="UserSmile"
-                      className="size-4 text-muted-foreground"
-                      aria-hidden="true"
+                    <AgentIcon
+                      providerId={agent.providerId}
+                      className="size-5"
                     />
                   </span>
                   <span className="min-w-0">

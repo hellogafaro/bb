@@ -6,7 +6,7 @@ permissions are always full. A thread's agent is fixed at spawn.
 
 - `bb agent list [--json]` lists agents. The first one is the default agent;
   threads without an agent, or whose agent was deleted, run as it. BB creates
-  "BB" on first start from the current default provider and model.
+  "bb" on first start from the current default provider and model.
 - `bb agent show <agent> [--json]` accepts a name (case-insensitive) or an ID
   (`agent_...`).
 - `bb agent create <name> [--provider <id>] [--model <model>] [--reasoning
