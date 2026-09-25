@@ -65,9 +65,6 @@ vi.mock("@/hooks/useHostDaemon", () => ({
   useHostDaemon: () => ({ hasDaemon: false }),
 }));
 vi.mock("@/lib/bb-desktop", () => ({ getBbDesktopInfo: () => null }));
-vi.mock("@/lib/split-layout/openThreadInSplit", () => ({
-  openThreadInSplit: vi.fn(),
-}));
 
 function setup() {
   const client = new QueryClient({
@@ -394,21 +391,25 @@ describe("global Search", () => {
     );
   });
 
-  it("does not open a thread in a split when no split is available", async () => {
-    test.query.mockResolvedValue({
-      query: "thread",
-      groups: [{ kind: "threads", results: [result()] }],
-    });
-    setup();
-    const input = screen.getByRole("combobox", { name: "Search" });
-    fireEvent.change(input, { target: { value: "thread" } });
-    await screen.findByRole("option", { name: /Thread title/ });
-    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
-    await waitFor(() => expect(test.navigate).toHaveBeenCalled());
-    const { openThreadInSplit } =
-      await import("@/lib/split-layout/openThreadInSplit");
-    expect(openThreadInSplit).not.toHaveBeenCalled();
-  });
+  it.each([{ ctrlKey: true }, { metaKey: true }])(
+    "opens threads normally with modified Enter (%j)",
+    async (modifier) => {
+      test.query.mockResolvedValue({
+        query: "thread",
+        groups: [{ kind: "threads", results: [result()] }],
+      });
+      setup();
+      const input = screen.getByRole("combobox", { name: "Search" });
+      fireEvent.change(input, { target: { value: "thread" } });
+      await screen.findByRole("option", { name: /Thread title/ });
+      fireEvent.keyDown(input, { key: "Enter", ...modifier });
+      await waitFor(() =>
+        expect(test.navigate).toHaveBeenCalledWith("/projects/p1/threads/t1", {
+          state: undefined,
+        }),
+      );
+    },
+  );
 
   it("selects the next thread in its group when the selected thread disappears", async () => {
     let response = [

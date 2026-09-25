@@ -8,13 +8,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
-import { useAtomValue, useStore } from "jotai";
 import { useQuery } from "@tanstack/react-query";
 import { globalSearchQueryKeyPrefix } from "@/hooks/queries/global-search-query-key";
 import {
   CORE_SETTINGS_CATALOG,
   CORE_SETTINGS_PAGES,
-  isMacKeyboardPlatform,
   type KeyboardCommandId,
   type ThreadListEntry,
 } from "@bb/domain";
@@ -73,9 +71,6 @@ import {
   resolveThreadStatus,
   ThreadStatusGlyph,
 } from "@/components/thread/ThreadStatusGlyph";
-import { openThreadInSplit } from "@/lib/split-layout/openThreadInSplit";
-import { splitLayoutAtom } from "@/lib/split-layout/atoms";
-import { countPanes, findPaneByContent, MAX_PANES } from "@/lib/split-layout";
 import {
   setPreferredTheme,
   useThemePreference,
@@ -144,8 +139,6 @@ export function CommandPalette({
 }) {
   const runner = useAppCommandRunner();
   const navigate = useRouteNavigate();
-  const store = useStore();
-  const splitLayout = useAtomValue(splitLayoutAtom);
   const compact = useIsCompactViewport();
   const themePreference = useThemePreference();
   const shortcuts = useAppCommandShortcuts(PALETTE_COMMAND_IDS);
@@ -670,20 +663,6 @@ export function CommandPalette({
       : selectedIndex >= 0
         ? selectedIndex
         : options.findIndex((option) => option.key === replacement?.key);
-  const selected = options[activeIndex];
-  const canSplit =
-    selected?.entry?.kind === "thread" &&
-    !compact &&
-    splitLayout !== null &&
-    findPaneByContent(splitLayout.root, {
-      kind: "thread",
-      projectId: selected.entry.projectId,
-      threadId: selected.entry.threadId,
-    }) === null &&
-    countPanes(splitLayout.root) < MAX_PANES;
-  const splitModifier = isMacKeyboardPlatform(navigator.platform)
-    ? "⌘"
-    : "Ctrl";
   const loading = Boolean(
     normalizedQuery && (!isCurrentQuery || search.isFetching || pageLoading),
   );
@@ -771,7 +750,7 @@ export function CommandPalette({
     setOpen(false);
   }, []);
   const activate = useCallback(
-    (option: VisibleOption | undefined, split = false) => {
+    (option: VisibleOption | undefined) => {
       if (!option) return;
       if (option.more) {
         const kind = option.group as SearchGroupKind;
@@ -875,28 +854,6 @@ export function CommandPalette({
                   searchMessageSeq: entry.messageAnchor,
                   searchThreadId: entry.threadId,
                 };
-          if (
-            split &&
-            !compact &&
-            splitLayout !== null &&
-            findPaneByContent(splitLayout.root, {
-              kind: "thread",
-              projectId: entry.projectId,
-              threadId: entry.threadId,
-            }) === null &&
-            countPanes(splitLayout.root) < MAX_PANES
-          ) {
-            openThreadInSplit({
-              store,
-              navigate,
-              projectId: entry.projectId,
-              threadId: entry.threadId,
-              isCompact: compact,
-              state,
-            });
-            recordSearchRecent(server, type, entry.id);
-            return;
-          }
           navigate(
             getThreadRoutePath({
               projectId: entry.projectId,
@@ -910,7 +867,6 @@ export function CommandPalette({
     },
     [
       actionsById,
-      compact,
       groups,
       limits,
       navigate,
@@ -919,8 +875,6 @@ export function CommandPalette({
       projectId,
       runAfterClose,
       server,
-      splitLayout,
-      store,
     ],
   );
   const selectIndex = useCallback(
@@ -949,13 +903,10 @@ export function CommandPalette({
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        activate(
-          options[activeIndex],
-          Boolean(canSplit && (event.metaKey || event.ctrlKey)),
-        );
+        activate(options[activeIndex]);
       }
     },
-    [activate, activeIndex, canSplit, options, selectIndex],
+    [activate, activeIndex, options, selectIndex],
   );
   const handleClose = useCallback((next: boolean) => {
     setOpen(next);
@@ -1014,7 +965,7 @@ export function CommandPalette({
         activeDescendantId={
           activeIndex < 0 ? undefined : `${optionPrefix}-${activeIndex}`
         }
-        inputDescription={`Use arrows to select and Enter to open. Escape closes search.${canSplit ? ` ${splitModifier}+Enter opens in split.` : ""}`}
+        inputDescription="Use arrows to select and Enter to open. Escape closes search."
         inputLabel="Search"
         listId={listId}
         listLabel="Search results"
@@ -1155,10 +1106,15 @@ export function CommandPalette({
         ) : null}
       </PaletteShell>
       {!compact ? (
-        <div className="flex justify-end gap-3 border-t border-border px-3 py-1.5 text-xs text-subtle-foreground">
-          <span>↵ Select</span>
-          {canSplit ? <span>{splitModifier} ↵ Split</span> : null}
-          <span>Esc Close</span>
+        <div className="flex h-10 items-center justify-end gap-4 border-t border-border px-4 text-xs text-subtle-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <PaletteShortcut>↵</PaletteShortcut>
+            Select
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <PaletteShortcut>Esc</PaletteShortcut>
+            Close
+          </span>
         </div>
       ) : null}
     </div>
@@ -1180,7 +1136,7 @@ export function CommandPalette({
       <DialogContent
         hideCloseButton
         aria-describedby={undefined}
-        className="top-[12%] max-w-[640px] translate-y-0 gap-0 bg-sidebar p-0 text-sidebar-foreground shadow-lg sm:rounded-xl"
+        className="top-[12%] max-w-[640px] translate-y-0 gap-0 bg-sidebar p-0 text-sidebar-foreground shadow-lg sm:rounded-xl overflow-hidden"
         onAfterCloseAutoFocus={handleAfterClose}
       >
         <DialogTitle className="sr-only">Search</DialogTitle>
