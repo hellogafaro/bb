@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useAtomValue, useStore } from "jotai";
 import { useQuery } from "@tanstack/react-query";
+import { globalSearchQueryKeyPrefix } from "@/hooks/queries/global-search-query-key";
 import {
   CORE_SETTINGS_CATALOG,
   CORE_SETTINGS_PAGES,
@@ -217,7 +218,12 @@ export function CommandPalette({
   const debouncedQuery = useDebouncedValue(normalizedQuery, 150);
   const isCurrentQuery = debouncedQuery === normalizedQuery;
   const search = useQuery({
-    queryKey: ["global-search", server, debouncedQuery, projectId],
+    queryKey: [
+      ...globalSearchQueryKeyPrefix(),
+      server,
+      debouncedQuery,
+      projectId,
+    ],
     queryFn: ({ signal }) =>
       sdk.search.query({
         query: debouncedQuery,

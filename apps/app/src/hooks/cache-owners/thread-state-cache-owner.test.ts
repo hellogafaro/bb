@@ -1,7 +1,12 @@
 import type { ThreadListEntry, ThreadWithRuntime } from "@bb/domain";
 import { makeThreadWithRuntime as makeThreadWithRuntimeFixture } from "@bb/test-helpers/domain-fixtures";
-import type { SidebarBootstrapResponse } from "@bb/server-contract";
+import type {
+  SidebarBootstrapResponse,
+  ThreadSearchResponse,
+  SearchResponse,
+} from "@bb/server-contract";
 import { describe, expect, it } from "vitest";
+import { globalSearchQueryKeyPrefix } from "../queries/global-search-query-key";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { makeThreadListEntry as makeThreadListEntryFixture } from "@bb/test-helpers/domain-fixtures";
 import {
@@ -12,12 +17,16 @@ import {
   sidebarNavigationQueryKey,
   threadListQueryKey,
   threadQueryKey,
+  threadSearchQueryKey,
+  archivedThreadsListQueryKey,
+  threadDetailBootstrapQueryKey,
 } from "../queries/query-keys";
 import {
   beginThreadReadStateTransaction,
   beginThreadMetadataTransaction,
   rollbackThreadListMutationTransaction,
   rollbackThreadReadStateTransaction,
+  applyThreadUpdateResult,
 } from "./thread-state-cache-owner";
 
 function makeThreadWithRuntime(
@@ -71,6 +80,124 @@ function makeSidebarNavigation(
 }
 
 describe("thread state cache owner", () => {
+  it.each([
+    { cachedAt: 1, incomingAt: 2, expectedTitle: "Generated title" },
+    { cachedAt: 3, incomingAt: 2, expectedTitle: "Old title" },
+  ])(
+    "synchronizes title caches without overwriting newer data ($cachedAt, $incomingAt)",
+    ({ cachedAt, incomingAt, expectedTitle }) => {
+      const { queryClient } = createQueryClientTestHarness();
+      const original = makeThreadListEntry({
+        title: "Old title",
+        updatedAt: cachedAt,
+        pinSortKey: "a",
+      });
+      const sibling = makeThreadListEntry({
+        id: "other",
+        title: "Other title",
+      });
+      const listKey = threadListQueryKey({ archived: false });
+      const archiveKey = archivedThreadsListQueryKey({ kind: "all" });
+      const searchKey = threadSearchQueryKey({
+        query: "Old",
+        limitPerGroup: 10,
+      });
+      queryClient.setQueryData(
+        threadQueryKey(original.id),
+        makeThreadWithRuntime(original),
+      );
+      queryClient.setQueryData(listKey, [original, sibling]);
+      queryClient.setQueryData(archiveKey, {
+        pages: [[original]],
+        pageParams: [null],
+      });
+      queryClient.setQueryData(
+        sidebarNavigationQueryKey(),
+        makeSidebarNavigation([original]),
+      );
+      queryClient.setQueryData(threadDetailBootstrapQueryKey(original.id), {
+        ...makeThreadWithRuntime(original),
+        environment: null,
+        host: null,
+      });
+      queryClient.setQueryData<ThreadSearchResponse>(searchKey, {
+        active: { total: 1, results: [{ thread: original, matches: [] }] },
+        archived: { total: 0, results: [] },
+      });
+
+      queryClient.setQueryData<SearchResponse>(globalSearchQueryKeyPrefix(), {
+        query: "Old",
+        groups: [
+          {
+            kind: "threads",
+            results: [
+              {
+                id: original.id,
+                kind: "thread",
+                threadId: original.id,
+                projectId: original.projectId,
+                archived: false,
+                status: original.status,
+                updatedAt: cachedAt,
+                thread: original,
+                label: "Old title",
+                matchClass: 1,
+                destination: "/threads/thread-1",
+                highlights: [],
+              },
+            ],
+          },
+        ],
+      });
+      applyThreadUpdateResult({
+        queryClient,
+        thread: makeThreadWithRuntime({
+          title: "Generated title",
+          updatedAt: incomingAt,
+        }),
+      });
+
+      expect(
+        queryClient.getQueryData(threadQueryKey(original.id)),
+      ).toMatchObject({ title: expectedTitle });
+      expect(
+        queryClient.getQueryData(threadDetailBootstrapQueryKey(original.id)),
+      ).toMatchObject({
+        title: expectedTitle,
+        environment: null,
+        host: null,
+      });
+      const cached = queryClient.getQueryData<ThreadListEntry[]>(listKey);
+      expect(cached?.[0]).toMatchObject({
+        title: expectedTitle,
+        pinSortKey: "a",
+        environmentName: "Environment",
+      });
+      expect(cached?.[1]).toBe(sibling);
+      expect(queryClient.getQueryData(archiveKey)).toMatchObject({
+        pages: [[{ title: expectedTitle }]],
+        pageParams: [null],
+      });
+      expect(
+        queryClient.getQueryData<SidebarBootstrapResponse>(
+          sidebarNavigationQueryKey(),
+        )?.projects[0]?.threads[0]?.title,
+      ).toBe(expectedTitle);
+      expect(
+        queryClient.getQueryData<ThreadSearchResponse>(searchKey)?.active
+          .results[0]?.thread.title,
+      ).toBe(expectedTitle);
+      expect(queryClient.getQueryState(searchKey)?.isInvalidated).toBe(true);
+      expect(
+        queryClient.getQueryData<SearchResponse>(globalSearchQueryKeyPrefix())
+          ?.groups[0]?.results[0]?.label,
+      ).toBe(expectedTitle);
+      expect(
+        queryClient.getQueryState(globalSearchQueryKeyPrefix())?.isInvalidated,
+      ).toBe(true);
+    },
+  );
+
   it.each([
     {
       source: "sidebar",

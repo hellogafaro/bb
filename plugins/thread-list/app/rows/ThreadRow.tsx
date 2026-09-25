@@ -1,3 +1,4 @@
+import { TextSkeleton } from "@bb/shared-ui/skeleton";
 import {
   createContext,
   memo,
@@ -537,7 +538,12 @@ function ThreadRowComponent({
               }
               onDoubleClick={startTitleEditing}
             >
-              <ThreadTitle threadId={thread.id} />
+              <TextSkeleton
+                loading={actions.experimental_isGeneratingTitle(thread.id)}
+                label="Generating title"
+              >
+                <ThreadTitle threadId={thread.id} />
+              </TextSkeleton>
             </span>
           )}
         </span>

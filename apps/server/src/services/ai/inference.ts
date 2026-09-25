@@ -23,6 +23,7 @@ export const INFERENCE_POLICY = {
 
 interface InferenceCompleteArgs<T extends TSchema> {
   prompt: string;
+  reasoningEffort?: "low" | "none";
   schema: T;
   timeoutMs?: number;
 }
@@ -81,6 +82,7 @@ interface InferenceCompleteWithRetryArgs<T extends TSchema> {
   maxAttempts: number;
   prompt: string;
   retryDelayMs: number;
+  reasoningEffort?: "low" | "none";
   schema: T;
   timeoutMs: number;
 }
@@ -104,6 +106,7 @@ export async function inferenceCompleteWithRetry<T extends TSchema>(
     try {
       const value = await inferenceComplete(deps, {
         prompt: args.prompt,
+        reasoningEffort: args.reasoningEffort,
         schema: args.schema,
         timeoutMs: args.timeoutMs,
       });
@@ -249,7 +252,7 @@ export async function inferenceComplete<T extends TSchema>(
           type: "function",
           function: { name: RESULT_TOOL_NAME },
         },
-        reasoning: { effort: "low" },
+        reasoning: { effort: args.reasoningEffort ?? "low" },
         provider: { sort: "latency" },
         usage: { include: true },
       },

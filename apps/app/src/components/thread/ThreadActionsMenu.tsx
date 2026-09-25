@@ -302,7 +302,7 @@ function ThreadActionsMenuItems({
       </ActionMenuItem>
       <ActionMenuItem
         surface={surface}
-        icon="Sparkles"
+        icon="RotateCcw"
         disabled={generatingTitleIds.has(thread.id)}
         onSelect={() => {
           void generateTitle(thread.id);

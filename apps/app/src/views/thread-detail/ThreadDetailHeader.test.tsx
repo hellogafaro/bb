@@ -17,11 +17,12 @@ import { sdk } from "@/lib/sdk";
 
 const mocks = vi.hoisted(() => ({
   renameThread: vi.fn(),
+  generatingTitleIds: new Set<string>(),
 }));
 
 vi.mock("@/components/thread/ThreadActionsProvider", () => ({
   useThreadActions: () => ({
-    generatingTitleIds: new Set<string>(),
+    generatingTitleIds: mocks.generatingTitleIds,
     generateTitle: vi.fn(),
     renameThread: mocks.renameThread,
   }),
@@ -77,11 +78,44 @@ afterEach(() => {
   cleanup();
   viewportState.isCompactViewport = false;
   mocks.renameThread.mockReset();
+  mocks.generatingTitleIds.clear();
   vi.restoreAllMocks();
   window.localStorage.clear();
 });
 
 describe("ThreadDetailHeader", () => {
+  it("holds title content under a skeleton while generation is pending", () => {
+    mocks.generatingTitleIds.add(THREAD_ID);
+    const view = (title: string) => (
+      <PaneContext.Provider value={PANE_CONTEXT}>
+        <ThreadDetailHeader
+          actionsMenu={null}
+          childPillLabel="child"
+          isSecondaryPanelOpen={false}
+          onToggleSecondaryPanel={vi.fn()}
+          threadId={THREAD_ID}
+          threadTitle={title}
+        />
+      </PaneContext.Provider>
+    );
+    const { rerender } = render(view("Previous title"));
+    const skeleton = screen.getByRole("status", { name: "Generating title" });
+    expect(skeleton.getAttribute("aria-busy")).toBe("true");
+    expect(
+      screen.getByText("Previous title").closest('[aria-hidden="true"]'),
+    ).not.toBeNull();
+    mocks.generatingTitleIds.clear();
+    rerender(view("A different and substantially longer generated title"));
+    expect(
+      screen.queryByRole("status", { name: "Generating title" }),
+    ).toBeNull();
+    expect(
+      screen
+        .getByText("A different and substantially longer generated title")
+        .closest('[aria-hidden="true"]'),
+    ).toBeNull();
+  });
+
   it("leaves the open right-panel collapse control to the panel header", () => {
     render(
       <PaneContext.Provider value={PANE_CONTEXT}>

@@ -26,6 +26,9 @@ import type { ThreadSectionMoveDestination } from "./ThreadSectionMoveProvider.j
 import type { ThreadRowOptions } from "./ThreadRow.js";
 
 installTestPluginRuntime();
+const { experimental_useSidebarThreadActions } = await import(
+  "@get-bb/plugin-sdk/app"
+);
 const { ThreadSectionMoveProvider } = await import(
   "./ThreadSectionMoveProvider.js"
 );
@@ -197,6 +200,46 @@ afterEach(() => {
 });
 
 describe("ThreadRow", () => {
+  it("keeps the title in place under a skeleton only while its generation is pending", () => {
+    const thread = createThread({
+      id: "thr_generating",
+      displayTitle: "Original title",
+    });
+    function PendingRow({
+      pendingThreadId,
+    }: {
+      pendingThreadId: string | null;
+    }) {
+      const actions = experimental_useSidebarThreadActions();
+      actions.experimental_isGeneratingTitle = (threadId) =>
+        threadId === pendingThreadId;
+      return <ThreadRowHarness thread={{ ...thread }} />;
+    }
+    const slot = renderSlot(
+      { component: PendingRow },
+      { pendingThreadId: null },
+      { sidebarThreads: { threads: [thread] } },
+    );
+    const title = screen.getByText("Original title");
+    expect(
+      screen.queryByRole("status", { name: "Generating title" }),
+    ).toBeNull();
+    slot.lifecycle.rerender(<PendingRow pendingThreadId="thr_generating" />);
+    expect(
+      screen.getByRole("status", { name: "Generating title" }).contains(title),
+    ).toBe(true);
+    expect(screen.getByText("Original title")).toBe(title);
+    expect(
+      title.closest('[aria-hidden="true"]')?.classList.contains("invisible"),
+    ).toBe(true);
+    slot.lifecycle.rerender(<PendingRow pendingThreadId="another-thread" />);
+    expect(
+      screen.queryByRole("status", { name: "Generating title" }),
+    ).toBeNull();
+    expect(screen.getByText("Original title")).toBe(title);
+    expect(title.closest('[aria-hidden="true"]')).toBeNull();
+  });
+
   it("links the row to the thread href and leaves a plain click to the host", () => {
     const slot = renderThreadRow({ thread: createThread({ href: "/projects/proj_test/threads/thr_test" }) });
     const link = screen.getByRole("link", { name: "Open Thread" });

@@ -10,6 +10,7 @@ import {
 import { Button } from "@bb/shared-ui/button";
 import { useAtomValue } from "jotai";
 import { Icon } from "@bb/shared-ui/icon";
+import { TextSkeleton } from "@bb/shared-ui/skeleton";
 import { Pill } from "@bb/shared-ui/pill";
 import {
   AppPageHeader,
@@ -66,7 +67,7 @@ export function ThreadDetailHeader({
   workspaceOpenButton,
 }: ThreadDetailHeaderProps) {
   const isCompactViewport = useIsCompactViewport();
-  const { renameThread } = useThreadActions();
+  const { renameThread, generatingTitleIds } = useThreadActions();
   const handleRename = useCallback(
     (nextTitle: string) => {
       renameThread(threadId, nextTitle);
@@ -146,7 +147,7 @@ export function ThreadDetailHeader({
           isSplitPaneHeader && isFocused ? "" : undefined
         }
         className={cn(
-          "relative min-w-0",
+          "relative min-w-0 flex-1",
           isSplitPaneHeader && "-my-1 -ml-2 rounded-md px-2 py-1",
           isSplitPaneHeader && isFocused && CONTEXT_SELECTION_SURFACE_CLASS,
         )}
@@ -169,7 +170,16 @@ export function ThreadDetailHeader({
           onDoubleClick={handleTitleDoubleClick}
           onPointerDown={beginPaneDrag ? handleTitlePointerDown : undefined}
         >
-          {isEditing ? editor : <ThreadTitleMentions title={threadTitle} />}
+          {isEditing ? (
+            editor
+          ) : (
+            <TextSkeleton
+              loading={generatingTitleIds.has(threadId)}
+              label="Generating title"
+            >
+              <ThreadTitleMentions title={threadTitle} />
+            </TextSkeleton>
+          )}
         </p>
       </div>
       {childPillLabel ? (
@@ -257,6 +267,7 @@ export function ThreadDetailHeader({
     <AppPageHeader
       headerRef={headerRef}
       center={center}
+      centerClassName="flex-1"
       actions={actions}
       isWindowDragRegion={isTopRow}
       ownsWindowTopLeft={ownsWindowTopLeft}

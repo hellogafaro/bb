@@ -1021,6 +1021,23 @@ describe("generate thread title endpoint", () => {
     };
   }
 
+  it.each([
+    ["openai/gpt-6-luna", "none"],
+    ["openai/o3", "low"],
+  ])("uses supported title reasoning for %s", async (inferenceModel, effort) => {
+    mockThreadMetadata({ title: "Fix Login Behavior" });
+    await withTestHarness({ inferenceModel }, async (harness) => {
+      const { request } = seedTitleTask(harness);
+      expect((await request()).status).toBe(200);
+      expect(openRouter.requests).toHaveLength(1);
+      expect(openRouter.requests[0]?.body).toMatchObject({
+        model: inferenceModel,
+        reasoning: { effort },
+        provider: { sort: "latency" },
+      });
+    });
+  });
+
   it("replaces a title using the original task and returns the updated thread", async () => {
     mockThreadMetadata({ title: "Fix Login Behavior" });
     await withTestHarness(async (harness) => {

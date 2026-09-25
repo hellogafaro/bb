@@ -4,12 +4,18 @@ import type {
   ProjectResponse,
   ReorderPinnedThreadRequest,
   ThreadArchiveAllResponse,
+  ThreadSearchResponse,
+  ThreadWithIncludesResponse,
+  SearchResponse,
 } from "@bb/server-contract";
 import { applyNeighborReorder } from "@bb/client-core";
+import { getThreadDisplayTitle } from "@/lib/thread-title";
+import { globalSearchQueryKeyPrefix } from "../queries/global-search-query-key";
 import {
   projectsQueryKey,
   sidebarNavigationQueryKey,
   threadQueryKey,
+  threadDetailBootstrapQueryKey,
   threadSearchQueryKeyPrefix,
   threadsQueryKey,
 } from "../queries/query-keys";
@@ -255,10 +261,69 @@ export function applyThreadUpdateResult({
   queryClient,
   thread,
 }: ThreadRuntimeCacheArgs): void {
+  const merge = <T extends { updatedAt: number }>(current: T): T =>
+    current.updatedAt > thread.updatedAt ? current : { ...current, ...thread };
   queryClient.setQueryData<ThreadWithRuntime>(
     threadQueryKey(thread.id),
-    thread,
+    (current) => (current ? merge(current) : thread),
   );
+  applyToCachedThreadListsAndSidebarNavigation(queryClient, (list) =>
+    list.map((current) =>
+      current.id === thread.id ? merge(current) : current,
+    ),
+  );
+  queryClient.setQueryData<ThreadWithIncludesResponse>(
+    threadDetailBootstrapQueryKey(thread.id),
+    (current) => current && merge(current),
+  );
+  queryClient.setQueriesData<ThreadSearchResponse>(
+    { queryKey: threadSearchQueryKeyPrefix() },
+    (current) => {
+      if (!current) return current;
+      const updateGroup = (group: ThreadSearchResponse["active"]) => ({
+        ...group,
+        results: group.results.map((result) =>
+          result.thread.id === thread.id
+            ? { ...result, thread: merge(result.thread) }
+            : result,
+        ),
+      });
+      return {
+        active: updateGroup(current.active),
+        archived: updateGroup(current.archived),
+      };
+    },
+  );
+  queryClient.setQueriesData<SearchResponse>(
+    { queryKey: globalSearchQueryKeyPrefix() },
+    (current) =>
+      current && {
+        ...current,
+        groups: current.groups.map((group) => ({
+          ...group,
+          results: group.results.map((result) => {
+            if (
+              result.kind !== "thread" ||
+              result.threadId !== thread.id ||
+              result.thread.updatedAt > thread.updatedAt
+            )
+              return result;
+            return {
+              ...result,
+              thread: merge(result.thread),
+              label: getThreadDisplayTitle(thread),
+              updatedAt: thread.updatedAt,
+              highlights: result.highlights.filter(
+                (highlight) => highlight.field !== "label",
+              ),
+            };
+          }),
+        })),
+      },
+  );
+  void queryClient.invalidateQueries({
+    queryKey: globalSearchQueryKeyPrefix(),
+  });
   invalidateThreadListQueries({ queryClient });
 }
 

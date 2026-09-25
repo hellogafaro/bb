@@ -1,4 +1,5 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import { globalSearchQueryKeyPrefix } from "../queries/global-search-query-key";
 import type {
   EnvironmentChangeKind,
   HostChangeKind,
@@ -379,7 +380,11 @@ export const REALTIME_THREAD_CHANGE_REGISTRY = {
   },
   "title-changed": {
     flush: "debounced",
-    dirty: [dirtyActiveThreadListQueries, dirtyThreadDetailQueries],
+    dirty: [
+      dirtyActiveThreadListQueries,
+      dirtyThreadDetailQueries,
+      () => [globalSearchQueryKeyPrefix()],
+    ],
   },
   "queue-changed": {
     flush: "debounced",

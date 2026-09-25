@@ -65,6 +65,7 @@ describe("thread-list title generation", () => {
       const item = await screen.findByRole("menuitem", {
         name: "Regenerate title",
       });
+      expect(item.querySelector('[data-icon="RotateCcw"]')).not.toBeNull();
       const items = screen.getAllByRole("menuitem");
       expect(items.indexOf(item)).toBe(
         items.indexOf(screen.getByRole("menuitem", { name: "Rename" })) + 1,

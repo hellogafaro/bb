@@ -225,6 +225,8 @@ export async function generateThreadMetadataWithOutcome(
       maxAttempts,
       prompt,
       retryDelayMs: INFERENCE_POLICY.threadMetadata.retryDelayMs,
+      reasoningEffort:
+        deps.config.inferenceModel === "openai/gpt-6-luna" ? "none" : "low",
       schema: threadMetadataSchema,
       timeoutMs: args.timeoutMs ?? INFERENCE_POLICY.threadMetadata.timeoutMs,
     });

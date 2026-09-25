@@ -33,6 +33,7 @@ export const COMPACT_SHELF_HIDDEN_PAGE_HEADER_ACTIONS_CLASS =
 
 interface AppPageHeaderProps {
   center?: ReactNode;
+  centerClassName?: string;
   actions?: ReactNode;
   className?: string;
   headerRef?: Ref<HTMLElement>;
@@ -42,6 +43,7 @@ interface AppPageHeaderProps {
 
 export function AppPageHeader({
   center,
+  centerClassName,
   actions,
   className,
   headerRef,
@@ -85,7 +87,12 @@ export function AppPageHeader({
       >
         {center ? (
           <div className="flex min-w-0 flex-1 items-center">
-            <div className="flex min-w-0 max-w-full items-center gap-2">
+            <div
+              className={cn(
+                "flex min-w-0 max-w-full items-center gap-2",
+                centerClassName,
+              )}
+            >
               {center}
             </div>
           </div>

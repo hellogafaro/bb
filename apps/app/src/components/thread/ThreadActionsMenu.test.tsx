@@ -162,6 +162,7 @@ describe("ThreadActionsMenu", () => {
       const generate = await screen.findByRole("menuitem", {
         name: "Regenerate title",
       });
+      expect(generate.querySelector('[data-icon="RotateCcw"]')).not.toBeNull();
       expect(screen.getAllByRole("menuitem").indexOf(generate)).toBe(
         screen
           .getAllByRole("menuitem")

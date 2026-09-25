@@ -43,6 +43,7 @@ import {
   type CollapsedChildActivity,
   type ThreadListIndicatorState,
 } from "@bb/client-core";
+import { TextSkeleton } from "@bb/shared-ui/skeleton";
 import { getThreadDisplayTitle } from "@/lib/thread-title";
 import { getThreadRoutePath } from "@/lib/route-paths";
 import { cn } from "@bb/shared-ui/lib/utils";
@@ -306,7 +307,7 @@ function ThreadRowComponent({
 }: ThreadRowProps) {
   const [isDropdownActionsOpen, setIsDropdownActionsOpen] = useState(false);
   const [isContextActionsOpen, setIsContextActionsOpen] = useState(false);
-  const { renameThreadAsync } = useThreadActions();
+  const { renameThreadAsync, generatingTitleIds } = useThreadActions();
   const setConversationCollapsed = useSetAtom(
     getThreadConversationCollapsedAtom(thread.id),
   );
@@ -542,23 +543,23 @@ function ThreadRowComponent({
           aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
           className="absolute inset-0 rounded-md outline-none"
         />
-        <span
-          className={cn(
-            "pointer-events-none relative flex min-w-0 items-center self-stretch",
-            (!parentOptions || !hasChildren || isEditing) && "flex-1",
-          )}
-        >
+        <span className="pointer-events-none relative flex min-w-0 flex-1 items-center self-stretch">
           {isEditing ? (
             <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
               {editor}
             </span>
           ) : (
             <span
-              className="bb-thread-title"
+              className="bb-thread-title flex-1"
               title={labelTitle}
               onDoubleClick={startTitleEditing}
             >
-              <ThreadTitleMentions title={threadTitle} />
+              <TextSkeleton
+                loading={generatingTitleIds.has(thread.id)}
+                label="Generating title"
+              >
+                <ThreadTitleMentions title={threadTitle} />
+              </TextSkeleton>
             </span>
           )}
         </span>
