@@ -6,7 +6,6 @@ import {
   mcpCancelAuthResponseSchema,
   mcpGuideResponseSchema,
   mcpPromptsResponseSchema,
-  mcpProviderStatusResponseSchema,
   mcpRecordResponseSchema,
   mcpRegistrySearchResponseSchema,
   mcpRemoveServerResponseSchema,
@@ -47,9 +46,6 @@ export type McpPromptRowResult = Parsed<
 export type McpResourceRowResult = Parsed<
   typeof mcpResourcesResponseSchema
 >["resources"][number];
-export type McpProviderStatusResult = Parsed<
-  typeof mcpProviderStatusResponseSchema
->;
 export type McpPolicyMode = McpToolPolicyResult["mode"];
 export type McpAddServerArgs = McpAddServerRequest;
 
@@ -84,11 +80,6 @@ export interface McpRegistrySearchArgs extends AbortableArgs {
   query: string;
   limit?: number;
   remoteOnly?: boolean;
-}
-
-export interface McpProviderArgs extends AbortableArgs {
-  hostId?: string;
-  projectPath?: string;
 }
 
 export interface McpArea {
@@ -134,8 +125,6 @@ export interface McpArea {
   readResource(
     args: AbortableArgs & { id: string },
   ): Promise<Record<string, unknown>>;
-  providerStatus(args?: McpProviderArgs): Promise<McpProviderStatusResult>;
-  fixProviders(args?: McpProviderArgs): Promise<McpProviderStatusResult>;
 }
 
 function serverPath(server: string, suffix = ""): string {
@@ -400,28 +389,6 @@ export function createMcpArea(args: CreateSdkAreaArgs): McpArea {
         "/api/v1/mcp/resources/read",
         mcpRecordResponseSchema,
         { id: input.id },
-        input.signal,
-      ),
-    providerStatus: (input = {}) =>
-      send(
-        "GET",
-        withQuery("/api/v1/mcp/providers", {
-          hostId: input.hostId,
-          projectPath: input.projectPath,
-        }),
-        mcpProviderStatusResponseSchema,
-        undefined,
-        input.signal,
-      ),
-    fixProviders: (input = {}) =>
-      send(
-        "POST",
-        "/api/v1/mcp/providers/fix",
-        mcpProviderStatusResponseSchema,
-        {
-          hostId: input.hostId ?? null,
-          projectPath: input.projectPath ?? null,
-        },
         input.signal,
       ),
   };

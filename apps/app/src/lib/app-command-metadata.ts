@@ -4,6 +4,7 @@ import {
   THREAD_JUMP_APP_COMMAND_IDS,
   type AppCommandId,
 } from "@bb/domain";
+import { FORK_HIDE_BROWSER } from "./fork-flags";
 
 interface AppCommandMetadata {
   command: AppCommandId;
@@ -269,17 +270,17 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
   {
     label: "Browser",
     commands: [
-      command(
+      (FORK_HIDE_BROWSER ? paletteHiddenCommand : command)(
         "browser.focusLocation",
         "Focus location",
         "Focus the embedded browser address bar.",
       ),
-      command(
+      (FORK_HIDE_BROWSER ? paletteHiddenCommand : command)(
         "browser.reload",
         "Reload page",
         "Reload the active embedded browser page.",
       ),
-      command(
+      (FORK_HIDE_BROWSER ? paletteHiddenCommand : command)(
         "browser.find",
         "Find in page",
         "Open the find bar for the active embedded browser page.",

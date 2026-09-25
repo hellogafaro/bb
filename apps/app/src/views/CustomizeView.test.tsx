@@ -12,7 +12,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import {
-  makeMcpProviderStatus,
+  makeProviderGuard,
   makeMcpServer,
   makeMcpToolPolicy,
 } from "@/test/fixtures/mcp";
@@ -63,6 +63,28 @@ function renderRoutes(initialPath: string) {
         manageable: true,
         registrySkillId: null,
       },
+      {
+        id: `skill_${"b".repeat(64)}`,
+        name: "claude-synced",
+        description: "Synced from claude.ai.",
+        provider: "claude-code",
+        scope: "provider-user",
+        pluginId: null,
+        filePath: "/home/u/.claude/skills/synced/claude-synced/SKILL.md",
+        manageable: true,
+        registrySkillId: null,
+      },
+      {
+        id: `skill_${"c".repeat(64)}`,
+        name: "codex-bundled",
+        description: "Bundled with Codex.",
+        provider: "codex",
+        scope: "plugin",
+        pluginId: "codex-bundled",
+        filePath: "/home/u/.codex/plugins/cache/x/codex-bundled/SKILL.md",
+        manageable: false,
+        registrySkillId: null,
+      },
     ],
   });
   vi.spyOn(sdk.providers, "list").mockResolvedValue([]);
@@ -91,8 +113,8 @@ function renderRoutes(initialPath: string) {
     .spyOn(sdk.mcp, "listPolicies")
     .mockResolvedValue([makeMcpToolPolicy()]);
   const providerStatus = vi
-    .spyOn(sdk.mcp, "providerStatus")
-    .mockResolvedValue(makeMcpProviderStatus());
+    .spyOn(sdk.providers, "guardStatus")
+    .mockResolvedValue(makeProviderGuard());
   const fetchMock = vi.fn(async () => new Response(null, { status: 500 }));
   vi.stubGlobal("fetch", fetchMock);
   const { wrapper: QueryClientWrapper } = createQueryClientTestHarness();
@@ -151,6 +173,8 @@ describe("Customize page", () => {
     const { mcpGet, providerStatus } = renderRoutes("/customize");
     expect(await screen.findByText("bb-review")).toBeTruthy();
     await waitFor(() => expect(tabCounts()).toEqual(["Skills1", "MCPs2"]));
+    expect(screen.queryByText("claude-synced")).toBeNull();
+    expect(screen.queryByText("codex-bundled")).toBeNull();
     expect(selectedTab()).toBe("Skills1");
     expect(
       screen.getByText(

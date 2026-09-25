@@ -40,9 +40,31 @@ export const cleanProviderStatus = {
   claude: {
     settingsPath: "/home/u/.claude/settings.json",
     connectorsDisabled: true,
+    bundledSkillsDisabled: true,
+    enabledPlugins: [],
     mcpServers: [],
+    pluginsDir: "/home/u/.claude/plugins",
+    marketplaces: [],
+    knownMarketplacesFile: null,
+    installedPlugins: [],
+    skillsDir: "/home/u/.claude/skills",
+    extraSkills: [],
   },
-  codex: { configPath: "/home/u/.codex/config.toml", mcpServers: [] },
+  codex: {
+    configPath: "/home/u/.codex/config.toml",
+    features: [
+      { key: "remote_plugin", value: false },
+      { key: "plugins", value: false },
+      { key: "apps", value: false },
+      { key: "skill_mcp_dependency_install", value: false },
+    ],
+    systemSkills: [],
+    mcpServers: [],
+    pluginCacheDir: "/home/u/.codex/plugins/cache",
+    pluginCache: [],
+    skillsDir: "/home/u/.codex/skills",
+    extraSkills: [],
+  },
 };
 
 export interface McpHostFixture {
@@ -72,10 +94,18 @@ function answer(
         ok: true,
         result: { content: [{ type: "text", text: `ran ${command.name}` }] },
       };
-    case "mcp.providerStatus":
+    case "providers.guardStatus":
       return { ok: true, result: structuredClone(cleanProviderStatus) };
-    case "mcp.providerFix":
-      return { ok: true, result: structuredClone(cleanProviderStatus) };
+    case "providers.guardFix":
+      return {
+        ok: true,
+        result: {
+          status: structuredClone(cleanProviderStatus),
+          changes: [
+            'Set "disableBundledSkills": true in /home/u/.claude/settings.json',
+          ],
+        },
+      };
     default:
       return {
         ok: false,

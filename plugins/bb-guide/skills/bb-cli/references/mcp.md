@@ -42,7 +42,8 @@ server asking for input raises an `mcp-question`. Inspect them with
 
 ## Provider guard
 
-`bb mcp providers [--machine <id>] [--path <dir>]` reports MCP servers that
-Claude Code or Codex would load on their own and whether claude.ai connectors
-are disabled. `--fix` disables the connectors; remove other listed servers by
-hand.
+`bb mcp providers` is an alias of `bb provider guard [--fix] [--machine <id>]
+[--path <dir>]`. It reports every MCP server, skill, and plugin source that
+Claude Code or Codex would load on their own. `--fix` writes the lockdown
+settings for both providers and deletes plugin marketplace clones and caches;
+remove the listed MCP servers and skills by hand. See `bb guide providers`.

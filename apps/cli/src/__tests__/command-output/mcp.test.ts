@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   BbSdk,
-  McpProviderStatusResult,
+  ProviderGuardResult,
   McpServerRecordResult,
   McpToolPolicyResult,
 } from "@bb/sdk";
@@ -58,17 +58,36 @@ const policyRows: McpToolPolicyResult[] = [
   },
 ];
 
-const providerStatus: McpProviderStatusResult = {
+const providerStatus: ProviderGuardResult = {
   hostId: "host-1",
+  hostName: "local",
   status: {
     claude: {
       settingsPath: "/home/me/.claude/settings.json",
       connectorsDisabled: true,
+      bundledSkillsDisabled: true,
+      enabledPlugins: [],
       mcpServers: [],
+      pluginsDir: "/home/me/.claude/plugins",
+      marketplaces: [],
+      knownMarketplacesFile: null,
+      installedPlugins: [],
+      skillsDir: "/home/me/.claude/skills",
+      extraSkills: [],
     },
-    codex: { configPath: "/home/me/.codex/config.toml", mcpServers: [] },
+    codex: {
+      configPath: "/home/me/.codex/config.toml",
+      features: [],
+      systemSkills: [],
+      mcpServers: [],
+      pluginCacheDir: "/home/me/.codex/plugins/cache",
+      pluginCache: [],
+      skillsDir: "/home/me/.codex/skills",
+      extraSkills: [],
+    },
   },
   issues: [],
+  changes: [],
   text: "machine: host-1\nguard: ok",
 };
 
@@ -324,12 +343,12 @@ describe("bb mcp commands", () => {
     );
   });
 
-  it("checks the provider guard for the current directory unless a machine is named", async () => {
+  it("keeps bb mcp providers as an alias of bb provider guard", async () => {
     const status = vi
-      .spyOn(sdk.mcp, "providerStatus")
+      .spyOn(sdk.providers, "guardStatus")
       .mockResolvedValue(providerStatus);
     const fix = vi
-      .spyOn(sdk.mcp, "fixProviders")
+      .spyOn(sdk.providers, "guardFix")
       .mockResolvedValue(providerStatus);
 
     await runCommand(["mcp", "providers"], register);

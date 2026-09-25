@@ -66,7 +66,8 @@ BB_HOST_DAEMON_PORT only for an intentional non-default target.
   configuration, runtime, and contributed commands.
 - Read references/app-settings.md for complete app setting keys and effects.
 - Read references/mcp.md for MCP servers, tool policies, guides, approvals,
-  and the provider guard.
+  and the provider guard (`bb provider guard [--fix]`), which keeps Claude
+  Code and Codex from loading their own MCPs, skills, or plugins.
 
 ## Command habits
 

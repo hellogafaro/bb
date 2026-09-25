@@ -52,7 +52,9 @@ Skills (.bb/skills/):
   skills with the same name within one source collide and are both dropped.
 
   Use `bb skill list` to inspect installed and discovered skills and copy the
-  opaque skill ID. `bb skill show|files <skill-id>` reads that exact skill;
+  opaque skill ID. `--scope <scope>` and `--provider <id>` (`bb` for BB-owned
+  skills) filter the list and repeat; the Customize page shows
+  `--scope bb-user --scope bb-project --scope plugin --provider bb`. `bb skill show|files <skill-id>` reads that exact skill;
   `bb skill show <skill-id> --json` returns the revision required by `bb skill
   update <skill-id> --revision <sha256>`. `bb skill delete <skill-id>` and
   update are restricted to editable, user-owned skills. These workspace-scoped

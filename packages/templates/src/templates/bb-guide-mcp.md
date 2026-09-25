@@ -74,10 +74,9 @@ Provider guard:
 
   bb mcp providers [--fix] [--machine <id>] [--path <dir>] [--json]
 
-Checks Claude Code settings, `~/.claude.json`, the project's `.mcp.json`, and
-Codex `config.toml` on a machine (default: the primary machine; the current
-directory is the project unless `--machine` is given). `--fix` sets
-`"disableClaudeAiConnectors": true`; remove other listed servers by hand.
+An alias of `bb provider guard`, which checks that Claude Code and Codex load
+only BB's MCPs, skills, and plugins. See `bb guide providers` for what it
+reports and what `--fix` writes.
 
 How agents use MCP:
 

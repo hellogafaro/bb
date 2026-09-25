@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ProviderGuardResult } from "@bb/sdk";
 import {
   setupCommandOutputTestEnvironment,
   collectLogPayloads,
@@ -7,13 +8,94 @@ import {
   stubServerApi,
 } from "../helpers/command-output-harness.js";
 import type { CommandRegistrar } from "../helpers/command-output-harness.js";
+import { createCliBbSdk } from "../../client.js";
 import { registerProviderCommands } from "../../commands/provider.js";
+
+const createSdkMock = vi.mocked(createCliBbSdk);
+const createRealSdk = createSdkMock.getMockImplementation();
+
+const guardResult: ProviderGuardResult = {
+  hostId: "host-1",
+  hostName: "local",
+  status: {
+    claude: {
+      settingsPath: "/home/me/.claude/settings.json",
+      connectorsDisabled: true,
+      bundledSkillsDisabled: false,
+      enabledPlugins: [],
+      mcpServers: [],
+      pluginsDir: "/home/me/.claude/plugins",
+      marketplaces: [],
+      knownMarketplacesFile: null,
+      installedPlugins: [],
+      skillsDir: "/home/me/.claude/skills",
+      extraSkills: [],
+    },
+    codex: {
+      configPath: "/home/me/.codex/config.toml",
+      features: [],
+      systemSkills: [],
+      mcpServers: [],
+      pluginCacheDir: "/home/me/.codex/plugins/cache",
+      pluginCache: [],
+      skillsDir: "/home/me/.codex/skills",
+      extraSkills: [],
+    },
+  },
+  issues: [
+    {
+      provider: "claude",
+      message: "Claude Code bundled skills are enabled",
+      fixable: true,
+    },
+  ],
+  changes: [],
+  text: "machine: host-1\nguard: 1 issue(s)",
+};
 
 describe("bb provider command output", () => {
   setupCommandOutputTestEnvironment();
 
   const register: CommandRegistrar = (program) =>
     registerProviderCommands(program, () => "http://server");
+
+  afterEach(() => {
+    if (createRealSdk) createSdkMock.mockImplementation(createRealSdk);
+  });
+
+  it("bb provider guard checks the current directory unless a machine is named", async () => {
+    if (!createRealSdk) throw new Error("createCliBbSdk mock has no default");
+    const sdk = createRealSdk("http://server");
+    createSdkMock.mockImplementation(() => sdk);
+    const status = vi
+      .spyOn(sdk.providers, "guardStatus")
+      .mockResolvedValue(guardResult);
+    const fix = vi
+      .spyOn(sdk.providers, "guardFix")
+      .mockResolvedValue(guardResult);
+
+    await runCommand(["provider", "guard"], register);
+    await runCommand(
+      ["provider", "guard", "--fix", "--machine", "host-2"],
+      register,
+    );
+    await runCommand(
+      ["provider", "guard", "--machine", "host-2", "--path", "/repo", "--json"],
+      register,
+    );
+
+    expect(status).toHaveBeenNthCalledWith(1, { projectPath: process.cwd() });
+    expect(fix).toHaveBeenCalledWith({ hostId: "host-2" });
+    expect(status).toHaveBeenNthCalledWith(2, {
+      hostId: "host-2",
+      projectPath: "/repo",
+    });
+    expect(collectLogPayloads(vi.mocked(console.log))).toEqual([
+      guardResult.text,
+      guardResult.text,
+      JSON.stringify(guardResult, null, 2),
+    ]);
+  });
 
   it("bb provider list renders the shared borderless table", async () => {
     const get = vi.fn(async () => [{ id: "openai", displayName: "OpenAI" }]);

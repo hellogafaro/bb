@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { globalSearchQueryKeyPrefix } from "@/hooks/queries/global-search-query-key";
+import { isForkHiddenSettingsPath } from "@/lib/fork-settings";
 import {
   CORE_SETTINGS_CATALOG,
   CORE_SETTINGS_PAGES,
@@ -488,7 +489,9 @@ export function CommandPalette({
       [
         ...recentThreads,
         ...recentProjects,
-        ...recentSettings,
+        ...recentSettings.filter(
+          (entry) => !isForkHiddenSettingsPath(entry.destination),
+        ),
         ...recentMachines,
       ].map((entry) => [entry.id, entry]),
     );
@@ -525,7 +528,9 @@ export function CommandPalette({
           ...(page?.results ?? []),
         ].filter(
           (entry) =>
-            entry.kind !== "setting" || settingAvailable(entry.availability),
+            entry.kind !== "setting" ||
+            (settingAvailable(entry.availability) &&
+              !isForkHiddenSettingsPath(entry.destination)),
         );
         const entries =
           kind === "actions"
@@ -552,7 +557,12 @@ export function CommandPalette({
                 }),
               ]
             : kind === "settings"
-              ? [...serverEntries, ...localSettings]
+              ? [
+                  ...serverEntries,
+                  ...localSettings.filter(
+                    (entry) => !isForkHiddenSettingsPath(entry.destination),
+                  ),
+                ]
               : serverEntries;
         const byId = new Map<string, SearchEntry>();
         for (const entry of entries) {

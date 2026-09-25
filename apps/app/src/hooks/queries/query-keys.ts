@@ -76,7 +76,7 @@ const MCP_SERVERS_QUERY_KEY = "mcpServers";
 const MCP_SERVER_QUERY_KEY = "mcpServer";
 const MCP_SERVER_TOOLS_QUERY_KEY = "mcpServerTools";
 const MCP_TOOL_POLICIES_QUERY_KEY = "mcpToolPolicies";
-const MCP_PROVIDER_STATUS_QUERY_KEY = "mcpProviderStatus";
+const PROVIDER_GUARD_QUERY_KEY = "providerGuard";
 const PLUGIN_LIST_QUERY_KEY = "plugin-list";
 const PLUGIN_SETTINGS_VIEW_QUERY_KEY = "plugin-settings-view";
 const PLUGIN_CONTRIBUTIONS_QUERY_KEY = "plugin-contributions";
@@ -1248,8 +1248,8 @@ export function allMcpToolPoliciesQueryKeyPrefix() {
   return [MCP_TOOL_POLICIES_QUERY_KEY] as const;
 }
 
-export function mcpProviderStatusQueryKey() {
-  return [MCP_PROVIDER_STATUS_QUERY_KEY] as const;
+export function providerGuardQueryKey() {
+  return [PROVIDER_GUARD_QUERY_KEY] as const;
 }
 
 export function pluginListQueryKey(enabled: boolean) {

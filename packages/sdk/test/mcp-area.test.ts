@@ -119,19 +119,6 @@ describe("sdk.mcp", () => {
       "POST /api/v1/mcp/tools/call": {
         content: [{ type: "text", text: "ok" }],
       },
-      "POST /api/v1/mcp/providers/fix": {
-        hostId: "host_1",
-        status: {
-          claude: {
-            settingsPath: "/h/.claude/settings.json",
-            connectorsDisabled: true,
-            mcpServers: [],
-          },
-          codex: { configPath: "/h/.codex/config.toml", mcpServers: [] },
-        },
-        issues: [],
-        text: "guard: ok",
-      },
     });
     await sdk.mcp.add({
       kind: "http",
@@ -147,9 +134,6 @@ describe("sdk.mcp", () => {
         threadId: "thr_1",
       }),
     ).resolves.toEqual({ content: [{ type: "text", text: "ok" }] });
-    await expect(sdk.mcp.fixProviders()).resolves.toMatchObject({
-      text: "guard: ok",
-    });
     expect(requests.map((item) => [item.method, item.url, item.body])).toEqual([
       [
         "POST",
@@ -174,11 +158,6 @@ describe("sdk.mcp", () => {
         "POST",
         "/api/v1/mcp/tools/call",
         { id: "mcpt_0123456789", args: { q: "x" }, threadId: "thr_1" },
-      ],
-      [
-        "POST",
-        "/api/v1/mcp/providers/fix",
-        { hostId: null, projectPath: null },
       ],
     ]);
   });

@@ -176,6 +176,38 @@ const WORKSPACE_DIFF_AVAILABLE_RESULT: JsonObject = {
   },
 };
 
+const PROVIDER_GUARD_STATUS_FIXTURE = {
+  claude: {
+    settingsPath: "/h/.claude/settings.json",
+    connectorsDisabled: true,
+    bundledSkillsDisabled: true,
+    enabledPlugins: [],
+    mcpServers: [],
+    pluginsDir: "/h/.claude/plugins",
+    marketplaces: ["claude-plugins-official"],
+    knownMarketplacesFile: "/h/.claude/plugins/known_marketplaces.json",
+    installedPlugins: [],
+    skillsDir: "/h/.claude/skills",
+    extraSkills: [],
+  },
+  codex: {
+    configPath: "/h/.codex/config.toml",
+    features: [{ key: "apps", value: false }],
+    systemSkills: [
+      {
+        name: "imagegen",
+        path: "/h/.codex/skills/.system/imagegen/SKILL.md",
+        disabled: true,
+      },
+    ],
+    mcpServers: [{ name: "x", file: "/h/.codex/config.toml", scope: "user" }],
+    pluginCacheDir: "/h/.codex/plugins/cache",
+    pluginCache: [],
+    skillsDir: "/h/.codex/skills",
+    extraSkills: [],
+  },
+};
+
 const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   "environment.hook.run": {},
   "environment.hook.cancel": { status: "terminated" },
@@ -536,27 +568,10 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   "mcp.stdio.callTool": { content: [{ type: "text", text: "ok" }] },
   "mcp.stdio.getPrompt": { messages: [] },
   "mcp.stdio.readResource": { contents: [] },
-  "mcp.providerStatus": {
-    claude: {
-      settingsPath: "/h/.claude/settings.json",
-      connectorsDisabled: true,
-      mcpServers: [],
-    },
-    codex: {
-      configPath: "/h/.codex/config.toml",
-      mcpServers: [{ name: "x", file: "/h/.codex/config.toml", scope: "user" }],
-    },
-  },
-  "mcp.providerFix": {
-    claude: {
-      settingsPath: "/h/.claude/settings.json",
-      connectorsDisabled: true,
-      mcpServers: [],
-    },
-    codex: {
-      configPath: "/h/.codex/config.toml",
-      mcpServers: [{ name: "x", file: "/h/.codex/config.toml", scope: "user" }],
-    },
+  "providers.guardStatus": PROVIDER_GUARD_STATUS_FIXTURE,
+  "providers.guardFix": {
+    status: PROVIDER_GUARD_STATUS_FIXTURE,
+    changes: ["Set enabledPlugins: {} in /h/.claude/settings.json"],
   },
 };
 
@@ -1174,7 +1189,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(218);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(219);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

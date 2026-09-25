@@ -14,6 +14,10 @@ Providers are agent backends (e.g., codex, claude-code). Each supports different
   bb provider models [providerId] [--machine <id-or-name> | --environment <id>]
                                           List models for a provider
 
+  bb provider guard [--fix] [--machine <id>] [--path <dir>] [--json]
+                                          Check that providers load only BB's
+                                          MCPs, skills, and plugins
+
 Use these before spawning threads if you are unsure which provider or model to use.
 `--host` is an alias for `--machine`. Machine and environment selectors are
 mutually exclusive because an environment already selects its machine. When no
@@ -43,6 +47,39 @@ root thread so remote session policy cannot start a child. For Claude Code, bb
 removes the native Task tool. The preferences default off and apply
 when a provider thread is started, resumed, or forked; they do not modify the
 provider's global configuration.
+
+Provider guard
+
+BB is the only source of MCPs, skills, and plugins for Claude Code and Codex.
+bb provider guard reads the provider files on a machine (default: the primary
+machine; the current directory is the project for `.mcp.json` unless
+`--machine` is given) and lists every other source. `bb mcp providers` is an
+alias, and the MCPs page shows the same issues with a Fix button.
+
+Claude Code: `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`) must set
+`"disableClaudeAiConnectors": true`, `"disableBundledSkills": true`, and
+`"enabledPlugins": {}`. The guard also reports `mcpServers` in `~/.claude.json`
+(top level and per project) and the project's `.mcp.json`, marketplace clones
+under `~/.claude/plugins/marketplaces/` and `known_marketplaces.json`, and
+skill folders in `~/.claude/skills` other than bb-cli.
+
+Codex: `~/.codex/config.toml` (or `$CODEX_HOME`) must set `remote_plugin`,
+`plugins`, `apps`, and `skill_mcp_dependency_install` to false under
+`[features]` and disable every bundled skill in `skills/.system/` with a
+`[[skills.config]]` entry whose `path` is that skill's `SKILL.md` and
+`enabled = false`. The guard also reports `[mcp_servers.*]` tables, the plugin
+cache in `plugins/cache/`, and skill folders in `skills/` other than bb-cli
+and `.system`.
+
+`--fix` merges the Claude Code settings (other keys, such as theme, are kept),
+edits only those Codex lines (everything else in config.toml is kept), deletes
+the Claude Code marketplace clones and known_marketplaces.json only while
+`~/.claude/plugins/installed_plugins.json` is absent or lists no plugins, and
+deletes the Codex plugin cache. Running it again changes nothing. It never
+deletes skills or MCP servers; the output says which entries to remove by hand.
+The SDK equivalents are `bb.sdk.providers.guardStatus({ hostId, projectPath })`
+and `bb.sdk.providers.guardFix(...)`, over `GET /api/v1/providers/guard` and
+`POST /api/v1/providers/guard/fix`.
 
 Provider failure recovery
 

@@ -574,36 +574,6 @@ describe("MCP routes", () => {
     });
   });
 
-  it("reports and fixes the provider MCP guard on the primary machine", async () => {
-    await withTestHarness(async (harness) => {
-      const host = mcpHostFixture(harness);
-      const status = await json(
-        await request(harness, "/providers?projectPath=/work/app"),
-      );
-      expect(status).toMatchObject({
-        hostId: host.hostId,
-        issues: [],
-        status: { claude: { connectorsDisabled: true } },
-      });
-      expect(status.text).toContain("guard: ok");
-      expect(host.requests.at(-1)?.command).toEqual({
-        type: "mcp.providerStatus",
-        projectPath: "/work/app",
-      });
-      const fixed = await json(
-        await request(harness, "/providers/fix", {
-          method: "POST",
-          body: { hostId: null, projectPath: null },
-        }),
-      );
-      expect(fixed.text).toContain('Set "disableClaudeAiConnectors": true');
-      expect(host.requests.at(-1)?.command).toEqual({
-        type: "mcp.providerFix",
-        projectPath: null,
-      });
-    });
-  });
-
   it("walks OAuth from needs-auth through the callback to a ready server", async () => {
     const oauth = stubOAuthServer();
     await withTestHarness(async (harness) => {

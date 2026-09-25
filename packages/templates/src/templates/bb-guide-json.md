@@ -106,7 +106,7 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb plugin list --json
     {plugins: [{id, version, enabled, status, source, rootDir}]}    (wrapped in .plugins)
 
-  bb skill list --json
+  bb skill list [--scope <scope>]... [--provider <id>]... --json
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
 
   bb mcp list [--details] --json
@@ -142,8 +142,11 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb mcp policy <server> [tool] [mode] --json
     [{tool, risk, mode, policy}]    (bare array; one object when a tool is named)
 
-  bb mcp providers --json
-    {hostId, status: {claude: {settingsPath, connectorsDisabled, mcpServers}, codex: {configPath, mcpServers}}, issues: [{provider, message}], text}
+  bb provider guard [--fix] --json
+    {hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}
+
+  bb mcp providers [--fix] --json
+    {hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}
 
   bb marketplace list --json
     bare array

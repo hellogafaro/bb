@@ -14,30 +14,6 @@ export const mcpStdioCatalogSchema = z
   .strict();
 export type McpStdioCatalog = z.infer<typeof mcpStdioCatalogSchema>;
 
-const mcpProviderEntrySchema = z
-  .object({ name: z.string(), file: z.string(), scope: z.string() })
-  .strict();
-export type McpProviderEntry = z.infer<typeof mcpProviderEntrySchema>;
-
-export const mcpProviderStatusSchema = z
-  .object({
-    claude: z
-      .object({
-        settingsPath: z.string(),
-        connectorsDisabled: z.boolean(),
-        mcpServers: z.array(mcpProviderEntrySchema),
-      })
-      .strict(),
-    codex: z
-      .object({
-        configPath: z.string(),
-        mcpServers: z.array(mcpProviderEntrySchema),
-      })
-      .strict(),
-  })
-  .strict();
-export type McpProviderStatus = z.infer<typeof mcpProviderStatusSchema>;
-
 export const mcpCommandSchemas = {
   "mcp.stdio.start": z
     .object({
@@ -79,18 +55,6 @@ export const mcpCommandSchemas = {
       uri: mcpPathSchema,
     })
     .strict(),
-  "mcp.providerStatus": z
-    .object({
-      type: z.literal("mcp.providerStatus"),
-      projectPath: mcpPathSchema.nullable(),
-    })
-    .strict(),
-  "mcp.providerFix": z
-    .object({
-      type: z.literal("mcp.providerFix"),
-      projectPath: mcpPathSchema.nullable(),
-    })
-    .strict(),
 } as const;
 
 export const mcpResultSchemas = {
@@ -100,8 +64,6 @@ export const mcpResultSchemas = {
   "mcp.stdio.callTool": mcpJsonRecordSchema,
   "mcp.stdio.getPrompt": mcpJsonRecordSchema,
   "mcp.stdio.readResource": mcpJsonRecordSchema,
-  "mcp.providerStatus": mcpProviderStatusSchema,
-  "mcp.providerFix": mcpProviderStatusSchema,
 } as const;
 
 export const mcpCatalogChangedMessageSchema = z

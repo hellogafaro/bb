@@ -17,6 +17,7 @@ import { SkillsLibrary } from "@/components/tools/SkillsLibrary";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 import { useMcpServers } from "@/hooks/queries/mcp-queries";
 import { useProjectSkills } from "@/hooks/queries/skills-queries";
+import { customizeSkills } from "@/lib/fork-customize-skills";
 import { getRootComposeRoutePath } from "@/lib/route-paths";
 
 export function CustomizeView() {
@@ -64,7 +65,9 @@ function CustomizeCollection({ tab }: { tab: CustomizeTab }) {
           {
             id: "skills",
             label: "Skills",
-            count: skillsQuery.data?.skills.length,
+            count: skillsQuery.data
+              ? customizeSkills(skillsQuery.data.skills).length
+              : undefined,
           },
           { id: "mcps", label: "MCPs", count: serversQuery.data?.length },
         ]}

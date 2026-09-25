@@ -1,4 +1,5 @@
 import type { IconName } from "@bb/shared-ui/icon";
+import { isForkHiddenSettingsSection } from "@/lib/fork-settings";
 import { SETTINGS_ROUTE_PATH, getSettingsRoutePath } from "@/lib/route-paths";
 
 export const SETTINGS_NAV_SECTIONS = [
@@ -32,7 +33,10 @@ export type SettingsNavSection = (typeof SETTINGS_NAV_SECTIONS)[number];
 export type SettingsSectionId = SettingsNavSection["id"];
 
 export function isSettingsSectionId(value: string): value is SettingsSectionId {
-  return SETTINGS_NAV_SECTIONS.some((section) => section.id === value);
+  return (
+    SETTINGS_NAV_SECTIONS.some((section) => section.id === value) &&
+    !isForkHiddenSettingsSection(value)
+  );
 }
 
 export function getSettingsSectionRoutePath(

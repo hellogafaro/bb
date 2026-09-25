@@ -30,7 +30,12 @@ import { registerPluginRoutes } from "./routes/plugins.js";
 import { registerPluginCatalogRoutes } from "./routes/plugin-catalog.js";
 import { registerSkillsRegistryRoutes } from "./routes/skills-registry.js";
 import { registerMcpRoutes } from "./routes/mcp.js";
+import { registerProviderGuardRoutes } from "./routes/provider-guard.js";
 import { createMcpService } from "./services/mcp/create-mcp-service.js";
+import {
+  createProviderGuardService,
+  type ProviderGuardService,
+} from "./services/providers/provider-guard.js";
 import { setMcpService } from "./services/mcp/mcp-service-registry.js";
 import type { McpService } from "./services/mcp/service.js";
 import {
@@ -144,6 +149,7 @@ interface ServerApp {
   pluginService: PluginService;
   pluginCatalogService: PluginCatalogService;
   mcpService: McpService;
+  providerGuard: ProviderGuardService;
   serverMove: ServerMoveCoordinator;
 }
 
@@ -688,6 +694,7 @@ export function createApp(
   });
   const mcpService = createMcpService(deps);
   setMcpService(mcpService);
+  const providerGuard = createProviderGuardService(deps);
   setPluginThreadEventEmitter(pluginService.events);
   // Bridge the dispatch pipeline to this service's hooks. Until this runs
   // there are no hooks, which is exactly the zero-overhead path.
@@ -781,6 +788,7 @@ export function createApp(
   registerPluginRoutes(publicApi, deps, pluginService, upgradeWebSocket);
   registerSkillsRegistryRoutes(publicApi, deps);
   registerMcpRoutes(publicApi, deps, mcpService);
+  registerProviderGuardRoutes(publicApi, providerGuard);
   registerServerMoveRoutes(publicApi, deps, serverMove);
   app.route("/api/v1", publicApi);
   app.use("/api/v1/*", () => {
@@ -925,6 +933,7 @@ export function createApp(
     pluginService,
     pluginCatalogService,
     mcpService,
+    providerGuard,
     serverMove,
   };
 }

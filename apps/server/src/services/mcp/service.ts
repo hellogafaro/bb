@@ -6,9 +6,7 @@ import type { McpChangeKind } from "@bb/domain";
 import type {
   McpCatalogChangedMessage,
   McpConnectionChangedMessage,
-  McpProviderStatus,
 } from "@bb/host-daemon-contract";
-import type { McpProviderStatusResponse } from "@bb/server-contract";
 import type { PendingInteractionLifecycle } from "../interactions/pending-interactions.js";
 import { McpApprovals } from "./approvals.js";
 import { validateCallArgs } from "./call-card.js";
@@ -19,7 +17,6 @@ import { DeferredOAuthCredentialStore, McpOAuthProvider } from "./oauth.js";
 import { mcpOAuthCredentialFile } from "./oauth-credentials.js";
 import { oauthCallbackUrl } from "./oauth-redirect.js";
 import { classifyTool, effectivePolicy } from "./policy.js";
-import { formatProviderStatus, providerGuardIssues } from "./provider-guard.js";
 import { McpServerAdmin } from "./server-admin.js";
 import { clearMcpService } from "./mcp-service-registry.js";
 import { McpStore } from "./store.js";
@@ -33,14 +30,6 @@ export interface McpServiceLogger {
   warn(message: string): void;
 }
 
-export interface McpProviderGuardClient {
-  read(
-    hostId: string,
-    projectPath: string | null,
-    fix: boolean,
-  ): Promise<McpProviderStatus>;
-}
-
 export interface McpServiceOptions {
   db: DbConnection;
   dataDir: string;
@@ -51,7 +40,6 @@ export interface McpServiceOptions {
     "requestCoreInteraction"
   >;
   stdioHost: McpStdioHost;
-  providerGuard: McpProviderGuardClient;
   primaryHostId(): string | null;
   oauthRedirectBase(): Promise<string>;
   registryUrl: string;
@@ -175,22 +163,6 @@ export class McpService {
 
   start(): void {
     this.scheduleWarmup(WARMUP_ON_START_MS);
-    void this.providerStatus({
-      hostId: null,
-      projectPath: null,
-      fix: false,
-    }).then(
-      ({ hostId, issues }) => {
-        for (const issue of issues)
-          this.options.logger.warn(
-            `[mcp] provider MCP guard on ${hostId}: ${issue.message}`,
-          );
-      },
-      (error: unknown) =>
-        this.options.logger.info(
-          `[mcp] provider MCP guard unavailable: ${errorText(error)}`,
-        ),
-    );
   }
 
   scheduleWarmup(delayMs: number): void {
@@ -288,27 +260,5 @@ export class McpService {
     return this.approvals.runCall(tool.sourceId, scope, () =>
       this.gateway.call(id, args, scope.signal),
     );
-  }
-
-  async providerStatus(input: {
-    hostId: string | null;
-    projectPath: string | null;
-    fix: boolean;
-  }): Promise<McpProviderStatusResponse> {
-    const hostId = input.hostId ?? this.options.primaryHostId();
-    if (!hostId)
-      throw new Error("No host available for the provider MCP guard");
-    const status = await this.options.providerGuard.read(
-      hostId,
-      input.projectPath,
-      input.fix,
-    );
-    const issues = providerGuardIssues(status);
-    return {
-      hostId,
-      status,
-      issues,
-      text: formatProviderStatus({ hostId, status, issues }, input.fix),
-    };
   }
 }

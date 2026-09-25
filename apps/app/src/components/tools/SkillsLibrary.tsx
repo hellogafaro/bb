@@ -64,6 +64,7 @@ import {
   useSkillFiles,
 } from "@/hooks/queries/skills-queries";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
+import { customizeSkills } from "@/lib/fork-customize-skills";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 const EMPTY_SKILLS: readonly SkillSummary[] = [];
@@ -174,7 +175,8 @@ export function SkillsLibrary() {
   const [registrySearch, setRegistrySearch] = useState("");
   const [registryPage, setRegistryPage] = useState(0);
   const skillsQuery = useProjectSkills(PERSONAL_PROJECT_ID);
-  const skills = skillsQuery.data?.skills ?? EMPTY_SKILLS;
+  const listedSkills = skillsQuery.data?.skills ?? EMPTY_SKILLS;
+  const skills = useMemo(() => customizeSkills(listedSkills), [listedSkills]);
   const hasError = skillsQuery.isError && skillsQuery.data === undefined;
   const isLoading =
     skillsQuery.isFetching && skillsQuery.data === undefined && !hasError;

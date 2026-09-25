@@ -10,6 +10,7 @@ import { action } from "../action.js";
 import { CliUsageError } from "../cli-usage-error.js";
 import { createCliBbSdk } from "../client.js";
 import { resolveContextThreadId } from "../context-env.js";
+import { addProviderGuardCommand } from "./provider.js";
 import { collectOption, outputJson, type JsonOutputOptions } from "./helpers.js";
 
 const POLICY_MODES: readonly McpPolicyMode[] = [
@@ -43,12 +44,6 @@ interface McpHeaderOptions extends JsonOutputOptions {
 
 interface McpGuideOptions extends JsonOutputOptions {
   clear?: boolean;
-}
-
-interface McpProvidersOptions extends JsonOutputOptions {
-  fix?: boolean;
-  machine?: string;
-  path?: string;
 }
 
 function usageError(message: string, hint: string | null = null): never {
@@ -500,30 +495,7 @@ export function registerMcpCommands(
       ),
     );
 
-  mcp
-    .command("providers")
-    .description("Check that Claude Code and Codex load no MCPs of their own")
-    .option("--fix", "Disable claude.ai connectors in Claude Code settings")
-    .option("--machine <id>", "Machine to check (default: the primary machine)")
-    .option(
-      "--path <dir>",
-      "Project directory whose .mcp.json to check (default: the current directory without --machine)",
-    )
-    .option("--json", "Print machine-readable JSON output")
-    .action(
-      action(async (opts: McpProvidersOptions) => {
-        const sdk = createCliBbSdk(getUrl());
-        const target = {
-          ...(opts.machine ? { hostId: opts.machine } : {}),
-          ...(opts.path || !opts.machine
-            ? { projectPath: opts.path ?? process.cwd() }
-            : {}),
-        };
-        const result = opts.fix
-          ? await sdk.mcp.fixProviders(target)
-          : await sdk.mcp.providerStatus(target);
-        if (outputJson(opts, result)) return;
-        console.log(result.text);
-      }),
-    );
+  addProviderGuardCommand(mcp.command("providers"), getUrl).description(
+    "Alias for bb provider guard",
+  );
 }

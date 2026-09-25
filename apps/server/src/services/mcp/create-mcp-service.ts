@@ -7,8 +7,6 @@ import { OFFICIAL_REGISTRY } from "./registry.js";
 import { McpService } from "./service.js";
 import { daemonStdioHost } from "./stdio-host.js";
 
-const PROVIDER_GUARD_TIMEOUT_MS = 15_000;
-
 type McpServiceDeps = Pick<
   AppDeps,
   | "config"
@@ -97,15 +95,5 @@ export function createMcpService(deps: McpServiceDeps): McpService {
           command: { type: "mcp.stdio.readResource", ...input },
         }),
     }),
-    providerGuard: {
-      read: (hostId, projectPath, fix) =>
-        call(deps, {
-          hostId,
-          timeoutMs: PROVIDER_GUARD_TIMEOUT_MS,
-          command: fix
-            ? { type: "mcp.providerFix", projectPath }
-            : { type: "mcp.providerStatus", projectPath },
-        }),
-    },
   });
 }

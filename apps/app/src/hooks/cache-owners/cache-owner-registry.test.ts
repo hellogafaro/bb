@@ -96,11 +96,11 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
     "allMcpServerQueryKeyPrefix",
     "allMcpServerToolsQueryKeyPrefix",
     "allMcpToolPoliciesQueryKeyPrefix",
-    "mcpProviderStatusQueryKey",
     "mcpServerQueryKey",
     "mcpServersQueryKey",
     "mcpServerToolsQueryKey",
     "mcpToolPoliciesQueryKey",
+    "providerGuardQueryKey",
   ],
   "hooks/cache-owners/mutation-cache-effects.ts": [
     "hostsQueryKey",

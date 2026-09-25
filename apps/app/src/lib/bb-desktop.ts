@@ -3,6 +3,7 @@ import type {
   BbDesktopBrowserApi,
   BbDesktopWindowState,
 } from "@bb/desktop-contract";
+import { FORK_HIDE_BROWSER } from "./fork-flags";
 
 export const MACOS_TRAFFIC_LIGHT_RESERVE_OFFSET_CLASS = "left-[88px]";
 export const MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS = "pl-[108px]";
@@ -52,5 +53,5 @@ export function getDesktopBrowserApi(): BbDesktopBrowserApi | null {
 }
 
 export function isDesktopBrowserAvailable(): boolean {
-  return getDesktopBrowserApi() !== null;
+  return !FORK_HIDE_BROWSER && getDesktopBrowserApi() !== null;
 }

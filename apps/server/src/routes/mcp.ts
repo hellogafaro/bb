@@ -4,7 +4,6 @@ import {
   mcpAddServerRequestSchema,
   mcpCallRequestSchema,
   mcpGetPromptRequestSchema,
-  mcpProviderFixRequestSchema,
   mcpReadResourceRequestSchema,
   mcpSetEnabledRequestSchema,
   mcpSetGuideRequestSchema,
@@ -272,25 +271,6 @@ export function registerMcpRoutes(
       await runtime(() =>
         mcp.gateway.readResource(body.id, context.req.raw.signal),
       ),
-    );
-  });
-
-  app.get("/mcp/providers", async (context) => {
-    return context.json(
-      await runtime(() =>
-        mcp.providerStatus({
-          hostId: optionalQuery(context, "hostId"),
-          projectPath: optionalQuery(context, "projectPath"),
-          fix: false,
-        }),
-      ),
-    );
-  });
-
-  app.post("/mcp/providers/fix", async (context) => {
-    const body = await parseBody(context, mcpProviderFixRequestSchema);
-    return context.json(
-      await runtime(() => mcp.providerStatus({ ...body, fix: true })),
     );
   });
 

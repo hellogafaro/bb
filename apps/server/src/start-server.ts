@@ -234,6 +234,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     mcpService,
     pluginCatalogService,
     pluginService,
+    providerGuard,
     serverMove,
   } = createApp(
     {
@@ -351,6 +352,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     }
     pluginCatalogService.startPeriodicRefresh();
     mcpService.start();
+    providerGuard.start();
     sweepInterval = setInterval(() => {
       if (!isServerMoveFrozen(db)) {
         void runPeriodicSweeps(sweepDeps);

@@ -8,6 +8,10 @@ import {
 } from "./server-move.js";
 import { mcpCommandSchemas, mcpResultSchemas } from "./mcp.js";
 import {
+  providerGuardCommandSchemas,
+  providerGuardResultSchemas,
+} from "./provider-guard.js";
+import {
   availableModelSchema,
   discoveredWorkspacePropertiesSchema,
   dynamicToolSchema,
@@ -2024,19 +2028,19 @@ export const hostDaemonCommandRegistry = {
     flushEventsBeforeResult: false,
     envLane: null,
   }),
-  "mcp.providerStatus": defineHostDaemonCommandDescriptor({
-    type: "mcp.providerStatus",
-    schema: mcpCommandSchemas["mcp.providerStatus"],
-    resultSchema: mcpResultSchemas["mcp.providerStatus"],
+  "providers.guardStatus": defineHostDaemonCommandDescriptor({
+    type: "providers.guardStatus",
+    schema: providerGuardCommandSchemas["providers.guardStatus"],
+    resultSchema: providerGuardResultSchemas["providers.guardStatus"],
     transport: "onlineRpc",
     retryable: true,
     flushEventsBeforeResult: false,
     envLane: null,
   }),
-  "mcp.providerFix": defineHostDaemonCommandDescriptor({
-    type: "mcp.providerFix",
-    schema: mcpCommandSchemas["mcp.providerFix"],
-    resultSchema: mcpResultSchemas["mcp.providerFix"],
+  "providers.guardFix": defineHostDaemonCommandDescriptor({
+    type: "providers.guardFix",
+    schema: providerGuardCommandSchemas["providers.guardFix"],
+    resultSchema: providerGuardResultSchemas["providers.guardFix"],
     transport: "onlineRpc",
     retryable: false,
     flushEventsBeforeResult: false,

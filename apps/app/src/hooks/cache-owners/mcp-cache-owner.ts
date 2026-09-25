@@ -1,20 +1,20 @@
 import type { QueryKey } from "@tanstack/react-query";
 import type { McpChangeKind } from "@bb/domain";
 import type {
-  McpProviderStatusResponse,
   McpServer,
   McpToolPolicy,
+  ProviderGuardResponse,
 } from "@bb/server-contract";
 import type { QueryClientArg } from "../cache-effect-types";
 import {
   allMcpServerQueryKeyPrefix,
   allMcpServerToolsQueryKeyPrefix,
   allMcpToolPoliciesQueryKeyPrefix,
-  mcpProviderStatusQueryKey,
   mcpServerQueryKey,
   mcpServersQueryKey,
   mcpServerToolsQueryKey,
   mcpToolPoliciesQueryKey,
+  providerGuardQueryKey,
 } from "../queries/query-keys";
 import { invalidateQueryKeys } from "./cache-effect-utils";
 
@@ -112,9 +112,9 @@ export function applyMcpToolPolicy({
   );
 }
 
-export function applyMcpProviderStatus({
+export function applyProviderGuard({
   queryClient,
-  status,
-}: QueryClientArg & { status: McpProviderStatusResponse }): void {
-  queryClient.setQueryData(mcpProviderStatusQueryKey(), status);
+  guard,
+}: QueryClientArg & { guard: ProviderGuardResponse }): void {
+  queryClient.setQueryData(providerGuardQueryKey(), guard);
 }

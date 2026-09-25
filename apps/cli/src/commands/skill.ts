@@ -1,9 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { Command } from "commander";
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
-import type { RegistryRanking, RegistrySkill } from "@bb/server-contract";
+import {
+  skillScopeSchema,
+  type RegistryRanking,
+  type RegistrySkill,
+  type SkillScope,
+} from "@bb/server-contract";
 import type { SkillsRegistryArea } from "@bb/sdk";
 import { action } from "../action.js";
+import { CliUsageError } from "../cli-usage-error.js";
 import { createCliBbSdk } from "../client.js";
 import { resolveMachineId, selectMachines } from "./machine.js";
 import type { ContextSnapshot } from "../context-env.js";
@@ -18,6 +24,11 @@ import {
 interface SkillWorkspaceOptions extends JsonOutputOptions {
   environment?: string;
   project?: string;
+}
+
+interface SkillListOptions extends SkillWorkspaceOptions {
+  scope: string[];
+  provider: string[];
 }
 
 interface SkillDeleteOptions extends SkillWorkspaceOptions {
@@ -56,6 +67,18 @@ function parseNonnegativeInteger(value: string | undefined, fallback: number) {
     throw new Error(`Expected a nonnegative integer, received "${value}".`);
   }
   return parsed;
+}
+
+function parseSkillScopes(values: readonly string[]): SkillScope[] {
+  return values.map((value) => {
+    const parsed = skillScopeSchema.safeParse(value);
+    if (parsed.success) return parsed.data;
+    throw new CliUsageError({
+      code: "invalid_value",
+      hint: `Use one of: ${skillScopeSchema.options.join(", ")}`,
+      message: `Unknown skill scope: ${value}`,
+    });
+  });
 }
 
 function addWorkspaceOptions(command: Command): Command {
@@ -170,12 +193,34 @@ export function registerSkillCommands(
 
   addWorkspaceOptions(skill.command("list"))
     .description("List installed and discovered skills")
+    .option(
+      "--scope <scope>",
+      `Only list skills in this scope; repeatable (${skillScopeSchema.options.join(", ")})`,
+      collectOption,
+      [],
+    )
+    .option(
+      "--provider <id>",
+      "Only list skills from this provider; bb matches BB-owned skills; repeatable",
+      collectOption,
+      [],
+    )
     .action(
-      action(async (options: SkillWorkspaceOptions) => {
-        const result = await createCliBbSdk(getUrl()).skills.list({
+      action(async (options: SkillListOptions) => {
+        const scopes = parseSkillScopes(options.scope);
+        const listed = await createCliBbSdk(getUrl()).skills.list({
           projectId: projectId(options, getContext()),
           environmentId: environmentId(options),
         });
+        const result = {
+          ...listed,
+          skills: listed.skills.filter(
+            (entry) =>
+              (scopes.length === 0 || scopes.includes(entry.scope)) &&
+              (options.provider.length === 0 ||
+                options.provider.includes(entry.provider ?? "bb")),
+          ),
+        };
         if (outputJson(options, result)) return;
         console.log(
           renderBorderlessTable(

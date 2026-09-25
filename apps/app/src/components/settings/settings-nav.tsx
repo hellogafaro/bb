@@ -3,6 +3,7 @@ import { matchPath, useLocation } from "react-router-dom";
 import { useHostDaemon, useLocalHostDaemonAccess } from "@/hooks/useHostDaemon";
 import { usePluginSlots, type PluginFileOpenerSlot } from "@/lib/plugin-slots";
 import { usePluginList } from "@/hooks/queries/plugin-settings-queries";
+import { isForkHiddenSettingsSection } from "@/lib/fork-settings";
 import {
   SETTINGS_MACHINE_ROUTE_PATH,
   SETTINGS_PLUGIN_ROUTE_PATH,
@@ -38,10 +39,11 @@ export function useSettingsNavSections(
     () =>
       SETTINGS_NAV_SECTIONS.filter(
         (section) =>
-          section.id !== "files" ||
-          hasDaemon ||
-          accessState !== "unavailable" ||
-          fileOpeners.length > 0,
+          !isForkHiddenSettingsSection(section.id) &&
+          (section.id !== "files" ||
+            hasDaemon ||
+            accessState !== "unavailable" ||
+            fileOpeners.length > 0),
       ),
     [accessState, fileOpeners.length, hasDaemon],
   );

@@ -22,6 +22,13 @@ interface ProviderModelsCommandOptions {
   selectedModel?: string;
 }
 
+export interface ProviderGuardCommandOptions {
+  fix?: boolean;
+  json?: boolean;
+  machine?: string;
+  path?: string;
+}
+
 interface IncludeSelectedOnlyModelArgs {
   models: AvailableModel[];
   selectedOnlyModels: AvailableModel[];
@@ -35,6 +42,39 @@ function addProviderRoutingOptions(command: Command): Command {
     .option(
       "--environment <id>",
       "Environment whose machine providers should be used",
+    );
+}
+
+export function addProviderGuardCommand(
+  command: Command,
+  getUrl: () => string,
+): Command {
+  return command
+    .option(
+      "--fix",
+      "Write the lockdown settings and delete plugin marketplace clones and caches",
+    )
+    .option("--machine <id>", "Machine to check (default: the primary machine)")
+    .option(
+      "--path <dir>",
+      "Project directory whose .mcp.json to check (default: the current directory without --machine)",
+    )
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (opts: ProviderGuardCommandOptions) => {
+        const sdk = createCliBbSdk(getUrl());
+        const target = {
+          ...(opts.machine ? { hostId: opts.machine } : {}),
+          ...(opts.path || !opts.machine
+            ? { projectPath: opts.path ?? process.cwd() }
+            : {}),
+        };
+        const result = opts.fix
+          ? await sdk.providers.guardFix(target)
+          : await sdk.providers.guardStatus(target);
+        if (outputJson(opts, result)) return;
+        console.log(result.text);
+      }),
     );
 }
 
@@ -98,6 +138,10 @@ export function registerProviderCommands(
         },
       ),
     );
+
+  addProviderGuardCommand(provider.command("guard"), getUrl).description(
+    "Check that Claude Code and Codex load only BB's MCPs, skills, and plugins",
+  );
 }
 
 function includeSelectedOnlyModel(

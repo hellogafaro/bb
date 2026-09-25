@@ -1,7 +1,7 @@
 import type {
-  McpProviderStatusResponse,
   McpServer,
   McpToolPolicy,
+  ProviderGuardResponse,
 } from "@bb/server-contract";
 
 export function makeMcpServer(overrides: Partial<McpServer> = {}): McpServer {
@@ -44,20 +44,39 @@ export function makeMcpToolPolicy(
   };
 }
 
-export function makeMcpProviderStatus(
-  overrides: Partial<McpProviderStatusResponse> = {},
-): McpProviderStatusResponse {
+export function makeProviderGuard(
+  overrides: Partial<ProviderGuardResponse> = {},
+): ProviderGuardResponse {
   return {
     hostId: "host_local",
+    hostName: "studio",
     status: {
       claude: {
         settingsPath: "/home/u/.claude/settings.json",
         connectorsDisabled: true,
+        bundledSkillsDisabled: true,
+        enabledPlugins: [],
         mcpServers: [],
+        pluginsDir: "/home/u/.claude/plugins",
+        marketplaces: [],
+        knownMarketplacesFile: null,
+        installedPlugins: [],
+        skillsDir: "/home/u/.claude/skills",
+        extraSkills: [],
       },
-      codex: { configPath: "/home/u/.codex/config.toml", mcpServers: [] },
+      codex: {
+        configPath: "/home/u/.codex/config.toml",
+        features: [],
+        systemSkills: [],
+        mcpServers: [],
+        pluginCacheDir: "/home/u/.codex/plugins/cache",
+        pluginCache: [],
+        skillsDir: "/home/u/.codex/skills",
+        extraSkills: [],
+      },
     },
     issues: [],
+    changes: [],
     text: "",
     ...overrides,
   };

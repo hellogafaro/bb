@@ -47,6 +47,68 @@ describe("bb skill commands", () => {
     );
   });
 
+  it("filters the skill list by scope and provider", async () => {
+    const skill = (name: string, scope: string, provider: string | null) => ({
+      id: `skill_${String(name.length).padStart(64, "0")}`,
+      name,
+      description: null,
+      provider,
+      scope,
+      pluginId: null,
+      filePath: `/skills/${name}/SKILL.md`,
+      manageable: false,
+      registrySkillId: null,
+    });
+    const get = vi.fn(async () => ({
+      skills: [
+        skill("mine", "bb-user", null),
+        skill("repo", "bb-project", null),
+        skill("workflows", "plugin", null),
+        skill("imagegen", "plugin", "codex"),
+        skill("synced", "provider-user", "claude-code"),
+      ],
+    }));
+    stubServerApi({ "v1.projects.:id.skills.$get": get });
+
+    await runCommand(
+      [
+        "skill",
+        "list",
+        "--scope",
+        "bb-user",
+        "--scope",
+        "bb-project",
+        "--scope",
+        "plugin",
+        "--provider",
+        "bb",
+        "--json",
+      ],
+      register,
+    );
+
+    const output = JSON.parse(
+      collectLogLines(vi.mocked(console.log)).join("\n"),
+    ) as { skills: { name: string }[] };
+    expect(output.skills.map((entry) => entry.name)).toEqual([
+      "mine",
+      "repo",
+      "workflows",
+    ]);
+  });
+
+  it("rejects an unknown skill scope", async () => {
+    stubServerApi({
+      "v1.projects.:id.skills.$get": vi.fn(async () => ({ skills: [] })),
+    });
+    await expect(
+      runCommand(["skill", "list", "--scope", "nope"], register),
+    ).rejects.toThrow("process.exit:1");
+    expect(collectLogLines(vi.mocked(console.error)).join("\n")).toContain(
+      "Unknown skill scope: nope",
+    );
+  });
+
   it("installs only by canonical registry identity", async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(

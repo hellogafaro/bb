@@ -1,3 +1,4 @@
+import { FORK_EXCLUDED_PLUGIN_SKILLS } from "../../fork-config.js";
 import type { LoggedWorkSessionDeps } from "../../types.js";
 import { getPluginSkillRootContributions } from "../plugins/plugin-agent-contributions.js";
 import {
@@ -17,7 +18,7 @@ export function resolveSkillCatalog(
   deps: Pick<LoggedWorkSessionDeps, "config" | "logger" | "skillTreeRegistry">,
   args: ResolveSkillCatalogSourcesArgs = {},
 ): ResolvedSkillCatalogEntry[] {
-  return resolveSkillCatalogEntries(deps.logger, {
+  const entries = resolveSkillCatalogEntries(deps.logger, {
     additionalSkillsRootPaths: [...deps.config.inheritedSkillsRootPaths],
     dataDir: deps.config.dataDir,
     pluginSkillRoots: getPluginSkillRootContributions(),
@@ -32,4 +33,9 @@ export function resolveSkillCatalog(
       : {}),
     skillTreeRegistry: deps.skillTreeRegistry,
   });
+  return entries.filter(
+    ({ provenance, runtimeSource }) =>
+      provenance.kind !== "plugin" ||
+      !FORK_EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name),
+  );
 }

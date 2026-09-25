@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { McpServer } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
 import {
-  mcpProviderStatusQueryKey,
   mcpServerQueryKey,
   mcpServersQueryKey,
   mcpServerToolsQueryKey,
   mcpToolPoliciesQueryKey,
+  providerGuardQueryKey,
 } from "@/hooks/queries/query-keys";
 
 export type McpServerListRow = Pick<
@@ -24,7 +24,7 @@ export type McpServerListRow = Pick<
   | "toolCount"
 >;
 
-const PROVIDER_STATUS_STALE_TIME_MS = 60_000;
+const PROVIDER_GUARD_STALE_TIME_MS = 60_000;
 
 function toMcpServerListRows(servers: McpServer[]): McpServerListRow[] {
   return servers.map((server) => ({
@@ -72,11 +72,11 @@ export function useMcpToolPolicies(serverId: string) {
   });
 }
 
-export function useMcpProviderStatus() {
+export function useProviderGuard() {
   return useQuery({
-    queryKey: mcpProviderStatusQueryKey(),
-    queryFn: ({ signal }) => sdk.mcp.providerStatus({ signal }),
-    staleTime: PROVIDER_STATUS_STALE_TIME_MS,
+    queryKey: providerGuardQueryKey(),
+    queryFn: ({ signal }) => sdk.providers.guardStatus({ signal }),
+    staleTime: PROVIDER_GUARD_STALE_TIME_MS,
     retry: false,
   });
 }

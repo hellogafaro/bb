@@ -44,7 +44,9 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "mcp policy":
     "[{tool, risk, mode, policy}]    (bare array; one object when a tool is named)",
   "mcp providers":
-    "{hostId, status: {claude: {settingsPath, connectorsDisabled, mcpServers}, codex: {configPath, mcpServers}}, issues: [{provider, message}], text}",
+    "{hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}",
+  "provider guard":
+    "{hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}",
 };
 
 export function jsonShapeHelp(commandPath: string): string | null {

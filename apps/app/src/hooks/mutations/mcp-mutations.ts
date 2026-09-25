@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { McpToolPolicy } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
 import {
-  applyMcpProviderStatus,
   applyMcpToolPolicy,
+  applyProviderGuard,
   invalidateMcpServerMutationQueries,
   invalidateMcpServerRuntimeQueries,
 } from "../cache-owners/mcp-cache-owner";
@@ -109,14 +109,14 @@ export function useSetMcpToolPolicy() {
   });
 }
 
-export function useFixMcpProviders() {
+export function useFixProviderGuard() {
   const queryClient = useQueryClient();
   return useMutation({
     meta: { showErrorToast: false },
     mutationFn: ({ hostId }: { hostId: string }) =>
-      sdk.mcp.fixProviders({ hostId }),
-    onSuccess: (status) => {
-      applyMcpProviderStatus({ queryClient, status });
+      sdk.providers.guardFix({ hostId }),
+    onSuccess: (guard) => {
+      applyProviderGuard({ queryClient, guard });
     },
   });
 }

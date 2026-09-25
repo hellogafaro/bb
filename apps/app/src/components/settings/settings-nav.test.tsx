@@ -61,6 +61,18 @@ describe("useSettingsNavState", () => {
     expect(result.current.hasUnknownSection).toBe(false);
   });
 
+  it("omits the fork-hidden sections and treats their routes as unknown", () => {
+    for (const section of ["browser", "marketplaces", "community", "updates"]) {
+      const { result } = renderHook(() => useSettingsNavState(), {
+        wrapper: wrapperFor(`/settings/${section}`),
+      });
+      expect(result.current.hasUnknownSection).toBe(true);
+      expect(result.current.sections.map((entry) => entry.id)).not.toContain(
+        section,
+      );
+    }
+  });
+
   it("shows the Machines section", () => {
     const { result } = renderHook(() => useSettingsNavState(), {
       wrapper: wrapperFor("/settings/machines"),

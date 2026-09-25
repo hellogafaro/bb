@@ -90,10 +90,10 @@ import { userExecutableProcessOptions } from "./user-executable-env.js";
 import type { ServerMoveService } from "./server-move/service.js";
 import type { McpStdioManager } from "./command-handlers/mcp-stdio.js";
 import {
-  fixProviderMcpStatus,
+  fixProviderGuard,
   providerGuardPaths,
-  readProviderMcpStatus,
-} from "./command-handlers/mcp-provider-guard.js";
+  readProviderGuardStatus,
+} from "./command-handlers/provider-guard.js";
 
 const THREAD_STOP_ACTIVE_TURN_WAIT_MS = 5_000;
 
@@ -780,10 +780,13 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
     requireMcpStdio(options).getPrompt(command),
   "mcp.stdio.readResource": (command, options) =>
     requireMcpStdio(options).readResource(command),
-  "mcp.providerStatus": async (command) =>
-    readProviderMcpStatus(providerGuardPaths(process.env), command.projectPath),
-  "mcp.providerFix": async (command) =>
-    fixProviderMcpStatus(providerGuardPaths(process.env), command.projectPath),
+  "providers.guardStatus": async (command) =>
+    readProviderGuardStatus(
+      providerGuardPaths(process.env),
+      command.projectPath,
+    ),
+  "providers.guardFix": async (command) =>
+    fixProviderGuard(providerGuardPaths(process.env), command.projectPath),
 };
 
 export async function dispatchCommand<
