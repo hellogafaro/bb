@@ -1,11 +1,11 @@
 import {
+  compareByCreatedAtDescending,
   hasThreadListWorkingActivity,
   isThreadRead,
   threadListIndicatorStateForThread,
 } from "@bb/client-core";
 import type { ThreadListEntry } from "@bb/domain";
 import type { Snooze } from "../../shared/snoozes.js";
-import { getThreadLastActivityAt } from "./relative-time.js";
 
 export const STATUS_SECTIONS = [
   { id: "waiting", label: "Waiting" },
@@ -19,7 +19,7 @@ export type StatusSectionId = (typeof STATUS_SECTIONS)[number]["id"];
 export interface StatusFamily {
   root: ThreadListEntry;
   threads: ThreadListEntry[];
-  lastActivityAt: number;
+  latestAttentionAt: number;
   snooze: Snooze | null;
 }
 
@@ -120,7 +120,9 @@ export function buildStatusSections(
     sections.get(sectionForFamily(family, snoozed, draftThreadIds))!.push({
       root,
       threads: family,
-      lastActivityAt: Math.max(...family.map(getThreadLastActivityAt)),
+      latestAttentionAt: Math.max(
+        ...family.map((thread) => thread.latestAttentionAt),
+      ),
       snooze: snoozed ? snooze : null,
     });
   }
@@ -129,7 +131,9 @@ export function buildStatusSections(
       families.sort((left, right) => left.snooze!.until - right.snooze!.until);
     } else {
       families.sort(
-        (left, right) => right.lastActivityAt - left.lastActivityAt,
+        (left, right) =>
+          right.latestAttentionAt - left.latestAttentionAt ||
+          compareByCreatedAtDescending(left.root, right.root),
       );
     }
   }

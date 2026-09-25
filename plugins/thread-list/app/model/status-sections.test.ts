@@ -103,7 +103,7 @@ describe("status sections", () => {
     expect(rootIds(sections, "working")).toEqual([parent.id]);
   });
 
-  it("lists newest activity first", () => {
+  it("lists newest attention first", () => {
     const older = thread({
       updatedAt: 50,
       latestAttentionAt: 50,
@@ -121,6 +121,72 @@ describe("status sections", () => {
       1_000,
     );
     expect(rootIds(sections, "done")).toEqual([newer.id, older.id]);
+  });
+
+  it.each(["done", "working"] as const)(
+    "keeps %s families in place when root or child metadata changes",
+    (section) => {
+      const older = thread({
+        updatedAt: 50,
+        latestAttentionAt: 50,
+        lastReadAt: 50,
+        ...(section === "working"
+          ? ({ status: "active", runtimeStatus: "active" } as const)
+          : {}),
+      });
+      const newer = thread({
+        updatedAt: 90,
+        latestAttentionAt: 90,
+        lastReadAt: 90,
+        ...(section === "working"
+          ? ({ status: "active", runtimeStatus: "active" } as const)
+          : {}),
+      });
+      const child = thread({
+        parentThreadId: older.id,
+        updatedAt: 40,
+        latestAttentionAt: 40,
+        lastReadAt: 40,
+      });
+      const order = (entries: (typeof older)[]) =>
+        rootIds(
+          buildStatusSections(entries, NO_SNOOZES, NO_DRAFTS, 1_000),
+          section,
+        );
+      expect(order([older, newer, child])).toEqual([newer.id, older.id]);
+      const renamedRoot = { ...older, title: "New root title", updatedAt: 200 };
+      const renamedChild = {
+        ...child,
+        title: "New child title",
+        updatedAt: 300,
+      };
+      expect(order([renamedRoot, newer, child])).toEqual([newer.id, older.id]);
+      expect(order([older, newer, renamedChild])).toEqual([newer.id, older.id]);
+      expect(
+        order([
+          older,
+          newer,
+          { ...child, latestAttentionAt: 400, lastReadAt: 400 },
+        ]),
+      ).toEqual([older.id, newer.id]);
+    },
+  );
+
+  it("uses creation time and thread id to break equal attention timestamps", () => {
+    const older = thread({ id: "thr_z", createdAt: 10 });
+    const laterA = thread({ id: "thr_a", createdAt: 20 });
+    const laterB = thread({ id: "thr_b", createdAt: 20 });
+    expect(
+      rootIds(
+        buildStatusSections(
+          [laterB, older, laterA],
+          NO_SNOOZES,
+          NO_DRAFTS,
+          1_000,
+        ),
+        "done",
+      ),
+    ).toEqual([laterA.id, laterB.id, older.id]);
   });
 
   it("hides a quiet thread until its snooze ends or it gets new attention", () => {
