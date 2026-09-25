@@ -40,7 +40,6 @@ import {
   ThreadDeleteDialog,
   type ThreadDeleteDialogTarget,
 } from "@/components/dialogs/ThreadDeleteDialog";
-import { ArchivedThreadToastDescription } from "@/components/thread/ArchivedThreadToastDescription";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
 import { getRootComposeRoutePath, getThreadRoutePath } from "@/lib/route-paths";
@@ -319,9 +318,7 @@ export function ThreadActionsProvider({
         (response) => {
           const viewedThreadId = viewedThreadIdRef.current;
           const archiveDisplacedThread = viewedThreadId === thread.id;
-          const closeResult = closePanesForThreads(
-            response.archivedThreadIds,
-          );
+          const closeResult = closePanesForThreads(response.archivedThreadIds);
           const archiveDestination =
             archiveDisplacedThread &&
             closeResult.removedAny &&
@@ -336,54 +333,42 @@ export function ThreadActionsProvider({
               navigate(getRootComposeRoutePath());
             }
           };
-          syncNavigationAfterClose(
-            closeResult,
-            navigateAwayIfArchived,
-          );
+          syncNavigationAfterClose(closeResult, navigateAwayIfArchived);
           if (archiveDestination !== null) {
             viewedRouteRef.current = archiveDestination;
           }
           const toastId = `thread-archived-${thread.id}`;
-          appToast.success("Thread Archived", {
-            description: (
-              <ArchivedThreadToastDescription
-                archivedThreadCount={response.archivedThreadIds.length}
-                threadTitle={getThreadDisplayTitle(thread)}
-                onOpenThread={() => {
-                  navigate(
-                    getThreadRoutePath({
-                      projectId: thread.projectId,
-                      threadId: thread.id,
-                    }),
-                  );
-                  appToast.dismiss(toastId);
-                }}
-              />
-            ),
-            cancel: {
-              label: "Undo",
-              onClick: () => {
-                const shouldReturnToThread =
-                  archiveDestination !== null &&
-                  viewedRouteRef.current === archiveDestination;
-                for (const threadId of [
-                  ...response.archivedThreadIds,
-                ].reverse()) {
-                  unarchiveMutate({ id: threadId });
-                }
-                if (shouldReturnToThread) {
-                  navigate(
-                    getThreadRoutePath({
-                      projectId: thread.projectId,
-                      threadId: thread.id,
-                    }),
-                  );
-                }
+          const archivedThreadCount = response.archivedThreadIds.length;
+          appToast.success(
+            archivedThreadCount === 1
+              ? "Thread archived"
+              : `${archivedThreadCount} threads archived`,
+            {
+              cancel: {
+                label: "Undo",
+                onClick: () => {
+                  const shouldReturnToThread =
+                    archiveDestination !== null &&
+                    viewedRouteRef.current === archiveDestination;
+                  for (const threadId of [
+                    ...response.archivedThreadIds,
+                  ].reverse()) {
+                    unarchiveMutate({ id: threadId });
+                  }
+                  if (shouldReturnToThread) {
+                    navigate(
+                      getThreadRoutePath({
+                        projectId: thread.projectId,
+                        threadId: thread.id,
+                      }),
+                    );
+                  }
+                },
               },
+              duration: ARCHIVE_UNDO_TOAST_DURATION_MS,
+              id: toastId,
             },
-            duration: ARCHIVE_UNDO_TOAST_DURATION_MS,
-            id: toastId,
-          });
+          );
         },
         (error: unknown) => {
           showMutationErrorToast({

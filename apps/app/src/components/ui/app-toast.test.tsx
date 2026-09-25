@@ -43,7 +43,7 @@ describe("AppToastContent", () => {
           </button>
         }
         notificationId="notification-2"
-        title="Thread Archived"
+        title="Thread archived"
         tone="success"
       />,
     );
@@ -67,7 +67,7 @@ describe("AppToastContent", () => {
 
   it("neutralizes Sonner margins on custom toast icons", () => {
     const { container } = render(
-      <AppToastContent title="Thread Archived" tone="success" />,
+      <AppToastContent title="Thread archived" tone="success" />,
     );
 
     expect(

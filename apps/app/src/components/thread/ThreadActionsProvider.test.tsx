@@ -175,7 +175,7 @@ describe("ThreadActionsProvider archive feedback", () => {
     });
     expect(appToast.message).not.toHaveBeenCalled();
     expect(vi.mocked(appToast.success).mock.calls[0]?.[0]).toBe(
-      "Thread Archived",
+      "2 threads archived",
     );
     const toastOptions = vi.mocked(appToast.success).mock.calls[0]?.[1];
     expect(toastOptions).toMatchObject({
@@ -183,7 +183,7 @@ describe("ThreadActionsProvider archive feedback", () => {
       duration: 10_000,
       id: "thread-archived-thr_parent",
     });
-    expect(toastOptions?.description).toBeDefined();
+    expect(toastOptions?.description).toBeUndefined();
     expect(toastOptions?.action).toBeUndefined();
 
     const undoAction = toastOptions?.cancel;

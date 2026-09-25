@@ -1,6 +1,5 @@
 import { appToast, AppToastContent, type AppToastTone } from "./app-toast";
 import { AppToastCommitDescription } from "./app-toast-descriptions";
-import { ArchivedThreadToastDescription } from "../thread/ArchivedThreadToastDescription";
 import { pluginNotificationDescription } from "../plugin/PluginNotificationDescription";
 import { Button } from "@bb/shared-ui/button";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
@@ -206,17 +205,10 @@ const TOAST_EXAMPLES: readonly ToastExample[] = [
     group: "Thread actions",
     label: "archive success",
     source: "ThreadActionsProvider",
-    usage: ["Thread archive succeeds", "Thread name opens the archived thread"],
+    usage: ["Thread archive succeeds"],
     current: {
       tone: "success",
-      title: "Thread Archived",
-      description: (
-        <ArchivedThreadToastDescription
-          archivedThreadCount={1}
-          threadTitle="Audit recurring permission failures"
-          onOpenThread={() => undefined}
-        />
-      ),
+      title: "Thread archived",
       secondaryActionLabel: "Undo",
     },
   },
@@ -225,20 +217,10 @@ const TOAST_EXAMPLES: readonly ToastExample[] = [
     group: "Thread actions",
     label: "archive with children",
     source: "ThreadActionsProvider",
-    usage: [
-      "Archive includes child threads",
-      "Long titles truncate to one line",
-    ],
+    usage: ["Archive includes child threads"],
     current: {
       tone: "success",
-      title: "Thread Archived",
-      description: (
-        <ArchivedThreadToastDescription
-          archivedThreadCount={3}
-          threadTitle="Investigate intermittent provider CLI health check timeouts on managed environments"
-          onOpenThread={() => undefined}
-        />
-      ),
+      title: "3 threads archived",
       secondaryActionLabel: "Undo",
     },
   },

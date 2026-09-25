@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { CompactViewportOverrideProvider } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { AppToaster } from "./AppToaster";
-import { ArchivedThreadToastDescription } from "./thread/ArchivedThreadToastDescription";
 import { AppToastContent } from "./ui/app-toast";
 
 afterEach(() => {
@@ -238,69 +237,6 @@ describe("AppToaster", () => {
       expect(toastElement.style.getPropertyValue("--swipe-amount-x")).toBe(
         "22px",
       );
-    });
-  });
-
-  it("keeps an archive title tappable but does not open it during a swipe", async () => {
-    const onDismiss = vi.fn();
-    const onOpenThread = vi.fn();
-    render(
-      <CompactViewportOverrideProvider isCompactViewport>
-        <AppToaster />
-      </CompactViewportOverrideProvider>,
-    );
-    act(() => {
-      toast.custom(
-        (id) => (
-          <AppToastContent
-            cancel={{ label: "Undo", onClick: vi.fn() }}
-            description={
-              <ArchivedThreadToastDescription
-                archivedThreadCount={1}
-                onOpenThread={onOpenThread}
-                threadTitle="Archive swipe target"
-              />
-            }
-            id={id}
-            title="Thread Archived"
-            tone="success"
-          />
-        ),
-        {
-          className: "bb-app-toast",
-          duration: Number.POSITIVE_INFINITY,
-          id: "archive-swipe-test",
-          onDismiss,
-        },
-      );
-    });
-    await waitFor(() => {
-      expect(document.querySelectorAll("[data-sonner-toast]")).toHaveLength(1);
-    });
-    const toastElement = document.querySelector<HTMLElement>(
-      "[data-sonner-toast]",
-    );
-    const threadTitle = document.querySelector<HTMLButtonElement>(
-      'button[title="Archive swipe target"]',
-    );
-    expect(toastElement).not.toBeNull();
-    expect(threadTitle).not.toBeNull();
-    if (toastElement === null || threadTitle === null) {
-      return;
-    }
-
-    swipeToast(toastElement, 1, 120, 100, 120, 100, threadTitle);
-    fireEvent.click(threadTitle);
-    expect(onOpenThread).toHaveBeenCalledOnce();
-    onOpenThread.mockClear();
-
-    swipeToast(toastElement, 2, 120, 100, 200, 100, threadTitle);
-    fireEvent.click(threadTitle);
-
-    expect(onDismiss).toHaveBeenCalledOnce();
-    expect(onOpenThread).not.toHaveBeenCalled();
-    await waitFor(() => {
-      expect(document.querySelector("[data-sonner-toast]")).toBeNull();
     });
   });
 
