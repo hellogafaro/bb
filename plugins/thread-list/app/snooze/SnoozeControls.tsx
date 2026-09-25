@@ -77,7 +77,7 @@ function SnoozeMenuItems({
       ))}
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => state.openCustom(threadId)}>
-        Custom…
+        Custom
       </DropdownMenuItem>
     </>
   );
