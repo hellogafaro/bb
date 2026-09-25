@@ -74,10 +74,13 @@ describe("bb provider command output", () => {
     const fix = vi
       .spyOn(sdk.providers, "guardFix")
       .mockResolvedValue(guardResult);
+    vi.spyOn(sdk.hosts, "list").mockResolvedValue([
+      { id: "host-2", name: "pro", status: "connected", type: "persistent" },
+    ] as never);
 
     await runCommand(["provider", "guard"], register);
     await runCommand(
-      ["provider", "guard", "--fix", "--machine", "host-2"],
+      ["provider", "guard", "--fix", "--machine", "pro"],
       register,
     );
     await runCommand(

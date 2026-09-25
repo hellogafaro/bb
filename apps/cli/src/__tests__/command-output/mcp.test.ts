@@ -351,6 +351,9 @@ describe("bb mcp commands", () => {
     const fix = vi
       .spyOn(sdk.providers, "guardFix")
       .mockResolvedValue(providerStatus);
+    vi.spyOn(sdk.hosts, "list").mockResolvedValue([
+      { id: "host-2", name: "pro", status: "connected", type: "persistent" },
+    ] as never);
 
     await runCommand(["mcp", "providers"], register);
     await runCommand(["mcp", "providers", "--machine", "host-2"], register);

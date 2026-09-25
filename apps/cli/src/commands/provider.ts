@@ -5,7 +5,10 @@ import { action } from "../action.js";
 import { createCliBbSdk } from "../client.js";
 import { columnWidths, printBorderlessTable } from "../table.js";
 import { outputJson } from "./helpers.js";
-import { resolveMachineEnvironmentRouting } from "./machine.js";
+import {
+  resolveMachineEnvironmentRouting,
+  resolveMachineHostId,
+} from "./machine.js";
 
 interface ProviderListCommandOptions {
   environment?: string;
@@ -54,7 +57,10 @@ export function addProviderGuardCommand(
       "--fix",
       "Write the lockdown settings and delete plugin marketplace clones and caches",
     )
-    .option("--machine <id>", "Machine to check (default: the primary machine)")
+    .option(
+      "--machine <id-or-name>",
+      "Machine to check (default: the primary machine)",
+    )
     .option(
       "--path <dir>",
       "Project directory whose .mcp.json to check (default: the current directory without --machine)",
@@ -63,8 +69,11 @@ export function addProviderGuardCommand(
     .action(
       action(async (opts: ProviderGuardCommandOptions) => {
         const sdk = createCliBbSdk(getUrl());
+        const hostId = opts.machine
+          ? await resolveMachineHostId({ serverUrl: getUrl(), target: opts.machine })
+          : null;
         const target = {
-          ...(opts.machine ? { hostId: opts.machine } : {}),
+          ...(hostId ? { hostId } : {}),
           ...(opts.path || !opts.machine
             ? { projectPath: opts.path ?? process.cwd() }
             : {}),

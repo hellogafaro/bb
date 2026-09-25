@@ -14,7 +14,7 @@ Providers are agent backends (e.g., codex, claude-code). Each supports different
   bb provider models [providerId] [--machine <id-or-name> | --environment <id>]
                                           List models for a provider
 
-  bb provider guard [--fix] [--machine <id>] [--path <dir>] [--json]
+  bb provider guard [--fix] [--machine <id-or-name>] [--path <dir>] [--json]
                                           Check that providers load only BB's
                                           MCPs, skills, and plugins
 

@@ -42,7 +42,7 @@ server asking for input raises an `mcp-question`. Inspect them with
 
 ## Provider guard
 
-`bb mcp providers` is an alias of `bb provider guard [--fix] [--machine <id>]
+`bb mcp providers` is an alias of `bb provider guard [--fix] [--machine <id-or-name>]
 [--path <dir>]`. It reports every MCP server, skill, and plugin source that
 Claude Code or Codex would load on their own. `--fix` writes the lockdown
 settings for both providers and deletes plugin marketplace clones and caches;
