@@ -260,7 +260,7 @@ function main() {
     console.log("\ncommit: nothing new to commit");
     return;
   }
-  git(agentsRoot, ["commit", "--quiet", "-m", COMMIT_MESSAGE, "--", ...slugs]);
+  git(agentsRoot, ["commit", "--quiet", "-m", COMMIT_MESSAGE]);
   console.log(
     `\ncommit: "${COMMIT_MESSAGE}" (${staged.split("\n").length} files) in ${agentsRoot}`,
   );
