@@ -12,19 +12,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sdk } from "@/lib/sdk";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { makeMcpProviderStatus, makeMcpServer } from "@/test/fixtures/mcp";
-import { CREATE_MCP_PROMPT, MCP_CREATE_TEMPLATES } from "./mcp-prompts";
 import { McpsView } from "./McpsView";
 
 function LocationProbe() {
   const location = useLocation();
-  return (
-    <>
-      <span data-testid="pathname">{location.pathname}</span>
-      <span data-testid="location-state">
-        {JSON.stringify(location.state ?? null)}
-      </span>
-    </>
-  );
+  return <span data-testid="pathname">{location.pathname}</span>;
 }
 
 function renderList({
@@ -49,10 +41,6 @@ function renderList({
     </MemoryRouter>,
   );
   return harness;
-}
-
-function locationState(): unknown {
-  return JSON.parse(screen.getByTestId("location-state").textContent ?? "null");
 }
 
 afterEach(() => {
@@ -109,7 +97,7 @@ describe("McpsView", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Search MCPs" }), {
       target: { value: "nothing" },
     });
-    expect(screen.getByText("No MCPs match these filters.")).toBeTruthy();
+    expect(screen.getByText("No MCPs match this search.")).toBeTruthy();
   });
 
   it("toggles a server without opening it", async () => {
@@ -129,34 +117,12 @@ describe("McpsView", () => {
     expect(screen.getByTestId("pathname").textContent).toBe("/customize/mcps");
   });
 
-  it("opens compose with the create prompt from New MCP", async () => {
+  it("renders only a search box without filter, sort, or create controls", async () => {
     renderList();
-    fireEvent.click(await screen.findByRole("button", { name: "New MCP" }));
-    expect(screen.getByTestId("pathname").textContent).toBe("/");
-    expect(locationState()).toEqual({
-      focusPrompt: true,
-      initialPrompt: CREATE_MCP_PROMPT,
-      replaceInitialPrompt: true,
-    });
-  });
-
-  it("prefills a New MCP template prompt", async () => {
-    renderList();
-    fireEvent.pointerDown(
-      await screen.findByRole("button", { name: "New MCP options" }),
-      { button: 0 },
-    );
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Notion/ }));
-    expect(locationState()).toEqual({
-      focusPrompt: true,
-      initialPrompt: MCP_CREATE_TEMPLATES[0]?.prompt,
-      replaceInitialPrompt: true,
-    });
-    expect(MCP_CREATE_TEMPLATES.map((template) => template.label)).toEqual([
-      "Notion",
-      "GitHub",
-      "Slack",
-    ]);
+    await screen.findByText("GitHub");
+    expect(screen.getByRole("textbox", { name: "Search MCPs" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /filter|sort/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /New MCP/ })).toBeNull();
   });
 
   it("shows the provider guard and disables claude.ai connectors", async () => {

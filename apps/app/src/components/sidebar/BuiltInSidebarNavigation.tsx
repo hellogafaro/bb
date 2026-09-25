@@ -53,7 +53,7 @@ export function BuiltInSidebarNavigation({
       id: "skills",
       content: (
         <ResourceNavSidebarItem
-          icon="SlidersHorizontal"
+          icon="Puzzle"
           title="Customize"
           routePath={skillsRoutePath}
           onNavigate={onNavigate}

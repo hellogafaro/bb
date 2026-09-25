@@ -18,7 +18,6 @@ interface CustomizeBreadcrumb {
 
 const CUSTOMIZE_MCPS_ROUTE_PATH = `${CUSTOMIZE_ROUTE_PATH}/mcps`;
 const CUSTOMIZE_MCP_DETAIL_ROUTE_PATH = `${CUSTOMIZE_MCPS_ROUTE_PATH}/:mcpRef`;
-const CUSTOMIZE_CRUMB = { label: "Customize", to: CUSTOMIZE_ROUTE_PATH };
 
 export function getCustomizeRoutePath(tab: CustomizeTab): string {
   return tab === "skills" ? CUSTOMIZE_ROUTE_PATH : CUSTOMIZE_MCPS_ROUTE_PATH;
@@ -56,21 +55,19 @@ export function resolveCustomizeBreadcrumbs(
 ): CustomizeBreadcrumb[] | null {
   if (!FORK_CUSTOMIZE_PAGE) return null;
   const route = resolveCustomizeRoute(pathname);
-  if (route?.tab === "skills") return [CUSTOMIZE_CRUMB, { label: "Skills" }];
+  if (route?.tab === "skills") return [{ label: "Customize" }];
   if (route?.tab === "mcps") {
     return route.mcpRef === null
-      ? [CUSTOMIZE_CRUMB, { label: "MCPs" }]
+      ? [{ label: "Customize" }]
       : [
-          CUSTOMIZE_CRUMB,
-          { label: "MCPs", to: getCustomizeRoutePath("mcps") },
+          { label: "Customize", to: getCustomizeRoutePath("mcps") },
           { label: resourceLabel ?? route.mcpRef },
         ];
   }
   const skill = matchPath(SKILL_DETAIL_ROUTE_PATH, pathname);
   if (skill === null) return null;
   return [
-    CUSTOMIZE_CRUMB,
-    { label: "Skills", to: CUSTOMIZE_ROUTE_PATH },
+    { label: "Customize", to: getCustomizeRoutePath("skills") },
     {
       label:
         resourceLabel ?? decodeRouteSegment(skill.params.skillId ?? "Skill"),

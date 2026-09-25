@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SkillProvider, SkillSummary } from "@bb/server-contract";
 import {
@@ -9,13 +9,12 @@ import {
 import {
   ResourceCollectionPage,
   ResourceCollectionViewport,
+  ResourceCreateButton,
   ResourceListPanel,
-  ResourceFilterMenu,
   ResourceListState,
   ResourceOverflowMenu,
   ResourceRow,
   ResourceRowDetailChevron,
-  ResourceSortMenu,
   ResourceToolbar,
 } from "@bb/shared-ui/resource-list";
 import { BbLogo } from "@/components/ui/bb-logo";
@@ -23,7 +22,6 @@ import {
   ConfirmDeleteDialog,
   ConfirmDeleteDialogContent,
 } from "@/components/dialogs/ConfirmDeleteDialog";
-import { CreateWithTemplatesButton } from "@/components/create-via-prompt-examples";
 import { ProvenancePill } from "@/components/tools/ProvenancePill";
 import { SkillDetailView } from "@/components/tools/SkillDetailView";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
@@ -33,22 +31,7 @@ import { ProviderIconMark } from "@/components/settings/ProviderIconMark";
 import { getProviderIconInfo } from "@/lib/provider-icon";
 import type { MarkdownLinkRouting } from "@/components/ui/markdown-link-routing";
 
-type ResourceProviderFilter = "bb" | SkillProvider;
 export type ProviderRoster = ReadonlyMap<string, ProviderInfo>;
-type ResourceSkillSourceFilter = "included" | "bb-official" | "user";
-type ResourceSortMode = "provider" | "alpha";
-type ResourceSortDirection = "asc" | "desc";
-
-const RESOURCE_SKILL_SOURCE_FILTERS: readonly ResourceSkillSourceFilter[] = [
-  "included",
-  "bb-official",
-  "user",
-];
-
-const SOURCE_FILTER_OPTIONS = RESOURCE_SKILL_SOURCE_FILTERS.map((source) => ({
-  id: source,
-  label: skillSourceFilterLabel(source),
-}));
 
 function providerLabel(
   provider: SkillProvider | null,
@@ -56,46 +39,6 @@ function providerLabel(
 ): string {
   if (provider === null) return "bb";
   return providerRoster.get(provider)?.displayName ?? provider;
-}
-
-function skillProviderFilterId(skill: SkillSummary): ResourceProviderFilter {
-  return skill.provider ?? "bb";
-}
-
-function providerFilterLabel(
-  provider: ResourceProviderFilter,
-  providerRoster: ProviderRoster,
-): string {
-  return provider === "bb" ? "bb" : providerLabel(provider, providerRoster);
-}
-
-function skillSourceFilterId(skill: SkillSummary): ResourceSkillSourceFilter {
-  if (skill.scope === "bb-builtin") return "bb-official";
-  if (skill.scope === "plugin") return "included";
-  return "user";
-}
-
-function skillSourceFilterLabel(source: ResourceSkillSourceFilter): string {
-  switch (source) {
-    case "bb-official":
-      return "BB Official";
-    case "included":
-      return "Included in plugin";
-    case "user":
-      return "User";
-  }
-}
-
-function isResourceSkillSourceFilter(
-  value: string,
-): value is ResourceSkillSourceFilter {
-  return value === "included" || value === "bb-official" || value === "user";
-}
-
-function isResourceProviderFilter(
-  value: string,
-): value is ResourceProviderFilter {
-  return value !== "";
 }
 
 export function ProviderLogo({
@@ -308,172 +251,66 @@ function SkillRow({
   );
 }
 
-interface SkillsOverviewProps {
+interface SkillsLibraryResultsProps {
   skills: readonly SkillSummary[];
   providerRoster: ProviderRoster;
   isLoading: boolean;
   hasError: boolean;
-  query?: string;
-  activeMode?: SkillsCollectionMode;
-  browseContent?: ReactNode;
-  onCreateSkill: (prompt?: string) => void;
+  query: string;
+  action?: ReactNode;
   onSelectSkill: (skill: SkillSummary) => void;
   onPrefetchSkill?: (skill: SkillSummary) => void;
-  onQueryChange?: (query: string) => void;
+  onQueryChange: (query: string) => void;
   onRetry?: () => void;
 }
 
-type SkillsCollectionMode = "library" | "browse";
-
-export function SkillsOverview({
+export function SkillsLibraryResults({
   skills,
   providerRoster,
   isLoading,
   hasError,
-  query = "",
-  activeMode = "library",
-  browseContent,
-  onCreateSkill,
+  query,
+  action,
   onSelectSkill,
   onPrefetchSkill,
-  onQueryChange = () => {},
+  onQueryChange,
   onRetry,
-}: SkillsOverviewProps) {
-  const [providerFilters, setProviderFilters] = useState<
-    ResourceProviderFilter[]
-  >(["bb"]);
-  const [sourceFilters, setSourceFilters] = useState<
-    ResourceSkillSourceFilter[]
-  >([]);
-  const [sortMode, setSortMode] = useState<ResourceSortMode>("alpha");
-  const [sortDirection, setSortDirection] =
-    useState<ResourceSortDirection>("asc");
+}: SkillsLibraryResultsProps) {
   const [libraryViewport, setLibraryViewport] = useState<HTMLDivElement | null>(
     null,
   );
   const normalizedQuery = query.trim().toLowerCase();
-  const libraryResetKey = [
-    normalizedQuery,
-    providerFilters.join(","),
-    sourceFilters.join(","),
-    sortMode,
-    sortDirection,
-  ].join("\u0000");
   const libraryPageSize = useResourceViewportPageSize(libraryViewport, {
-    resetKey: libraryResetKey,
+    resetKey: normalizedQuery,
   });
-  const providerCounts = useMemo(() => {
-    const counts = new Map<ResourceProviderFilter, number>();
-    for (const skill of skills) {
-      const provider = skillProviderFilterId(skill);
-      counts.set(provider, (counts.get(provider) ?? 0) + 1);
-    }
-    return counts;
-  }, [skills]);
-  const providerBucketCount = providerCounts.size;
-  const providerOptions = useMemo(() => {
-    const present = new Set<ResourceProviderFilter>([
-      "bb",
-      ...providerCounts.keys(),
-      ...providerFilters,
-    ]);
-    const ordered = [...present].sort((left, right) =>
-      left === "bb" || right === "bb"
-        ? Number(left !== "bb") - Number(right !== "bb")
-        : providerFilterLabel(left, providerRoster).localeCompare(
-            providerFilterLabel(right, providerRoster),
-          ),
-    );
-    return ordered.map((provider) => ({
-      id: provider,
-      label: providerFilterLabel(provider, providerRoster),
-      leading:
-        provider === "bb" ? (
-          <BbLogo className="size-4" />
-        ) : (
-          <ProviderLogo
-            providerId={provider}
-            provider={providerRoster.get(provider)}
-            className="size-4"
-          />
-        ),
-      disabled:
-        !providerCounts.has(provider) && !providerFilters.includes(provider),
-    }));
-  }, [providerCounts, providerRoster, providerFilters]);
-  useEffect(() => {
-    if (sortMode === "provider" && providerBucketCount <= 1) {
-      setSortMode("alpha");
-      setSortDirection("asc");
-    }
-  }, [providerBucketCount, sortMode]);
   const visibleSkills = useMemo(() => {
-    const filtered = skills.filter((skill) => {
-      const source = skillSourceFilterId(skill);
-      if (sourceFilters.length > 0 && !sourceFilters.includes(source)) {
-        return false;
-      }
-      if (
-        providerFilters.length > 0 &&
-        !providerFilters.includes(skillProviderFilterId(skill))
-      ) {
-        return false;
-      }
-      return (
-        normalizedQuery === "" ||
-        [
-          skill.name,
-          skill.description ?? "",
-          providerLabel(skill.provider, providerRoster),
-          skillScopeLabel(skill, providerLabelForScope(skill, providerRoster)),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery)
-      );
-    });
-    return [...filtered].sort((left, right) => {
-      if (providerFilters.length === 1 && providerFilters[0] === "bb") {
-        const officialResult =
-          Number(left.scope !== "bb-builtin") -
-          Number(right.scope !== "bb-builtin");
-        if (officialResult !== 0) return officialResult;
-      }
-      const base =
-        sortMode === "provider"
-          ? providerLabel(left.provider, providerRoster).localeCompare(
-              providerLabel(right.provider, providerRoster),
-            ) || left.name.localeCompare(right.name)
-          : left.name.localeCompare(right.name);
-      if (base !== 0) return sortDirection === "asc" ? base : -base;
-      return left.filePath.localeCompare(right.filePath);
-    });
-  }, [
-    normalizedQuery,
-    providerRoster,
-    providerFilters,
-    skills,
-    sortDirection,
-    sortMode,
-    sourceFilters,
-  ]);
+    const matching =
+      normalizedQuery === ""
+        ? skills
+        : skills.filter((skill) =>
+            [
+              skill.name,
+              skill.description ?? "",
+              providerLabel(skill.provider, providerRoster),
+              skillScopeLabel(
+                skill,
+                providerLabelForScope(skill, providerRoster),
+              ),
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(normalizedQuery),
+          );
+    return [...matching].sort(
+      (left, right) =>
+        left.name.localeCompare(right.name) ||
+        left.filePath.localeCompare(right.filePath),
+    );
+  }, [normalizedQuery, providerRoster, skills]);
   const libraryList = useResourceInfiniteItems(visibleSkills, {
     pageSize: libraryPageSize,
-    resetKey: libraryResetKey,
+    resetKey: normalizedQuery,
   });
-  const handleSortChange = useCallback(
-    (nextSort: string) => {
-      if (nextSort !== "provider" && nextSort !== "alpha") return;
-      if (nextSort === "provider" && providerBucketCount <= 1) return;
-      if (nextSort === sortMode) {
-        setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-        return;
-      }
-      setSortMode(nextSort);
-      setSortDirection("asc");
-    },
-    [providerBucketCount, sortMode],
-  );
   const libraryBody = hasError ? (
     <ResourceListState
       state="error"
@@ -487,12 +324,8 @@ export function SkillsOverview({
       state="empty"
       message={
         normalizedQuery === ""
-          ? skills.length === 0
-            ? "No skills in your library."
-            : "No skills match these filters."
-          : sourceFilters.length > 0 || providerFilters.length > 0
-            ? `No skills match "${query}" with these filters.`
-            : `No skills match "${query}"`
+          ? "No skills in your library."
+          : `No skills match "${query}"`
       }
     />
   ) : (
@@ -517,6 +350,56 @@ export function SkillsOverview({
   );
 
   return (
+    <ResourceCollectionViewport
+      scrollId="skills-library-results"
+      viewportRef={setLibraryViewport}
+      bandClassName={TOOLS_PAGE_BAND_CLASSES}
+      toolbar={
+        <ResourceToolbar
+          searchValue={query}
+          searchPlaceholder="Search skills"
+          onSearchChange={onQueryChange}
+          action={action}
+        />
+      }
+    >
+      <div className={TOOLS_PAGE_BAND_CLASSES}>{libraryBody}</div>
+    </ResourceCollectionViewport>
+  );
+}
+
+interface SkillsOverviewProps {
+  skills: readonly SkillSummary[];
+  providerRoster: ProviderRoster;
+  isLoading: boolean;
+  hasError: boolean;
+  query?: string;
+  activeMode?: SkillsCollectionMode;
+  browseContent?: ReactNode;
+  onCreateSkill: () => void;
+  onSelectSkill: (skill: SkillSummary) => void;
+  onPrefetchSkill?: (skill: SkillSummary) => void;
+  onQueryChange?: (query: string) => void;
+  onRetry?: () => void;
+}
+
+type SkillsCollectionMode = "library" | "browse";
+
+export function SkillsOverview({
+  skills,
+  providerRoster,
+  isLoading,
+  hasError,
+  query = "",
+  activeMode = "library",
+  browseContent,
+  onCreateSkill,
+  onSelectSkill,
+  onPrefetchSkill,
+  onQueryChange = () => {},
+  onRetry,
+}: SkillsOverviewProps) {
+  return (
     <ResourceCollectionPage
       id="skills-collection"
       description={
@@ -529,70 +412,23 @@ export function SkillsOverview({
       {activeMode === "browse" ? (
         browseContent
       ) : (
-        <ResourceCollectionViewport
-          scrollId="skills-library-results"
-          viewportRef={setLibraryViewport}
-          bandClassName={TOOLS_PAGE_BAND_CLASSES}
-          toolbar={
-            <ResourceToolbar
-              searchValue={query}
-              searchPlaceholder="Search skills"
-              onSearchChange={onQueryChange}
-              action={
-                <CreateWithTemplatesButton
-                  kind="skill"
-                  label="New bb skill"
-                  onCreate={onCreateSkill}
-                />
-              }
-              controls={
-                <>
-                  <ResourceFilterMenu
-                    compact
-                    groups={[
-                      {
-                        id: "type",
-                        label: "Type",
-                        options: SOURCE_FILTER_OPTIONS,
-                        selectedValues: sourceFilters,
-                        onChange: (values) =>
-                          setSourceFilters(
-                            values.filter(isResourceSkillSourceFilter),
-                          ),
-                      },
-                      {
-                        id: "provider",
-                        label: "Provider",
-                        options: providerOptions,
-                        selectedValues: providerFilters,
-                        onChange: (values) =>
-                          setProviderFilters(
-                            values.filter(isResourceProviderFilter),
-                          ),
-                      },
-                    ]}
-                  />
-                  <ResourceSortMenu
-                    value={sortMode}
-                    direction={sortDirection}
-                    compact
-                    options={[
-                      {
-                        id: "provider",
-                        label: "Provider",
-                        disabled: providerBucketCount <= 1,
-                      },
-                      { id: "alpha", label: "Skill name" },
-                    ]}
-                    onChange={handleSortChange}
-                  />
-                </>
-              }
+        <SkillsLibraryResults
+          skills={skills}
+          providerRoster={providerRoster}
+          isLoading={isLoading}
+          hasError={hasError}
+          query={query}
+          action={
+            <ResourceCreateButton
+              label="New bb skill"
+              onCreate={onCreateSkill}
             />
           }
-        >
-          <div className={TOOLS_PAGE_BAND_CLASSES}>{libraryBody}</div>
-        </ResourceCollectionViewport>
+          onSelectSkill={onSelectSkill}
+          onPrefetchSkill={onPrefetchSkill}
+          onQueryChange={onQueryChange}
+          onRetry={onRetry}
+        />
       )}
     </ResourceCollectionPage>
   );

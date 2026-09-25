@@ -285,16 +285,12 @@ describe("Customize page header", () => {
   afterEach(cleanup);
 
   it.each([
-    ["/customize", ["Customize", "Skills"], "Skills · Customize"],
-    ["/customize/mcps", ["Customize", "MCPs"], "MCPs · Customize"],
-    [
-      "/customize/mcps/github",
-      ["Customize", "MCPs", "github"],
-      "github · Customize",
-    ],
+    ["/customize", ["Customize"], "Customize"],
+    ["/customize/mcps", ["Customize"], "Customize"],
+    ["/customize/mcps/github", ["Customize", "github"], "github · Customize"],
     [
       "/skills/library/skill_abc123",
-      ["Customize", "Skills", "skill_abc123"],
+      ["Customize", "skill_abc123"],
       "skill_abc123 · Customize",
     ],
   ])("titles %s under Customize", (route, crumbs, title) => {

@@ -1,28 +1,5 @@
-import type { ResourceCreateTemplateGroup } from "@bb/shared-ui/resource-list";
-
 export const CREATE_MCP_PROMPT =
   "Add a new MCP to bb. Use `bb mcp registry <query>` to find it in the official registry, or `bb mcp add <name> <url|command>` for a manual server. After adding, run `bb mcp auth <id>` if it needs sign-in, then `bb mcp list` to confirm. The MCP I want is: ";
-
-export const MCP_CREATE_TEMPLATES: ResourceCreateTemplateGroup["templates"] = [
-  {
-    label: "Notion",
-    icon: "FileText",
-    description: "the Notion remote MCP at https://mcp.notion.com/mcp",
-    prompt: `${CREATE_MCP_PROMPT}Notion, the remote MCP at https://mcp.notion.com/mcp.`,
-  },
-  {
-    label: "GitHub",
-    icon: "Github",
-    description:
-      "the official GitHub remote MCP at https://api.githubcopilot.com/mcp/",
-    prompt: `${CREATE_MCP_PROMPT}GitHub, the official GitHub remote MCP at https://api.githubcopilot.com/mcp/.`,
-  },
-  {
-    label: "Slack",
-    description: "Slack, found by searching the official registry",
-    prompt: `${CREATE_MCP_PROMPT}Slack. Search the registry for the official Slack server.`,
-  },
-];
 
 export function buildMcpEditThreadPrompt({
   name,

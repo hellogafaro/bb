@@ -17,6 +17,8 @@ import {
   makeMcpToolPolicy,
 } from "@/test/fixtures/mcp";
 import { sdk } from "@/lib/sdk";
+import { CREATE_SKILL_PROMPT } from "@bb/client-core";
+import { CREATE_MCP_PROMPT } from "@/components/mcp/mcp-prompts";
 import { AppRoutes } from "../App";
 
 vi.mock("../components/layout/AppLayout", () => ({
@@ -34,11 +36,16 @@ const SKILL_ID = `skill_${"a".repeat(64)}`;
 function LocationPath() {
   const location = useLocation();
   return (
-    <span data-testid="location">
-      {location.pathname}
-      {location.search}
-      {location.hash}
-    </span>
+    <>
+      <span data-testid="location">
+        {location.pathname}
+        {location.search}
+        {location.hash}
+      </span>
+      <span data-testid="location-state">
+        {JSON.stringify(location.state ?? null)}
+      </span>
+    </>
   );
 }
 
@@ -62,7 +69,10 @@ function renderRoutes(initialPath: string) {
   const server = makeMcpServer();
   const mcpList = vi
     .spyOn(sdk.mcp, "list")
-    .mockImplementation(async () => [server]);
+    .mockImplementation(async () => [
+      server,
+      makeMcpServer({ id: "mcp_notion", handle: "notion", name: "Notion" }),
+    ]);
   const mcpGet = vi.spyOn(sdk.mcp, "get").mockResolvedValue(server);
   const mcpTools = vi.spyOn(sdk.mcp, "serverTools").mockResolvedValue({
     tools: [
@@ -114,6 +124,18 @@ function selectedTab(): string | null {
   );
 }
 
+function tabCounts(): Array<string | null> {
+  return screen.getAllByRole("tab").map((tab) => tab.textContent);
+}
+
+function locationState(): unknown {
+  return JSON.parse(screen.getByTestId("location-state").textContent ?? "null");
+}
+
+function expectNoFilterOrSortControls() {
+  expect(screen.queryByRole("button", { name: /filter|sort/i })).toBeNull();
+}
+
 beforeAll(async () => {
   await Promise.all([import("./CustomizeView"), import("./ToolsView")]);
 }, 60_000);
@@ -125,38 +147,90 @@ afterEach(() => {
 });
 
 describe("Customize page", () => {
-  it("renders the skills library without fetching MCP data", async () => {
-    const { fetchMock, mcpGet, mcpList, providerStatus } =
-      renderRoutes("/customize");
+  it("renders the skills tab with counts on both mode chips", async () => {
+    const { mcpGet, providerStatus } = renderRoutes("/customize");
     expect(await screen.findByText("bb-review")).toBeTruthy();
-    expect(selectedTab()).toBe("Skills");
+    await waitFor(() => expect(tabCounts()).toEqual(["Skills1", "MCPs2"]));
+    expect(selectedTab()).toBe("Skills1");
+    expect(
+      screen.getByText(
+        "Skills and MCP servers every agent can use. Add new ones in chat.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByPlaceholderText("Search skills")).toBeTruthy();
     expect(screen.queryByPlaceholderText("Search MCPs")).toBeNull();
-    await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
-    expect(mcpList).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "New skill" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /options$/ })).toBeNull();
+    expectNoFilterOrSortControls();
     expect(mcpGet).not.toHaveBeenCalled();
     expect(providerStatus).not.toHaveBeenCalled();
   });
 
-  it("renders the MCP list with full rows without loading skills", async () => {
-    const { mcpGet, mcpList, skillsList } = renderRoutes("/customize/mcps");
+  it("renders the MCP list with full rows and a New MCP button", async () => {
+    const { mcpGet, mcpList } = renderRoutes("/customize/mcps");
     expect(await screen.findByText("GitHub")).toBeTruthy();
-    expect(selectedTab()).toBe("MCPs");
-    expect(screen.getByText("HTTP · authenticated · 2 tools")).toBeTruthy();
+    await waitFor(() => expect(tabCounts()).toEqual(["Skills1", "MCPs2"]));
+    expect(selectedTab()).toBe("MCPs2");
+    expect(screen.getAllByText("HTTP · authenticated · 2 tools")).toHaveLength(
+      2,
+    );
     expect(mcpList).toHaveBeenCalledWith(
       expect.objectContaining({ details: true }),
     );
     expect(mcpGet).not.toHaveBeenCalled();
-    expect(skillsList).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText("Search MCPs")).toBeTruthy();
     expect(screen.queryByPlaceholderText("Search skills")).toBeNull();
+    expect(screen.getByRole("button", { name: "New MCP" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "New skill" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /options$/ })).toBeNull();
+    expectNoFilterOrSortControls();
   });
 
-  it("opens /customize/mcps/:ref with one server fetch and no list", async () => {
+  it("prefills chat with the skill prompt from New skill", async () => {
+    renderRoutes("/customize");
+    fireEvent.click(await screen.findByRole("button", { name: "New skill" }));
+    expect(screen.getByTestId("location").textContent).toBe("/");
+    expect(locationState()).toEqual({
+      focusPrompt: true,
+      replaceInitialPrompt: true,
+      initialPrompt: CREATE_SKILL_PROMPT,
+      createDraftKind: "skill",
+    });
+  });
+
+  it("prefills chat with the MCP prompt from New MCP", async () => {
+    renderRoutes("/customize/mcps");
+    fireEvent.click(await screen.findByRole("button", { name: "New MCP" }));
+    expect(screen.getByTestId("location").textContent).toBe("/");
+    expect(locationState()).toEqual({
+      focusPrompt: true,
+      replaceInitialPrompt: true,
+      initialPrompt: CREATE_MCP_PROMPT,
+    });
+  });
+
+  it("switches routes with the mode chips without remounting the page", async () => {
+    renderRoutes("/customize");
+    expect(await screen.findByText("bb-review")).toBeTruthy();
+    const tabList = screen.getByRole("tablist");
+
+    fireEvent.click(screen.getByRole("tab", { name: /^MCPs/ }));
+    expect(screen.getByTestId("location").textContent).toBe("/customize/mcps");
+    expect(await screen.findByPlaceholderText("Search MCPs")).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBe(tabList);
+
+    fireEvent.click(screen.getByRole("tab", { name: /^Skills/ }));
+    expect(screen.getByTestId("location").textContent).toBe("/customize");
+    expect(await screen.findByText("bb-review")).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBe(tabList);
+  });
+
+  it("opens /customize/mcps/:ref with one server fetch and no collection", async () => {
     const { mcpGet, mcpList, mcpPolicies, mcpTools, skillsList } = renderRoutes(
       "/customize/mcps/github",
     );
     expect(await screen.findByRole("heading", { name: "GitHub" })).toBeTruthy();
-    expect(selectedTab()).toBe("MCPs");
+    expect(screen.queryByRole("tablist")).toBeNull();
     expect(mcpGet).toHaveBeenCalledTimes(1);
     expect(mcpGet).toHaveBeenCalledWith(
       expect.objectContaining({ server: "github" }),
@@ -172,24 +246,13 @@ describe("Customize page", () => {
     expect(skillsList).not.toHaveBeenCalled();
   });
 
-  it("opens a server from the list and switches tabs in place", async () => {
+  it("opens a server from the list", async () => {
     renderRoutes("/customize/mcps");
-    const tabList = await screen.findByRole("tablist", { name: "Customize" });
-
     fireEvent.click(await screen.findByRole("button", { name: "GitHub" }));
     expect(screen.getByTestId("location").textContent).toBe(
       "/customize/mcps/mcp_github",
     );
     expect(await screen.findByRole("heading", { name: "GitHub" })).toBeTruthy();
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Skills" }));
-    expect(await screen.findByText("bb-review")).toBeTruthy();
-    expect(screen.getByTestId("location").textContent).toBe("/customize");
-    expect(screen.getByRole("tablist", { name: "Customize" })).toBe(tabList);
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "MCPs" }));
-    expect(await screen.findByPlaceholderText("Search MCPs")).toBeTruthy();
-    expect(screen.getByRole("tablist", { name: "Customize" })).toBe(tabList);
   });
 
   it.each(["/customize/unknown", "/customize/mcps/installed/github"])(
@@ -207,6 +270,6 @@ describe("Customize page", () => {
     expect(
       await screen.findByRole("heading", { name: "bb-review" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("tablist", { name: "Customize" })).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 });

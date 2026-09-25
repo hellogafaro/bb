@@ -45,52 +45,39 @@ describe("Customize routes", () => {
 });
 
 describe("Customize header", () => {
-  it("titles both tabs Customize with the tab as breadcrumb", () => {
+  it("titles both collection tabs with a single Customize crumb", () => {
     expect(resolveCustomizeHeaderMeta("/customize")).toEqual({
       kind: "breadcrumbs",
-      breadcrumbs: [
-        { label: "Customize", to: "/customize" },
-        { label: "Skills" },
-      ],
+      breadcrumbs: [{ label: "Customize" }],
     });
     expect(resolveCustomizeHeaderMeta("/customize/mcps")).toEqual({
       kind: "breadcrumbs",
-      breadcrumbs: [
-        { label: "Customize", to: "/customize" },
-        { label: "MCPs" },
-      ],
+      breadcrumbs: [{ label: "Customize" }],
     });
   });
 
-  it("adds the published MCP detail label", () => {
+  it("links MCP details back to the MCPs tab", () => {
     expect(
       resolveCustomizeBreadcrumbs("/customize/mcps/mcp_abc", "GitHub"),
     ).toEqual([
-      { label: "Customize", to: "/customize" },
-      { label: "MCPs", to: "/customize/mcps" },
+      { label: "Customize", to: "/customize/mcps" },
       { label: "GitHub" },
     ]);
     expect(resolveCustomizeBreadcrumbs("/customize/mcps/my%20server")).toEqual([
-      { label: "Customize", to: "/customize" },
-      { label: "MCPs", to: "/customize/mcps" },
+      { label: "Customize", to: "/customize/mcps" },
       { label: "my server" },
     ]);
   });
 
-  it("keeps skill detail deep links under Customize › Skills", () => {
+  it("links skill detail deep links back to the Skills tab", () => {
     expect(
       resolveCustomizeBreadcrumbs("/skills/library/skill_abc123", "bb-review"),
     ).toEqual([
       { label: "Customize", to: "/customize" },
-      { label: "Skills", to: "/customize" },
       { label: "bb-review" },
     ]);
     expect(resolveCustomizeBreadcrumbs("/skills/library/skill_abc123")).toEqual(
-      [
-        { label: "Customize", to: "/customize" },
-        { label: "Skills", to: "/customize" },
-        { label: "skill_abc123" },
-      ],
+      [{ label: "Customize", to: "/customize" }, { label: "skill_abc123" }],
     );
   });
 

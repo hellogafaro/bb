@@ -15,6 +15,7 @@ import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import { buildSkillEditThreadPrompt } from "@bb/shared-ui/resource-edit-prompt";
 import type { EditableSkillScope, SkillSummary } from "@bb/server-contract";
 import {
+  ResourceCreateButton,
   ResourceListState,
   useResourceRouteLabel,
 } from "@bb/shared-ui/resource-list";
@@ -25,6 +26,7 @@ import {
 import { getToolsOwnedCollectionRoutePath } from "@/components/tools/tools-navigation";
 import {
   SkillDetailDialogView,
+  SkillsLibraryResults,
   SkillsOverview,
   type ProviderRoster,
 } from "@/components/tools/SkillsCollection";
@@ -61,7 +63,6 @@ import {
   useSkillContent,
   useSkillFiles,
 } from "@/hooks/queries/skills-queries";
-import { CreateWithTemplatesButton } from "@/components/create-via-prompt-examples";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
@@ -467,19 +468,16 @@ export function SkillsLibrary() {
   const closeSkillDetail = useCallback(() => {
     navigate(getToolsOwnedCollectionRoutePath("skills"));
   }, [navigate]);
-  const handleCreateSkill = useCallback(
-    (prompt?: string) => {
-      navigate(getRootComposeRoutePath(), {
-        state: {
-          focusPrompt: true,
-          initialPrompt: prompt ?? CREATE_SKILL_PROMPT,
-          replaceInitialPrompt: true,
-          createDraftKind: "skill",
-        },
-      });
-    },
-    [navigate],
-  );
+  const handleCreateSkill = useCallback(() => {
+    navigate(getRootComposeRoutePath(), {
+      state: {
+        focusPrompt: true,
+        initialPrompt: CREATE_SKILL_PROMPT,
+        replaceInitialPrompt: true,
+        createDraftKind: "skill",
+      },
+    });
+  }, [navigate]);
   const forkRegistrySkill = useCallback(
     (skill: RegistrySkill) => {
       navigate(getRootComposeRoutePath(), {
@@ -561,6 +559,20 @@ export function SkillsLibrary() {
           onFork={forkRegistrySkill}
           onEditLocalSkill={editSkillViaThread}
         />
+      ) : FORK_CUSTOMIZE_PAGE ? (
+        <SkillsLibraryResults
+          skills={skills}
+          providerRoster={providerRoster}
+          isLoading={isLoading}
+          hasError={hasError}
+          query={libraryQuery}
+          onSelectSkill={openSkill}
+          onPrefetchSkill={(skill) =>
+            prefetchSkillDetail(queryClient, PERSONAL_PROJECT_ID, skill)
+          }
+          onQueryChange={setLibraryQuery}
+          onRetry={() => void skillsQuery.refetch()}
+        />
       ) : (
         <SkillsOverview
           skills={skills}
@@ -573,8 +585,7 @@ export function SkillsLibrary() {
             <RegistrySkillsBrowsePage
               skills={registrySkills}
               action={
-                <CreateWithTemplatesButton
-                  kind="skill"
+                <ResourceCreateButton
                   label="New bb skill"
                   onCreate={handleCreateSkill}
                 />

@@ -1,22 +1,10 @@
 import type { ReactNode } from "react";
 import { Button } from "@bb/shared-ui/button";
-import { cn } from "@bb/shared-ui/lib/utils";
 
-export function McpPageShell({
-  fill = false,
-  children,
-}: {
-  fill?: boolean;
-  children: ReactNode;
-}) {
+export function McpPageShell({ children }: { children: ReactNode }) {
   return (
     <div className="h-full min-h-0 flex-1 overflow-y-auto">
-      <div
-        className={cn(
-          "mx-auto box-border min-h-full w-full max-w-5xl px-4 pb-4 pt-3 md:px-5 md:pt-4",
-          fill && "h-full",
-        )}
-      >
+      <div className="mx-auto box-border min-h-full w-full max-w-5xl px-4 pb-4 pt-3 md:px-5 md:pt-4">
         {children}
       </div>
     </div>
