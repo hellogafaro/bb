@@ -13,6 +13,9 @@
     "container resize handling, and",
     "late-mounted panel size synchronization.",
     "",
+    "On 2026-09-25 both SplitWorkspaceRoute limits rose another 2 KiB for",
+    "machine enrollment command status and selected-machine sidebar placement.",
+    "",
     "Both boot limits were temporarily raised 5% on 2026-09-21 to restore",
     "headroom while reducing the measured boot payload by at least 10%.",
     "These allowances leave room for normal shell feature work and build",
@@ -98,8 +101,8 @@
   },
   "routeClosures": {
     "SplitWorkspaceRoute": {
-      "maxBytes": 2334478,
-      "maxBrotliBytes": 628321,
+      "maxBytes": 2338574,
+      "maxBrotliBytes": 630625,
       "forbiddenPackages": [
         "@codemirror/commands",
         "@codemirror/lang-javascript",

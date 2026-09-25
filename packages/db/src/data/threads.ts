@@ -285,6 +285,7 @@ export interface CreateThreadInput {
   originKind?: ThreadOriginKind | null;
   originPluginId?: string | null;
   pluginMetadata?: { pluginId: string; metadata: JsonObject } | null;
+  startupContext?: string;
   visibility?: ThreadVisibility;
   agentId?: string | null;
 }
@@ -337,6 +338,7 @@ export function createThread(
           titleFallback: input.titleFallback ?? null,
           sectionId: input.sectionId ?? null,
           status: input.status ?? "starting",
+          startupContext: input.startupContext ?? null,
           parentThreadId:
             originKind === null ? (input.parentThreadId ?? null) : null,
           sourceThreadId:
