@@ -226,8 +226,11 @@ API key instead: `codex login --with-api-key`, or set `BB_TRANSCRIPTION` to
 
 The microphone picker in Settings → Voice Input is client-local. It stores the
 selected browser `MediaDevices` device id in localStorage as
-`bb.voiceInput.audioInputDeviceId`; it does not change `bb-app config` or the
-server-side transcription model.
+`bb.voiceInput.audioInputDeviceId`. Recording prefers that microphone and falls
+back to the system default when it is disconnected, then uses the saved
+preference again when it reconnects. Select System default to follow system
+microphone changes; it does not change `bb-app config` or the server-side
+transcription model.
 
 The built-in Push notifications plugin uses `expoPushUrl` for its relay URL.
 The default is `https://exp.host/--/api/v2/push/send`. Change it with
