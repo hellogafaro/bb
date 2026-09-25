@@ -120,6 +120,7 @@ export function makeThreadResponse(
     updatedAt: 0,
     runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
     activeBackgroundAgentCount: 0,
+    canRestoreEnvironment: false,
     canSpawnChild: true,
     queuedMessageCount: 0,
     ...overrides,

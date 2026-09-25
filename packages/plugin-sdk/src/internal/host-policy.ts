@@ -2313,6 +2313,9 @@ export interface NormalizedPluginEnvironmentProvider {
     PluginEnvironmentProviderDeclaration["experimental_existingPath"]
   > | null;
   create: PluginEnvironmentProviderDeclaration["create"];
+  restore: NonNullable<
+    PluginEnvironmentProviderDeclaration["restore"]
+  > | null;
   remove: PluginEnvironmentProviderDeclaration["remove"];
   policy: import("../environment-provider.js").PluginEnvironmentProviderPolicy;
 }
@@ -2463,6 +2466,12 @@ export function validatePluginEnvironmentProviderDeclaration(
     declaration.experimental_existingPath,
     "experimental_existingPath",
   );
+  assertOptionalFunction(
+    "environment provider",
+    id,
+    declaration.restore,
+    "a restore",
+  );
   return {
     id,
     displayName,
@@ -2475,6 +2484,7 @@ export function validatePluginEnvironmentProviderDeclaration(
     validate: declaration.validate ?? null,
     experimental_existingPath: declaration.experimental_existingPath ?? null,
     create: declaration.create,
+    restore: declaration.restore ?? null,
     remove: declaration.remove,
     policy: environmentProviderPolicySchema.parse(declaration.policy ?? {}),
   };

@@ -198,6 +198,7 @@ move and downloads the new server's bb-app package for its service.
 - `bb thread generate-title`
 - `bb thread archive`
 - `bb thread unarchive`
+- `bb thread restore-environment`
 - `bb thread pin`
 - `bb thread unpin`
 - `bb thread snooze`
