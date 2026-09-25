@@ -17,6 +17,7 @@ export function WallpaperSetting() {
   };
   return (
     <SettingsWithControl
+      settingId="wallpaper"
       label="Wallpaper"
       description="Shown behind the welcome and New thread screens. Without an image, a quiet animated pattern in the palette's accent is shown."
     >

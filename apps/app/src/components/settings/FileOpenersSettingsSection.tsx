@@ -41,6 +41,7 @@ export function FileOpenersSettingsSection() {
 
   return (
     <SettingsSection
+      settingId="file-openers"
       title="File openers"
       description="Automatically use matching plugins, or choose a viewer for each file type. Right-click a file link for a one-off choice."
     >

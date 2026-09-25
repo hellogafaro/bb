@@ -195,6 +195,12 @@ function flushThreadInvalidations(
   queryClient: QueryClient,
   state: ThreadChangeState,
 ): void {
+  if (state.globalChangeKinds.size > 0 || state.changedThreadKinds.size > 0) {
+    void queryClient.invalidateQueries({
+      queryKey: ["global-search"],
+      refetchType: "active",
+    });
+  }
   const flushOnce = createFlushOncePredicate();
   for (const changeKind of state.globalChangeKinds) {
     executeRealtimeDirtyHandlers({
@@ -414,6 +420,10 @@ export function createRealtimeCacheEffects({
     hostId: string | undefined,
     changeKinds: Iterable<HostChangeKind>,
   ): void => {
+    void queryClient.invalidateQueries({
+      queryKey: ["global-search"],
+      refetchType: "active",
+    });
     for (const changeKind of changeKinds) {
       executeRealtimeDirtyHandlers({
         context: { hostId, queryClient },
@@ -425,6 +435,10 @@ export function createRealtimeCacheEffects({
     projectId: string | undefined,
     changeKinds: Iterable<ProjectChangeKind>,
   ): void => {
+    void queryClient.invalidateQueries({
+      queryKey: ["global-search"],
+      refetchType: "active",
+    });
     for (const changeKind of changeKinds) {
       executeRealtimeDirtyHandlers({
         context: { projectId, queryClient },
@@ -515,6 +529,10 @@ export function createRealtimeCacheEffects({
               id: message.id,
               metadata: message.id ? message.metadata : undefined,
               queryClient,
+            });
+            void queryClient.invalidateQueries({
+              queryKey: ["global-search"],
+              refetchType: "active",
             });
           }
           break;

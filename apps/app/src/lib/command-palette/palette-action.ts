@@ -1,11 +1,6 @@
 import type { AppShortcutPresentation } from "@/lib/app-keybindings";
 
-export const PALETTE_ACTION_BUCKETS = [
-  "Threads",
-  "Actions",
-  "Settings",
-  "Plugins",
-] as const;
+export const PALETTE_ACTION_BUCKETS = ["Actions"] as const;
 
 export type PaletteActionBucket = (typeof PALETTE_ACTION_BUCKETS)[number];
 
@@ -14,6 +9,7 @@ export interface PaletteAction {
   bucket: PaletteActionBucket;
   group: string;
   title: string;
+  aliases?: readonly string[];
   shortcut: AppShortcutPresentation | null;
   run: () => void;
 }

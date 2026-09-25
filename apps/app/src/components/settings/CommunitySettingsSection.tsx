@@ -53,6 +53,7 @@ function CommunityLinkRow({
 export function CommunitySettingsSection() {
   return (
     <SettingsSection
+      settingId="community"
       title="Community"
       description="Chat with other bb users and follow development on GitHub."
     >

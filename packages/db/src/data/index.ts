@@ -98,6 +98,8 @@ export {
   applyThreadLifecycleEventInTransaction,
   requireThreadLifecycleEventApplied,
   searchThreadsWithPendingInteractionState,
+  upsertThreadSearchSegments,
+  listThreadsWithPendingInteractionStateByIds,
   THREAD_SEARCH_LIMIT_PER_GROUP_DEFAULT,
   THREAD_SEARCH_LIMIT_PER_GROUP_MAX,
 } from "./threads.js";
@@ -487,6 +489,7 @@ export {
   shouldRunIncrementalVacuum,
 } from "./maintenance.js";
 export * from "./machines.js";
+export * from "./global-search.js";
 export {
   advanceThreadPruning,
   getNextThreadPruningPolicy,

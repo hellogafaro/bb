@@ -106,7 +106,7 @@ function ToolbarExample() {
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        aria-label="Search threads"
+        aria-label="Search"
       >
         <Icon name="Search" />
       </Button>

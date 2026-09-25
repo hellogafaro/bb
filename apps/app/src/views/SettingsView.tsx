@@ -1,6 +1,6 @@
 import { MachineEnvironmentSettings } from "@/components/settings/MachineEnvironmentSettings";
 import { MachineAccessSettings } from "@/components/settings/MachineAccessSettings";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Navigate,
   useNavigate,
@@ -10,12 +10,14 @@ import {
 import "@bb/shared-ui/icon-extended";
 import {
   builtInThemes,
+  getCoreSettingById,
   defaultAppSettings,
   defaultAppTheme,
   defaultExperiments,
   experimentKeys,
   managedBranchPrefixSchema,
   type AppTheme,
+  type CoreSettingId,
   type ExperimentKey,
   type Experiments,
   type FaviconColorPreference,
@@ -108,6 +110,105 @@ import { openUrlInExternalBrowser } from "@/lib/url-open-routing";
 
 const LOCAL_EDITOR_INTEGRATION_DOCS_URL =
   "https://github.com/get-bb/bb/blob/main/docs/multiple-devices.md#open-bb-from-another-browser";
+
+export function SettingsDeepLinkTarget({
+  children,
+  settingId,
+}: {
+  children: ReactNode;
+  settingId: string | null;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    setUnavailable(false);
+    if (!settingId) return;
+    const entry = getCoreSettingById(settingId);
+    if (!entry) return;
+    let completed = false;
+    let framesReady = false;
+    let frame = 0;
+    const available = (element: HTMLElement) => {
+      for (
+        let current: HTMLElement | null = element;
+        current;
+        current = current.parentElement
+      ) {
+        if (
+          current.hidden ||
+          current.hasAttribute("inert") ||
+          current.getAttribute("aria-hidden") === "true"
+        )
+          return false;
+        const style = getComputedStyle(current);
+        if (style.display === "none" || style.visibility === "hidden")
+          return false;
+        if (current === rootRef.current) break;
+      }
+      return true;
+    };
+    const focusTarget = () => {
+      if (completed || !framesReady || !rootRef.current) return;
+      const target = [
+        ...rootRef.current.querySelectorAll<HTMLElement>("[data-setting-id]"),
+      ].find(
+        (element) =>
+          element.dataset.settingId === settingId && available(element),
+      );
+      if (!target) return;
+      completed = true;
+      target.scrollIntoView({ block: "center", behavior: "auto" });
+      const control = [
+        ...target.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [role='switch']:not([aria-disabled='true'])",
+        ),
+      ].find(available);
+      const label = target.querySelector<HTMLElement>("h2, p[tabindex]");
+      const focusable = target.matches("section")
+        ? (label ?? control ?? target)
+        : settingId === "updates"
+          ? target
+          : (control ?? label ?? target);
+      focusable.focus({ preventScroll: true });
+    };
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        framesReady = true;
+        focusTarget();
+      });
+    });
+    const fallback = window.setTimeout(() => {
+      framesReady = true;
+      focusTarget();
+    }, 120);
+    const observer = new MutationObserver(focusTarget);
+    if (rootRef.current)
+      observer.observe(rootRef.current, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => {
+      focusTarget();
+      if (!completed) setUnavailable(true);
+      observer.disconnect();
+    }, 2000);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(fallback);
+      window.clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, [settingId]);
+
+  return (
+    <div ref={rootRef} className="mx-auto w-full max-w-3xl space-y-10">
+      {unavailable ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          This setting is unavailable here.
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
+}
 
 interface ThemePreferenceOption {
   label: string;
@@ -311,6 +412,7 @@ function FaviconColorSettingsControl({
 }: FaviconColorSettingsControlProps) {
   return (
     <SettingsWithControl
+      settingId="favicon-color"
       label="Favicon color"
       description="Tint browser tabs to tell instances apart."
     >
@@ -409,7 +511,14 @@ function LocalOpenTargetPreferenceControl({
       : "Unavailable");
 
   return (
-    <SettingsWithControl label={definition.label}>
+    <SettingsWithControl
+      settingId={
+        definition.capability === "openDirectory"
+          ? "directory-open-target"
+          : "file-open-target"
+      }
+      label={definition.label}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -517,6 +626,7 @@ export function LocalOpenTargetSettingsSection({
     return (
       <SettingsSection title="File Preferences">
         <SettingsWithControl
+          settingId="local-editor-integration"
           label="Local editor integration"
           description={
             <>
@@ -631,6 +741,7 @@ function ManagedBranchPrefixSetting({
 
   return (
     <SettingsWithControl
+      settingId="new-branch-prefix"
       label={MANAGED_BRANCH_PREFIX_SETTING_LABEL}
       description={
         valid ? (
@@ -699,7 +810,7 @@ export function AppearanceSettingsSection({
         <SidebarThreadListSetting />
         <SidebarNavigationSetting />
         <CodeRendererSettings />
-        <SettingsWithControl label="Theme">
+        <SettingsWithControl settingId="theme" label="Theme">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -740,6 +851,7 @@ export function AppearanceSettingsSection({
         </SettingsWithControl>
 
         <SettingsWithControl
+          settingId="palette"
           label="Palette"
           description={PALETTE_SETTING_DESCRIPTION}
         >
@@ -857,6 +969,7 @@ export function GeneralSettingsSection({
       <SettingsSection title="Threads & editing">
         <div className="space-y-5">
           <SettingsWithControl
+            settingId="navigate-after-create"
             label={NAVIGATE_TO_THREAD_AFTER_CREATE_SETTING_LABEL}
           >
             <Switch
@@ -866,7 +979,10 @@ export function GeneralSettingsSection({
             />
           </SettingsWithControl>
 
-          <SettingsWithControl label={RICH_TEXT_EDITING_SETTING_LABEL}>
+          <SettingsWithControl
+            settingId="markdown-editing"
+            label={RICH_TEXT_EDITING_SETTING_LABEL}
+          >
             <Switch
               checked={richTextEditing}
               onCheckedChange={onRichTextEditingChange}
@@ -875,6 +991,7 @@ export function GeneralSettingsSection({
           </SettingsWithControl>
 
           <SettingsWithControl
+            settingId="followup-behavior"
             label={FOLLOW_UP_BEHAVIOR_SETTING_LABEL}
             description="What Enter does in the prompt box while the thread runs."
           >
@@ -932,6 +1049,7 @@ export function GeneralSettingsSection({
         <div className="space-y-5">
           {desktopBrowserAvailable ? (
             <SettingsWithControl
+              settingId="in-app-links"
               label={IN_APP_BROWSER_LINK_SETTING_LABEL}
               description="Open web links inside bb."
             >
@@ -944,6 +1062,7 @@ export function GeneralSettingsSection({
           ) : null}
 
           <SettingsWithControl
+            settingId="localhost-links"
             label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
             description="Point localhost links at this host."
           >
@@ -981,6 +1100,7 @@ export function PrivacySettingsSection({
     <SettingsSection title="Privacy & diagnostics">
       <div className="space-y-5">
         <SettingsWithControl
+          settingId="streamer-mode"
           label={STREAMER_MODE_SETTING_LABEL}
           description="Hide the custom models from config.json in every model picker, so a screen share does not show them."
         >
@@ -993,6 +1113,7 @@ export function PrivacySettingsSection({
         </SettingsWithControl>
 
         <SettingsWithControl
+          settingId="anonymous-usage"
           label="Share anonymous usage data"
           description="Send anonymous app starts, thread and message counts, and plugin installs to help improve BB. Turning this off takes effect immediately for this server."
         >
@@ -1005,6 +1126,7 @@ export function PrivacySettingsSection({
         </SettingsWithControl>
 
         <SettingsWithControl
+          settingId="diagnostic-events"
           label={DIAGNOSTIC_EVENTS_SETTING_LABEL}
           description="Show provider environment resolution and unhandled provider events for troubleshooting."
         >
@@ -1055,6 +1177,14 @@ const EXPERIMENT_DEFINITIONS: Record<
       "Mount only nearby rows in long timelines and expanded timeline details.",
   },
 };
+const EXPERIMENT_SETTING_IDS: Record<ExperimentKey, CoreSettingId> = {
+  changelogPreview: "changelog-preview",
+  mobileApp: "mobile-app",
+  multiMachinePicker: "multi-machine-picker",
+  serverMove: "server-move",
+  sidebarProgressiveDisclosure: "sidebar-progressive-disclosure",
+  timelineWindowing: "timeline-windowing",
+};
 export function ExperimentsSettingsSection({
   disabled,
   experiments,
@@ -1071,6 +1201,7 @@ export function ExperimentsSettingsSection({
           return (
             <SettingsWithControl
               key={experimentKey}
+              settingId={EXPERIMENT_SETTING_IDS[experimentKey]}
               label={definition.label}
               description={definition.description}
             >
@@ -1321,7 +1452,11 @@ export function SettingsView() {
 
   return (
     <PageShell contentClassName="pt-4 md:pt-5">
-      <div className="mx-auto w-full max-w-3xl space-y-10">{content}</div>
+      <SettingsDeepLinkTarget
+        settingId={new URLSearchParams(location.search).get("setting")}
+      >
+        {content}
+      </SettingsDeepLinkTarget>
     </PageShell>
   );
 }

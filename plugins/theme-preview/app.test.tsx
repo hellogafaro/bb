@@ -759,12 +759,12 @@ describe("Theme Preview", () => {
     for (const name of ["Overlays", "Components", "Style sheet"]) {
       expect(screen.getByRole("button", { name }).getAttribute("aria-expanded")).toBe("false");
     }
-    expect(screen.queryByRole("textbox", { name: "Search threads" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Search" })).toBeNull();
     const components = screen.getByRole("button", { name: "Components" });
     fireEvent.click(components);
 
     // Input accepts typing.
-    const search = await screen.findByRole("textbox", { name: "Search threads" });
+    const search = await screen.findByRole("textbox", { name: "Search" });
     fireEvent.change(search, { target: { value: "endless color" } });
     expect((search as HTMLInputElement).value).toBe("endless color");
     expect(screen.queryByRole("textbox", { name: "Filter" })).toBeNull();
@@ -784,9 +784,9 @@ describe("Theme Preview", () => {
     expect((screen.getByRole("button", { name: "Disabled" }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(components);
-    expect(screen.queryByRole("textbox", { name: "Search threads" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Search" })).toBeNull();
     fireEvent.click(components);
-    expect(screen.getByRole("textbox", { name: "Search threads" })).toBe(search);
+    expect(screen.getByRole("textbox", { name: "Search" })).toBe(search);
     expect((search as HTMLInputElement).value).toBe("endless color");
     expect(screen.getByRole("switch", { name: "Notifications" }).getAttribute("aria-checked")).not.toBe(before);
     expect(screen.getByRole("checkbox", { name: "Include drafts" }).getAttribute("aria-checked")).not.toBe(checkedBefore);

@@ -40,6 +40,11 @@ import {
   type ExperimentalDesktopBrowserImportOutcome,
 } from "./api/desktop-browsers.js";
 import type { Hono } from "hono";
+import {
+  searchQuerySchema,
+  type SearchQuery,
+  type SearchResponse,
+} from "./api/search.js";
 import type {
   AppTheme,
   AppThemeSelection,
@@ -403,6 +408,12 @@ type PathThreadInteractionId = {
 };
 
 export const publicApiRoutes = {
+  search: defineRoute({
+    path: "/search",
+    method: "get",
+    request: queryRequest<EmptyInput, SearchQuery>(searchQuerySchema),
+    response: jsonResponse<SearchResponse>(),
+  }),
   projects: {
     machineEnvironment: defineRoute({
       path: "/projects/:id/machine-environment",

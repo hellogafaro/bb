@@ -47,6 +47,7 @@ export * from "./provider-model-catalog.js";
 export * from "./provider-types.js";
 export * from "./raw-thread-id.js";
 export * from "./reasoning-efforts.js";
+export * from "./search-catalog.js";
 export * from "./reasoning-level.js";
 export * from "./retry.js";
 export * from "./setup-script.js";

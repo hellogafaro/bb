@@ -343,11 +343,12 @@ Drafts section or filter. Archived threads use their preserved placement and a
 restore action. Archived pages load only while selected.
 Plugin sidebar replacements own their filters.
 
-The palette's Filter uses Active and Archived independently of the
-sidebar, defaulting to Active. Its selection is browser-local, not configurable
-through SDK/CLI. Active includes threads with saved messages; Search threads retains
-the existing title and conversation search behavior. Archived fetches bounded recent rows only when
-selected.
+Global Search opens from the sidebar or Mod+K and finds threads, projects, settings,
+machines, and actions together. Active and archived threads appear in the same
+results with archived rows labelled. Search has no category or lifecycle filters;
+Show more expands a result group in place. Use `bb search <query>` or
+`sdk.search.query` for structured discovery, and `bb thread search` for the
+existing thread-specific interface.
 
 Every thread-list header's actions menu offers New project, New section,
 Organize, Sort by, and Filter. Organize selects By status (the Thread list

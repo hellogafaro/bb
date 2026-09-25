@@ -22,7 +22,7 @@ import { makePluginRegistrationSet as registrationSet } from "@/test/fixtures/pl
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
   openNewThreadInSplit: vi.fn(),
-  onSearchThreads: vi.fn(),
+  onSearch: vi.fn(),
 }));
 
 vi.mock("@/components/commands/AppCommandProvider", () => ({
@@ -109,7 +109,7 @@ function Harness({ onOwnerMount }: { onOwnerMount: () => void }) {
         newThreadSplit={{ openInSplit: mocks.openNewThreadInSplit }}
         onNavigate={vi.fn()}
         onNewChat={vi.fn()}
-        onSearchThreads={mocks.onSearchThreads}
+        onSearch={mocks.onSearch}
       />
       <RetainedOwner onMount={onOwnerMount} />
       <LocationProbe />
@@ -165,7 +165,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   mocks.dispatch.mockReset();
   mocks.openNewThreadInSplit.mockReset();
-  mocks.onSearchThreads.mockReset();
+  mocks.onSearch.mockReset();
 });
 
 describe("SidebarNavigationRegion", () => {
@@ -183,10 +183,10 @@ describe("SidebarNavigationRegion", () => {
     registerFixture();
     renderHarness();
 
-    fireEvent.click(screen.getByRole("button", { name: "Search threads" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
-    expect(mocks.onSearchThreads).toHaveBeenCalledOnce();
-    expect(mocks.dispatch).toHaveBeenCalledWith("thread.search", null);
+    expect(mocks.onSearch).toHaveBeenCalledOnce();
+    expect(mocks.dispatch).toHaveBeenCalledWith("palette.open", null);
     expect(
       screen.queryByRole("combobox", { name: "Search threads" }),
     ).toBeNull();
@@ -204,24 +204,23 @@ describe("SidebarNavigationRegion", () => {
     );
   });
 
-  it.each([
-    "/skills/library/demo",
-    "/customize",
-    "/customize/mcps/installed/x",
-  ])("marks Customize active on %s and routes it to /customize", (route) => {
-    registerFixture();
-    renderHarness(vi.fn(), [route]);
+  it.each(["/skills/library/demo", "/customize", "/customize/mcps/x"])(
+    "marks Customize active on %s and routes it to /customize",
+    (route) => {
+      registerFixture();
+      renderHarness(vi.fn(), [route]);
 
-    expect(
-      screen
-        .getByRole("button", { name: "Customize" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
-    expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
+      expect(
+        screen
+          .getByRole("button", { name: "Customize" })
+          .getAttribute("aria-current"),
+      ).toBe("page");
+      expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Customize" }));
-    expect(screen.getByTestId("pathname").textContent).toBe("/customize");
-  });
+      fireEvent.click(screen.getByRole("button", { name: "Customize" }));
+      expect(screen.getByTestId("pathname").textContent).toBe("/customize");
+    },
+  );
 
   it("delegates and falls back after a crash without owner remounts", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});

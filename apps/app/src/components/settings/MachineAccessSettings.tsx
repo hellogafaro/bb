@@ -135,9 +135,14 @@ export function MachineAccessSettingsContent({
 }) {
   return (
     <SettingsSection
+      settingId="machine-access"
       title="Machine access"
       description="Choose how new machines connect to the bb server."
-      action={<MachineAccessMethodPicker machineAccess={machineAccess} />}
+      action={
+        <span data-setting-id="connection-method">
+          <MachineAccessMethodPicker machineAccess={machineAccess} />
+        </span>
+      }
       bodyClassName="space-y-3"
     >
       <MachineAccessDetails machineAccess={machineAccess} />
@@ -168,8 +173,11 @@ export function MachineAccessControlsContent({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-normal text-foreground">
+      <div
+        className="flex items-center justify-between gap-3"
+        data-setting-id="connection-method"
+      >
+        <span className="text-sm font-normal text-foreground" tabIndex={-1}>
           Connection method
         </span>
         <MachineAccessMethodPicker machineAccess={machineAccess} />
@@ -280,6 +288,7 @@ function MachineAccessDetails({
       )}
       {selected === "direct" && (
         <SettingsWithControl
+          settingId="server-address"
           label="Server address"
           description={
             error === null ? (

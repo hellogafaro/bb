@@ -412,6 +412,7 @@ export function MachinesSettingsSection() {
   return (
     <>
       <SettingsSection
+        settingId="machines"
         title="Machines"
         bodyClassName="space-y-3 border-0 bg-transparent p-0"
         action={

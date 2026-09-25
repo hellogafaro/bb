@@ -65,7 +65,7 @@ export function SidebarNavigationRegion(props: BuiltInSidebarNavigationProps) {
   const commandRunner = useAppCommandRunner();
   const splitActions = usePaneContentSplitActions();
   const newThreadShortcut = useAppCommandShortcut("thread.new");
-  const threadSearchShortcut = useAppCommandShortcut("thread.search");
+  const searchShortcut = useAppCommandShortcut("palette.open");
 
   const splitPropsFor = useCallback(
     (
@@ -98,13 +98,13 @@ export function SidebarNavigationRegion(props: BuiltInSidebarNavigationProps) {
             }
           : null,
         searchThreadsDisabled: !commandRunner.isCommandAvailable(
-          "thread.search",
+          "palette.open",
           null,
         ),
-        searchThreadsShortcut: threadSearchShortcut
+        searchShortcut: searchShortcut
           ? {
-              label: threadSearchShortcut.label,
-              ariaKeyShortcuts: threadSearchShortcut.ariaKeyshortcuts,
+              label: searchShortcut.label,
+              ariaKeyShortcuts: searchShortcut.ariaKeyshortcuts,
             }
           : null,
         splitPropsFor,
@@ -115,7 +115,7 @@ export function SidebarNavigationRegion(props: BuiltInSidebarNavigationProps) {
       newThreadShortcut,
       props.onNewChat,
       splitPropsFor,
-      threadSearchShortcut,
+      searchShortcut,
     ],
   );
   const activeItemId = resolveActiveSidebarNavigationItemId({
@@ -182,8 +182,8 @@ export function SidebarNavigationRegion(props: BuiltInSidebarNavigationProps) {
             });
           },
           searchThreads: () => {
-            current.props.onSearchThreads?.();
-            current.commandRunner.dispatch("thread.search", null);
+            current.props.onSearch?.();
+            current.commandRunner.dispatch("palette.open", null);
           },
           openResourceWorkspace: (itemId) => {
             const routePath = getResourceNavigationItemRoutePath(itemId);

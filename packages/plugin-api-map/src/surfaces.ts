@@ -123,7 +123,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "Render every row, and decide the grouping, the ordering, and what each row shows",
           "Read live thread, section, project, and run-status data; select active or archived threads with experimental_lifecycles and load more archived pages through experimental_archived",
           "Use host-owned actions for navigation, pinning, read state, renaming, title generation with shared pending state and host feedback, archiving, and deletion confirmation; opt into per-row pull-request state and drag-to-split support",
-          "Own the whole region: bb ships no built-in list, so the sidebar shows a placeholder until a thread list plugin mounts; the deprecated searchQuery is always empty because the quick palette owns thread search",
+          "Own the whole region: bb ships no built-in list, so the sidebar shows a placeholder until a thread list plugin mounts; the deprecated searchQuery is always empty because global Search owns thread search",
           "Replace only the list. The New thread button, the search action, the plugin rows, and the sidebar footer stay bb's",
         ],
         apiSymbols: [
@@ -371,13 +371,13 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
     title: "Command palette",
     fixtureKind: "spatial",
     blurb:
-      "bb's searchable command menu. A plugin can add actions that match, rank, and run alongside bb's own commands.",
+      "Global Search finds threads, projects, settings, machines, and actions. Registered commands appear alongside built-in actions without exposing plugin management.",
     surfaces: [
       {
         id: "command-palette-actions",
         title: "Command palette actions",
         summary:
-          "Registers a command with app.commands.register and adds a row under Plugins in bb's quick command palette. With this, a plugin can:",
+          "Registers a command with app.commands.register and adds a row under Actions in global Search. Registration identity is retained for keyboard compatibility. With this, a plugin can:",
         bullets: [
           "Supply the row's label and run behavior; bb owns matching, ordering, and recency",
           "Offer a defaultShortcut with key and optional mod, meta, control, alt, and shift modifiers; mod means Command on macOS and Control elsewhere",

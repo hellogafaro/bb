@@ -138,6 +138,7 @@ export function VoiceInputSettingsSectionContent({
       }
     >
       <SettingsWithControl
+        settingId="microphone"
         label={MICROPHONE_SETTING_LABEL}
         description={microphoneSettingDescription({
           devices,

@@ -272,6 +272,7 @@ export function ProjectsSettingsSection() {
   return (
     <>
       <SettingsSection
+        settingId="projects"
         title="Projects"
         description={PROJECTS_SECTION_DESCRIPTION}
         action={

@@ -50,6 +50,7 @@ behavior.
 
 Run `bb guide <chapter>` for command details:
 
+  search               Search threads, projects, settings, machines, and actions
   threads              Spawning, inspecting, messaging, and managing threads
   environments         Environment lifecycle hooks, operations, commits, and merges
   agent-configuration  AGENTS.md and skills files that shape agents

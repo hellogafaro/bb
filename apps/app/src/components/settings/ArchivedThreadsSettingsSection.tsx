@@ -186,9 +186,9 @@ export function ArchivedThreadsSettingsSection() {
     : archivedThreadsQuery.isPending;
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-5" data-setting-id="archived-threads">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">
+        <h2 className="text-lg font-semibold text-foreground" tabIndex={-1}>
           Archived threads
         </h2>
         <p className="mt-1 text-xs text-subtle-foreground">

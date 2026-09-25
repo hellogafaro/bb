@@ -42,10 +42,10 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
         "New thread",
         "Start a thread in the active project.",
       ),
-      command(
+      paletteHiddenCommand(
         "thread.search",
-        "Search threads",
-        "Search threads in the quick palette.",
+        "Open search (legacy shortcut)",
+        "Open global search using an existing thread-search binding.",
       ),
       command("thread.rename", "Rename thread", "Rename the focused thread."),
       command(
@@ -77,8 +77,8 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
     commands: [
       paletteHiddenCommand(
         "palette.open",
-        "Open quick palette",
-        "Search and run bb commands from the keyboard.",
+        "Open search",
+        "Find threads, projects, settings, machines, and actions.",
       ),
       command("window.new", "New window", "Open another bb desktop window."),
       command(

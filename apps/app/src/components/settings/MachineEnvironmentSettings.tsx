@@ -268,6 +268,7 @@ export function MachineEnvironmentSettingsContent({
     inheritedNames.has("GH_TOKEN");
   return (
     <SettingsSection
+      settingId="environment-variables"
       title="Environment variables"
       description="Global variables are available to BB-managed processes on every connected machine. Project variables override them for work in that project."
       bodyClassName="space-y-8"

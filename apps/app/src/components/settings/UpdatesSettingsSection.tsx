@@ -1386,7 +1386,7 @@ export function UpdatesSettingsSection({
     ) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-setting-id="updates" tabIndex={-1}>
       {showChangelogPreview ? <ChangelogPreviewCard /> : null}
 
       <MachineUpdatesFleetSection action={bulkActions}>

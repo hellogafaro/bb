@@ -1,4 +1,6 @@
 export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
+  search:
+    "{query, groups: [{kind, results: [{id, kind, label, destination, matchClass, highlights, ...}], nextCursor?}]}    (continuations return one group)",
   status:
     "{project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}",
   "thread list":

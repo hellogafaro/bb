@@ -204,9 +204,9 @@ export interface PluginThreadListProps {
   onNavigate: () => void;
   /**
    * Compatibility value for the former sidebar search field. BB now searches
-   * threads in the quick palette, so the host always supplies "".
+   * threads in global Search, so the host always supplies "".
    *
-   * @deprecated The quick palette owns thread search. Ignore this value.
+   * @deprecated Global Search owns thread search. Ignore this value.
    */
   searchQuery: string;
 }
@@ -1587,9 +1587,9 @@ export interface PluginCommandShortcut {
 }
 
 /**
- * A command registered with `app.commands.register`, listed in bb's quick
- * palette (Mod+K) under the plugin's name
- * beside bb's own commands. Host-rendered: the plugin supplies a title and
+ * A command registered with `app.commands.register`, listed in bb's global
+ * Search (Mod+K) under Actions
+ * beside built-in commands. Host-rendered: the plugin supplies a title and
  * `run`, and the host owns matching, ordering, and recency.
  */
 export interface PluginCommandRegistration {

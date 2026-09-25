@@ -23,8 +23,8 @@ interface ProjectListNewThreadActionProps {
   onNewChat?: () => void;
 }
 
-interface ProjectListSearchThreadsActionProps {
-  onSearchThreads?: () => void;
+interface ProjectListSearchActionProps {
+  onSearch?: () => void;
 }
 
 export function ProjectListNewThreadAction({
@@ -76,11 +76,11 @@ export function ProjectListNewThreadAction({
   );
 }
 
-export function ProjectListSearchThreadsAction({
-  onSearchThreads,
-}: ProjectListSearchThreadsActionProps) {
+export function ProjectListSearchAction({
+  onSearch,
+}: ProjectListSearchActionProps) {
   const commandRunner = useAppCommandRunner();
-  const threadSearchShortcut = useAppCommandShortcut("thread.search");
+  const searchShortcut = useAppCommandShortcut("palette.open");
 
   return (
     <Button
@@ -89,27 +89,23 @@ export function ProjectListSearchThreadsAction({
       variant="ghost"
       className={cn(
         PROJECT_LIST_ACTION_BUTTON_CLASS,
-        "group/search-threads w-full pr-1",
+        "group/search w-full pr-1",
       )}
       onClick={(event) => {
-        onSearchThreads?.();
-        commandRunner.dispatch("thread.search", event.currentTarget);
+        onSearch?.();
+        commandRunner.dispatch("palette.open", event.currentTarget);
       }}
       aria-label={
-        threadSearchShortcut
-          ? `Search threads (${threadSearchShortcut.label})`
-          : "Search threads"
+        searchShortcut ? `Search (${searchShortcut.label})` : "Search"
       }
-      aria-keyshortcuts={threadSearchShortcut?.ariaKeyshortcuts}
+      aria-keyshortcuts={searchShortcut?.ariaKeyshortcuts}
     >
       <Icon name="Search" />
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="min-w-0 flex-1 truncate text-left">
-          Search threads
-        </span>
-        {threadSearchShortcut ? (
-          <span className="inline-flex shrink-0 opacity-0 transition-opacity group-hover/search-threads:opacity-100 group-focus-visible/search-threads:opacity-100 max-md:pointer-coarse:hidden">
-            <AppCommandShortcutPill shortcut={threadSearchShortcut} />
+        <span className="min-w-0 flex-1 truncate text-left">Search</span>
+        {searchShortcut ? (
+          <span className="inline-flex shrink-0 opacity-0 transition-opacity group-hover/search:opacity-100 group-focus-visible/search:opacity-100 max-md:pointer-coarse:hidden">
+            <AppCommandShortcutPill shortcut={searchShortcut} />
           </span>
         ) : null}
       </span>

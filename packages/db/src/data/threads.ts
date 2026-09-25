@@ -232,6 +232,17 @@ export function upsertThreadSearchSegments(
   }
 }
 
+export function listThreadsWithPendingInteractionStateByIds(
+  db: DbConnection,
+  threadIds: readonly string[],
+): ThreadWithPendingInteractionState[] {
+  if (threadIds.length === 0) return [];
+  return threadWithPendingInteractionBaseQuery(db)
+    .where(nonDeletedThreads(inArray(threads.id, [...threadIds])))
+    .all()
+    .map(toThreadWithPendingInteractionState);
+}
+
 function upsertThreadTitleSearchSegments(
   db: ThreadWriteConnection,
   args: UpsertThreadTitleSearchSegmentsArgs,

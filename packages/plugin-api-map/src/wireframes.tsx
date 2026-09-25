@@ -216,7 +216,7 @@ function CommandPaletteActionMark({ onRun }: { onRun: () => void }) {
       )}
     >
       <span>Run release checklist</span>
-      <span className="ml-auto text-xs text-subtle-foreground">Plugins</span>
+      <span className="ml-auto text-xs text-subtle-foreground">Actions</span>
     </button>
   );
 }
@@ -559,7 +559,7 @@ const SIDEBAR_SECTION_RENDERERS: Record<string, () => ReactNode> = {
         </span>
         <span className="flex h-6.5 items-center gap-2 rounded-md px-2">
           <MiniIcon icon="Search" />
-          Search threads
+          Search
         </span>
         <span className="flex h-6.5 items-center gap-2 rounded-md px-2">
           <MiniIcon icon="Plug02" />
@@ -690,7 +690,9 @@ export type AppShellRightPanelTab =
   | "code-renderers";
 
 function RightPanelTabLaneBadges({ mobile }: { mobile: boolean }) {
-  const clipTo = mobile ? '[data-guide-fixture="right-panel-tab-strip"]' : undefined;
+  const clipTo = mobile
+    ? '[data-guide-fixture="right-panel-tab-strip"]'
+    : undefined;
   return (
     <>
       <MeasuredBadge
@@ -771,7 +773,7 @@ export function CommandPaletteWireframe({
                 </div>
                 <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
                   <MiniIcon icon="Search" className="size-3.5" />
-                  Search threads
+                  Search
                 </div>
                 <div className="mt-3 px-2 text-2xs font-medium uppercase tracking-wide text-subtle-foreground">
                   Threads
@@ -803,15 +805,15 @@ export function CommandPaletteWireframe({
                 <button
                   type="button"
                   onClick={openPalette}
-                  aria-label="Open Quick palette (Shift Command P)"
+                  aria-label="Open Search (Command K)"
                   data-guide-fixture="command-palette-shortcut"
                   className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border-hairline px-2 text-subtle-foreground hover:bg-state-hover hover:text-foreground"
                 >
                   <MiniIcon icon="Search" className="size-3.5" />
-                  <span>Quick palette</span>
+                  <span>Search</span>
                   {mobile ? null : (
                     <kbd className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-2xs text-foreground">
-                      ⇧⌘P
+                      ⌘K
                     </kbd>
                   )}
                 </button>
@@ -918,9 +920,9 @@ export function CommandPaletteWireframe({
                     className="size-4 shrink-0 text-muted-foreground"
                   />
                   <input
-                    aria-label="Search commands"
+                    aria-label="Search"
                     readOnly
-                    value=">release"
+                    value="release"
                     className="h-11 min-w-0 flex-1 bg-transparent text-foreground outline-none"
                   />
                 </div>
@@ -945,7 +947,7 @@ export function CommandPaletteWireframe({
                 </div>
                 <MeasuredBadge
                   id="command-palette-actions"
-                  label="Plugin actions in bb's quick command palette"
+                  label="Registered actions in Search"
                   anchor='[data-guide-region="command-palette-actions"]'
                   at="start"
                   flush
@@ -1034,10 +1036,7 @@ export function AppShellWireframe({
         </>
       ) : null}
       {scene === "desktop" || scene === "panel" ? (
-        <RightPanelTabLaneBadges
-          key={rightPanelTab}
-          mobile={mobile}
-        />
+        <RightPanelTabLaneBadges key={rightPanelTab} mobile={mobile} />
       ) : null}
       <AppShellWireframeBody
         scene={scene}
@@ -1062,7 +1061,9 @@ function AppShellWireframeBody({
   const contentScripts = useEngagement("content-scripts");
   const messageActionsSelected = expandedId === "message-actions";
   const messageActionRowVisible =
-    scene === "conversation" || assistantMessageHovered || messageActionsSelected;
+    scene === "conversation" ||
+    assistantMessageHovered ||
+    messageActionsSelected;
 
   if (scene === "navigation") {
     return (
@@ -1133,9 +1134,7 @@ function AppShellWireframeBody({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-12 items-center gap-2 border-b border-border-hairline px-4">
-            {mobile ? (
-              <MiniIcon icon="PanelLeft" className="size-5" />
-            ) : null}
+            {mobile ? <MiniIcon icon="PanelLeft" className="size-5" /> : null}
             <span className="truncate text-foreground">
               Fix flaky checkout tests
             </span>
@@ -1149,9 +1148,7 @@ function AppShellWireframeBody({
             >
               <PluginGlyph className="size-3.5" />
             </Mark>
-            {mobile ? (
-              <MiniIcon icon="PanelRight" className="size-5" />
-            ) : null}
+            {mobile ? <MiniIcon icon="PanelRight" className="size-5" /> : null}
           </div>
 
           <div
@@ -1691,7 +1688,12 @@ function StaticEmbeddedComposer({ mobile = false }: { mobile?: boolean }) {
   const actions = useEngagement("composer-actions");
   return (
     <div data-guide-fixture="embedded-composer" className="space-y-2">
-      <div className={cn("relative flex flex-col rounded-xl border border-border bg-background px-2 pb-2 pt-7 shadow-lift", mobile ? "min-h-48 gap-7" : "h-36")}>
+      <div
+        className={cn(
+          "relative flex flex-col rounded-xl border border-border bg-background px-2 pb-2 pt-7 shadow-lift",
+          mobile ? "min-h-48 gap-7" : "h-36",
+        )}
+      >
         {plus.outlined ? (
           <div
             aria-hidden
@@ -2133,7 +2135,7 @@ export function ExtensionsPluginPageWireframe({
         ) : (
           <TrafficLights />
         )}
-        <span className="text-foreground">Plugins</span>
+        <span className="text-foreground">Actions</span>
       </div>
       <div className="flex min-h-[470px] flex-col">
         <Mark

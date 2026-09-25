@@ -154,6 +154,36 @@ function createRealtimeEffectsTestContext(
 }
 
 describe("createRealtimeCacheEffects", () => {
+  it("refreshes an active global search after a project change", async () => {
+    const { effects, queryClient } = createRealtimeEffectsTestContext(
+      createFakeVisibility(),
+    );
+    const queryFn = vi.fn(async () => ({ groups: [] }));
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ["global-search", "server", "project", null],
+      queryFn,
+      staleTime: Infinity,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() =>
+        expect(observer.getCurrentResult().isSuccess).toBe(true),
+      );
+      effects.handleChanged({
+        type: "changed",
+        entity: "project",
+        id: "project-1",
+        changes: ["threads-changed"],
+      });
+      await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    } finally {
+      unsubscribe();
+      effects.dispose();
+      queryClient.clear();
+    }
+  });
+
   it.each(
     [
       threadStorageFilesQueryKey("thread-1"),

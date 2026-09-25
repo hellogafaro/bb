@@ -182,7 +182,7 @@ export function AppSidebar({
         splitEnabled
         newThreadSplit={newThreadSplit}
         onNewChat={handleNewChat}
-        onSearchThreads={closeOnMobile}
+        onSearch={closeOnMobile}
       />
       <SidebarContent>
         <PluginThreadList

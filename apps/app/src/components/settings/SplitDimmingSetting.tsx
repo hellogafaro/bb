@@ -12,6 +12,7 @@ export function SplitDimmingSetting() {
 
   return (
     <SettingsWithControl
+      settingId="split-dimming"
       label={SPLIT_DIMMING_SETTING_LABEL}
       description="Fade out splits that do not have focus."
     >

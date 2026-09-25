@@ -49,6 +49,8 @@ BB_HOST_DAEMON_PORT only for an intentional non-default target.
 ## Read only the relevant reference
 
 - Read references/command-index.md to find the exact core command path. Use
+  `bb search <query> --json` to discover threads, projects, settings, machines,
+  and actions on the connected server; use `--cursor` to continue a group.
   live help for current flags and defaults.
 - Read references/configuration.md for settings, agent instructions, skills,
   remote clients, and environment setup scripts.

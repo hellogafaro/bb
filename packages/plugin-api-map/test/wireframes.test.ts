@@ -378,8 +378,8 @@ describe("guide fixture boundaries", () => {
     expect(markup).not.toContain("p-1 pl-3 text-sm");
     expect(markup).toContain('role="option" aria-selected="true"');
     expect(markup).toContain("Run release checklist");
-    expect(markup).toContain("Plugins");
-    expect(markup).toContain("⇧⌘P");
+    expect(markup).toContain("Actions");
+    expect(markup).toContain("⌘K");
     expect(markup).not.toContain(
       'data-guide-fixture="release-checklist-panel"',
     );

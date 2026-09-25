@@ -3020,8 +3020,8 @@ function ComponentsSection({ stacked = false }: { stacked?: boolean }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <BbInput
             className="h-7 px-2 text-xs"
-            aria-label="Search threads"
-            placeholder="Search threads…"
+            aria-label="Search"
+            placeholder="Search…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />

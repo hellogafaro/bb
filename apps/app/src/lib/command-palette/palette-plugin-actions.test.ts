@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PluginThreadPanelOpenHandler } from "@/components/plugin/plugin-thread-panel-navigation";
 import type { PluginCommandPaletteActionSlot } from "@/lib/plugin-slots";
-import {
-  resetPluginLogoStoreForTest,
-  setPluginLogoUrls,
-} from "@/lib/plugin-logos";
 import { buildPluginPaletteActions } from "./palette-plugin-actions";
 
 function slot(
@@ -33,38 +29,14 @@ function build(
 }
 
 afterEach(() => {
-  resetPluginLogoStoreForTest();
   vi.restoreAllMocks();
 });
 
 describe("buildPluginPaletteActions", () => {
-  it("buckets plugin actions together and attributes them to the manifest name", () => {
-    setPluginLogoUrls(
-      new Map([
-        [
-          "linear",
-          {
-            displayName: "Linear",
-            icon: null,
-            compactIconUrl: null,
-            logoUrl: null,
-            logoDarkUrl: null,
-            icons: new Map(),
-          },
-        ],
-      ]),
-    );
-
+  it("shows feature commands as plain actions", () => {
     expect(build([slot({ id: "listed" })])[0]).toMatchObject({
-      bucket: "Plugins",
-      group: "Linear",
-    });
-  });
-
-  it("uses the stable plugin id when the manifest name is unavailable", () => {
-    expect(build([slot({ id: "listed" })])[0]).toMatchObject({
-      bucket: "Plugins",
-      group: "linear",
+      bucket: "Actions",
+      group: "Actions",
     });
   });
 

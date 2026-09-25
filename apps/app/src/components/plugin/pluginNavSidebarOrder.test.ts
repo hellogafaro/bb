@@ -286,6 +286,24 @@ describe("togglePluginNavPanelVisibility", () => {
 });
 
 describe("Customize page sidebar defaults", () => {
+  it("shows Search by default while respecting a saved hidden choice", () => {
+    const search = panel("__bb__", "search-threads");
+    const defaults = arrangePluginNavPanelPreferences({
+      panels: [search],
+      storedOrder: [],
+      storedVisibleKeys: null,
+      defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
+    });
+    expect(defaults.visible).toEqual([search]);
+    const customized = arrangePluginNavPanelPreferences({
+      panels: [search],
+      storedOrder: [],
+      storedVisibleKeys: [],
+      defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
+    });
+    expect(customized.visible).toEqual([]);
+  });
+
   it("hides the mcps panel by default but keeps it available to show", () => {
     const mcps = panel("mcp", "mcp");
     const arranged = arrangePluginNavPanelPreferences({
@@ -296,7 +314,7 @@ describe("Customize page sidebar defaults", () => {
     });
     expect(arranged.visible).toEqual([github]);
     expect(arranged.ordered).toEqual([github, mcps]);
-    expect(DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS).toContain(
+    expect(DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS).not.toContain(
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
     );
   });

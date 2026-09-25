@@ -6,6 +6,10 @@ This index lists every command path that the core CLI registers, including alias
 
 - `bb status`
 
+## search
+
+- `bb search <query> [--project <id>] [--limit-per-group <1-50>] [--cursor <cursor>] [--json]`
+
 ## settings
 
 - `bb settings`

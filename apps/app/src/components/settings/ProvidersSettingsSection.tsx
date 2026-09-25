@@ -236,6 +236,7 @@ export function ProvidersSettingsSection({
   return (
     <>
       <SettingsSection
+        settingId="default-provider"
         title="Providers"
         description="Set the default agent and its order in provider pickers. Configure each provider on its plugin page under Plugins."
       >
@@ -267,6 +268,7 @@ export function ProvidersSettingsSection({
       </SettingsSection>
       {providers.length === 0 ? null : (
         <SettingsSection
+          settingId="collapse-finished-turns"
           title="Collapse finished turns"
           description="When a turn finishes, fold its work into one Worked for row and keep the final answer visible. Turn a provider off to keep every step of its finished turns visible."
         >

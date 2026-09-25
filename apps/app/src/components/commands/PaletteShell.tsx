@@ -5,10 +5,8 @@ import {
   type Ref,
 } from "react";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Icon } from "@bb/shared-ui/icon";
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { useScrollOverflowState } from "@/components/thread/timeline/useScrollOverflowState";
-import { TabPill } from "@/components/ui/tab-pill";
 
 export const PALETTE_SECTION_LABEL_CLASS =
   "px-2 py-1 text-xs font-normal leading-5 text-subtle-foreground";
@@ -24,14 +22,6 @@ export function PaletteShortcut({ children }: { children: string }) {
   );
 }
 
-interface PaletteModeChipProps {
-  clearLabel: string;
-  icon: Parameters<typeof Icon>[0]["name"];
-  label: string;
-  onClear: () => void;
-  hideShortcut?: boolean;
-}
-
 interface PaletteShellProps {
   activeDescendantId?: string;
   children: ReactNode;
@@ -41,7 +31,6 @@ interface PaletteShellProps {
   listId: string;
   listLabel: string;
   listRef?: Ref<HTMLDivElement>;
-  modeChip?: PaletteModeChipProps;
   inputAccessory?: ReactNode;
   onInputChange: (value: string) => void;
   onInputKeyDown: KeyboardEventHandler<HTMLInputElement>;
@@ -58,7 +47,6 @@ export function PaletteShell({
   listId,
   listLabel,
   listRef,
-  modeChip,
   inputAccessory,
   onInputChange,
   onInputKeyDown,
@@ -86,7 +74,6 @@ export function PaletteShell({
         data-palette-input-band
       >
         <div className="flex h-10 items-center gap-2" data-palette-input-frame>
-          {modeChip === undefined ? null : <PaletteModeChip {...modeChip} />}
           <input
             ref={inputRef}
             autoFocus
@@ -142,39 +129,5 @@ export function PaletteShell({
         </div>
       </div>
     </TooltipProvider>
-  );
-}
-
-function PaletteModeChip({
-  clearLabel,
-  icon,
-  label,
-  onClear,
-  hideShortcut,
-}: PaletteModeChipProps) {
-  return (
-    <span
-      data-palette-mode-chip
-      onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        event.stopPropagation();
-        onClear();
-      }}
-    >
-      <TabPill
-        ariaLabel={`${label} search`}
-        label={label}
-        title={label}
-        isActive
-        onSelect={() => undefined}
-        leadingVisual={<Icon name={icon} aria-hidden />}
-        closeAction={{
-          onClose: onClear,
-          closeLabel: clearLabel,
-          tooltip: hideShortcut ? clearLabel : `${clearLabel} (Esc)`,
-        }}
-      />
-    </span>
   );
 }

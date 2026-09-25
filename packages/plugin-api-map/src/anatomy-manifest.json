@@ -37,8 +37,8 @@
       "responsiveStrategy": "scale-together",
       "requiredStates": ["anchor", "triggered", "outcome"],
       "labels": {
-        "anchor": ["Quick palette", "⇧⌘P"],
-        "triggered": ["Search commands", "Plugins", "Run release checklist"],
+        "anchor": ["Search", "⌘K"],
+        "triggered": ["Search", "Actions", "Run release checklist"],
         "outcome": ["Release checklist"]
       },
       "fixtureClassAnchors": [
@@ -59,8 +59,8 @@
           "path": "apps/app/src/components/commands/CommandPalette.tsx",
           "anchors": [
             "top-[12%] max-w-[640px] translate-y-0 gap-0 bg-sidebar p-0",
-            "aria-selected={isActive}",
-            "flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm outline-none",
+            "aria-selected={index === activeIndex}",
+            "flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm",
             "bg-sidebar-accent text-foreground"
           ]
         },
@@ -70,14 +70,13 @@
         },
         {
           "path": "apps/app/src/lib/command-palette/palette-plugin-actions.ts",
-          "anchors": ["bucket: \"Plugins\"", "run: () =>"]
+          "anchors": ["bucket: \"Actions\"", "run: () =>"]
         },
         {
           "path": "apps/app/src/components/commands/CommandPalette.test.tsx",
           "anchors": [
-            "lists a plugin's registered command and runs it",
-            "expect(testState.calls).toEqual([\"plugin-ran\"])",
-            "expect(screen.queryByRole(\"combobox\")).toBeNull()"
+            "opens the same empty panel from the compatibility alias and focuses one input",
+            "opens a message result at its anchor and marks archived rows"
           ]
         },
         {
@@ -96,9 +95,9 @@
       "responsiveStrategy": "scale-together",
       "requiredStates": ["owner", "replacement", "fallback"],
       "labels": {
-        "owner": ["New thread", "Search threads", "Plugins", "Skills"],
+        "owner": ["New thread", "Search", "Plugins", "Skills"],
         "replacement": ["Custom navigation"],
-        "fallback": ["New thread", "Search threads", "Plugins", "Skills"]
+        "fallback": ["New thread", "Search", "Plugins", "Skills"]
       },
       "fixtureClassAnchors": ["px-2 py-2", "px-2 pb-2"],
       "sources": [

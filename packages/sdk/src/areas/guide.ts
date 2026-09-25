@@ -14,6 +14,7 @@ export interface GuideArea {
 }
 
 const guideChapters: Record<string, TemplateId> = {
+  search: "bbGuideSearch",
   threads: "bbGuideThreads",
   environments: "bbGuideEnvironments",
   "agent-configuration": "bbGuideAgentConfiguration",

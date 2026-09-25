@@ -1,7 +1,9 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@bb/shared-ui/lib/utils";
+import type { CoreSettingId } from "@bb/domain";
 
 interface SettingsSectionProps {
+  settingId?: CoreSettingId;
   action?: ReactNode;
   actionPlacement?: "inline" | "responsive";
   children: ReactNode;
@@ -11,6 +13,7 @@ interface SettingsSectionProps {
 }
 
 export function SettingsSection({
+  settingId,
   action,
   actionPlacement = "responsive",
   children,
@@ -19,7 +22,7 @@ export function SettingsSection({
   bodyClassName,
 }: SettingsSectionProps) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-setting-id={settingId}>
       <div
         className={cn(
           actionPlacement === "inline"
@@ -36,7 +39,10 @@ export function SettingsSection({
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
-            <h2 className="min-w-0 text-sm font-semibold text-foreground">
+            <h2
+              className="min-w-0 text-sm font-semibold text-foreground"
+              tabIndex={settingId ? -1 : undefined}
+            >
               {title}
             </h2>
           </div>
@@ -111,6 +117,7 @@ export function SettingsDetailRow({
 export type SettingsControlPlacement = "inline" | "below" | "trailing";
 
 interface SettingsWithControlProps {
+  settingId?: CoreSettingId;
   label: string;
   labelBadge?: string;
   description?: ReactNode;
@@ -127,6 +134,7 @@ export function SettingsBadge({ children }: { children: ReactNode }) {
 }
 
 export function SettingsWithControl({
+  settingId,
   label,
   labelBadge,
   description,
@@ -138,6 +146,7 @@ export function SettingsWithControl({
   return (
     <div
       data-control-placement={controlPlacement}
+      data-setting-id={settingId}
       className={cn(
         trailing
           ? "flex flex-row justify-between gap-5"
@@ -149,7 +158,12 @@ export function SettingsWithControl({
     >
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="min-w-0 text-sm font-normal text-foreground">{label}</p>
+          <p
+            className="min-w-0 text-sm font-normal text-foreground"
+            tabIndex={settingId ? -1 : undefined}
+          >
+            {label}
+          </p>
           {labelBadge ? <SettingsBadge>{labelBadge}</SettingsBadge> : null}
         </div>
         {description ? (

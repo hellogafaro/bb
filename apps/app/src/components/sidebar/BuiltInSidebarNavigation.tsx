@@ -6,7 +6,7 @@ import {
 } from "@/components/plugin/PluginNavSidebarItems";
 import {
   ProjectListNewThreadAction,
-  ProjectListSearchThreadsAction,
+  ProjectListSearchAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
 import { getSkillsRoutePath } from "@/lib/route-paths";
@@ -14,7 +14,7 @@ import { getSkillsRoutePath } from "@/lib/route-paths";
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
 > &
-  ComponentProps<typeof ProjectListSearchThreadsAction> &
+  ComponentProps<typeof ProjectListSearchAction> &
   Pick<
     ComponentProps<typeof PluginNavSidebarItems>,
     "onNavigate" | "splitEnabled"
@@ -24,7 +24,7 @@ export function BuiltInSidebarNavigation({
   newThreadSplit,
   onNavigate,
   onNewChat,
-  onSearchThreads,
+  onSearch,
   splitEnabled,
 }: BuiltInSidebarNavigationProps) {
   const skillsRoutePath = getSkillsRoutePath();
@@ -45,9 +45,7 @@ export function BuiltInSidebarNavigation({
       kind: "built-in",
       pluginId: "__bb__",
       id: "search-threads",
-      content: (
-        <ProjectListSearchThreadsAction onSearchThreads={onSearchThreads} />
-      ),
+      content: <ProjectListSearchAction onSearch={onSearch} />,
     },
     {
       kind: "built-in",

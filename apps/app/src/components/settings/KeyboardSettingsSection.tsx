@@ -681,6 +681,7 @@ export function KeyboardSettingsSection() {
 
   return (
     <SettingsSection
+      settingId="keyboard-shortcuts"
       action={
         <Button
           disabled={disabled || !hasOverrides}
@@ -699,6 +700,7 @@ export function KeyboardSettingsSection() {
     >
       <div className="space-y-5">
         <SettingsWithControl
+          settingId="keyboard-hints"
           description="Show shortcut badges after holding Command or Control."
           label="Show keyboard hints when holding CMD / Control"
         >

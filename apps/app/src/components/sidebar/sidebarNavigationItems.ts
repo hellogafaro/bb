@@ -38,7 +38,7 @@ interface CreateSidebarNavigationItemsOptions {
   newThreadDisabled: boolean;
   newThreadShortcut: ExperimentalSidebarNavigationShortcut | null;
   searchThreadsDisabled: boolean;
-  searchThreadsShortcut: ExperimentalSidebarNavigationShortcut | null;
+  searchShortcut: ExperimentalSidebarNavigationShortcut | null;
   splitPropsFor(
     action: ExperimentalSidebarNavigationAction,
     label: string,
@@ -50,7 +50,7 @@ export function createSidebarNavigationItems({
   newThreadDisabled,
   newThreadShortcut,
   searchThreadsDisabled,
-  searchThreadsShortcut,
+  searchShortcut,
   splitPropsFor,
 }: CreateSidebarNavigationItemsOptions): readonly ExperimentalSidebarNavigationItem[] {
   const newThreadAction = { kind: "new-thread" } as const;
@@ -68,11 +68,11 @@ export function createSidebarNavigationItems({
     },
     {
       id: SEARCH_THREADS_NAVIGATION_ITEM_ID,
-      label: "Search threads",
+      label: "Search",
       icon: { kind: "host", name: "search" },
       action: searchAction,
       isDisabled: searchThreadsDisabled,
-      shortcut: searchThreadsShortcut,
+      shortcut: searchShortcut,
       experimental_splitProps: {},
     },
     {
