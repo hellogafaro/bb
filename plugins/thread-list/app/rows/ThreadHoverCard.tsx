@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   HoverCard,
   HoverCardContent,
@@ -243,19 +243,55 @@ export function ThreadHoverCard({
 }) {
   const [open, setOpen] = useState(false);
   const [wanted, setWanted] = useState(false);
+  const allowOpen = useRef(false);
+  useEffect(() => {
+    if (!suppressed) return;
+    allowOpen.current = false;
+    setOpen(false);
+  }, [suppressed]);
   const visible = open && !suppressed;
   const details = useThreadHoverDetails(thread, visible);
   return (
     <HoverCard
       open={visible}
       onOpenChange={(next) => {
+        if (next && (suppressed || !allowOpen.current)) return;
         setOpen(next);
         if (next) setWanted(true);
       }}
       openDelay={400}
       closeDelay={60}
     >
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+      <HoverCardTrigger
+        asChild
+        onPointerEnter={(event) => {
+          if (suppressed) {
+            event.preventDefault();
+            return;
+          }
+          allowOpen.current = true;
+        }}
+        onFocus={(event) => {
+          const control =
+            event.target instanceof HTMLElement
+              ? event.target.closest(
+                  "button, input, textarea, select, [role=button], [contenteditable=true]",
+                )
+              : null;
+          if (
+            suppressed ||
+            (control !== null &&
+              control !== event.currentTarget &&
+              event.currentTarget.contains(control))
+          ) {
+            event.preventDefault();
+            return;
+          }
+          allowOpen.current = true;
+        }}
+      >
+        {children}
+      </HoverCardTrigger>
       <HoverCardContent
         side="right"
         align="start"
