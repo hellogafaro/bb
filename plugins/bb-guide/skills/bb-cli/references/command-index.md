@@ -8,7 +8,9 @@ This index lists every command path that the core CLI registers, including alias
 
 ## search
 
-- `bb search <query> [--project <id>] [--limit-per-group <1-50>] [--cursor <cursor>] [--json]`
+- `bb search`
+
+`bb search <query>` finds threads, projects, settings, machines, and actions; add `--project <id>`, `--limit-per-group <1-50>`, `--cursor <cursor>`, or `--json`.
 
 ## settings
 

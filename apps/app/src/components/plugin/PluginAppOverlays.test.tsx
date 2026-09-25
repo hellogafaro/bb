@@ -46,6 +46,10 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => {
   return {
     useArchiveThreadAndChildren: mutation,
     useDeleteThread: mutation,
+    useGenerateThreadTitle: () => ({
+      generateTitle: vi.fn(),
+      generatingTitleIds: new Set<string>(),
+    }),
     useMarkThreadRead: mutation,
     useMarkThreadUnread: mutation,
     usePinThread: mutation,

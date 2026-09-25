@@ -390,7 +390,7 @@ describe("PluginNavSidebarItems", () => {
     expect(panelRowNames(labels)).toEqual(labels);
   });
 
-  it("hides only Search by default and renders nothing in its place", () => {
+  it("shows Search by default in its stored position", () => {
     const labels = ["One", "Two", "Three", "Four"];
     labels.forEach((label, index) => registerPanel(`plugin-${index}`, label));
     renderSidebarItems({
@@ -412,10 +412,13 @@ describe("PluginNavSidebarItems", () => {
       "plugin-0/main",
       "__bb__/new-thread",
       "plugin-1/main",
+      "__bb__/search-threads",
       "plugin-2/main",
       "plugin-3/main",
     ]);
-    expect(screen.queryByRole("button", { name: "Search threads" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Search threads" }),
+    ).not.toBeNull();
   });
 
   it("omits rows hidden by stored preferences", () => {
@@ -460,6 +463,7 @@ describe("PluginNavSidebarItems", () => {
     const initialVisibleKeys = visibleRowKeys();
     expect(initialVisibleKeys).toEqual([
       "__bb__/new-thread",
+      "__bb__/search-threads",
       "__bb__/extensions",
       "__bb__/skills",
       "docs/main",
@@ -479,6 +483,7 @@ describe("PluginNavSidebarItems", () => {
     renderSidebarItems({ builtInEntries, storedOrder, storedVisibleKeys });
     expect(visibleRowKeys()).toEqual([
       "__bb__/new-thread",
+      "__bb__/search-threads",
       "__bb__/extensions",
       "__bb__/skills",
       "tasks/main",
@@ -526,7 +531,11 @@ describe("PluginNavSidebarItems", () => {
       storedVisibleKeys: ["docs/main"],
     });
 
-    expect(visibleRowKeys()).toEqual(["__bb__/new-thread", "docs/main"]);
+    expect(visibleRowKeys()).toEqual([
+      "__bb__/new-thread",
+      "__bb__/search-threads",
+      "docs/main",
+    ]);
     expect(store.get(pluginNavVisiblePanelKeysAtom)).toEqual(["docs/main"]);
     expect(store.get(pluginNavPanelOrderAtom)).toEqual([
       "tasks/main",

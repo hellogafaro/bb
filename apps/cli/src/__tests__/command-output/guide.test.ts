@@ -17,7 +17,7 @@ describe("bb guide command output", () => {
     const errorOutput = collectLogLines(vi.mocked(console.error)).join("\n");
     expect(errorOutput).toContain("Unknown guide chapter 'missing'");
     expect(errorOutput).toContain(
-      "Available: threads, environments, agent-configuration, providers, projects, machines, terminals, browser, customization, plugins, automations, mcp, agents, json.",
+      "Available: search, threads, environments, agent-configuration, providers, projects, machines, terminals, browser, customization, plugins, automations, mcp, agents, json.",
     );
   });
 
@@ -56,7 +56,7 @@ describe("bb guide command output", () => {
 
     const errorOutput = collectLogLines(vi.mocked(console.error)).join("\n");
     expect(errorOutput).toContain("Unknown command group 'nope'.");
-    expect(errorOutput).toContain("Command groups: browser, status");
+    expect(errorOutput).toContain("Command groups: search, browser, status");
   }, 30_000);
 
   it("bb guide terminals documents explicit scopes and ID-only mutations", async () => {

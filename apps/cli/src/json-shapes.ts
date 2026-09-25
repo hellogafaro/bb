@@ -17,6 +17,8 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
   "thread unsnooze":
     "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
+  "thread unsnooze":
+    "the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)",
   "thread search": "{active: {total, results}, archived: {total, results}}",
   "project list":
     "[{id, kind, name, gitRemoteUrl, color, sources: [{id, hostId, path, isDefault}]}]    (bare array; color is the label palette index 1-24)",

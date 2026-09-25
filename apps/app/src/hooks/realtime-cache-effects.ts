@@ -18,6 +18,7 @@ import {
 } from "./cache-owners/system-cache-effects";
 import { createBufferedEnvironmentInvalidator } from "./buffered-environment-invalidator";
 import { invalidateMcpRealtimeChange } from "./cache-owners/mcp-cache-owner";
+import { invalidateActiveGlobalSearch } from "./cache-owners/global-search-cache-owner";
 import { invalidateAgentRealtimeChange } from "./cache-owners/agent-cache-owner";
 import {
   isDocumentVisible,
@@ -198,10 +199,7 @@ function flushThreadInvalidations(
   state: ThreadChangeState,
 ): void {
   if (state.globalChangeKinds.size > 0 || state.changedThreadKinds.size > 0) {
-    void queryClient.invalidateQueries({
-      queryKey: ["global-search"],
-      refetchType: "active",
-    });
+    invalidateActiveGlobalSearch({ queryClient });
   }
   const flushOnce = createFlushOncePredicate();
   for (const changeKind of state.globalChangeKinds) {
@@ -422,10 +420,7 @@ export function createRealtimeCacheEffects({
     hostId: string | undefined,
     changeKinds: Iterable<HostChangeKind>,
   ): void => {
-    void queryClient.invalidateQueries({
-      queryKey: ["global-search"],
-      refetchType: "active",
-    });
+    invalidateActiveGlobalSearch({ queryClient });
     for (const changeKind of changeKinds) {
       executeRealtimeDirtyHandlers({
         context: { hostId, queryClient },
@@ -437,10 +432,7 @@ export function createRealtimeCacheEffects({
     projectId: string | undefined,
     changeKinds: Iterable<ProjectChangeKind>,
   ): void => {
-    void queryClient.invalidateQueries({
-      queryKey: ["global-search"],
-      refetchType: "active",
-    });
+    invalidateActiveGlobalSearch({ queryClient });
     for (const changeKind of changeKinds) {
       executeRealtimeDirtyHandlers({
         context: { projectId, queryClient },
@@ -532,10 +524,7 @@ export function createRealtimeCacheEffects({
               metadata: message.id ? message.metadata : undefined,
               queryClient,
             });
-            void queryClient.invalidateQueries({
-              queryKey: ["global-search"],
-              refetchType: "active",
-            });
+            invalidateActiveGlobalSearch({ queryClient });
           }
           break;
         }

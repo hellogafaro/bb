@@ -150,6 +150,9 @@ vi.mock("@/hooks/useQuickCreateProject", () => ({
   }),
 }));
 
+vi.mock("@/components/commands/CommandPalette", () => ({
+  CommandPalette: () => null,
+}));
 vi.mock("@/hooks/queries/sidebar-navigation-query", () => ({
   useSidebarNavigation: () => ({
     data: {

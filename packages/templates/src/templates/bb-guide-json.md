@@ -34,6 +34,9 @@ Shapes
 List commands do not share one wrapper. Most print a bare array; a few wrap it.
 Fields beyond those shown exist; these are the ones scripts use.
 
+  bb search <query> --json
+    {query, groups: [{kind, results: [{id, kind, label, destination, matchClass, highlights, ...}], nextCursor?}]}    (continuations return one group)
+
   bb status --json
     {project: {id, name} | null, thread: {id, status, title, parentThreadId, environment: {hostId, display} | null} | null, childThreads: [{id, status, title}] | null, pendingTodos, pluginsNeedingAttention: [{id, status}], dataDir}
 
@@ -55,7 +58,10 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb thread generate-title <id> --json
     the updated thread: {id, status, title, projectId, environmentId, ...}
 
-  bb thread snooze <id> <until> --json, bb thread unsnooze <id> --json
+  bb thread snooze <id> <until> --json
+    the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)
+
+  bb thread unsnooze <id> --json
     the updated thread: {id, status, title, snoozedUntil, ...}    (snoozedUntil is epoch ms or null)
 
   bb thread tell <id> ... --json
