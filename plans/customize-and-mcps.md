@@ -124,3 +124,32 @@ Steps 1 and 2 can run in parallel. Step 5 is what the "prove one full run" step 
 - Turbo tasks: `pnpm exec turbo run typecheck test --filter=@bb/app --filter=bb-plugin-mcp`.
 - `verify-bb` recipes: Customize page navigation, skill create via chat, MCP add via chat with `bb mcps add`, a confirm-policy tool call approved from the inbox, and a Codex thread with a pinned server confirming the tool list.
 - Manual: `bb mcps list` before and after Phase A shows identical servers and auth; a Claude Code thread shows `mcp__bb-bridge__mcps_*` as deferred tools and the connected-MCPs line in instructions.
+
+## Phase J: MCP is core, not a plugin
+
+The plugin was a stepping stone. MCP becomes a first-class BB feature with the same layering as skills and automations. `plugins/mcp` is deleted at the end of this phase. Fresh install only; no migration from the plugin.
+
+### Layers and owners
+
+| Layer | Location | Owns |
+| --- | --- | --- |
+| Data | `packages/db/src/schema.ts` + generated migration | `mcp_servers` (id `mcp_…`, handle unique, name, description, type, config JSON, status, lastError, enabled, guide, sourceKind, sourceRef, registryName, registryVersion, createdAt, updatedAt) and `mcp_tool_policies` (serverId FK cascade, toolName, risk, mode, PK). OAuth records go through `@bb/secret-storage` under `<data-dir>/mcp/`, never in the DB. |
+| Host daemon | `packages/host-daemon-contract/src/commands.ts`, `apps/host-daemon/src/command-handlers/mcp-stdio.ts`, `mcp-provider-guard.ts` | Isolated stdio MCP workers (`mcp.stdio.start/refresh/close/callTool/getPrompt/readResource`, catalog/connection change notifications), `mcp.providerStatus`, `mcp.providerFix`. Bump `HOST_DAEMON_PROTOCOL_VERSION`. |
+| Server | `apps/server/src/services/mcp/` | Gateway (HTTP/SSE in-process, stdio via host RPC), store (Drizzle), registry client, OAuth (DCR + PKCE, callback route), catalog + call cards + arg validation, policies, `<connected_mcps>` instructions, approvals via core pending interactions, elicitation, warmup, provider guard. Routes in `apps/server/src/routes/mcp.ts` under `/api/v1/mcp`. Realtime `changed` messages with entity `mcp`. |
+| Agent tools | `apps/server/src/services/threads/mcp-tools.ts` | Built-in `DynamicTool`s `mcp_servers`, `mcp_search`, `mcp_schema`, `mcp_call`, `mcp_prompts`, `mcp_get_prompt`, `mcp_resources`, `mcp_read_resource`, executed like `update_environment_directory`; names added to the reserved list. Instructions section appended in `thread-runtime-config.ts`, filtered by thread metadata `mcp.servers`. |
+| SDK | `packages/sdk/src/areas/mcp.ts` | Every route as a typed method; realtime event type. |
+| CLI | `apps/cli/src/commands/mcp.ts` | `bb mcp list|show|add|registry|tools|auth|header|enable|disable|remove|call|guide|policy|providers`, same flags as today, `--json` shapes. `bb guide mcp` chapter. Surfaces in `docs/cli-guide-and-skill.md`. |
+| App | `apps/app/src/components/mcp/`, `apps/app/src/hooks/queries/mcp-queries.ts` | MCPs tab of `CustomizeView` renders `McpsView` directly (list, detail with settings, guide, tool policies, auth, remove; provider guard notice; New/Edit via chat). Routes `/customize/mcps` and `/customize/mcps/:id`. Confirm and elicitation render as native pending interactions in the thread timeline. |
+
+### Rules
+
+- Server owns policy (defaults, instructions, tool list, approvals); the daemon only runs processes and reads machine files.
+- Parse at the boundaries (routes, host RPC, MCP responses) and pass typed values inside. No `unknown` leaking past the gateway.
+- Tests use the real DB (`createConnection(":memory:")` + `migrate`). Reliability suite ports from the plugin's deterministic HTTP fixtures.
+- Delete with the plugin: `plugins/mcp`, its registry/catalog/bundled/turbo entries, `CUSTOMIZE_MCPS_PANEL` and the `/plugins/mcp/mcp/*` redirect, the `toPluginPanel` rewrite, and the forced-hidden sidebar key.
+
+### Order
+
+1. **J1 foundation:** DB schema + migration, host-daemon contract + handlers + protocol bump, server services, routes, realtime, SDK area, built-in agent tools + instructions. Ported from `plugins/mcp` with the plugin API removed.
+2. **J2 CLI + guide + docs** and **J3 App UI + interactions**, in parallel after J1.
+3. **J4 delete the plugin** and its wiring; full gates; reload; re-add servers.
