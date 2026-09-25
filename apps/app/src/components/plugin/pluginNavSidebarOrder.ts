@@ -14,9 +14,13 @@ export const BUILT_IN_SIDEBAR_NAVIGATION_KEYS = {
   automations: "__bb__/automations",
 } as const;
 
+export const FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS = FORK_CUSTOMIZE_PAGE
+  ? (["mcps/mcps"] as const)
+  : ([] as const);
+
 export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
-  ...(FORK_CUSTOMIZE_PAGE ? ["mcps/mcps"] : []),
+  ...FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
 ] as const;
 
 export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [
@@ -114,6 +118,7 @@ export function arrangePluginNavPanelPreferences<
       .map(getPluginNavPanelKey)
       .filter((key) => !defaultHiddenKeySet.has(key));
   const visibleSet = new Set(visibleKeys);
+  for (const key of FORCED_HIDDEN_SIDEBAR_NAVIGATION_KEYS) visibleSet.delete(key);
 
   return {
     ordered,

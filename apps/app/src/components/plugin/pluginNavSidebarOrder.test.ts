@@ -300,4 +300,20 @@ describe("Customize page sidebar defaults", () => {
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
     );
   });
+
+  it("keeps the mcps panel hidden when a stored preference lists it", () => {
+    const mcps = panel("mcps", "mcps");
+    const arranged = arrangePluginNavPanelPreferences({
+      panels: [github, mcps],
+      storedOrder: [],
+      storedVisibleKeys: ["github/pulls", "mcps/mcps"],
+      defaultHiddenKeys: DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
+    });
+    expect(arranged.visible).toEqual([github]);
+    expect(arranged.visibleKeys).toEqual(["github/pulls"]);
+    expect(arranged.normalizedVisibleKeys).toEqual([
+      "github/pulls",
+      "mcps/mcps",
+    ]);
+  });
 });
