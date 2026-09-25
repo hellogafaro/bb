@@ -143,6 +143,27 @@ export function registerActionsCommands(
   getUrl: () => string,
 ): void {
   parent
+    .command("generate-title [id]")
+    .description("Generate and save a title from the thread's original task")
+    .option("--self", "Target the current thread (from BB_THREAD_ID)")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(
+        async (
+          id: string | undefined,
+          opts: { self?: boolean; json?: boolean },
+        ) => {
+          const threadId = requireThreadIdOrSelf(id, opts);
+          const sdk = createCliBbSdk(getUrl());
+          const thread = await sdk.threads.generateTitle({ threadId });
+          if (outputJson(opts, thread)) return;
+          console.log(`Thread ${thread.id} title generated`);
+          console.log(`Title: ${thread.title ?? "<untitled>"}`);
+        },
+      ),
+    );
+
+  parent
     .command("update [id]")
     .description("Update a thread")
     .option("--self", "Target the current thread (from BB_THREAD_ID)")

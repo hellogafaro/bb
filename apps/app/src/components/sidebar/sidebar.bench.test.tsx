@@ -112,6 +112,8 @@ vi.mock("@/components/project/ProjectActionsProvider", () => ({
 
 vi.mock("@/components/thread/ThreadActionsProvider", () => ({
   useThreadActions: () => ({
+    generatingTitleIds: new Set<string>(),
+    generateTitle: vi.fn(),
     renameThread: vi.fn(),
     renameThreadAsync: vi.fn(async () => undefined),
     requestRename: vi.fn(),

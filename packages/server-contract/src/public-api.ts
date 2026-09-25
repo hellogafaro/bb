@@ -1295,6 +1295,12 @@ export const publicApiRoutes = {
       ),
       response: jsonResponse<ThreadResponse>(),
     }),
+    generateTitle: defineRoute({
+      path: "/threads/:id/generate-title",
+      method: "post",
+      request: noRequest<PathId>(),
+      response: jsonResponse<ThreadResponse>(),
+    }),
     pluginMetadata: {
       get: defineRoute({
         path: "/threads/:id/plugin-metadata",

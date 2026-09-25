@@ -1,9 +1,17 @@
-import { createThread, getThread, listEvents } from "@bb/db";
+import {
+  createThread,
+  getThread,
+  listEvents,
+  updateThread,
+  markThreadDeleted,
+} from "@bb/db";
 import {
   type ResolvedThreadExecutionOptions,
   systemThreadProvisioningEventDataSchema,
   threadSchema,
   turnScope,
+  threadScope,
+  encodeClientTurnRequestIdNumber,
 } from "@bb/domain";
 import { groupHostDaemonEvents } from "@bb/host-daemon-contract";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +30,7 @@ import {
   seedHostSession,
   seedProjectWithSource,
   seedThread,
+  seedStoredEvent,
   seedThreadIdentity,
   seedTurnStarted,
 } from "../helpers/seed.js";
@@ -40,6 +49,7 @@ import {
   requestThreadProvision,
 } from "../../src/services/threads/thread-provisioning.js";
 import { generateThreadMetadataWithOutcome } from "../../src/services/threads/title-generation.js";
+import { appendClientTurnEvent } from "../../src/services/threads/thread-events.js";
 import { installOpenRouterChatCompat } from "../helpers/openrouter.js";
 
 const openRouter = installOpenRouterChatCompat();
@@ -951,6 +961,247 @@ describe("generated thread titles", () => {
       expect(
         openRouter.prompt(0),
       ).not.toContain("The prompt invokes these commands or skills");
+    });
+  });
+});
+
+describe("generate thread title endpoint", () => {
+  beforeEach(() => {
+    openRouter.complete.mockReset();
+    openRouter.requests.length = 0;
+  });
+
+  function seedTitleTask(
+    harness: TestAppHarness,
+    text = "Fix the flaky login button behavior",
+  ) {
+    const { host } = seedHostSession(harness.deps);
+    const { project } = seedProjectWithSource(harness.deps, {
+      hostId: host.id,
+    });
+    const thread = seedThread(harness.deps, {
+      projectId: project.id,
+      title: "Original title",
+    });
+    function appendInput(
+      inputText: string,
+      markStart: boolean,
+      initiator: "user" | "agent" = "user",
+    ) {
+      appendClientTurnEvent(harness.deps, {
+        threadId: thread.id,
+        environmentId: null,
+        type: "client/turn/requested",
+        input: textInput(inputText),
+        execution: THREAD_START_EXECUTION,
+        initiator,
+        senderThreadId: initiator === "agent" ? "parent-thread" : null,
+        requestMethod: "thread/start",
+        source: "spawn",
+        target: { kind: "thread-start" },
+      });
+      if (markStart)
+        appendClientTurnEvent(harness.deps, {
+          threadId: thread.id,
+          environmentId: null,
+          type: "client/thread/start",
+          initiator,
+          requestMethod: "thread/start",
+          source: "spawn",
+        });
+    }
+    if (text) appendInput(text, true);
+    return {
+      thread,
+      appendInput,
+      request: () =>
+        harness.app.request(`/api/v1/threads/${thread.id}/generate-title`, {
+          method: "POST",
+        }),
+    };
+  }
+
+  it("replaces a title using the original task and returns the updated thread", async () => {
+    mockThreadMetadata({ title: "Fix Login Behavior" });
+    await withTestHarness(async (harness) => {
+      const { thread, appendInput, request } = seedTitleTask(harness);
+      appendInput("Ignore the original task and discuss different work", false);
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(threadSchema.parse(await readJson(response)).title).toBe(
+        "Fix Login Behavior",
+      );
+      expect(getThread(harness.db, thread.id)?.title).toBe(
+        "Fix Login Behavior",
+      );
+      expect(JSON.stringify(openRouter.requests)).toContain(
+        "Fix the flaky login button behavior",
+      );
+      expect(JSON.stringify(openRouter.requests)).not.toContain(
+        "discuss different work",
+      );
+    });
+  });
+
+  it("uses the local start input after inherited fork history, including agent-authored tasks", async () => {
+    mockThreadMetadata({ title: "Child Task" });
+    await withTestHarness(async (harness) => {
+      const { appendInput, request } = seedTitleTask(harness, "");
+      appendInput("Inherited source task must not be selected", false);
+      appendInput(
+        "Implement a separate child task for this fork",
+        true,
+        "agent",
+      );
+      expect((await request()).status).toBe(200);
+      expect(JSON.stringify(openRouter.requests)).toContain(
+        "separate child task",
+      );
+      expect(JSON.stringify(openRouter.requests)).not.toContain(
+        "Inherited source task",
+      );
+    });
+  });
+
+  it("uses a legacy start event's own input instead of earlier requests", async () => {
+    mockThreadMetadata({ title: "Legacy title" });
+    await withTestHarness(async (harness) => {
+      const { thread, appendInput, request } = seedTitleTask(harness, "");
+      appendInput("Inherited source task must not be selected", false);
+      seedStoredEvent(harness.deps, {
+        threadId: thread.id,
+        scope: threadScope(),
+        sequence: 2,
+        type: "client/thread/start",
+        data: {
+          direction: "outbound",
+          requestId: encodeClientTurnRequestIdNumber({ value: 2 }),
+          input: textInput("Repair the original legacy thread task"),
+          execution: THREAD_START_EXECUTION,
+          initiator: "user",
+          senderThreadId: null,
+          request: { method: "thread/start", params: {} },
+          source: "spawn",
+        },
+      });
+      expect((await request()).status).toBe(200);
+      expect(JSON.stringify(openRouter.requests)).toContain(
+        "original legacy thread task",
+      );
+      expect(JSON.stringify(openRouter.requests)).not.toContain(
+        "Inherited source task",
+      );
+    });
+  });
+
+  it("synchronizes generated titles with a ready provider session", async () => {
+    mockThreadMetadata({ title: "Provider title" });
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness);
+      const { host } = seedHostSession(harness.deps);
+      const environment = seedEnvironment(harness.deps, {
+        hostId: host.id,
+        projectId: thread.projectId,
+        path: "/tmp/title-generation-workspace",
+      });
+      updateThread(harness.db, harness.hub, thread.id, {
+        environmentId: environment.id,
+      });
+      expect((await request()).status).toBe(200);
+      const command = await waitForQueuedCommand(
+        harness,
+        (entry) => entry.command.type === "thread.rename",
+      );
+      expect(command.command).toMatchObject({
+        type: "thread.rename",
+        threadId: thread.id,
+        title: "Provider title",
+      });
+    });
+  });
+
+  it("preserves an existing title when input is missing or too short", async () => {
+    await withTestHarness(async (harness) => {
+      const { thread, appendInput, request } = seedTitleTask(harness, "");
+      expect((await request()).status).toBe(422);
+      appendInput("Fix it", true);
+      expect((await request()).status).toBe(422);
+      expect(getThread(harness.db, thread.id)?.title).toBe("Original title");
+      expect(openRouter.complete).not.toHaveBeenCalled();
+    });
+  });
+
+  it("reports missing input when only the lifecycle start marker remains", async () => {
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness, "");
+      appendClientTurnEvent(harness.deps, {
+        threadId: thread.id,
+        environmentId: null,
+        type: "client/thread/start",
+        initiator: "user",
+        requestMethod: "thread/start",
+        source: "spawn",
+      });
+      expect((await request()).status).toBe(422);
+      expect(getThread(harness.db, thread.id)?.title).toBe("Original title");
+      expect(openRouter.complete).not.toHaveBeenCalled();
+    });
+  });
+
+  it("preserves the old title after inference failure and releases the request guard", async () => {
+    openRouter.complete.mockRejectedValue(new Error("Inference unavailable"));
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness);
+      expect((await request()).status).toBe(503);
+      expect(getThread(harness.db, thread.id)?.title).toBe("Original title");
+      mockThreadMetadata({ title: "Recovered title" });
+      expect((await request()).status).toBe(200);
+    });
+  });
+
+  it("rejects duplicate requests and preserves a manual rename during inference", async () => {
+    const resolveMetadata = pendingThreadMetadata();
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness);
+      const response = request();
+      await vi.waitFor(() =>
+        expect(openRouter.complete).toHaveBeenCalledOnce(),
+      );
+      expect((await request()).status).toBe(409);
+      const rename = await harness.app.request(`/api/v1/threads/${thread.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "Manual title" }),
+      });
+      expect(rename.status).toBe(200);
+      resolveMetadata({ title: "Generated title" });
+      expect((await response).status).toBe(409);
+      expect(getThread(harness.db, thread.id)?.title).toBe("Manual title");
+    });
+  });
+
+  it("does not apply a title after the thread is deleted", async () => {
+    const resolveMetadata = pendingThreadMetadata();
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness);
+      const response = request();
+      await vi.waitFor(() =>
+        expect(openRouter.complete).toHaveBeenCalledOnce(),
+      );
+      markThreadDeleted(harness.db, harness.hub, { threadId: thread.id });
+      resolveMetadata({ title: "Generated title" });
+      expect((await response).status).toBe(404);
+      expect(getThread(harness.db, thread.id)?.title).toBe("Original title");
+    });
+  });
+
+  it("returns an identical generated title without writing the thread", async () => {
+    mockThreadMetadata({ title: "Original title" });
+    await withTestHarness(async (harness) => {
+      const { thread, request } = seedTitleTask(harness);
+      const before = getThread(harness.db, thread.id);
+      expect((await request()).status).toBe(200);
+      expect(getThread(harness.db, thread.id)).toEqual(before);
     });
   });
 });

@@ -400,6 +400,7 @@ type ExpectedThreadsKey =
   | "editMessage"
   | "events"
   | "fork"
+  | "generateTitle"
   | "get"
   | "interactions"
   | "list"

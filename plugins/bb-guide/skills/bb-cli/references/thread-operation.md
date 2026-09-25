@@ -2,6 +2,11 @@
 
 ## Coordinating Work
 
+- Use `bb thread generate-title <thread-id>` (or `--self`) to generate and save
+  a title from the thread's original task. It replaces the current title but
+  preserves it on generation failure or a concurrent manual rename. Add `--json`
+  for the updated thread. The SDK equivalent is
+  `sdk.threads.generateTitle({ threadId })`.
 - Use one clear owner per task.
 - Spawn independent tasks separately when parallel work is useful.
 - Let threads work after spawning. Do not poll with shell sleeps, repeated log

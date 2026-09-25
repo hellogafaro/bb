@@ -18,6 +18,7 @@ import type { Thread } from "@bb/domain";
 import {
   useArchiveThreadAndChildren,
   useDeleteThread,
+  useGenerateThreadTitle,
   useMarkThreadRead,
   useMarkThreadUnread,
   usePinThread,
@@ -48,6 +49,8 @@ import { useRouteNavigate } from "@/components/ui/app-route-anchor";
 
 export interface ThreadActionsContextValue {
   archiveThreadAndChildren: (thread: Thread) => void;
+  generateTitle: (threadId: string) => Promise<void>;
+  generatingTitleIds: ReadonlySet<string>;
   renameThread: (threadId: string, title: string) => void;
   renameThreadAsync: (threadId: string, title: string) => Promise<void>;
   requestRename: (thread: Thread) => void;
@@ -111,6 +114,7 @@ export function ThreadActionsProvider({
   const unpinThread = useUnpinThread();
   const deleteThread = useDeleteThread();
   const updateThread = useUpdateThread();
+  const { generateTitle, generatingTitleIds } = useGenerateThreadTitle();
   const inlineRenameThread = useUpdateThread({ showErrorToast: false });
   const threadActionContextAbortRef = useRef<AbortController | null>(null);
   const { mutateAsync: archiveThreadAndChildrenMutateAsync } =
@@ -443,6 +447,8 @@ export function ThreadActionsProvider({
 
   const value = useMemo<ThreadActionsContextValue>(
     () => ({
+      generateTitle,
+      generatingTitleIds,
       renameThread,
       renameThreadAsync,
       requestRename,
@@ -454,6 +460,8 @@ export function ThreadActionsProvider({
     }),
     [
       archiveThreadAndChildrenAction,
+      generateTitle,
+      generatingTitleIds,
       renameThread,
       renameThreadAsync,
       requestRename,

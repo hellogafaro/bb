@@ -32,6 +32,8 @@ const copyToClipboardWithToast = vi.hoisted(() => vi.fn());
 const threadActions = vi.hoisted(() => ({
   archiveThreadAndChildren: vi.fn(),
   requestDelete: vi.fn(),
+  generateTitle: vi.fn(),
+  isGenerating: vi.fn(() => false),
   requestRename: vi.fn(),
   togglePin: vi.fn(),
   toggleRead: vi.fn(),
@@ -49,6 +51,9 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => ({
 vi.mock("./ThreadActionsProvider", () => ({
   useThreadActions: () => ({
     ...threadActions,
+    generatingTitleIds: new Set(
+      threadActions.isGenerating() ? ["thread-1"] : [],
+    ),
     renameThread: vi.fn(),
   }),
 }));
@@ -145,6 +150,43 @@ afterEach(() => {
 });
 
 describe("ThreadActionsMenu", () => {
+  it.each([false, true])(
+    "generates a title from the shared menu (compact: %s)",
+    async (compact) => {
+      (compact ? renderCompact : renderWide)(
+        <ThreadActionsMenu thread={thread} />,
+      );
+      const trigger = screen.getByRole("button", { name: "Thread actions" });
+      if (compact) fireEvent.click(trigger);
+      else fireEvent.pointerDown(trigger, { button: 0 });
+      const generate = await screen.findByRole("menuitem", {
+        name: "Regenerate title",
+      });
+      expect(screen.getAllByRole("menuitem").indexOf(generate)).toBe(
+        screen
+          .getAllByRole("menuitem")
+          .indexOf(screen.getByRole("menuitem", { name: "Rename" })) + 1,
+      );
+      fireEvent.click(generate);
+      expect(threadActions.generateTitle).toHaveBeenCalledWith(thread.id);
+    },
+  );
+
+  it("disables title generation while this thread has a pending request", async () => {
+    threadActions.isGenerating.mockReturnValue(true);
+    renderWide(<ThreadActionsMenu thread={thread} />);
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Thread actions" }),
+      { button: 0 },
+    );
+    const generate = await screen.findByRole("menuitem", {
+      name: "Generating title…",
+    });
+    expect(generate.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(generate);
+    expect(threadActions.generateTitle).not.toHaveBeenCalled();
+  });
+
   it("keeps the existing rename dialog for callers without an inline override", async () => {
     renderWide(<ThreadActionsMenu thread={thread} />);
     fireEvent.pointerDown(

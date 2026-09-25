@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Thread } from "@bb/domain";
 import type {
@@ -7,6 +7,8 @@ import type {
   ThreadResponse,
   UpdateThreadRequest,
 } from "@bb/server-contract";
+import { appToast } from "@/components/ui/app-toast";
+import { showMutationErrorToast } from "@/lib/mutation-errors";
 import { sdk } from "@/lib/sdk";
 import type { LifecycleErrorOperation } from "@/lib/lifecycle-errors";
 import {
@@ -126,6 +128,44 @@ export function useUpdateThread(options?: UpdateThreadMutationOptions) {
       applyThreadUpdateResult({ queryClient, thread });
     },
   });
+}
+
+export function useGenerateThreadTitle() {
+  const queryClient = useQueryClient();
+  const pendingRef = useRef(new Set<string>());
+  const [generatingTitleIds, setGeneratingTitleIds] = useState<
+    ReadonlySet<string>
+  >(new Set());
+  const { mutateAsync } = useMutation({
+    meta: { showErrorToast: false },
+    mutationFn: (threadId: string) => sdk.threads.generateTitle({ threadId }),
+    onSuccess: (thread) => {
+      applyThreadUpdateResult({ queryClient, thread });
+    },
+  });
+  const generateTitle = useCallback(
+    async (threadId: string): Promise<void> => {
+      if (pendingRef.current.has(threadId)) return;
+      pendingRef.current.add(threadId);
+      setGeneratingTitleIds(new Set(pendingRef.current));
+      const toastId = appToast.loading("Generating thread title…");
+      try {
+        await mutateAsync(threadId);
+        appToast.success("Thread title generated");
+      } catch (error) {
+        showMutationErrorToast({
+          error,
+          fallbackMessage: "Failed to generate thread title",
+        });
+      } finally {
+        appToast.dismiss(toastId);
+        pendingRef.current.delete(threadId);
+        setGeneratingTitleIds(new Set(pendingRef.current));
+      }
+    },
+    [mutateAsync],
+  );
+  return { generateTitle, generatingTitleIds };
 }
 
 export function usePinThread() {

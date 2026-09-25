@@ -36,6 +36,10 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => {
     mutateAsync: vi.fn(),
   };
   const mutation = () => mutationResult;
+  const titleGeneration = {
+    generateTitle: vi.fn(),
+    generatingTitleIds: new Set<string>(),
+  };
   return {
     useArchiveThreadAndChildren: mutation,
     useDeleteThread: mutation,
@@ -45,6 +49,7 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => {
     useUnarchiveThread: mutation,
     useUnpinThread: mutation,
     useUpdateThread: mutation,
+    useGenerateThreadTitle: () => titleGeneration,
   };
 });
 

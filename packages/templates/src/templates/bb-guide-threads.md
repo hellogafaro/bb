@@ -304,6 +304,14 @@ Messaging:
 
 Ownership:
 
+  bb thread generate-title [id]            Generate and save a title from the original task
+    --self                                 Target current thread
+    --json                                 Print the updated thread as JSON
+
+  Title generation replaces an existing title, preserving it on generation
+  failure or a concurrent manual rename. The SDK equivalent is
+  sdk.threads.generateTitle({ threadId }).
+
   bb thread update [id]                    Update thread metadata
     --self                                 Target current thread
     --title <title>                        Set title

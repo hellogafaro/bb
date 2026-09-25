@@ -22,13 +22,23 @@ import {
   threadQueryKey,
 } from "../queries/query-keys";
 import {
+  useGenerateThreadTitle,
   useMoveThreadToSection,
   useUnpinAndMoveThread,
   useUpdateThread,
 } from "./thread-state-mutations";
 
+vi.mock("@/components/ui/app-toast", () => ({
+  appToast: {
+    loading: vi.fn(() => "generating"),
+    dismiss: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 vi.mock("@/lib/sdk", () => ({
-  sdk: { threads: { unpin: vi.fn(), update: vi.fn() } },
+  sdk: { threads: { generateTitle: vi.fn(), unpin: vi.fn(), update: vi.fn() } },
 }));
 
 function makeThreadWithRuntime(
@@ -96,6 +106,68 @@ afterEach(() => {
 });
 
 describe("thread state mutations", () => {
+  it("deduplicates generation and leaves the cached title unchanged until success", async () => {
+    const { queryClient, wrapper } = createQueryClientTestHarness();
+    queryClient.setQueryData(
+      threadQueryKey("thread-1"),
+      makeThreadWithRuntime({ title: "Old title" }),
+    );
+    let resolveTitle: (thread: ThreadResponse) => void = () => {};
+    vi.mocked(sdk.threads.generateTitle).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveTitle = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useGenerateThreadTitle(), { wrapper });
+    let pending = Promise.resolve();
+    act(() => {
+      pending = result.current.generateTitle("thread-1");
+      void result.current.generateTitle("thread-1");
+    });
+    await waitFor(() =>
+      expect(sdk.threads.generateTitle).toHaveBeenCalledTimes(1),
+    );
+    expect(result.current.generatingTitleIds.has("thread-1")).toBe(true);
+    expect(
+      queryClient.getQueryData<ThreadWithRuntime>(threadQueryKey("thread-1"))
+        ?.title,
+    ).toBe("Old title");
+    await act(async () => {
+      resolveTitle(makeThreadResponse({ title: "Generated title" }));
+      await pending;
+    });
+    expect(result.current.generatingTitleIds.size).toBe(0);
+    expect(
+      queryClient.getQueryData<ThreadWithRuntime>(threadQueryKey("thread-1"))
+        ?.title,
+    ).toBe("Generated title");
+  });
+
+  it("preserves the title after generation failure and allows another attempt", async () => {
+    const { queryClient, wrapper } = createQueryClientTestHarness();
+    queryClient.setQueryData(
+      threadQueryKey("thread-1"),
+      makeThreadWithRuntime({ title: "Old title" }),
+    );
+    vi.mocked(sdk.threads.generateTitle).mockRejectedValue(
+      new Error("Inference unavailable"),
+    );
+    const { result } = renderHook(() => useGenerateThreadTitle(), { wrapper });
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+    expect(result.current.generatingTitleIds.size).toBe(0);
+    expect(
+      queryClient.getQueryData<ThreadWithRuntime>(threadQueryKey("thread-1"))
+        ?.title,
+    ).toBe("Old title");
+    await act(async () => {
+      await result.current.generateTitle("thread-1");
+    });
+    expect(sdk.threads.generateTitle).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     ["leaves the current section unchanged", null, "sec_work", 0, 0],
     ["moves an unpinned thread to Threads", null, null, 0, 1],

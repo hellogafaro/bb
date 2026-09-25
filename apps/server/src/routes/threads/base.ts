@@ -12,7 +12,6 @@ import {
   markThreadDeleted,
   listLifecycleThreadTree,
   searchThreadsWithPendingInteractionState,
-  updateThread,
   type ThreadSearchResultGroup as DbThreadSearchResultGroup,
   type UpdateThreadInput,
 } from "@bb/db";
@@ -42,12 +41,14 @@ import {
 } from "../../services/lib/validation.js";
 import {
   getNonDestroyedHostWithStatus,
-  requireEnvironment,
   requirePublicProject,
   requirePublicThread,
 } from "../../services/lib/entity-lookup.js";
 import { listRunningThreadsWithIntendedHosts } from "../../services/threads/dispatch-attempt.js";
-import { dispatchThreadRenameCommand } from "../../services/threads/thread-commands.js";
+import {
+  generateThreadTitle,
+  updateThreadMetadata,
+} from "../../services/threads/thread-title.js";
 import { requestThreadStorageDeletion } from "../../services/threads/thread-lifecycle.js";
 import { createThreadFromRequest } from "../../services/threads/thread-create.js";
 import { createThreadForkFromRequest } from "../../services/threads/thread-fork.js";
@@ -377,6 +378,11 @@ export function registerThreadBaseRoutes(app: Hono, deps: AppDeps): void {
     return context.json(getThreadChildSummary(thread.id));
   });
 
+  post(routes.generateTitle, async (context) => {
+    const thread = await generateThreadTitle(deps, context.req.param("id"));
+    return context.json(toThreadResponseFromThread(deps, { thread }));
+  });
+
   patch(routes.update, async (context, payload) => {
     const thread = requirePublicThread(deps.db, context.req.param("id"));
     if (payload.parentThreadId) {
@@ -423,31 +429,8 @@ export function registerThreadBaseRoutes(app: Hono, deps: AppDeps): void {
     }
     const updated =
       Object.keys(metadataUpdate).length > 0
-        ? updateThread(deps.db, deps.hub, thread.id, metadataUpdate)
+        ? updateThreadMetadata(deps, thread, metadataUpdate)
         : requirePublicThread(deps.db, thread.id);
-    if (!updated) {
-      throw new ApiError(404, "thread_not_found", "Thread not found");
-    }
-
-    if (
-      payload.title &&
-      payload.title !== thread.title &&
-      updated.environmentId
-    ) {
-      const environment = requireEnvironment(deps.db, updated.environmentId);
-      if (environment.status === "ready" && environment.path) {
-        dispatchThreadRenameCommand(deps, {
-          environment: {
-            id: environment.id,
-            hostId: environment.hostId,
-          },
-          providerId: updated.providerId,
-          threadId: updated.id,
-          title: payload.title,
-        });
-      }
-    }
-
     if (
       "parentThreadId" in payload &&
       payload.parentThreadId !== thread.parentThreadId

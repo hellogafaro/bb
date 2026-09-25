@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 import { makeThreadListEntry } from "../../../.ladle/story-fixtures";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
 import { ThreadActionsProvider } from "./ThreadActionsProvider";
-import { ThreadActionsMenu } from "./ThreadActionsMenu";
+import {
+  ThreadActionsContextMenu,
+  ThreadActionsMenu,
+} from "./ThreadActionsMenu";
 
 export default {
   title: "thread/Thread actions menu",
@@ -39,7 +42,7 @@ export function Overview() {
     <StoryCard>
       <StoryRow
         label="read · unpinned"
-        hint="Mark unread · Pin — Rename — Archive · Delete"
+        hint="Mark unread · Pin — Rename · Regenerate title — Archive · Delete"
       >
         <Stage>
           <ThreadActionsMenu thread={readThread} />
@@ -51,6 +54,16 @@ export function Overview() {
       >
         <Stage>
           <ThreadActionsMenu thread={unreadPinnedThread} />
+        </Stage>
+      </StoryRow>
+      <StoryRow
+        label="context menu"
+        hint="Right click or long press for thread actions"
+      >
+        <Stage>
+          <ThreadActionsContextMenu thread={readThread}>
+            <button type="button">Thread context actions</button>
+          </ThreadActionsContextMenu>
         </Stage>
       </StoryRow>
       <StoryRow label="archived" hint="Archive flips to Unarchive">

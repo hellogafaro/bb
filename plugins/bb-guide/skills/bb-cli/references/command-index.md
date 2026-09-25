@@ -179,6 +179,7 @@ server.
 - `bb thread tabs show`
 - `bb thread tabs set`
 - `bb thread update`
+- `bb thread generate-title`
 - `bb thread archive`
 - `bb thread unarchive`
 - `bb thread pin`

@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/components/thread/ThreadActionsProvider", () => ({
   useThreadActions: () => ({
+    generatingTitleIds: new Set<string>(),
+    generateTitle: vi.fn(),
     renameThread: mocks.renameThread,
   }),
 }));

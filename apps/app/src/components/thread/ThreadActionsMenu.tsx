@@ -185,6 +185,8 @@ function ThreadActionsMenuItems({
 }: ThreadActionsMenuItemsProps) {
   const {
     archiveThreadAndChildren,
+    generateTitle,
+    generatingTitleIds,
     requestRename,
     requestDelete,
     togglePin,
@@ -297,6 +299,18 @@ function ThreadActionsMenuItems({
         }}
       >
         Rename
+      </ActionMenuItem>
+      <ActionMenuItem
+        surface={surface}
+        icon="Sparkles"
+        disabled={generatingTitleIds.has(thread.id)}
+        onSelect={() => {
+          void generateTitle(thread.id);
+        }}
+      >
+        {generatingTitleIds.has(thread.id)
+          ? "Generating title…"
+          : "Regenerate title"}
       </ActionMenuItem>
       {showSeparators ? <ActionMenuSeparator surface={surface} /> : null}
       <ActionMenuItem

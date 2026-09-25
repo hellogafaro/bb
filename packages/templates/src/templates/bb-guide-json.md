@@ -52,6 +52,9 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb thread spawn ... --json
     the created thread: {id, status, title, projectId, environmentId, ...}
 
+  bb thread generate-title <id> --json
+    the updated thread: {id, status, title, projectId, environmentId, ...}
+
   bb thread tell <id> ... --json
     {threadId, ...delivery outcome}
 

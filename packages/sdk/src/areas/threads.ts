@@ -618,6 +618,7 @@ export interface ThreadsArea {
   unarchive(args: ThreadActionArgs): Promise<ThreadUnarchiveResult>;
   unpin(args: ThreadActionArgs): Promise<ThreadMutationResult>;
   update(args: ThreadUpdateArgs): Promise<ThreadMutationResult>;
+  generateTitle(args: ThreadActionArgs): Promise<ThreadMutationResult>;
   wait(args: ThreadWaitArgs): Promise<ThreadWaitResult>;
 }
 
@@ -1437,6 +1438,14 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
         transport.api.v1.threads[":id"].unpin.$post({
           param: { id: input.threadId },
         }),
+      );
+    },
+    async generateTitle(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"]["generate-title"].$post(
+          { param: { id: input.threadId } },
+          ...signalRequestArgs(input.signal),
+        ),
       );
     },
     async update(input) {
