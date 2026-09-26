@@ -80,11 +80,15 @@ afterEach(() => {
 });
 
 describe("ThreadAgentRow", () => {
-  it("links the agent name and shows provider, model, and reasoning", () => {
+  it("links the agent name and shows the provider icon, model, and reasoning", () => {
     const { container } = renderRow({ withEntry: false });
     const link = screen.getByRole("link", { name: "Coder" });
     expect(link.getAttribute("href")).toContain("agent");
-    expect(screen.getByText("· Claude Code · Opus · High")).not.toBeNull();
+    const label = container.querySelector("[data-agent-model-label]");
+    expect(label?.textContent).toBe("OpusHigh");
+    expect(
+      container.querySelector("[data-thread-agent-row]")?.textContent,
+    ).not.toContain("Claude Code");
     expect(
       container.querySelector("[data-thread-agent-row]")?.textContent,
     ).not.toContain("skills");

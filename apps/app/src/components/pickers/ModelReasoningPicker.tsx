@@ -15,6 +15,7 @@ import type {
 import type { ReasoningLevel } from "@bb/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  splitModelLabelTag,
   stripModelBrandPrefix,
   type ProviderPickerOption,
 } from "./model-brand-prefix";
@@ -85,11 +86,6 @@ import {
   previousCycleValue,
 } from "./modelPickerCycle";
 
-interface ModelLabelParts {
-  base: string;
-  tag: string | null;
-}
-
 interface ResolvedProviderPreview {
   providerId: string;
   model: string;
@@ -133,14 +129,6 @@ const MODEL_PICKER_MENU_WIDTH_CLASS_NAME = "w-max min-w-64 max-w-80";
 const HANDOFF_DRAWER_TOP_CLASS_NAME =
   "[&>[data-persistent-drawer-handle]]:w-full [&>[data-persistent-drawer-handle]]:rounded-t-xl [&>[data-persistent-drawer-handle]]:bg-background";
 
-function splitModelLabelTag(label: string): ModelLabelParts {
-  const match = label.match(/^(.*\S)\s*\(([^()]+)\)$/u);
-  if (!match) {
-    return { base: label, tag: null };
-  }
-  return { base: match[1], tag: match[2] };
-}
-
 type ModelNavRow =
   | { kind: "model"; option: ModelPickerOption }
   | { kind: "more-toggle" };
@@ -158,10 +146,12 @@ export function buildModelNavRows({
   isSearching: boolean;
   showMoreModels: boolean;
 }): ModelNavRow[] {
-  const rows: ModelNavRow[] = modelOptions.map((option): ModelNavRow => ({
-    kind: "model",
-    option,
-  }));
+  const rows: ModelNavRow[] = modelOptions.map(
+    (option): ModelNavRow => ({
+      kind: "model",
+      option,
+    }),
+  );
   if (moreModelOptions.length === 0) return rows;
 
   if (isSearching) {

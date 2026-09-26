@@ -1,4 +1,4 @@
-// bb-plugin-scheduled-send frontend — "Send later…" in the composer's + menu.
+// bb-plugin-scheduled-send frontend — "Send later" in the composer's + menu.
 //
 // The plugin owns the *time*, and nothing else. `useComposer()`'s
 // `experimental_submit({ sendAt })` runs the composer's own submit pipeline
@@ -358,7 +358,7 @@ export default definePluginApp((app) => {
     plusMenu: [
       {
         id: "send-later",
-        label: "Send later…",
+        label: "Send later",
         icon: "Calendar",
         description: "Schedule the current draft to send at a time you pick.",
         disabled: (view) => view.draft.isEmpty || view.run.isSubmitting,

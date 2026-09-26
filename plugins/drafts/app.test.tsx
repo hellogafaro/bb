@@ -29,7 +29,7 @@ describe("registration", () => {
       {
         id: "drafts",
         scopes: ["thread", "new-thread"],
-        plusMenu: [{ label: "Save draft…", icon: "EditFile" }],
+        plusMenu: [{ label: "Save draft", icon: "EditFile" }],
       },
     ]);
   });

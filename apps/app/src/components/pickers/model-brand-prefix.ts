@@ -17,3 +17,13 @@ export function stripModelBrandPrefix(
     ? label.slice(brandPrefix.length).trimStart()
     : label;
 }
+
+const MODEL_LABEL_TAG_PATTERN = /^(.*\S)\s*\(([^()]+)\)$/u;
+
+export function splitModelLabelTag(label: string): {
+  base: string;
+  tag: string | null;
+} {
+  const match = label.match(MODEL_LABEL_TAG_PATTERN);
+  return match ? { base: match[1], tag: match[2] } : { base: label, tag: null };
+}

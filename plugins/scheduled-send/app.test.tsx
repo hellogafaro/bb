@@ -90,9 +90,7 @@ describe("registration", () => {
         // Queued-message editors and side chats are deliberately excluded:
         // neither owns a dispatchable submission of its own.
         scopes: ["thread", "new-thread"],
-        plusMenu: [
-          { id: "send-later", label: "Send later…", icon: "Calendar" },
-        ],
+        plusMenu: [{ id: "send-later", label: "Send later", icon: "Calendar" }],
         // The picker is a portalled dialog, so the mount point wears no card
         // chrome.
         banners: [{ id: "send-later", chrome: "bare" }],
@@ -187,9 +185,9 @@ describe("scheduling", () => {
     await waitFor(() =>
       expect(slot.inspection.composer.submits).toHaveLength(1),
     );
-    expect(
-      slot.inspection.composer.submits[0]!.sendAt,
-    ).toBeGreaterThanOrEqual(before + HOUR_MS);
+    expect(slot.inspection.composer.submits[0]!.sendAt).toBeGreaterThanOrEqual(
+      before + HOUR_MS,
+    );
   });
 
   it("reveals structured custom fields and schedules their local time", async () => {
@@ -210,9 +208,7 @@ describe("scheduling", () => {
     await waitFor(() =>
       expect(slot.inspection.composer.submits).toHaveLength(1),
     );
-    expect(slot.inspection.composer.submits[0]!.sendAt).toBe(
-      target.getTime(),
-    );
+    expect(slot.inspection.composer.submits[0]!.sendAt).toBe(target.getTime());
   });
 
   it("blocks a custom time that has already passed", async () => {

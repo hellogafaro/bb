@@ -14,12 +14,10 @@ import { CompactViewportOverrideProvider } from "@bb/shared-ui/hooks/use-compact
 import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
 import {
   agentsQueryKey,
+  systemExecutionOptionsQueryKey,
   systemProvidersQueryKey,
 } from "@/hooks/queries/query-keys";
-import {
-  AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS,
-  AgentPicker,
-} from "./AgentPicker";
+import { AGENT_PICKER_TOOLTIP_DELAY_MS, AgentPicker } from "./AgentPicker";
 
 function makeAgent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -40,22 +38,66 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
   };
 }
 
+function makeModel(model: string, displayName: string, isDefault = false) {
+  return {
+    id: model,
+    model,
+    displayName,
+    description: "",
+    supportedReasoningEfforts: [
+      { reasoningEffort: "medium" as const, description: "" },
+      { reasoningEffort: "high" as const, description: "" },
+    ],
+    defaultReasoningEffort: "medium" as const,
+    isDefault,
+  };
+}
+
 function renderPicker({
   compact = false,
   onChange,
   disabled,
+  withCatalog = false,
 }: {
   compact?: boolean;
   onChange?: (agentId: string) => void;
   disabled?: boolean;
+  withCatalog?: boolean;
 } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { enabled: false, retry: false } },
   });
+  const provider = makeProviderInfo({
+    id: "codex",
+    displayName: "Codex",
+    strings: {
+      signInHint: "",
+      expiredHint: "",
+      installUrl: "",
+      brandPrefix: "GPT-",
+    },
+  });
   queryClient.setQueryData(agentsQueryKey(), [makeAgent()]);
-  queryClient.setQueryData(systemProvidersQueryKey(), [
-    makeProviderInfo({ id: "codex", displayName: "Codex" }),
-  ]);
+  queryClient.setQueryData(systemProvidersQueryKey(), [provider]);
+  if (withCatalog) {
+    queryClient.setQueryData(
+      systemExecutionOptionsQueryKey({
+        environmentId: null,
+        hostId: null,
+        providerId: "codex",
+      }),
+      {
+        providers: [provider],
+        permissionCeiling: "full",
+        models: [
+          makeModel("gpt-5-codex", "GPT-5 Codex (Preview)", true),
+          makeModel("gpt-5", "GPT-5"),
+        ],
+        selectedOnlyModels: [],
+        modelLoadError: null,
+      },
+    );
+  }
   return render(
     <QueryClientProvider client={queryClient}>
       <CompactViewportOverrideProvider isCompactViewport={compact}>
@@ -66,12 +108,11 @@ function renderPicker({
 }
 
 function tooltip(): HTMLElement | null {
-  return document.querySelector("[data-agent-picker-hover-card]");
+  return document.querySelector("[data-agent-picker-tooltip]");
 }
 
 function hover(element: HTMLElement) {
-  fireEvent.pointerEnter(element, { pointerType: "mouse" });
-  fireEvent.mouseEnter(element);
+  fireEvent.pointerMove(element, { pointerType: "mouse" });
 }
 
 afterEach(() => {
@@ -79,7 +120,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("AgentPicker hover card", () => {
+describe("AgentPicker tooltip", () => {
   it("shows one model line after the delay on pointer hover", () => {
     vi.useFakeTimers();
     renderPicker({ onChange: vi.fn() });
@@ -93,7 +134,7 @@ describe("AgentPicker hover card", () => {
 
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS - 1);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS - 1);
     });
     expect(tooltip()).toBeNull();
     act(() => {
@@ -101,11 +142,23 @@ describe("AgentPicker hover card", () => {
     });
     const content = tooltip();
     expect(content).not.toBeNull();
-    const footer = content?.querySelector("[data-agent-model-footer]");
-    expect(footer?.textContent).toBe("Default modelMedium");
+    const label = content?.querySelector("[data-agent-model-label]");
+    expect(label?.textContent).toBe("Default modelMedium");
     expect(content?.textContent).not.toContain("BB");
     expect(content?.querySelector("[data-agent-mascot]")).toBeNull();
     expect(content?.textContent).not.toContain("MCP");
+  });
+
+  it("shows the catalog default model the way the Agents model picker does", () => {
+    vi.useFakeTimers();
+    renderPicker({ onChange: vi.fn(), withCatalog: true });
+    hover(screen.getByRole("button", { name: "Agent: BB" }));
+    act(() => {
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS);
+    });
+    const label = tooltip()?.querySelector("[data-agent-model-label]");
+    expect(label?.textContent).toBe("5 CodexPreviewMedium");
+    expect(label?.textContent).not.toContain("Default model");
   });
 
   it("does not open on keyboard focus", () => {
@@ -114,7 +167,7 @@ describe("AgentPicker hover card", () => {
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     fireEvent.focus(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS * 2);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS * 2);
     });
     expect(tooltip()).toBeNull();
   });
@@ -125,7 +178,7 @@ describe("AgentPicker hover card", () => {
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS);
     });
     expect(tooltip()).not.toBeNull();
 
@@ -142,7 +195,7 @@ describe("AgentPicker hover card", () => {
     expect(trigger.className).toContain("disabled:pointer-events-auto");
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS);
     });
     expect(tooltip()?.textContent).toContain("Default model");
   });
@@ -153,7 +206,7 @@ describe("AgentPicker hover card", () => {
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS * 2);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS * 2);
     });
     expect(tooltip()).toBeNull();
   });

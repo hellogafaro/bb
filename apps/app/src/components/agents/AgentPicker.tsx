@@ -22,10 +22,11 @@ import {
   OPTION_TRIGGER_CONTENT_CLASS_NAME,
 } from "@bb/shared-ui/option-display";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@bb/shared-ui/hover-card";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@bb/shared-ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import {
   MenuRowButton,
@@ -37,11 +38,7 @@ import { useResetPickerScroll } from "@/components/pickers/useResetPickerScroll"
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentOptionDetail } from "./agent-display";
-import {
-  AgentModelFooter,
-  HOVER_CARD_BODY_CLASS_NAME,
-  HOVER_CARD_CONTENT_CLASS_NAME,
-} from "./AgentModelFooter";
+import { AgentModelLabel } from "./AgentModelLabel";
 import { AgentMascot } from "./mascots/AgentMascot";
 import { ProviderMark } from "./ProviderMark";
 
@@ -52,7 +49,7 @@ export interface ExecutionAgentConfig {
 }
 
 const AGENT_SEARCH_MIN_OPTIONS = 5;
-export const AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS = 150;
+export const AGENT_PICKER_TOOLTIP_DELAY_MS = 300;
 const AGENT_PICKER_MENU_WIDTH_CLASS_NAME = "w-max min-w-64 max-w-80";
 
 export const AgentPicker = memo(function AgentPicker({
@@ -65,7 +62,7 @@ export const AgentPicker = memo(function AgentPicker({
   const providersQuery = useSystemProviders();
   const isCompactViewport = useIsCompactViewport();
   const [open, setOpen] = useState(false);
-  const [hoverCardOpen, setHoverCardOpen] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +95,7 @@ export const AgentPicker = memo(function AgentPicker({
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
-      if (nextOpen) setHoverCardOpen(false);
+      if (nextOpen) setTooltipOpen(false);
       if (!nextOpen && !isCompactViewport) resetBrowseState();
     },
     [isCompactViewport, resetBrowseState],
@@ -193,42 +190,32 @@ export const AgentPicker = memo(function AgentPicker({
     </Button>
   );
 
-  const withHoverCard = (child: ReactElement) =>
+  const withTooltip = (child: ReactElement) =>
     isCompactViewport ? (
       child
     ) : (
-      <HoverCard
-        open={hoverCardOpen && !open}
-        onOpenChange={setHoverCardOpen}
-        openDelay={AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS}
-        closeDelay={0}
-      >
-        <HoverCardTrigger asChild onFocus={(event) => event.preventDefault()}>
-          {child}
-        </HoverCardTrigger>
-        <HoverCardContent
-          side="top"
-          align="start"
-          data-agent-picker-hover-card=""
-          className={cn(HOVER_CARD_CONTENT_CLASS_NAME, "pointer-events-none")}
-        >
-          <div className={HOVER_CARD_BODY_CLASS_NAME}>
-            <AgentModelFooter
-              agent={agent}
-              providerId={agent.providerId}
-              providers={providers}
-              divider={false}
-            />
-          </div>
-        </HoverCardContent>
-      </HoverCard>
+      <TooltipProvider delayDuration={AGENT_PICKER_TOOLTIP_DELAY_MS}>
+        <Tooltip open={tooltipOpen && !open} onOpenChange={setTooltipOpen}>
+          <TooltipTrigger asChild onFocus={(event) => event.preventDefault()}>
+            {child}
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            align="start"
+            data-agent-picker-tooltip=""
+            className="pointer-events-none"
+          >
+            <AgentModelLabel agent={agent} providers={providers} />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
 
-  if (triggerDisabled) return withHoverCard(trigger);
+  if (triggerDisabled) return withTooltip(trigger);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      {withHoverCard(<PopoverTrigger asChild>{trigger}</PopoverTrigger>)}
+      {withTooltip(<PopoverTrigger asChild>{trigger}</PopoverTrigger>)}
       <PopoverContent
         align="start"
         mobileTitle="Agent"

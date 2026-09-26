@@ -8,7 +8,7 @@ export default definePluginApp((app) => {
     plusMenu: [
       {
         id: "drafts",
-        label: "Save draft…",
+        label: "Save draft",
         icon: "EditFile",
         description:
           "Keep this message in the queue until you send it manually.",

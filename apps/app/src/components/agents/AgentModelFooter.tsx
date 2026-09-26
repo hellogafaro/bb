@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import type { Agent, ProviderInfo } from "@bb/domain";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { reasoningLevelLabel } from "@/lib/reasoning-labels";
-import { agentModelLabel, providerDisplayName } from "./agent-display";
-import { ProviderMark } from "./ProviderMark";
+import { getProviderIconInfo } from "@/lib/provider-icon";
+import { providerDisplayName } from "./agent-display";
+import { AgentModelLabel } from "./AgentModelLabel";
 
 export const HOVER_CARD_CONTENT_CLASS_NAME = "w-72 p-0";
 export const HOVER_CARD_BODY_CLASS_NAME =
@@ -23,7 +23,7 @@ export function AgentModelFooter({
   children?: ReactNode;
 }) {
   const provider = providers?.find((entry) => entry.id === providerId);
-  const providerName = providerDisplayName(providers, providerId);
+  const ProviderIcon = getProviderIconInfo("agent", providerId, provider).icon;
   return (
     <div
       data-agent-model-footer=""
@@ -32,22 +32,20 @@ export function AgentModelFooter({
         divider && "border-t border-border pt-2.5",
       )}
     >
-      <span className="flex min-h-4 min-w-0 items-center gap-1.5">
-        <ProviderMark
-          providerId={providerId}
-          className="size-3.5 text-subtle-foreground"
+      {agent === null ? (
+        <span className="flex min-h-4 min-w-0 items-center gap-1.5">
+          <ProviderIcon className="size-3.5 shrink-0" />
+          <span className="min-w-0 truncate">
+            {providerDisplayName(providers, providerId)}
+          </span>
+        </span>
+      ) : (
+        <AgentModelLabel
+          agent={agent}
+          providers={providers}
+          className="min-h-4"
         />
-        {agent === null ? (
-          <span className="min-w-0 truncate">{providerName}</span>
-        ) : (
-          <>
-            <span className="min-w-0 truncate">{agentModelLabel(agent)}</span>
-            <span className="shrink-0 text-subtle-foreground">
-              {reasoningLevelLabel(agent.reasoningLevel, provider)}
-            </span>
-          </>
-        )}
-      </span>
+      )}
       {children}
     </div>
   );

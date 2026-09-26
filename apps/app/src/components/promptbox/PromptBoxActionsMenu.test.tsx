@@ -22,7 +22,7 @@ import {
   setPluginLogoUrls,
 } from "@/lib/plugin-logos";
 import {
-  CREATE_PLUGIN_PROMPT_ACTION,
+  AUTOMATION_PROMPT_ACTION,
   PromptBoxActionsMenu,
   withAppPromptActions,
 } from "./PromptBoxActionsMenu";
@@ -58,7 +58,7 @@ describe("PromptBoxActionsMenu", () => {
     expect(onAttach).toHaveBeenCalledOnce();
   });
 
-  it("seeds the composer with the plugin prompt after the provider actions", async () => {
+  it("adds the automation action after the provider actions", async () => {
     const onAction = vi.fn();
     render(
       <PromptBoxActionsMenu
@@ -79,29 +79,26 @@ describe("PromptBoxActionsMenu", () => {
       "Skills",
       "Plan",
       "Automation",
-      "Plugin",
     ]);
     expect(
       menuItems.map((item) =>
         item.querySelector("[data-icon]")?.getAttribute("data-icon"),
       ),
-    ).toEqual(["Zap", "ListTodo", "Repeat", "Plug02"]);
+    ).toEqual(["Zap", "ListTodo", "Repeat"]);
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Plugin" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Automation" }));
 
-    expect(onAction).toHaveBeenCalledWith(CREATE_PLUGIN_PROMPT_ACTION);
+    expect(onAction).toHaveBeenCalledWith(AUTOMATION_PROMPT_ACTION);
   });
 
   it("keeps a provider-owned action instead of the app copy", () => {
-    const providerPlugin = { kind: "plugin", text: "/plugin " } as const;
+    const providerAutomation = {
+      kind: "automation",
+      text: "/automation ",
+    } as const;
 
-    expect(withAppPromptActions([providerPlugin])).toEqual([
-      providerPlugin,
-      {
-        kind: "automation",
-        command: { trigger: "/", name: "automation", trailingText: " " },
-        text: "/automation ",
-      },
+    expect(withAppPromptActions([providerAutomation])).toEqual([
+      providerAutomation,
     ]);
   });
 

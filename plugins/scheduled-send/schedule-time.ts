@@ -1,5 +1,5 @@
 /**
- * Time choices for "Send later…". Presets resolve from the current clock,
+ * Time choices for "Send later". Presets resolve from the current clock,
  * while custom schedules use explicit local date and time fields so the user
  * can see exactly what will happen before confirming.
  */

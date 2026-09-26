@@ -57,10 +57,7 @@ import {
   setPluginLogoUrls,
 } from "@/lib/plugin-logos";
 import { makePluginRegistrationSet } from "@/test/fixtures/plugins";
-import {
-  AUTOMATION_PROMPT_ACTION,
-  CREATE_PLUGIN_PROMPT_ACTION,
-} from "./PromptBoxActionsMenu";
+import { AUTOMATION_PROMPT_ACTION } from "./PromptBoxActionsMenu";
 import {
   INERT_TYPEAHEAD_COMMAND_CONFIG,
   PromptBoxInternal,
@@ -111,7 +108,6 @@ const promptActions: readonly PromptBoxAction[] = [
     text: "/goal ",
   },
   AUTOMATION_PROMPT_ACTION,
-  CREATE_PLUGIN_PROMPT_ACTION,
 ];
 
 function createPromptBoxProps(
@@ -1448,49 +1444,52 @@ describe("PromptBoxInternal submit shortcuts", () => {
     }
   });
 
-  describe.each([false, true])("swapped submit actions: %s", (swapSubmitActions) => {
-    it.each(["", "Follow up"])(
-      "sends with the same action and queues only draft input (%j)",
-      (value) => {
-        const onSubmit = vi.fn();
-        const onModifierSubmit = vi.fn();
-        const onStop = vi.fn();
-        render(
-          <PromptBoxInternal
-            {...createPromptBoxProps({
-              value,
-              onSubmit,
-              submission: {
-                onModifierSubmit,
-                swapSubmitActions,
-                isRunning: true,
-                onStop,
-              },
-            })}
-          />,
-        );
+  describe.each([false, true])(
+    "swapped submit actions: %s",
+    (swapSubmitActions) => {
+      it.each(["", "Follow up"])(
+        "sends with the same action and queues only draft input (%j)",
+        (value) => {
+          const onSubmit = vi.fn();
+          const onModifierSubmit = vi.fn();
+          const onStop = vi.fn();
+          render(
+            <PromptBoxInternal
+              {...createPromptBoxProps({
+                value,
+                onSubmit,
+                submission: {
+                  onModifierSubmit,
+                  swapSubmitActions,
+                  isRunning: true,
+                  onStop,
+                },
+              })}
+            />,
+          );
 
-        const editor = getPromptEditorElement();
-        fireEvent.keyDown(editor, {
-          key: "Enter",
-          metaKey: !swapSubmitActions,
-        });
-        expect(onModifierSubmit).toHaveBeenCalledOnce();
-        expect(onSubmit).not.toHaveBeenCalled();
+          const editor = getPromptEditorElement();
+          fireEvent.keyDown(editor, {
+            key: "Enter",
+            metaKey: !swapSubmitActions,
+          });
+          expect(onModifierSubmit).toHaveBeenCalledOnce();
+          expect(onSubmit).not.toHaveBeenCalled();
 
-        fireEvent.keyDown(editor, {
-          key: "Enter",
-          metaKey: swapSubmitActions,
-        });
-        expect(onSubmit).toHaveBeenCalledTimes(value ? 1 : 0);
-        expect(onModifierSubmit).toHaveBeenCalledOnce();
-        if (!value) {
-          fireEvent.click(screen.getByRole("button", { name: "Stop run" }));
-          expect(onStop).toHaveBeenCalledOnce();
-        }
-      },
-    );
-  });
+          fireEvent.keyDown(editor, {
+            key: "Enter",
+            metaKey: swapSubmitActions,
+          });
+          expect(onSubmit).toHaveBeenCalledTimes(value ? 1 : 0);
+          expect(onModifierSubmit).toHaveBeenCalledOnce();
+          if (!value) {
+            fireEvent.click(screen.getByRole("button", { name: "Stop run" }));
+            expect(onStop).toHaveBeenCalledOnce();
+          }
+        },
+      );
+    },
+  );
 
   it.each([
     { swapSubmitActions: false, touch: true },
@@ -1528,9 +1527,7 @@ describe("PromptBoxInternal submit shortcuts", () => {
           pluginRegistrationSet([
             {
               id: "drafts",
-              plusMenu: [
-                { id: "drafts", label: "Save draft", run: saveDraft },
-              ],
+              plusMenu: [{ id: "drafts", label: "Save draft", run: saveDraft }],
             },
           ]),
         );
@@ -1677,7 +1674,9 @@ describe("PromptBoxInternal submit shortcuts", () => {
             })}
           />,
         );
-        expect(screen.queryByRole("button", { name: "Send options" })).toBeNull();
+        expect(
+          screen.queryByRole("button", { name: "Send options" }),
+        ).toBeNull();
         const submit = screen.getByRole("button", { name: "Submit (Enter)" });
         vi.spyOn(submit, "getBoundingClientRect").mockReturnValue(
           new DOMRect(0, 0, 40, 40),
@@ -4627,18 +4626,6 @@ describe("PromptBoxInternal prompt actions", () => {
         },
       },
     ]);
-  });
-
-  it("seeds the plugin prompt as plain text and returns focus", async () => {
-    const { changes, promptBoxRef } = renderPromptBox("");
-
-    await focusPromptEnd(promptBoxRef);
-    await selectPromptAction("Plugin");
-
-    await waitFor(() =>
-      expect(latestValue(changes)).toBe(CREATE_PLUGIN_PROMPT_ACTION.text),
-    );
-    expect(latestChange(changes)?.mentions).toEqual([]);
   });
 
   it("does not duplicate command text immediately before the cursor", async () => {

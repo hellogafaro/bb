@@ -9,7 +9,7 @@ import { DetailRow, DetailRowIconLabel } from "@/components/ui/detail-card.js";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSidebarNavigationThreadSelection } from "@/hooks/queries/sidebar-navigation-query";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
-import { agentOptionDetail } from "./agent-display";
+import { AgentModelLabel } from "./AgentModelLabel";
 import { AgentMascot } from "./mascots/AgentMascot";
 import { ThreadStatusMascot } from "./ThreadStatusMascot";
 
@@ -58,9 +58,12 @@ export function ThreadAgentRow({
         >
           {agent.name}
         </Link>
-        <span className="min-w-0 truncate text-muted-foreground">
-          · {agentOptionDetail(agent, providersQuery.data)}
-        </span>
+        <span className="shrink-0 text-muted-foreground">·</span>
+        <AgentModelLabel
+          agent={agent}
+          providers={providersQuery.data}
+          className="text-muted-foreground"
+        />
       </span>
     </DetailRow>
   );
