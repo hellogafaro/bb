@@ -1186,7 +1186,7 @@ const EXPERIMENT_DEFINITIONS: Record<
 };
 const EXPERIMENT_SETTING_IDS: Record<ExperimentKey, CoreSettingId> = {
   changelogPreview: "changelog-preview",
-  legacyJitiPluginLoader: "legacy-jiti-plugin-loader",
+  legacyJitiPluginLoader: "legacy-jiti-loader",
   mobileApp: "mobile-app",
   serverMove: "server-move",
   sidebarProgressiveDisclosure: "sidebar-progressive-disclosure",

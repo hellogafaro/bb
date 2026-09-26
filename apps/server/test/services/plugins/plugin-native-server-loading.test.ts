@@ -63,12 +63,6 @@ export default function plugin() {
         "../../../src/services/plugins/plugin-service.ts",
       ),
     ).href;
-    const aiRegistryUrl = pathToFileURL(
-      resolve(
-        import.meta.dirname,
-        "../../../src/services/ai/ai-service-registry.ts",
-      ),
-    ).href;
     const telemetryUrl = pathToFileURL(
       resolve(import.meta.dirname, "../../../src/services/system/telemetry.ts"),
     ).href;
@@ -76,7 +70,6 @@ export default function plugin() {
 import pino from "pino";
 import { createConnection, migrate, upsertInstalledPlugin } from "@bb/db";
 import { createPluginService } from ${JSON.stringify(runtimeUrl)};
-import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [rootDir, dataDir] = process.argv.slice(1);
 const db = createConnection(":memory:");
@@ -104,7 +97,6 @@ upsertInstalledPlugin(db, {
   activeArtifactId: null
 });
 const service = createPluginService({
-  aiServices: createAiServiceRegistry(),
   telemetry: createNoopTelemetryService(),
   db,
   hub: {
@@ -184,12 +176,6 @@ export default function plugin(bb: BbPluginApi) {
         "../../../src/services/plugins/plugin-service.ts",
       ),
     ).href;
-    const aiRegistryUrl = pathToFileURL(
-      resolve(
-        import.meta.dirname,
-        "../../../src/services/ai/ai-service-registry.ts",
-      ),
-    ).href;
     const telemetryUrl = pathToFileURL(
       resolve(import.meta.dirname, "../../../src/services/system/telemetry.ts"),
     ).href;
@@ -197,13 +183,11 @@ export default function plugin(bb: BbPluginApi) {
 import pino from "pino";
 import { createConnection, migrate } from "@bb/db";
 import { createPluginService } from ${JSON.stringify(serviceUrl)};
-import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [rootDir, dataDir] = process.argv.slice(1);
 const db = createConnection(":memory:");
 migrate(db);
 const service = createPluginService({
-  aiServices: createAiServiceRegistry(),
   telemetry: createNoopTelemetryService(),
   db,
   hub: {
@@ -299,12 +283,6 @@ process.stdout.write(JSON.stringify(result));
         "../../../src/services/plugins/plugin-service.ts",
       ),
     ).href;
-    const aiRegistryUrl = pathToFileURL(
-      resolve(
-        import.meta.dirname,
-        "../../../src/services/ai/ai-service-registry.ts",
-      ),
-    ).href;
     const telemetryUrl = pathToFileURL(
       resolve(import.meta.dirname, "../../../src/services/system/telemetry.ts"),
     ).href;
@@ -314,13 +292,11 @@ import { join } from "node:path";
 import pino from "pino";
 import { createConnection, migrate } from "@bb/db";
 import { createPluginService } from ${JSON.stringify(serviceUrl)};
-import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [importedDir, importerDir, dataDir] = process.argv.slice(1);
 const db = createConnection(":memory:");
 migrate(db);
 const service = createPluginService({
-  aiServices: createAiServiceRegistry(),
   telemetry: createNoopTelemetryService(),
   db,
   hub: {

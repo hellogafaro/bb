@@ -383,7 +383,7 @@ const definitions = [
     aliases: ["move server"],
   },
   {
-    id: "legacy-jiti-plugin-loader",
+    id: "legacy-jiti-loader",
     label: "Legacy plugin loader (JITI)",
     sectionId: "experiments",
     description: "Load plugin server code with the legacy JITI runtime.",
