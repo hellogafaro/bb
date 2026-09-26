@@ -4845,11 +4845,6 @@ describe("public thread data routes", () => {
       errorMessage: "Path does not exist",
       expectedStatus: 404,
     },
-    {
-      errorCode: "file_too_large",
-      errorMessage: "File exceeds limit",
-      expectedStatus: 413,
-    },
   ])(
     "maps host file $errorCode errors to user-facing responses",
     async ({ errorCode, errorMessage, expectedStatus }) => {

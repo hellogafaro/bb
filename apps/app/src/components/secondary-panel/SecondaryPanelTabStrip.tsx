@@ -45,6 +45,7 @@ import {
 import { TabPill } from "@/components/ui/tab-pill";
 import { useDragClickSuppression } from "@/components/ui/use-drag-click-suppression";
 import { cn } from "@bb/shared-ui/lib/utils";
+import { downloadRawFile } from "@/lib/raw-file-url";
 import {
   MACOS_APP_REGION_NO_DRAG_CLASS,
   MACOS_WINDOW_NO_DRAG_CLASS,
@@ -563,6 +564,19 @@ function SortablePanelTab({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`${tab.label} tab actions`}>
+        {tab.downloadUrl ? (
+          <>
+            <ContextMenuItem
+              onSelect={() => {
+                if (tab.downloadUrl)
+                  downloadRawFile(tab.downloadUrl, tab.label);
+              }}
+            >
+              Download
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         <ContextMenuItem
           disabled={!canCloseSelf}
           onSelect={() => onCloseTabs(tabId, "self")}

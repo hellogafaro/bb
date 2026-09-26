@@ -49,6 +49,7 @@ import {
   listHostPaths,
   readHostFile,
   readHostFileMetadata,
+  readHostFileRange,
   readHostRelativeFile,
 } from "./command-handlers/host-files.js";
 import { writeHostFile } from "./command-handlers/file-write.js";
@@ -671,6 +672,7 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
   "host.list_branch_options": listHostBranchOptions,
   "host.file_metadata": readHostFileMetadata,
   "host.read_file": readHostFile,
+  "host.read_file_range": readHostFileRange,
   "host.read_file_relative": readHostRelativeFile,
   "host.write_file": writeHostFile,
   "provider.list_models": (command, options) =>

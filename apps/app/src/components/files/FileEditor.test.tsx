@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileReadResult } from "@bb/sdk/browser";
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
+import { TEXT_FILE_PREVIEW_MAX_BYTES } from "@bb/client-core";
+import { appToast } from "@/components/ui/app-toast";
+import { sdk } from "@/lib/sdk";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import {
   FileDocumentStore,
@@ -22,6 +32,29 @@ vi.mock("@/lib/plugin-code-theme", () => ({
 const PATH = "/repo/src/app.ts";
 
 class MissingError extends Error {}
+class TooLargeError extends Error {}
+
+const LEASE_BASE_URL = "/api/v1/file-previews/lease-1";
+
+function recordDownloads(order: string[] = []): string[] {
+  vi.spyOn(sdk.files, "createPreview").mockResolvedValue({
+    baseUrl: LEASE_BASE_URL,
+    expiresAtMs: Date.now() + 60_000,
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+    function (this: HTMLAnchorElement) {
+      order.push(`download:${this.getAttribute("href")}`);
+    },
+  );
+  return order;
+}
+
+function openFileActions() {
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: FILES_COPY.fileActions }),
+    { button: 0, ctrlKey: false },
+  );
+}
 
 class ImmediateIntersectionObserver {
   constructor(private readonly callback: IntersectionObserverCallback) {}
@@ -83,6 +116,7 @@ function fakeDisk(content: string, sha256: string) {
     listDirectory: vi.fn(async () => []),
     search: vi.fn(async () => []),
     isMissing: (error) => error instanceof MissingError,
+    isTooLarge: (error) => error instanceof TooLargeError,
   };
   return { disk, transport };
 }
@@ -167,6 +201,108 @@ describe("FileEditor", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("shows the too-large card with Download when the read is rejected for size", async () => {
+    const { transport } = fakeDisk("", "s1");
+    transport.read = vi.fn(async () => {
+      throw new TooLargeError("File is too large");
+    });
+    const downloads = recordDownloads();
+    const probe = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe(`${LEASE_BASE_URL}/app.ts`);
+      expect(new Headers(init?.headers).get("range")).toBe("bytes=0-0");
+      return new Response(null, {
+        status: 206,
+        headers: {
+          "content-range": "bytes 0-0/31457280",
+          "content-type": "text/plain; charset=utf-8",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", probe);
+    const store = new FileDocumentStore(transport, timing(60_000));
+    renderEditor(transport, store);
+
+    expect(
+      await screen.findByText("This file is too large to preview."),
+    ).toBeTruthy();
+    expect(await screen.findByText("text/plain · 30 MB")).toBeTruthy();
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".cm-content")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: FILES_COPY.download }));
+    await waitFor(() =>
+      expect(downloads).toEqual([`download:${LEASE_BASE_URL}/app.ts`]),
+    );
+  });
+
+  it("shows the too-large card instead of the editor for text over the preview budget", async () => {
+    const { transport } = fakeDisk("x", "s1");
+    transport.read = vi.fn(async () => ({
+      ...readResult("x", "s1"),
+      mimeType: "text/plain",
+      sizeBytes: TEXT_FILE_PREVIEW_MAX_BYTES + 1,
+    }));
+    const store = new FileDocumentStore(transport, timing(60_000));
+    renderEditor(transport, store);
+
+    expect(
+      await screen.findByText("This file is too large to preview."),
+    ).toBeTruthy();
+    expect(screen.getByText("text/plain · 10 MB")).toBeTruthy();
+    expect(document.querySelector(".cm-content")).toBeNull();
+  });
+
+  it("saves unsaved edits before downloading the file", async () => {
+    const { disk, transport } = fakeDisk("draft", "s1");
+    const order = recordDownloads();
+    const write = transport.write;
+    transport.write = vi.fn(async (...args: Parameters<typeof write>) => {
+      order.push(`write:${args[1]}`);
+      return write(...args);
+    });
+    const store = new FileDocumentStore(transport, timing(60_000));
+    renderEditor(transport, store);
+    const view = await editorView();
+    type(view, " edited");
+
+    openFileActions();
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: FILES_COPY.download }),
+    );
+
+    await waitFor(() =>
+      expect(order).toEqual([
+        "write:draft edited",
+        `download:${LEASE_BASE_URL}/app.ts`,
+      ]),
+    );
+    expect(disk.current?.content).toBe("draft edited");
+  });
+
+  it("does not download stale bytes when saving the unsaved edits fails", async () => {
+    const { transport } = fakeDisk("draft", "s1");
+    const downloads = recordDownloads();
+    const toastError = vi.spyOn(appToast, "error");
+    transport.write = vi.fn(async () => {
+      throw new Error("disk full");
+    });
+    const store = new FileDocumentStore(transport, timing(60_000));
+    renderEditor(transport, store);
+    const view = await editorView();
+    type(view, " edited");
+
+    openFileActions();
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: FILES_COPY.download }),
+    );
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(FILES_COPY.downloadFailed),
+    );
+    expect(transport.write).toHaveBeenCalledTimes(1);
+    expect(downloads).toEqual([]);
   });
 
   it("saves edits with the sha of the file it loaded", async () => {

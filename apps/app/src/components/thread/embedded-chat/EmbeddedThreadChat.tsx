@@ -73,6 +73,10 @@ import {
 import { useActiveComposerDraft } from "./useActiveComposerDraft";
 import { useComposerAttachmentUploads } from "./useComposerAttachmentUploads";
 import { useLatestRef } from "@/hooks/useLatestRef";
+import {
+  getCompactFollowUpPromptPlaceholder,
+  getFollowUpPromptPlaceholder,
+} from "@/components/promptbox/follow-up-placeholder";
 import { useComposerTypeahead } from "./useComposerTypeahead";
 import { useInlineQueuedMessageEditing } from "./useInlineQueuedMessageEditing";
 import { useQueuedMessageActions } from "./useQueuedMessageActions";
@@ -123,6 +127,7 @@ interface EmbeddedThreadChatSharedProps {
   layout?: "contained" | "document";
   measure?: "panel" | "page";
   readTracking?: boolean;
+  timeline?: "visible" | "hidden";
 }
 
 interface EmbeddedThreadChatComposerModeProps extends EmbeddedThreadChatSharedProps {
@@ -194,6 +199,7 @@ function EmbeddedThreadChatWithComposer({
   surfaceTone = "background",
   composer,
   readTracking = true,
+  timeline = "visible",
 }: EmbeddedThreadChatComposerModeProps) {
   const systemConfigQuery = useSystemConfig();
   const steerActiveThreadOnEnter =
@@ -744,11 +750,7 @@ function EmbeddedThreadChatWithComposer({
     queuedPluginComposerHost?.textEffectKey ?? null,
   );
 
-  const composerPlaceholder = isStopRequested
-    ? "Stopping thread..."
-    : isProvisioning
-      ? "Provisioning thread..."
-      : "Reply…";
+  const composerPlaceholder = getFollowUpPromptPlaceholder(displayStatus);
 
   const bottomComposerConfig = useMemo<FollowUpComposerProps>(
     () => ({
@@ -763,7 +765,8 @@ function EmbeddedThreadChatWithComposer({
       onChangeMessage: promptDraft.setTextAndMentions,
       onModifierSubmit: handleModifierSubmit,
       onSubmit: handleSubmit,
-      compactPromptPlaceholder: composerPlaceholder,
+      compactPromptPlaceholder:
+        getCompactFollowUpPromptPlaceholder(displayStatus),
       promptPlaceholder: composerPlaceholder,
       canModifierSubmit: canSubmitModifierShortcut,
       steerActiveThreadOnEnter,
@@ -1086,7 +1089,9 @@ function EmbeddedThreadChatWithComposer({
   ) : null;
   const footer = (
     <div className={cn("relative", surfaceClassName)}>
-      <OverflowFade placement="above" tone={surfaceTone} />
+      {timeline === "hidden" ? null : (
+        <OverflowFade placement="above" tone={surfaceTone} />
+      )}
       <div className="px-4 pb-4 pt-2">
         <FollowUpPromptBox
           attachments={bottomAttachmentsConfig}
@@ -1143,16 +1148,22 @@ function EmbeddedThreadChatWithComposer({
         data-surface-tone={surfaceTone}
         className={cn("flex min-w-0 flex-col", surfaceClassName)}
       >
+        {timeline === "hidden" ? null : (
+          <div
+            className={cn(
+              "mx-auto flex w-full min-w-0 flex-col",
+              measure === "page" ? "px-4 pb-3 pt-3" : "px-2 pb-3 pt-3",
+              maxWidthClassName,
+            )}
+          >
+            {timelineBody}
+          </div>
+        )}
         <div
-          className={cn(
-            "mx-auto flex w-full min-w-0 flex-col",
-            measure === "page" ? "px-4 pb-3 pt-3" : "px-2 pb-3 pt-3",
-            maxWidthClassName,
-          )}
+          className={timeline === "hidden" ? undefined : "sticky bottom-0 z-20"}
         >
-          {timelineBody}
+          {footer}
         </div>
-        <div className="sticky bottom-0 z-20">{footer}</div>
       </div>
     );
   }

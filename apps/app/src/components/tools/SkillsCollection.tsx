@@ -267,7 +267,7 @@ function SkillCard({
           <SkillLeading
             skill={skill}
             providerRoster={providerRoster}
-            className="size-4"
+            className="size-3.5"
           />
         }
         title={skill.name}
@@ -668,7 +668,7 @@ export function SkillDetailDialogView({
             <SkillLeading
               skill={skill}
               providerRoster={providerRoster}
-              className="size-5"
+              className="size-4"
             />
           )}
         </ResourceIconFrame>

@@ -82,7 +82,7 @@ export function AppPageHeader({
         className={cn(
           CHROME_ROW_CLASS,
           "relative z-10 gap-1 md:gap-2",
-          "transition-[padding] duration-200 ease-linear",
+          "transition-[padding] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
           shouldReserveSidebarTrigger &&
             (reserveMacosTrafficLights
               ? MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS

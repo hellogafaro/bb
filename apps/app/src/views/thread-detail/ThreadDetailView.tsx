@@ -268,9 +268,11 @@ import {
   resolveThreadWorkspaceOpenPath,
 } from "./threadWorkspaceOpenPath";
 import {
+  buildThreadLocalFileDownloadUrl,
   resolveThreadLocalFileLink,
   type ThreadLocalFileLinkResolution,
 } from "@/lib/thread-local-file-links";
+import { buildRawFileUrl, downloadRawFile } from "@/lib/raw-file-url";
 import {
   MarkdownLocalFileContextMenuContext,
   type MarkdownLinkRouting,
@@ -564,18 +566,28 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     ],
     [gitDiffTabStatus],
   );
+  const isFixedPanelStateSettled =
+    gitDiffTabStatus === "eligible" || gitDiffTabStatus === "ineligible";
+  const renderSecondaryPanelAsDrawer = useIsCompactViewport();
+  const opensSecondaryPanelByDefault = !renderSecondaryPanelAsDrawer;
   const fixedPanelTabsState = useReconciledFixedPanelTabsState({
     fixedTabs: threadFixedViewTabs,
-    isAuthoritative:
-      gitDiffTabStatus === "eligible" || gitDiffTabStatus === "ineligible",
-    openFirstFixedTabWhenEmpty: !useIsCompactViewport(),
+    isAuthoritative: isFixedPanelStateSettled,
+    openFirstFixedTabWhenEmpty: opensSecondaryPanelByDefault,
     panelStateId: threadId,
     syncThreadId: threadId,
   });
-  const isPersistedSecondaryPanelOpen = fixedPanelTabsState.secondary.isOpen;
-  const activeFixedSecondaryTab = getActiveFixedSecondaryTab({
-    fixedPanelTabsState,
-  });
+  const showsDefaultOpenSecondaryPanel =
+    opensSecondaryPanelByDefault &&
+    !isFixedPanelStateSettled &&
+    fixedPanelTabsState.secondary.tabs.length === 0 &&
+    fixedPanelTabsState.secondary.activeTabId === null &&
+    !fixedPanelTabsState.secondary.isOpen;
+  const isPersistedSecondaryPanelOpen =
+    fixedPanelTabsState.secondary.isOpen || showsDefaultOpenSecondaryPanel;
+  const activeFixedSecondaryTab =
+    getActiveFixedSecondaryTab({ fixedPanelTabsState }) ??
+    (showsDefaultOpenSecondaryPanel ? (threadFixedViewTabs[0] ?? null) : null);
   const openFixedSecondaryTab = isPersistedSecondaryPanelOpen
     ? activeFixedSecondaryTab
     : null;
@@ -584,7 +596,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     isPanelOpen: isPersistedSecondaryPanelOpen,
   });
   const activeFixedSecondaryTabId = activeFixedSecondaryTab?.id ?? null;
-  const renderSecondaryPanelAsDrawer = useIsCompactViewport();
   const secondaryPanelDrawerVisibility =
     useThreadSecondaryPanelDrawerVisibility({
       isCompactViewport: renderSecondaryPanelAsDrawer,
@@ -2316,6 +2327,26 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       if (items.length > 0) {
         items.push({ id: "copy-separator", type: "separator" });
       }
+      const downloadUrl = buildThreadLocalFileDownloadUrl(
+        resolveThreadLocalFileLink({
+          hostFileLinksAvailable:
+            thread?.environmentId !== null &&
+            thread?.environmentId !== undefined,
+          link,
+          threadStorageRootPath,
+          workspaceRootPath: workspacePreviewRootPath,
+        }),
+        threadId,
+      );
+      if (downloadUrl !== null) {
+        items.push({
+          id: "download",
+          label: "Download",
+          onSelect: () => {
+            downloadRawFile(downloadUrl, getFileBasename(link.path));
+          },
+        });
+      }
       items.push(
         {
           id: "copy-path",
@@ -2345,6 +2376,10 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       handleOpenTimelineLocalFileLink,
       openPathInFileTarget,
       pluginFileOpeners,
+      thread?.environmentId,
+      threadId,
+      threadStorageRootPath,
+      workspacePreviewRootPath,
     ],
   );
   const handleOpenFilePreview = useCallback<OpenFilePreviewHandler>(
@@ -2782,6 +2817,21 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "workspace-file-preview":
           return {
             ...shared,
+            downloadUrl:
+              tab.source.kind === "working-tree" &&
+              tab.statusLabel !== "deleted"
+                ? buildRawFileUrl(
+                    {
+                      kind: "workspace",
+                      environmentId: tab.environmentId,
+                      hostId: null,
+                      projectId: null,
+                      threadId,
+                    },
+                    tab.path,
+                    { download: true },
+                  )
+                : null,
             label: filenameOfPanelTab(tab.path),
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
             statusLabel: tab.statusLabel,
@@ -2790,6 +2840,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "host-file-preview":
           return {
             ...shared,
+            downloadUrl: buildRawFileUrl({ kind: "host", threadId }, tab.path, {
+              download: true,
+            }),
             label: filenameOfPanelTab(tab.path),
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
             statusLabel: null,
@@ -2798,6 +2851,11 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "thread-storage-file-preview":
           return {
             ...shared,
+            downloadUrl: buildRawFileUrl(
+              { kind: "thread-storage", threadId },
+              tab.path,
+              { download: true },
+            ),
             label: filenameOfPanelTab(tab.path),
             isPinned: tab.isPinned,
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
@@ -2867,6 +2925,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             header={timelineHeader}
             isMetadataLoading={environmentQuery.isLoading}
             isSecondaryPanelOpen={isSecondaryPanelOpen}
+            isSecondaryPanelStateSettled={isFixedPanelStateSettled}
             isConversationCollapsed={isConversationCollapsed}
             isBoundedPane={isBoundedPane}
             onToggleSecondaryPanel={toggleSecondaryPanel}

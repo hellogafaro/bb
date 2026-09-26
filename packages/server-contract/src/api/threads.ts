@@ -1000,9 +1000,15 @@ export type ThreadStorageLocationResponse = z.infer<
   typeof threadStorageLocationResponseSchema
 >;
 
-export const threadHostFileContentQuerySchema = z.object({
-  path: z.string().min(1),
+export const rawFileDownloadQuerySchema = z.object({
+  download: z.literal("1").optional(),
 });
+export type RawFileDownloadQuery = z.infer<typeof rawFileDownloadQuerySchema>;
+
+export const threadHostFileContentQuerySchema =
+  rawFileDownloadQuerySchema.extend({
+    path: z.string().min(1),
+  });
 export type ThreadHostFileContentQuery = z.infer<
   typeof threadHostFileContentQuerySchema
 >;

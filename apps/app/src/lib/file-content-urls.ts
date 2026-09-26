@@ -30,18 +30,6 @@ export function buildProjectFileContentUrl(
   );
 }
 
-export function buildThreadStorageContentUrl(
-  threadId: string,
-  path: string,
-): string {
-  return toRelativeUrl(
-    apiClient.threads[":id"]["thread-storage"].content.$url({
-      param: { id: threadId },
-      query: { path },
-    }),
-  );
-}
-
 export function buildThreadStorageRawContentUrl(
   threadId: string,
   path: string,

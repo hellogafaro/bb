@@ -105,7 +105,15 @@ describe("GitDiffTabContent panel gating", () => {
 
 describe("WorkspaceFilePreview panel gating", () => {
   it("does not refetch an invalidated preview while the panel is closed", async () => {
-    vi.mocked(sdk.environments.diffFile).mockResolvedValue(previewFile);
+    const worktreeUrl = "/api/v1/threads/thr-1/worktree/files/src/index.ts";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(previewFile.content, {
+          headers: { "content-type": "text/plain" },
+        }),
+    );
+    const worktreeReads = () =>
+      fetchSpy.mock.calls.filter(([input]) => input === worktreeUrl).length;
     const { queryClient, wrapper: Wrapper } = createQueryClientTestHarness();
     const renderTab = (isPanelOpen: boolean) => (
       <Wrapper>
@@ -123,7 +131,7 @@ describe("WorkspaceFilePreview panel gating", () => {
 
     const view = render(renderTab(true));
     await waitFor(() => {
-      expect(sdk.environments.diffFile).toHaveBeenCalledTimes(1);
+      expect(worktreeReads()).toBe(1);
     });
 
     view.rerender(renderTab(false));
@@ -132,12 +140,14 @@ describe("WorkspaceFilePreview panel gating", () => {
         queryKey: environmentFilePreviewQueryKeyPrefix(ENVIRONMENT_ID),
       });
     });
-    expect(sdk.environments.diffFile).toHaveBeenCalledTimes(1);
+    expect(worktreeReads()).toBe(1);
 
     view.rerender(renderTab(true));
     await waitFor(() => {
-      expect(sdk.environments.diffFile).toHaveBeenCalledTimes(2);
+      expect(worktreeReads()).toBe(2);
     });
+    expect(sdk.environments.diffFile).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });
 

@@ -90,7 +90,7 @@ export const BUILTIN_PLUGINS = [
   {
     name: "pdf-preview",
     pluginId: "pdf-preview",
-    defaultEnabled: true,
+    defaultEnabled: false,
   },
   {
     name: "provider-codex",

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveThreadLocalFileLink } from "./thread-local-file-links";
+import {
+  buildThreadLocalFileDownloadUrl,
+  resolveThreadLocalFileLink,
+} from "./thread-local-file-links";
 
 describe("resolveThreadLocalFileLink", () => {
   it("leaves app routes as normal navigation", () => {
@@ -157,5 +160,50 @@ describe("resolveThreadLocalFileLink", () => {
         threadStorageRootPath: "/Users/me/.bb/thread-storage/thr_one",
       },
     });
+  });
+});
+
+describe("buildThreadLocalFileDownloadUrl", () => {
+  const resolve = (path: string) =>
+    resolveThreadLocalFileLink({
+      hostFileLinksAvailable: true,
+      link: { lineRange: null, path },
+      threadStorageRootPath: "/data/storage/thr_1",
+      workspaceRootPath: "/Users/me/project",
+    });
+
+  it("routes each link kind to its raw download route", () => {
+    expect(
+      buildThreadLocalFileDownloadUrl(
+        resolve("/Users/me/project/docs/Q3 plan.pdf"),
+        "thr_1",
+      ),
+    ).toBe(
+      "/api/v1/threads/thr_1/worktree/files/docs/Q3%20plan.pdf?download=1",
+    );
+    expect(
+      buildThreadLocalFileDownloadUrl(
+        resolve("/data/storage/thr_1/out/report.zip"),
+        "thr_1",
+      ),
+    ).toBe(
+      "/api/v1/threads/thr_1/thread-storage/files/out/report.zip?download=1",
+    );
+    const hostUrl = new URL(
+      buildThreadLocalFileDownloadUrl(resolve("/tmp/a b.mp4"), "thr_1") ?? "",
+      "http://x",
+    );
+    expect(hostUrl.pathname).toBe("/api/v1/threads/thr_1/host-files/content");
+    expect(hostUrl.searchParams.get("path")).toBe("/tmp/a b.mp4");
+    expect(hostUrl.searchParams.get("download")).toBe("1");
+  });
+
+  it("offers no download for app routes", () => {
+    expect(
+      buildThreadLocalFileDownloadUrl(
+        resolve("/projects/proj_1/threads/thr_2"),
+        "thr_1",
+      ),
+    ).toBeNull();
   });
 });

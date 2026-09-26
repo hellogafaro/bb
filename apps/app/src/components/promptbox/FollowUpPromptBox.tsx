@@ -113,7 +113,7 @@ function PromptBoxWithScrollAnchor({
   );
 }
 
-const FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT = 64;
+const FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT = 24;
 const FOLLOW_UP_PROMPT_BOX_ELASTIC_TARGET_HEIGHT =
   FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT + PROMPT_STACK_CARD_ROW_HEIGHT;
 const COMPOSER_CONTROL_SELECTOR = "button, [role='button'], [aria-haspopup]";
@@ -686,7 +686,7 @@ function FollowUpPromptBoxWithComposer({
     return () => observer.disconnect();
   }, [applyStackHeight]);
   const elasticTextareaMinHeight =
-    stack === null || isCompactViewport
+    stack === null || isCompactViewport || stackHeight === 0
       ? FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT
       : Math.max(
           FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT,

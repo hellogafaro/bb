@@ -47,6 +47,7 @@ export interface FilesTransport {
     signal?: AbortSignal,
   ): Promise<FileEntry[]>;
   isMissing(error: unknown): boolean;
+  isTooLarge(error: unknown): boolean;
 }
 
 const SEARCH_LIMIT = 80;
@@ -124,6 +125,12 @@ export const sdkFilesTransport: FilesTransport = {
   },
   isMissing(error) {
     return error instanceof BbHttpError && error.status === 404;
+  },
+  isTooLarge(error) {
+    return (
+      error instanceof BbHttpError &&
+      (error.status === 413 || error.code === "file_too_large")
+    );
   },
 };
 

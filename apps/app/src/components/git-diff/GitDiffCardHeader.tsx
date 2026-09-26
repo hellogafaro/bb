@@ -34,7 +34,7 @@ interface GitDiffCardHeaderProps {
 
 const BYTES_PER_UNIT = 1024;
 
-function formatByteSize(bytes: number): string {
+export function formatByteSize(bytes: number): string {
   if (bytes < BYTES_PER_UNIT) {
     return `${bytes} B`;
   }

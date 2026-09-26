@@ -7,7 +7,7 @@ import {
 } from "../../../.ladle/story-fixtures";
 import type { ProviderCliActionableIssue } from "@/components/provider-cli/provider-cli-install";
 import { startProviderCliInstall } from "@/components/provider-cli/provider-cli-install-store";
-import { SidebarMenu } from "@/components/ui/sidebar";
+import { SidebarMenu, SidebarProvider } from "@/components/ui/sidebar";
 import { sdk } from "@/lib/sdk";
 import { SidebarUpdatesBadge } from "./SidebarUpdatesBadge";
 
@@ -38,9 +38,11 @@ function BadgeStage({ children }: { children?: ReactNode }) {
     <SettingsStoryFixtures>
       <div className="flex min-h-32 w-80 flex-col rounded-md border border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
         {children}
-        <SidebarMenu className="mt-auto">
-          <SidebarUpdatesBadge />
-        </SidebarMenu>
+        <SidebarProvider>
+          <SidebarMenu className="mt-auto">
+            <SidebarUpdatesBadge />
+          </SidebarMenu>
+        </SidebarProvider>
       </div>
     </SettingsStoryFixtures>
   );

@@ -94,7 +94,7 @@ export function AgentsList({ action }: { action?: ReactNode }) {
                     <AgentMascot
                       mascot={agent.mascot}
                       color={agent.color}
-                      className="size-4"
+                      className="size-3.5"
                     />
                   }
                   leadingStyle={agentAvatarStyle(agent.color)}

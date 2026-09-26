@@ -260,6 +260,7 @@ function createProps(
     isConversationCollapsed,
     isMetadataLoading,
     isSecondaryPanelOpen: true,
+    isSecondaryPanelStateSettled: true,
     metadata: {
       canAssignToParent: false,
       canTakeOverThread: false,

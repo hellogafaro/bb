@@ -47,8 +47,10 @@ import {
 import { callHostRetryableOnlineRpc } from "../../services/hosts/online-rpc.js";
 import {
   createDaemonFileContentResponse,
-  type DaemonFileReadResult,
+  rawFileRequestFromHeaders,
   serveDaemonFileContent,
+  serveDaemonRawFile,
+  type RawFileRequest,
 } from "../../services/hosts/daemon-file-response.js";
 import { requireThreadStoragePath } from "../../services/threads/thread-storage.js";
 import { toThreadQueuedMessage } from "../../services/threads/thread-queued-messages.js";
@@ -251,46 +253,58 @@ function assertHtmlPreviewSize(relativePath: string, sizeBytes: number): void {
   }
 }
 
-function createRawFilePreviewResponse(
-  result: DaemonFileReadResult,
-  relativePath: string,
-  ifNoneMatch: string | undefined,
-): Response {
-  assertHtmlPreviewSize(relativePath, result.sizeBytes);
+function rawFilePreviewHeaders(relativePath: string): Headers {
   const headers = new Headers({
     "x-content-type-options": RAW_FILE_CONTENT_TYPE_OPTIONS,
   });
-  const isHtml = isHtmlPreviewPath(relativePath);
-  if (isHtml) {
+  if (isHtmlPreviewPath(relativePath)) {
     headers.set("cache-control", RAW_FILE_NO_STORE_CACHE_CONTROL);
     headers.set("content-security-policy", GENERIC_HTML_PREVIEW_CSP);
     headers.set("content-type", RAW_FILE_HTML_CONTENT_TYPE);
   }
-  return createDaemonFileContentResponse(result, {
-    headers,
-    ifNoneMatch: isHtml ? undefined : ifNoneMatch,
-  });
+  return headers;
+}
+
+function serveRawFilePreview(
+  deps: LoggedWorkSessionDeps,
+  target: { hostId: string; rootPath: string; relativePath: string },
+  request: RawFileRequest,
+): Promise<Response> {
+  return serveDaemonRawFile(
+    deps,
+    {
+      hostId: target.hostId,
+      path: path.join(target.rootPath, target.relativePath),
+      rootPath: target.rootPath,
+    },
+    {
+      assertInlineSize: (sizeBytes) =>
+        assertHtmlPreviewSize(target.relativePath, sizeBytes),
+      fileName: target.relativePath,
+      headers: rawFilePreviewHeaders(target.relativePath),
+      request,
+      revalidate: !isHtmlPreviewPath(target.relativePath),
+    },
+  );
 }
 
 async function serveThreadStorageRawFile(
   deps: LoggedWorkSessionDeps,
   threadId: string,
   rawPath: string,
-  ifNoneMatch: string | undefined,
+  request: RawFileRequest,
 ): Promise<Response> {
   const filePath = parseSafeRelativeRoutePath(rawPath);
   const target = await requireThreadStorageTarget(deps, { threadId });
 
-  return serveDaemonFileContent(
+  return serveRawFilePreview(
     deps,
     {
       hostId: target.hostId,
-      ...(!isHtmlPreviewPath(filePath.relativePath) ? { ifNoneMatch } : {}),
-      path: path.join(target.storagePath, filePath.relativePath),
       rootPath: target.storagePath,
+      relativePath: filePath.relativePath,
     },
-    (result) =>
-      createRawFilePreviewResponse(result, filePath.relativePath, ifNoneMatch),
+    request,
   );
 }
 
@@ -298,7 +312,7 @@ async function serveThreadWorktreeRawFile(
   deps: LoggedWorkSessionDeps,
   threadId: string,
   rawPath: string,
-  ifNoneMatch: string | undefined,
+  request: RawFileRequest,
 ): Promise<Response> {
   const filePath = parseSafeRelativeRoutePath(rawPath);
   const thread = requirePublicThread(deps.db, threadId);
@@ -307,16 +321,14 @@ async function serveThreadWorktreeRawFile(
   }
   const environment = requireReadyEnvironment(deps.db, thread.environmentId);
 
-  return serveDaemonFileContent(
+  return serveRawFilePreview(
     deps,
     {
       hostId: environment.hostId,
-      ...(!isHtmlPreviewPath(filePath.relativePath) ? { ifNoneMatch } : {}),
-      path: path.join(environment.path, filePath.relativePath),
       rootPath: environment.path,
+      relativePath: filePath.relativePath,
     },
-    (result) =>
-      createRawFilePreviewResponse(result, filePath.relativePath, ifNoneMatch),
+    request,
   );
 }
 
@@ -669,12 +681,15 @@ export function registerThreadDataRoutes(app: Hono, deps: AppDeps): void {
     );
   });
 
-  get(routes.worktreeFile, async (context) =>
+  get(routes.worktreeFile, async (context, query) =>
     serveThreadWorktreeRawFile(
       deps,
       context.req.param("id"),
       context.req.param("filePath"),
-      context.req.header("if-none-match"),
+      rawFileRequestFromHeaders(
+        (name) => context.req.header(name),
+        query.download,
+      ),
     ),
   );
 
@@ -725,12 +740,15 @@ export function registerThreadDataRoutes(app: Hono, deps: AppDeps): void {
     });
   });
 
-  get(routes.storageFile, async (context) =>
+  get(routes.storageFile, async (context, query) =>
     serveThreadStorageRawFile(
       deps,
       context.req.param("id"),
       context.req.param("filePath"),
-      context.req.header("if-none-match"),
+      rawFileRequestFromHeaders(
+        (name) => context.req.header(name),
+        query.download,
+      ),
     ),
   );
 
@@ -807,17 +825,18 @@ export function registerThreadDataRoutes(app: Hono, deps: AppDeps): void {
     }
     const environment = requireEnvironment(deps.db, thread.environmentId);
 
-    return serveDaemonFileContent(
+    return serveDaemonRawFile(
       deps,
+      { hostId: environment.hostId, path: query.path },
       {
-        hostId: environment.hostId,
-        ifNoneMatch: context.req.header("if-none-match"),
-        path: query.path,
+        fileName: query.path,
+        headers: { "x-content-type-options": RAW_FILE_CONTENT_TYPE_OPTIONS },
+        request: rawFileRequestFromHeaders(
+          (name) => context.req.header(name),
+          query.download,
+        ),
+        revalidate: true,
       },
-      (result) =>
-        createDaemonFileContentResponse(result, {
-          ifNoneMatch: context.req.header("if-none-match"),
-        }),
     );
   });
 }

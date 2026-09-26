@@ -71,6 +71,7 @@ function fakeTransport(disk: { content: string; sha256: string } | null) {
     listDirectory: vi.fn(async () => []),
     search: vi.fn(async () => []),
     isMissing: (error) => error instanceof MissingError,
+    isTooLarge: () => false,
   };
   return { transport, state };
 }

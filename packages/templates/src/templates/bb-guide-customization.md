@@ -282,10 +282,18 @@ Host files and voice transcription
 
   bb file read|write|list|paths|mkdir|move|remove ...
   bb file read <path> --if-none-match <sha256>
+  bb file download <path> --thread <id> [--source worktree|storage|host] [--out <file>]
+  bb file download <path> --project <id> [--host <id>|--environment <id>] [--out <file>]
 
 `bb file read --if-none-match` prints nothing (and `--json` prints the
 metadata with `notModified: true`) while the file's content hash still
 matches.
+`bb file download` streams a file of any size from a thread worktree, thread
+storage, an absolute host path on the thread's machine (`--source host`), or a
+project workspace. It writes to the file name in the current directory unless
+`--out` is set, refuses to replace an existing file without `--force`, and
+deletes the partial file if the transfer fails. The SDK form is
+`sdk.files.experimental_rawFileUrl({ source, download: true })`.
   bb voice transcribe <audio-file> [--type <mime>]
 
 Voice transcription runs on OpenRouter with `OPENROUTER_API_KEY` (set with

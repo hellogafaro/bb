@@ -59,6 +59,20 @@ interface ReadFileForTransportArgs {
   rootPath?: string;
 }
 
+interface ReadFileRangeForTransportArgs extends ReadFileForTransportArgs {
+  length: number;
+  offset: number;
+}
+
+export interface ReadFileRangeForTransportResult {
+  content: string;
+  mimeType?: string;
+  modifiedAtMs: number;
+  offset: number;
+  path: string;
+  sizeBytes: number;
+}
+
 interface ReadRootRelativeFileForTransportArgs {
   rootPath: string;
   relativePath: string;
@@ -374,6 +388,58 @@ export async function readFileForTransport(
     path: args.resultPath,
     sizeBytes: stat.size,
   });
+}
+
+export async function readFileRangeForTransport(
+  args: ReadFileRangeForTransportArgs,
+): Promise<ReadFileRangeForTransportResult> {
+  const readablePath = await resolveReadablePath(args);
+  const pathStat = await fs
+    .stat(readablePath)
+    .catch((error: unknown) => throwMissingTargetOrRethrow(args, error));
+  if (pathStat.isDirectory()) {
+    throw new CommandDispatchError(
+      "invalid_path",
+      "Path is a directory, not a file",
+    );
+  }
+  if (!pathStat.isFile()) {
+    throw new CommandDispatchError(
+      "invalid_path",
+      "Path is not a regular file",
+    );
+  }
+
+  const handle = await fs
+    .open(readablePath, "r")
+    .catch((error: unknown) => throwMissingTargetOrRethrow(args, error));
+  try {
+    const stat = await handle.stat();
+    const offset = Math.min(args.offset, stat.size);
+    const buffer = Buffer.alloc(Math.min(args.length, stat.size - offset));
+    let filled = 0;
+    while (filled < buffer.byteLength) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        filled,
+        buffer.byteLength - filled,
+        offset + filled,
+      );
+      if (bytesRead === 0) break;
+      filled += bytesRead;
+    }
+    const mimeType = mimeTypes.lookup(args.resultPath) || undefined;
+    return {
+      content: buffer.subarray(0, filled).toString("base64"),
+      ...(mimeType ? { mimeType } : {}),
+      modifiedAtMs: stat.mtimeMs,
+      offset,
+      path: args.resultPath,
+      sizeBytes: stat.size,
+    };
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function readRootRelativeFileForTransport(

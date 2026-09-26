@@ -43,6 +43,7 @@ interface ThreadDetailSecondaryContentProps {
   header: ReactNode;
   isMetadataLoading: boolean;
   isSecondaryPanelOpen: boolean;
+  isSecondaryPanelStateSettled: boolean;
   isConversationCollapsed: boolean;
   isBoundedPane: boolean;
   onToggleSecondaryPanel: () => void;
@@ -68,6 +69,7 @@ function ThreadDetailSecondaryContentBody({
   header,
   isMetadataLoading,
   isSecondaryPanelOpen,
+  isSecondaryPanelStateSettled,
   isConversationCollapsed,
   isBoundedPane,
   onToggleSecondaryPanel,
@@ -118,7 +120,7 @@ function ThreadDetailSecondaryContentBody({
         onToggle={onToggleSecondaryPanel}
         onClose={threadSecondaryPanelProps.onClose}
         panelGroupKey="thread-detail"
-        resetKey={timeline.threadId}
+        resetKey={`${timeline.threadId}:${isSecondaryPanelStateSettled ? "settled" : "pending"}`}
         contentKey={timeline.threadId}
         drawerLabel="Thread details"
         drawerFallback={<ThreadMetadataLoadingSkeleton />}

@@ -23,6 +23,7 @@ import {
   buildThreadStorageRawContentUrl,
   buildThreadWorktreeRawContentUrl,
 } from "@/lib/file-content-urls";
+import { buildRawFileUrl, type RawFileSource } from "@/lib/raw-file-url";
 import type {
   EnvironmentFilePreviewSource,
   FilePreview,
@@ -331,6 +332,7 @@ export function WorkspaceFilePreviewTabContent(
         copyPath={props.copyPath ?? null}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />
     );
@@ -352,20 +354,41 @@ export function WorkspaceFilePreview({
   threadId,
 }: WorkspaceFilePreviewTabContentProps) {
   const environmentQuery = useEnvironment(environmentId ?? null, {
-    enabled:
-      environmentId !== null &&
-      environmentId !== undefined &&
-      markdownLinkRouting?.localImage === undefined,
+    enabled: environmentId !== null && environmentId !== undefined,
     staleTime: 5_000,
   });
+  const environmentRootPath = environmentQuery.data?.path ?? null;
+  const environmentProjectId = environmentQuery.data?.projectId;
+  const readsRawWorkingTree =
+    source?.kind === "working-tree" &&
+    statusLabel !== "deleted" &&
+    environmentId !== null &&
+    environmentId !== undefined;
+  const rawFileSource: RawFileSource | null = readsRawWorkingTree
+    ? {
+        kind: "workspace",
+        environmentId,
+        hostId: null,
+        projectId: environmentProjectId ?? null,
+        threadId: threadId ?? null,
+      }
+    : null;
+  const rawFileUrl =
+    rawFileSource === null ? null : buildRawFileUrl(rawFileSource, activePath);
   const workspaceFilePreviewQuery = useEnvironmentFilePreview(
     environmentId,
     activePath,
     source,
-    { enabled: isPanelOpen },
+    rawFileUrl,
+    {
+      enabled:
+        isPanelOpen &&
+        (!readsRawWorkingTree ||
+          Boolean(threadId) ||
+          environmentQuery.data !== undefined ||
+          environmentQuery.isError),
+    },
   );
-  const environmentRootPath = environmentQuery.data?.path ?? null;
-  const environmentProjectId = environmentQuery.data?.projectId;
   const resolvedMarkdownLinkRouting = useMemo(() => {
     if (
       source === null ||
@@ -406,6 +429,11 @@ export function WorkspaceFilePreview({
       {...filePreviewQueryProps(workspaceFilePreviewQuery)}
       activePath={activePath}
       copyPath={copyPath}
+      downloadUrl={
+        rawFileSource === null
+          ? null
+          : buildRawFileUrl(rawFileSource, activePath, { download: true })
+      }
       htmlPreviewUrl={
         threadId && source?.kind === "working-tree"
           ? buildThreadWorktreeRawContentUrl(threadId, activePath)
@@ -470,6 +498,17 @@ export function ProjectFilePreviewTabContent({
       {...filePreviewQueryProps(projectFilePreviewQuery)}
       activePath={activePath}
       copyPath={copyPath}
+      downloadUrl={buildRawFileUrl(
+        {
+          kind: "workspace",
+          environmentId,
+          hostId,
+          projectId,
+          threadId: null,
+        },
+        activePath,
+        { download: true },
+      )}
       lineRange={lineRange}
       markdownLinkRouting={resolvedMarkdownLinkRouting}
       onSelectionAddToChat={onSelectionAddToChat}
@@ -490,11 +529,17 @@ export function HostFilePreviewTabContent(
   ) {
     return (
       <LazyFileEditor
-        source={{ kind: "environment-host", environmentId, path: activePath }}
+        source={{
+          kind: "environment-host",
+          environmentId,
+          path: activePath,
+          threadId: props.threadId,
+        }}
         displayPath={activePath}
         copyPath={props.copyPath}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />
     );
@@ -537,6 +582,9 @@ export function HostFilePreview({
       {...filePreviewQueryProps(hostFilePreviewQuery)}
       activePath={activePath}
       copyPath={copyPath}
+      downloadUrl={buildRawFileUrl({ kind: "host", threadId }, activePath, {
+        download: true,
+      })}
       htmlPreviewUrl={buildRawFilesystemHtmlContentUrl(threadId, activePath)}
       lineRange={lineRange}
       markdownLinkRouting={resolvedMarkdownLinkRouting}
@@ -558,6 +606,7 @@ export function HostScopedFilePreviewTabContent(
         copyPath={props.activePath}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        onOpenInEditor={props.onOpenInEditor}
       />
     );
   }
@@ -611,6 +660,7 @@ export function ThreadStorageFilePreviewTabContent(
         copyPath={props.copyPath ?? null}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />
     );
@@ -649,6 +699,11 @@ export function ThreadStorageFilePreview({
       {...filePreviewQueryProps(threadStorageFilePreviewQuery)}
       activePath={activePath}
       copyPath={copyPath}
+      downloadUrl={buildRawFileUrl(
+        { kind: "thread-storage", threadId },
+        activePath,
+        { download: true },
+      )}
       htmlPreviewUrl={buildThreadStorageRawContentUrl(threadId, activePath)}
       lineRange={lineRange}
       markdownLinkRouting={resolvedMarkdownLinkRouting}

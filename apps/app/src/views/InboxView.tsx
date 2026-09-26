@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   isSidebarProjectThread,
+  isThreadRead,
   threadListIndicatorStateForThread,
 } from "@bb/client-core";
 import { buildPendingInteractionApprovalResolution } from "@bb/core-ui";
@@ -21,7 +22,6 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import {
   ResourceCollectionViewport,
   ResourceIconFrame,
-  ResourceListState,
 } from "@bb/shared-ui/resource-list";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import {
@@ -36,12 +36,10 @@ import {
   getThreadLastActivityAt,
   useRelativeTimeNow,
 } from "@/components/sidebar/ThreadRowMeta";
-import {
-  isThreadReady,
-  isThreadWaitingOnUser,
-} from "@/components/sidebar/status-list/status-sections";
+import { isThreadWorking } from "@/components/sidebar/status-list/status-sections";
 import { ThreadPendingInteractionBanner } from "@/components/thread/pending-interactions/ThreadPendingInteractionBanner";
 import { appToast } from "@/components/ui/app-toast";
+import { MarkdownPreview } from "@/components/ui/markdown-preview";
 import { HomeWallpaper } from "@/components/wallpaper/HomeWallpaper";
 import { listSidebarNavigationThreads } from "@/hooks/cache-owners/query-cache";
 import { useResolveThreadPendingInteraction } from "@/hooks/mutations/thread-interaction-mutations";
@@ -85,19 +83,36 @@ const INBOX_KEY_HINTS: readonly { keys: string[]; label: string }[] = [
 ];
 
 export function InboxView() {
+  const [isEmpty, setIsEmpty] = useState(false);
   return (
     <div className="relative isolate -mx-4 -mb-4 -mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:-mx-5 md:-mb-5 md:-mt-5">
-      <HomeWallpaper />
+      {isEmpty ? <HomeWallpaper /> : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         <div className="box-border flex h-full w-full flex-col gap-3 pb-4 pt-3 md:pt-4">
-          <div className="md:pr-3">
-            <div className={cn(INBOX_BAND_CLASSES, "flex justify-end")}>
-              <InboxKeyHints />
+          {isEmpty ? null : (
+            <div className="md:pr-3">
+              <div className={cn(INBOX_BAND_CLASSES, "flex justify-end")}>
+                <InboxKeyHints />
+              </div>
             </div>
-          </div>
-          <InboxSections />
+          )}
+          <InboxSections onEmptyChange={setIsEmpty} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function InboxZero() {
+  return (
+    <div
+      data-inbox-zero=""
+      className="flex flex-1 items-end justify-center px-6 pb-[calc(1.75rem+env(safe-area-inset-bottom))]"
+    >
+      <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+        <span>You've reached inbox zero</span>
+        <Icon name="Bard" className="size-4 shrink-0" aria-hidden />
+      </p>
     </div>
   );
 }
@@ -143,6 +158,15 @@ function useInboxThreads() {
   }, [navigation.data]);
 }
 
+function needsAttention(
+  thread: ThreadListEntry,
+  interactionByThread: ReadonlyMap<string, PendingInteraction>,
+): boolean {
+  if (interactionByThread.has(thread.id)) return true;
+  if (thread.status !== "idle" && thread.status !== "error") return false;
+  return !isThreadWorking(thread) && !isThreadRead(thread);
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -174,7 +198,11 @@ function focusInboxReply(threadId: string): void {
   target?.focus();
 }
 
-function InboxSections() {
+function InboxSections({
+  onEmptyChange,
+}: {
+  onEmptyChange: (isEmpty: boolean) => void;
+}) {
   const { threads, byId, projects, isLoaded } = useInboxThreads();
   const interactionsQuery = useInboxInteractions();
   const agents = useAgents().data;
@@ -198,12 +226,7 @@ function InboxSections() {
       }
     }
     return threads
-      .filter(
-        (thread) =>
-          interactionByThread.has(thread.id) ||
-          isThreadWaitingOnUser(thread) ||
-          isThreadReady(thread),
-      )
+      .filter((thread) => needsAttention(thread, interactionByThread))
       .sort((left, right) => right.latestAttentionAt - left.latestAttentionAt)
       .map((thread) => ({
         thread,
@@ -215,6 +238,10 @@ function InboxSections() {
     [items],
   );
   const summaries = useInboxSummaries(itemThreadIds);
+  const isEmpty = isLoaded && items.length === 0;
+  useEffect(() => {
+    onEmptyChange(isEmpty);
+  }, [isEmpty, onEmptyChange]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lastIndex, setLastIndex] = useState(0);
   const selectedIndex = items.findIndex(
@@ -238,7 +265,6 @@ function InboxSections() {
     (thread: ThreadListEntry) => {
       markRead.mutate({ threadId: thread.id });
       appToast.success("Marked as done", {
-        description: getThreadDisplayTitle(thread),
         action: {
           label: "Undo",
           onClick: () => markUnread.mutate({ threadId: thread.id }),
@@ -354,6 +380,10 @@ function InboxSections() {
     );
   }
 
+  if (items.length === 0) {
+    return <InboxZero />;
+  }
+
   return (
     <ResourceCollectionViewport
       scrollId="inbox-scroll"
@@ -361,38 +391,31 @@ function InboxSections() {
     >
       <div className="w-0 min-w-full">
         <div className={cn(INBOX_BAND_CLASSES, "space-y-3 pb-6 pt-1")}>
-          {items.length === 0 ? (
-            <ResourceListState
-              state="empty"
-              message="Nothing needs you right now."
+          {items.map((item, index) => (
+            <InboxCard
+              key={item.thread.id}
+              item={item}
+              parent={
+                item.thread.parentThreadId === null
+                  ? null
+                  : (byId.get(item.thread.parentThreadId) ?? null)
+              }
+              agent={agentFor(item.thread)}
+              project={projects.get(item.thread.projectId)}
+              now={now}
+              summary={summaries.data?.byThread.get(item.thread.id) ?? null}
+              summaryPending={
+                summaries.data?.pending.has(item.thread.id) ??
+                summaries.isPending
+              }
+              selected={item.thread.id === activeId}
+              onSelect={() => {
+                setSelectedId(item.thread.id);
+                setLastIndex(index);
+              }}
+              onMarkDone={() => markDone(item.thread)}
             />
-          ) : (
-            items.map((item, index) => (
-              <InboxCard
-                key={item.thread.id}
-                item={item}
-                parent={
-                  item.thread.parentThreadId === null
-                    ? null
-                    : (byId.get(item.thread.parentThreadId) ?? null)
-                }
-                agent={agentFor(item.thread)}
-                project={projects.get(item.thread.projectId)}
-                now={now}
-                summary={summaries.data?.byThread.get(item.thread.id) ?? null}
-                summaryPending={
-                  summaries.data?.pending.has(item.thread.id) ??
-                  summaries.isPending
-                }
-                selected={item.thread.id === activeId}
-                onSelect={() => {
-                  setSelectedId(item.thread.id);
-                  setLastIndex(index);
-                }}
-                onMarkDone={() => markDone(item.thread)}
-              />
-            ))
-          )}
+          ))}
         </div>
       </div>
     </ResourceCollectionViewport>
@@ -449,7 +472,7 @@ function InboxCard({
               <AgentMascot
                 mascot={agent.mascot}
                 color={agent.color}
-                className="size-5"
+                className="size-4"
               />
             ) : null
           }
@@ -564,16 +587,27 @@ function InboxSummaryLines({
 }
 
 function InboxCardDetail({ thread }: { thread: ThreadListEntry }) {
+  const output = useThreadOutput(thread.id, thread.latestAttentionAt);
+  const text = output.data?.output?.trim() ?? "";
   return (
     <div
       data-inbox-conversation=""
-      className="max-h-[36rem] overflow-y-auto border-t border-border"
+      className="border-t border-border bg-sidebar"
     >
+      {output.isPending ? (
+        <div className="space-y-2 px-4 py-4">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ) : text.length > 0 ? (
+        <div className="px-3 pb-1 pt-3 sm:px-4">
+          <MarkdownPreview className="text-sm" content={text} />
+        </div>
+      ) : null}
       <Suspense
         fallback={
-          <div className="space-y-2 px-4 py-4">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
+          <div className="px-4 py-4">
+            <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         }
       >
@@ -581,6 +615,7 @@ function InboxCardDetail({ thread }: { thread: ThreadListEntry }) {
           threadId={thread.id}
           variant="compact"
           layout="document"
+          timeline="hidden"
           readTracking={false}
           environmentSummary="none"
           composerAutoFocus={false}

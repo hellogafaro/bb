@@ -14,6 +14,7 @@ import {
   browseHostDirectory,
   readHostFile,
   readHostFileMetadata,
+  readHostFileRange,
   readHostRelativeFile,
 } from "./host-files.js";
 
@@ -270,6 +271,130 @@ describe("readHostFileMetadata", () => {
       code: "invalid_path",
       message: expect.stringContaining("escapes read root"),
     });
+  });
+});
+
+describe("readHostFileRange", () => {
+  async function writeRangeFixture(): Promise<{
+    root: string;
+    filePath: string;
+    bytes: Buffer;
+  }> {
+    const root = await makeTempDir("bb-read-range-");
+    const filePath = path.join(root, "clip.mp4");
+    const bytes = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
+    await fs.writeFile(filePath, bytes);
+    return { root, filePath, bytes };
+  }
+
+  function rangeCommand(
+    filePath: string,
+    root: string,
+    offset: number,
+    length: number,
+  ): CommandOf<"host.read_file_range"> {
+    return {
+      type: "host.read_file_range",
+      path: filePath,
+      rootPath: root,
+      offset,
+      length,
+    };
+  }
+
+  it("reads the requested window with file metadata", async () => {
+    const { root, filePath, bytes } = await writeRangeFixture();
+    const stat = await fs.stat(filePath);
+
+    const result = await readHostFileRange(rangeCommand(filePath, root, 10, 5));
+
+    expect(result).toEqual({
+      path: filePath,
+      mimeType: "video/mp4",
+      sizeBytes: 256,
+      modifiedAtMs: stat.mtimeMs,
+      offset: 10,
+      content: bytes.subarray(10, 15).toString("base64"),
+    });
+  });
+
+  it("returns only metadata for a zero-length read", async () => {
+    const { root, filePath } = await writeRangeFixture();
+
+    const result = await readHostFileRange(rangeCommand(filePath, root, 0, 0));
+
+    expect(result.content).toBe("");
+    expect(result.sizeBytes).toBe(256);
+  });
+
+  it("clips reads at EOF and past the end", async () => {
+    const { root, filePath, bytes } = await writeRangeFixture();
+
+    const tail = await readHostFileRange(
+      rangeCommand(filePath, root, 250, 100),
+    );
+    expect(Buffer.from(tail.content, "base64")).toEqual(bytes.subarray(250));
+    expect(tail.offset).toBe(250);
+
+    const lastByte = await readHostFileRange(
+      rangeCommand(filePath, root, 255, 1),
+    );
+    expect(Buffer.from(lastByte.content, "base64")).toEqual(
+      bytes.subarray(255),
+    );
+
+    const past = await readHostFileRange(rangeCommand(filePath, root, 999, 10));
+    expect(past.content).toBe("");
+    expect(past.offset).toBe(256);
+  });
+
+  it("reports a missing file as ENOENT", async () => {
+    const root = await makeTempDir("bb-read-range-missing-");
+
+    await expect(
+      readHostFileRange(
+        rangeCommand(path.join(root, "missing.bin"), root, 0, 1),
+      ),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("rejects directories and paths escaping the root", async () => {
+    const { root } = await writeRangeFixture();
+    await fs.mkdir(path.join(root, "folder"));
+    const outsidePath = path.join(root, "..", "outside-range.bin");
+    await fs.writeFile(outsidePath, "outside");
+    await fs.symlink(outsidePath, path.join(root, "outside-link"));
+
+    await expect(
+      readHostFileRange(rangeCommand(path.join(root, "folder"), root, 0, 1)),
+    ).rejects.toMatchObject({
+      code: "invalid_path",
+      message: "Path is a directory, not a file",
+    });
+    await expect(
+      readHostFileRange(
+        rangeCommand(path.join(root, "outside-link"), root, 0, 1),
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_path",
+      message: expect.stringContaining("escapes read root"),
+    });
+  });
+
+  it("reads files beyond the whole-file transport limit", async () => {
+    const root = await makeTempDir("bb-read-range-large-");
+    const filePath = path.join(root, "large.bin");
+    const size = 30 * 1024 * 1024;
+    const handle = await fs.open(filePath, "w");
+    await handle.write(Buffer.from("tail"), 0, 4, size - 4);
+    await handle.close();
+
+    const result = await readHostFileRange(
+      rangeCommand(filePath, root, size - 4, 4),
+    );
+
+    expect(result.sizeBytes).toBe(size);
+    expect(Buffer.from(result.content, "base64").toString()).toBe("tail");
   });
 });
 

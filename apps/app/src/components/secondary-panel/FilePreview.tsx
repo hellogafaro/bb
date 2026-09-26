@@ -1,14 +1,21 @@
 import { SourceLoadingSkeleton } from "@/components/code/code-loading-skeletons";
 import {
   type CSSProperties,
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@bb/shared-ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@bb/shared-ui/dropdown-menu";
 import { SourceCodeHost } from "@/components/code/SourceCodeHost";
 import { COARSE_POINTER_TEXT_SM_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { EmptyStatePanel } from "@bb/shared-ui/empty-state";
@@ -29,10 +36,20 @@ import {
 import { TruncateStart } from "@/components/ui/truncate-start.js";
 import { copyToClipboardWithToast } from "@/lib/clipboard";
 import { openUrlInExternalBrowser } from "@/lib/url-open-routing";
+import { downloadRawFile } from "@/lib/raw-file-url";
 import type {
   FilePreviewLineRange,
+  OfficeDocumentFormat,
   WorkspaceFilePreviewStatusLabel,
 } from "@bb/client-core";
+import { FileGlyph } from "@/components/files/FileGlyph";
+import { fileName } from "@/components/files/editor-routing";
+import {
+  FILE_UNAVAILABLE_CARD_CLASS,
+  FILE_UNAVAILABLE_FRAME_CLASS,
+  FileUnavailableCard,
+} from "@/components/files/FileUnavailableCard";
+import { FILES_COPY } from "@/components/files/files-copy";
 import {
   DEFAULT_CODE_OVERFLOW_MODE,
   type CodeOverflowMode,
@@ -41,6 +58,17 @@ import {
 import { cn } from "@bb/shared-ui/lib/utils";
 import { SecondaryPanelSelectionActions } from "./SecondaryPanelSelectionActions.js";
 import { useImageTabLightbox } from "./ImageTabLightboxContext.js";
+import {
+  CSV_PREVIEW_MAX_ROWS,
+  CsvTablePreview,
+  buildTablePreviewData,
+  getCsvTruncationNote,
+  type CsvPreviewData,
+} from "./CsvTablePreview";
+import { PreviewLoadFailure } from "./office-document";
+
+const DocxFilePreview = lazy(() => import("./DocxFilePreview"));
+const XlsxFilePreview = lazy(() => import("./XlsxFilePreview"));
 
 export interface FilePreviewFile {
   cacheKey?: string;
@@ -61,9 +89,17 @@ export type FilePreviewState =
   | { kind: "empty" }
   | { kind: "not-found" }
   | { kind: "error"; message?: string }
-  | { kind: "unsupported"; message: string }
+  | {
+      kind: "unsupported";
+      mimeType: string | null;
+      reason: "too-large" | "type";
+      sizeBytes: number | null;
+    }
   | { kind: "image"; url: string }
   | { kind: "video"; url: string }
+  | { kind: "audio"; url: string }
+  | { kind: "pdf"; url: string }
+  | { kind: "office"; format: OfficeDocumentFormat; url: string }
   | ({ kind: "iframe" } & IframeFilePreviewTarget)
   | {
       kind: "html";
@@ -82,6 +118,7 @@ interface FilePreviewProps {
   state: FilePreviewState;
   path: string;
   copyPath?: string | null;
+  downloadUrl?: string | null;
   headerMode?: FilePreviewHeaderMode;
   onSelectionAddToChat?: (text: string) => void;
   onOpenInEditor?: (path: string) => void;
@@ -94,6 +131,8 @@ interface FilePreviewProps {
 interface FilePreviewBodyProps {
   state: FilePreviewState;
   path: string;
+  downloadUrl: string | null;
+  onOpenInEditor?: (path: string) => void;
   lineOverflowMode: CodeOverflowMode;
   viewMode: FilePreviewViewMode;
   markdownLinkRouting?: MarkdownLinkRouting;
@@ -110,6 +149,7 @@ interface HtmlFilePreviewBodyProps {
 interface FilePreviewHeaderProps {
   path: string;
   copyPath: string | null;
+  downloadUrl: string | null;
   rawContents: string | null;
   externalUrl: string | null;
   onOpenInEditor?: (path: string) => void;
@@ -156,6 +196,30 @@ interface FilePreviewVideoProps {
   title: string;
 }
 
+interface FilePreviewUnavailableProps {
+  downloadUrl: string | null;
+  mimeType: string | null;
+  onOpenInEditor?: (path: string) => void;
+  path: string;
+  reason: "too-large" | "type";
+  sizeBytes: number | null;
+}
+
+interface PdfFilePreviewProps {
+  downloadUrl: string | null;
+  path: string;
+  url: string;
+}
+
+interface OfficeFilePreviewBodyProps {
+  downloadUrl: string | null;
+  format: OfficeDocumentFormat;
+  onOpenInEditor?: (path: string) => void;
+  onSelectionAddToChat?: (text: string) => void;
+  path: string;
+  url: string;
+}
+
 interface FilePreviewMessageProps {
   message: string;
   role?: "alert";
@@ -169,16 +233,17 @@ interface FilePreviewCodeProps {
   path: string;
 }
 
+interface FilePreviewActionsMenuProps {
+  copyPath: string;
+  downloadUrl: string | null;
+  onOpenInEditor?: (path: string) => void;
+  path: string;
+  rawContents: string | null;
+}
+
 interface GetInitialFilePreviewViewModeArgs {
   lineRange: FilePreviewLineRange | null;
   toggleKind: FilePreviewToggleKind | null;
-}
-
-interface CsvPreviewData {
-  columnCount: number;
-  rows: string[][];
-  truncatedColumns: boolean;
-  truncatedRows: boolean;
 }
 
 type FilePreviewViewMode = "preview" | "source";
@@ -186,11 +251,7 @@ export type TextFilePreviewKind = "csv" | "markdown";
 type FilePreviewToggleKind = "csv" | "html" | "markdown";
 type FilePreviewHeaderMode = "file" | "none";
 type IframeLoadState = "loading" | "loaded" | "error";
-
-const CSV_PREVIEW_MAX_COLUMNS = 100;
-const CSV_PREVIEW_MAX_ROWS = 500;
-const CSV_PREVIEW_ROW_HEIGHT_PX = 29;
-const CSV_PREVIEW_OVERSCAN_ROWS = 8;
+type PdfFrameState = "loading" | "loaded" | "error";
 
 const FILE_PREVIEW_WRAPPER_STYLE = {
   "--md-content-w": "100cqi",
@@ -390,40 +451,16 @@ export function buildCsvPreviewData(contents: string): CsvPreviewData {
     contents,
     CSV_PREVIEW_MAX_ROWS + 1,
   );
-  const columnCount = rows.reduce(
-    (maximum, row) => Math.max(maximum, row.length),
-    0,
-  );
-
-  return {
-    columnCount: Math.min(columnCount, CSV_PREVIEW_MAX_COLUMNS),
-    rows,
-    truncatedColumns: columnCount > CSV_PREVIEW_MAX_COLUMNS,
-    truncatedRows,
-  };
+  return buildTablePreviewData(rows, truncatedRows);
 }
 
-export function getCsvTruncationNote(
-  preview: CsvPreviewData,
-  dataRowCount: number,
-): string | null {
-  const limits: string[] = [];
-  if (preview.truncatedRows) {
-    limits.push(`${dataRowCount.toLocaleString()} rows`);
-  }
-  if (preview.truncatedColumns) {
-    limits.push(`${preview.columnCount.toLocaleString()} columns`);
-  }
-  if (limits.length === 0) {
-    return null;
-  }
-  return `Showing the first ${limits.join(" and ")}.`;
-}
+export { getCsvTruncationNote };
 
 export function FilePreview({
   state,
   path,
   copyPath = null,
+  downloadUrl = null,
   headerMode = "file",
   onSelectionAddToChat,
   onOpenInEditor,
@@ -469,9 +506,23 @@ export function FilePreview({
     state.kind === "ready" &&
     state.textPreviewKind === "csv" &&
     bodyViewMode === "preview";
+  const usesMediaLayout =
+    state.kind === "pdf" ||
+    state.kind === "video" ||
+    state.kind === "audio" ||
+    (state.kind === "office" && state.format === "xlsx");
+  const usesCardLayout =
+    state.kind === "unsupported" ||
+    (state.kind === "office" && state.format === "pptx");
   const usesFullHeightLayout =
-    usesIframeLayout || usesCsvPreviewLayout || usesCodeLayout;
-  const usesContentHeightLayout = usesMarkdownPreviewLayout;
+    usesIframeLayout ||
+    usesCsvPreviewLayout ||
+    usesCodeLayout ||
+    usesMediaLayout ||
+    usesCardLayout;
+  const usesContentHeightLayout =
+    usesMarkdownPreviewLayout ||
+    (state.kind === "office" && state.format === "docx");
 
   return (
     <div
@@ -488,6 +539,7 @@ export function FilePreview({
         <FilePreviewHeader
           path={path}
           copyPath={copyPath}
+          downloadUrl={downloadUrl}
           rawContents={rawContents}
           externalUrl={externalUrl}
           onOpenInEditor={onOpenInEditor}
@@ -505,6 +557,8 @@ export function FilePreview({
       <FilePreviewBody
         state={state}
         path={path}
+        downloadUrl={downloadUrl}
+        onOpenInEditor={onOpenInEditor}
         lineOverflowMode={lineOverflowMode}
         viewMode={bodyViewMode}
         markdownLinkRouting={markdownLinkRouting}
@@ -517,6 +571,8 @@ export function FilePreview({
 function FilePreviewBody({
   state,
   path,
+  downloadUrl,
+  onOpenInEditor,
   lineOverflowMode,
   viewMode,
   markdownLinkRouting,
@@ -540,13 +596,42 @@ function FilePreviewBody({
     );
   }
   if (state.kind === "unsupported") {
-    return <FilePreviewMessage message={state.message} />;
+    return (
+      <FilePreviewUnavailable
+        downloadUrl={downloadUrl}
+        mimeType={state.mimeType}
+        onOpenInEditor={onOpenInEditor}
+        path={path}
+        reason={state.reason}
+        sizeBytes={state.sizeBytes}
+      />
+    );
   }
   if (state.kind === "image") {
     return <FilePreviewImage url={state.url} alt={path} />;
   }
   if (state.kind === "video") {
     return <FilePreviewVideo url={state.url} title={path} />;
+  }
+  if (state.kind === "audio") {
+    return <FilePreviewAudio url={state.url} path={path} />;
+  }
+  if (state.kind === "pdf") {
+    return (
+      <PdfFilePreview downloadUrl={downloadUrl} path={path} url={state.url} />
+    );
+  }
+  if (state.kind === "office") {
+    return (
+      <OfficeFilePreviewBody
+        downloadUrl={downloadUrl}
+        format={state.format}
+        onOpenInEditor={onOpenInEditor}
+        onSelectionAddToChat={onSelectionAddToChat}
+        path={path}
+        url={state.url}
+      />
+    );
   }
   if (state.kind === "iframe") {
     return (
@@ -598,6 +683,7 @@ function FilePreviewBody({
 function FilePreviewHeader({
   path,
   copyPath,
+  downloadUrl,
   rawContents,
   externalUrl,
   onOpenInEditor,
@@ -733,51 +819,128 @@ function FilePreviewHeader({
             ) : null}
           </TooltipProvider>
         </div>
-        {showHeaderControls ? (
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {showHeaderControls ? (
             <FilePreviewLineWrapButton
               showLineOverflowToggle={showLineOverflowToggle}
               lineOverflowMode={lineOverflowMode}
               onLineOverflowModeChange={onLineOverflowModeChange}
             />
-            {toggleKind !== null ? (
-              <div
-                className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border p-0.5"
-                role="tablist"
-                aria-label={getToggleAriaLabel(toggleKind)}
+          ) : null}
+          {toggleKind !== null ? (
+            <div
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border p-0.5"
+              role="tablist"
+              aria-label={getToggleAriaLabel(toggleKind)}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  FILE_PREVIEW_VIEW_MODE_BUTTON_CLASS,
+                  COARSE_POINTER_TEXT_SM_CLASS,
+                )}
+                onClick={() => onViewModeChange("preview")}
+                aria-pressed={viewMode === "preview"}
               >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    FILE_PREVIEW_VIEW_MODE_BUTTON_CLASS,
-                    COARSE_POINTER_TEXT_SM_CLASS,
-                  )}
-                  onClick={() => onViewModeChange("preview")}
-                  aria-pressed={viewMode === "preview"}
-                >
-                  Preview
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    FILE_PREVIEW_VIEW_MODE_BUTTON_CLASS,
-                    COARSE_POINTER_TEXT_SM_CLASS,
-                  )}
-                  onClick={() => onViewModeChange("source")}
-                  aria-pressed={viewMode === "source"}
-                >
-                  Raw
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+                Preview
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  FILE_PREVIEW_VIEW_MODE_BUTTON_CLASS,
+                  COARSE_POINTER_TEXT_SM_CLASS,
+                )}
+                onClick={() => onViewModeChange("source")}
+                aria-pressed={viewMode === "source"}
+              >
+                Raw
+              </Button>
+            </div>
+          ) : null}
+          <FilePreviewActionsMenu
+            copyPath={copyPath ?? path}
+            downloadUrl={downloadUrl}
+            onOpenInEditor={onOpenInEditor}
+            path={path}
+            rawContents={rawContents}
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+function FilePreviewActionsMenu({
+  copyPath,
+  downloadUrl,
+  onOpenInEditor,
+  path,
+  rawContents,
+}: FilePreviewActionsMenuProps) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={FILES_COPY.fileActions}
+          className={cn(
+            FILE_PREVIEW_HEADER_ICON_BUTTON_CLASS,
+            "shrink-0 text-muted-foreground hover:bg-state-hover hover:text-foreground",
+          )}
+        >
+          <Icon name="MoreHorizontal" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={4}>
+        <DropdownMenuItem
+          onSelect={() => {
+            void copyToClipboardWithToast(copyPath, {
+              successMessage: FILES_COPY.pathCopied,
+              errorMessage: FILES_COPY.pathCopyFailed,
+            });
+          }}
+        >
+          <Icon name="Copy" aria-hidden />
+          {FILES_COPY.copyPath}
+        </DropdownMenuItem>
+        {rawContents === null ? null : (
+          <DropdownMenuItem
+            onSelect={() => {
+              void copyToClipboardWithToast(rawContents, {
+                successMessage: FILES_COPY.contentsCopied,
+                errorMessage: FILES_COPY.contentsCopyFailed,
+              });
+            }}
+          >
+            <Icon name="Copy" aria-hidden />
+            {FILES_COPY.copyContents}
+          </DropdownMenuItem>
+        )}
+        {downloadUrl === null ? null : (
+          <DropdownMenuItem
+            onSelect={() => downloadRawFile(downloadUrl, fileName(path))}
+          >
+            <Icon name="Download" aria-hidden />
+            {FILES_COPY.download}
+          </DropdownMenuItem>
+        )}
+        {onOpenInEditor ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onOpenInEditor(path)}>
+              <Icon name="ExternalLink" aria-hidden />
+              {FILES_COPY.openInEditor}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -915,125 +1078,12 @@ function CsvFilePreview({ file, onSelectionAddToChat }: CsvFilePreviewProps) {
     () => buildCsvPreviewData(file.contents),
     [file.contents],
   );
-  const headerRow = preview.rows[0] ?? [];
-  const bodyRows = preview.rows.slice(1);
-  const columns = Array.from({ length: preview.columnCount }, (_, index) => ({
-    index,
-    label: headerRow[index] ?? "",
-  }));
-  const tableWidth = `max(100%, ${3 + columns.length * 18}rem)`;
-  const truncationNote = getCsvTruncationNote(preview, bodyRows.length);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: bodyRows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => CSV_PREVIEW_ROW_HEIGHT_PX,
-    overscan: CSV_PREVIEW_OVERSCAN_ROWS,
-  });
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const totalRowsHeight = rowVirtualizer.getTotalSize();
-  const firstVirtualRow = virtualRows[0];
-  const lastVirtualRow = virtualRows[virtualRows.length - 1];
-  const spacerTopHeight = firstVirtualRow?.start ?? 0;
-  const spacerBottomHeight =
-    lastVirtualRow === undefined
-      ? totalRowsHeight
-      : totalRowsHeight - lastVirtualRow.end;
-
   return (
-    <SecondaryPanelSelectionActions onSelectionAddToChat={onSelectionAddToChat}>
-      <div className="flex min-h-0 flex-auto flex-col bg-surface-raised px-4 py-4">
-        <div
-          ref={scrollRef}
-          className="persistent-scrollbar min-h-0 overflow-auto overscroll-contain rounded-md border border-border bg-background"
-        >
-          <table
-            className="min-w-full table-fixed border-separate border-spacing-0 font-mono text-xs leading-5"
-            aria-label={`${file.name} CSV preview`}
-            style={{ width: tableWidth }}
-          >
-            <colgroup>
-              <col className="w-12" />
-              {columns.map((column) => (
-                <col key={column.index} className="w-72" />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                <th
-                  scope="col"
-                  className="sticky left-0 top-0 z-30 w-12 min-w-12 border-b border-r border-border bg-surface-recessed-solid px-2 py-1 text-right font-medium text-muted-foreground"
-                >
-                  #
-                </th>
-                {columns.map((column) => (
-                  <th
-                    key={column.index}
-                    scope="col"
-                    className="sticky top-0 z-20 w-72 max-w-72 border-b border-r border-border bg-surface-recessed-solid px-2 py-1 text-left font-medium text-foreground"
-                    title={column.label}
-                  >
-                    <span className="block max-w-full truncate">
-                      {column.label || `Column ${column.index + 1}`}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {spacerTopHeight > 0 ? (
-                <tr aria-hidden style={{ height: spacerTopHeight }}>
-                  <td colSpan={columns.length + 1} className="p-0" />
-                </tr>
-              ) : null}
-              {virtualRows.map((virtualRow) => {
-                const rowIndex = virtualRow.index;
-                const row = bodyRows[rowIndex] ?? [];
-                return (
-                  <tr
-                    key={virtualRow.key}
-                    data-index={rowIndex}
-                    ref={rowVirtualizer.measureElement}
-                  >
-                    <th
-                      scope="row"
-                      className="sticky left-0 z-10 w-12 min-w-12 border-b border-r border-border bg-surface-recessed-solid px-2 py-1 text-right font-medium text-muted-foreground"
-                    >
-                      {rowIndex + 2}
-                    </th>
-                    {columns.map((column) => {
-                      const cell = row[column.index] ?? "";
-                      return (
-                        <td
-                          key={column.index}
-                          className="w-72 max-w-72 overflow-hidden border-b border-r border-border px-2 py-1 align-top text-foreground"
-                          title={cell}
-                        >
-                          <span className="block max-w-full truncate">
-                            {cell}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-              {spacerBottomHeight > 0 ? (
-                <tr aria-hidden style={{ height: spacerBottomHeight }}>
-                  <td colSpan={columns.length + 1} className="p-0" />
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        {truncationNote === null ? null : (
-          <p className="mt-2 shrink-0 text-xs leading-5 text-muted-foreground">
-            {truncationNote}
-          </p>
-        )}
-      </div>
-    </SecondaryPanelSelectionActions>
+    <CsvTablePreview
+      label={`${file.name} CSV preview`}
+      onSelectionAddToChat={onSelectionAddToChat}
+      preview={preview}
+    />
   );
 }
 
@@ -1077,15 +1127,203 @@ function FilePreviewImage({ url, alt }: FilePreviewImageProps) {
 
 function FilePreviewVideo({ url, title }: FilePreviewVideoProps) {
   return (
-    <div className="pt-4">
+    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
       <video
         src={url}
         title={title}
-        className="block max-h-[34rem] w-full bg-black"
+        className="block max-h-full max-w-full"
         controls
         preload="metadata"
       />
     </div>
+  );
+}
+
+function FilePreviewAudio({ url, path }: { url: string; path: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface-raised p-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <FileGlyph path={path} />
+          <span className="min-w-0 truncate text-sm font-medium text-foreground">
+            {fileName(path)}
+          </span>
+        </div>
+        <audio
+          src={url}
+          title={path}
+          className="mt-3 block w-full"
+          controls
+          preload="metadata"
+        />
+      </div>
+    </div>
+  );
+}
+
+function isIOSWebKit(): boolean {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+  const { maxTouchPoints, platform, userAgent } = navigator;
+  const isAppleWebKit = /\bAppleWebKit\//u.test(userAgent);
+  const isIOSDevice =
+    /\b(?:iPad|iPhone|iPod)\b/u.test(userAgent) ||
+    (platform === "MacIntel" && maxTouchPoints > 1);
+  return isAppleWebKit && isIOSDevice;
+}
+
+function PdfFilePreview({ downloadUrl, path, url }: PdfFilePreviewProps) {
+  const [frameState, setFrameState] = useState<PdfFrameState>("loading");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    setFrameState("loading");
+  }, [url]);
+
+  if (isIOSWebKit()) {
+    return (
+      <div className={FILE_UNAVAILABLE_FRAME_CLASS}>
+        <EmptyStatePanel className={FILE_UNAVAILABLE_CARD_CLASS}>
+          <FileGlyph path={path} className="size-8" />
+          <p className="max-w-full truncate font-medium text-foreground">
+            {fileName(path)}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() =>
+                openUrlInExternalBrowser(toAbsolutePreviewUrl(url))
+              }
+            >
+              <Icon name="ExternalLink" aria-hidden />
+              Open
+            </Button>
+            {downloadUrl === null ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadRawFile(downloadUrl, fileName(path))}
+              >
+                <Icon name="Download" aria-hidden />
+                {FILES_COPY.download}
+              </Button>
+            )}
+          </div>
+        </EmptyStatePanel>
+      </div>
+    );
+  }
+
+  if (frameState === "error") {
+    return (
+      <PreviewLoadFailure
+        message="The browser could not open the PDF viewer."
+        onRetry={() => {
+          setFrameState("loading");
+          setReloadKey((current) => current + 1);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="relative min-h-0 flex-1 overflow-hidden bg-background">
+      {frameState === "loading" ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-background text-sm text-muted-foreground"
+          role="status"
+          aria-label={`Rendering ${path}`}
+        >
+          <Icon name="Spinner" className="size-4 animate-spin" aria-hidden />
+          Rendering PDF…
+        </div>
+      ) : null}
+      <iframe
+        key={reloadKey}
+        src={url}
+        title={path}
+        className="block h-full w-full border-0"
+        onLoad={() => setFrameState("loaded")}
+        onError={() => setFrameState("error")}
+      />
+    </div>
+  );
+}
+
+function OfficeFilePreviewBody({
+  downloadUrl,
+  format,
+  onOpenInEditor,
+  onSelectionAddToChat,
+  path,
+  url,
+}: OfficeFilePreviewBodyProps) {
+  const tooLarge = (
+    <FilePreviewUnavailable
+      downloadUrl={downloadUrl}
+      mimeType={null}
+      onOpenInEditor={onOpenInEditor}
+      path={path}
+      reason="too-large"
+      sizeBytes={null}
+    />
+  );
+  if (format === "pptx") {
+    return (
+      <FilePreviewUnavailable
+        downloadUrl={downloadUrl}
+        mimeType={null}
+        onOpenInEditor={onOpenInEditor}
+        path={path}
+        reason="type"
+        sizeBytes={null}
+      />
+    );
+  }
+  return (
+    <Suspense fallback={<SourceLoadingSkeleton />}>
+      {format === "docx" ? (
+        <DocxFilePreview
+          fallback={tooLarge}
+          onSelectionAddToChat={onSelectionAddToChat}
+          url={url}
+        />
+      ) : (
+        <XlsxFilePreview
+          fallback={tooLarge}
+          name={fileName(path)}
+          onSelectionAddToChat={onSelectionAddToChat}
+          url={url}
+        />
+      )}
+    </Suspense>
+  );
+}
+
+function FilePreviewUnavailable({
+  downloadUrl,
+  mimeType,
+  onOpenInEditor,
+  path,
+  reason,
+  sizeBytes,
+}: FilePreviewUnavailableProps) {
+  return (
+    <FileUnavailableCard
+      mimeType={mimeType}
+      onDownload={
+        downloadUrl === null
+          ? null
+          : () => downloadRawFile(downloadUrl, fileName(path))
+      }
+      onOpenExternally={onOpenInEditor ? () => onOpenInEditor(path) : undefined}
+      path={path}
+      reason={reason}
+      sizeBytes={sizeBytes}
+    />
   );
 }
 

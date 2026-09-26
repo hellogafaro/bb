@@ -3,14 +3,21 @@ import type { SystemVoiceTranscriptionResponse } from "@bb/server-contract";
 import { apiClient, toRelativeUrl } from "./api-server";
 import { appSurfaceRequestInit } from "./app-surface";
 import {
+  TEXT_FILE_PREVIEW_MAX_BYTES,
   buildFilePreview,
+  buildOversizedFilePreview,
+  buildStreamedFilePreview,
+  buildUnsupportedFilePreview,
+  getStreamedFilePreviewType,
+  hasStreamedFilePreviewRenderer,
   normalizeFilePreviewMimeType,
   type FilePreview,
   type FilePreviewTarget,
+  type StreamedFilePreviewType,
 } from "@bb/client-core";
 import {
   buildThreadHostFileContentUrl,
-  buildThreadStorageContentUrl,
+  buildThreadStorageRawContentUrl,
 } from "./file-content-urls";
 
 const HTML_DOCUMENT_PATTERN = /<!doctype html|<html[\s>]/i;
@@ -123,25 +130,116 @@ export async function request<T>(
   return JSON.parse(text) as T;
 }
 
-async function loadFilePreview(
-  target: FilePreviewTarget,
+function parseContentLength(value: string | null): number | null {
+  const length = value === null ? Number.NaN : Number(value);
+  return Number.isSafeInteger(length) && length >= 0 ? length : null;
+}
+
+const CONTENT_RANGE_TOTAL_PATTERN = /\/(\d+)$/u;
+
+function parseContentRangeTotal(value: string | null): number | null {
+  const total = value === null ? null : CONTENT_RANGE_TOTAL_PATTERN.exec(value);
+  return total?.[1] === undefined ? null : Number(total[1]);
+}
+
+export interface FileMetadataProbe {
+  mimeType: string | null;
+  sizeBytes: number | null;
+}
+
+export async function probeFileMetadata(
+  url: string,
   signal?: AbortSignal,
-): Promise<FilePreview> {
+): Promise<FileMetadataProbe> {
   const response = await requestResponse(
     fetch(
-      target.url,
+      url,
       appSurfaceRequestInit({
         method: "GET",
+        headers: { Range: "bytes=0-0" },
         signal,
       }),
     ),
   );
+  void response.body?.cancel().catch(() => undefined);
+  const contentType = response.headers.get("content-type");
+  return {
+    mimeType:
+      contentType === null ? null : normalizeFilePreviewMimeType(contentType),
+    sizeBytes:
+      response.status === 206
+        ? parseContentRangeTotal(response.headers.get("content-range"))
+        : parseContentLength(response.headers.get("content-length")),
+  };
+}
+
+export async function resolveStreamedFilePreview(
+  target: FilePreviewTarget,
+  type: StreamedFilePreviewType,
+  signal?: AbortSignal,
+): Promise<FilePreview> {
+  if (hasStreamedFilePreviewRenderer(type)) {
+    return buildStreamedFilePreview(target, type);
+  }
+  const metadata = await probeFileMetadata(target.url, signal);
+  return buildUnsupportedFilePreview({
+    ...target,
+    mimeType: metadata.mimeType ?? type.mimeType,
+    reason: "type",
+    sizeBytes: metadata.sizeBytes,
+  });
+}
+
+async function readResponsePrefix(response: Response): Promise<Uint8Array> {
+  const reader = response.body?.getReader();
+  if (reader === undefined) {
+    return new Uint8Array();
+  }
+  try {
+    const chunk = await reader.read();
+    return chunk.value ?? new Uint8Array();
+  } finally {
+    void reader.cancel().catch(() => undefined);
+  }
+}
+
+export async function loadFilePreview(
+  target: FilePreviewTarget,
+  signal?: AbortSignal,
+): Promise<FilePreview> {
+  const streamedType = getStreamedFilePreviewType(target.name ?? target.path);
+  if (streamedType !== null) {
+    return resolveStreamedFilePreview(target, streamedType, signal);
+  }
+  const response = await requestResponse(
+    fetch(target.url, appSurfaceRequestInit({ method: "GET", signal })),
+  );
+  const mimeType = normalizeFilePreviewMimeType(
+    response.headers.get("content-type"),
+  );
+  const declaredSize = parseContentLength(
+    response.headers.get("content-length"),
+  );
+  if (declaredSize !== null && declaredSize > TEXT_FILE_PREVIEW_MAX_BYTES) {
+    return buildOversizedFilePreview({
+      ...target,
+      mimeType,
+      prefixBytes: await readResponsePrefix(response),
+      sizeBytes: declaredSize,
+    });
+  }
   const contentBytes = new Uint8Array(await response.arrayBuffer());
+  if (contentBytes.byteLength > TEXT_FILE_PREVIEW_MAX_BYTES) {
+    return buildOversizedFilePreview({
+      ...target,
+      mimeType,
+      prefixBytes: contentBytes.subarray(0, 64 * 1024),
+      sizeBytes: contentBytes.byteLength,
+    });
+  }
   return buildFilePreview({
     contentBytes,
-    mimeType: normalizeFilePreviewMimeType(
-      response.headers.get("content-type"),
-    ),
+    mimeType,
     name: target.name,
     path: target.path,
     url: target.url,
@@ -199,7 +297,7 @@ export async function getThreadStorageFilePreview(
   return loadFilePreview(
     {
       path,
-      url: buildThreadStorageContentUrl(id, path),
+      url: buildThreadStorageRawContentUrl(id, path),
     },
     signal,
   );

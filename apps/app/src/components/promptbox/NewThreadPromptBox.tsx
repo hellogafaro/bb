@@ -70,7 +70,7 @@ import { useSystemMachineProviders } from "@/hooks/queries/machine-provider-quer
 import { useHostDaemon } from "@/hooks/useHostDaemon";
 import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
-const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 64;
+const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 24;
 
 export interface NewThreadEnvironmentConfig {
   value: string;

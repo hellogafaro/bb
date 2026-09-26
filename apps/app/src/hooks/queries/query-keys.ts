@@ -428,6 +428,7 @@ type EnvironmentFilePreviewQueryKey = readonly [
   string | null | undefined,
   string | null,
   EnvironmentFilePreviewSource | null,
+  string | null,
 ];
 type EnvironmentFilePreviewQueryKeyRootPrefix = readonly [
   typeof ENVIRONMENT_FILE_PREVIEW_QUERY_KEY,
@@ -1083,8 +1084,15 @@ export function environmentFilePreviewQueryKey(
   environmentId: string | null | undefined,
   path: string | null,
   source: EnvironmentFilePreviewSource | null,
+  rawUrl: string | null,
 ): EnvironmentFilePreviewQueryKey {
-  return [ENVIRONMENT_FILE_PREVIEW_QUERY_KEY, environmentId, path, source];
+  return [
+    ENVIRONMENT_FILE_PREVIEW_QUERY_KEY,
+    environmentId,
+    path,
+    source,
+    rawUrl,
+  ];
 }
 
 export function allEnvironmentFilePreviewQueryKeyPrefix(): EnvironmentFilePreviewQueryKeyRootPrefix {

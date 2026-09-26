@@ -191,6 +191,7 @@ export const projectFileContentQuerySchema = z
   .object({
     ...projectWorkspaceRoutingFields,
     path: z.string().min(1),
+    download: z.literal("1").optional(),
   })
   .partial({ hostId: true, environmentId: true })
   .superRefine(rejectMultipleWorkspaceSelectors);

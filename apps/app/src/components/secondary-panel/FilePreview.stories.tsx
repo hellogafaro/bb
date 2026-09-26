@@ -117,7 +117,33 @@ const BUTTON_PATH = "apps/app/src/components/ui/button.tsx";
 const DELETED_BUTTON_PATH = "apps/app/src/components/ui/legacy-button.tsx";
 const METRICS_PATH = "reports/customers.csv";
 const SCREENSHOT_PATH = "docs/screenshots/right-panel.svg";
+const PDF_PATH = "docs/reports/quarterly report.pdf";
+const VIDEO_PATH = "docs/media/walkthrough.mp4";
+const AUDIO_PATH = "docs/media/standup notes.m4a";
+const DOCX_PATH = "docs/specs/onboarding.docx";
+const XLSX_PATH = "reports/q3-budget.xlsx";
+const PPTX_PATH = "docs/decks/roadmap.pptx";
+const ZIP_PATH = "dist/release-bundle.zip";
+const LOG_PATH = "logs/server-full.log";
 const STORY_WORKSPACE_ROOT = "/Users/alex/Code/bb";
+const SAMPLE_MEDIA_URL = "/story-samples/walkthrough.mp4";
+const SAMPLE_MISSING_URL = "/story-samples/missing-file";
+const SAMPLE_PDF_URL =
+  "data:application/pdf;base64," +
+  btoa(
+    [
+      "%PDF-1.4",
+      "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj",
+      "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj",
+      "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 144]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj",
+      "4 0 obj<</Length 48>>stream",
+      "BT /F1 18 Tf 36 72 Td (Quarterly report) Tj ET",
+      "endstream endobj",
+      "5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj",
+      "trailer<</Root 1 0 R>>",
+      "%%EOF",
+    ].join("\n"),
+  );
 
 function copyPathFor(path: string) {
   return `${STORY_WORKSPACE_ROOT}/${path}`;
@@ -392,17 +418,123 @@ export function Overview() {
         </PreviewStage>
       </StoryRow>
       <StoryRow
-        label="preview not available"
-        hint="The file loaded but its media type has no preview renderer"
+        label="pdf file"
+        hint="Streams the raw URL into the browser PDF viewer; iOS shows Open and Download instead"
       >
         <PreviewStage>
           <FilePreview
-            path={README_PATH}
-            copyPath={copyPathFor(README_PATH)}
+            path={PDF_PATH}
+            copyPath={copyPathFor(PDF_PATH)}
+            downloadUrl={SAMPLE_PDF_URL}
+            onOpenInEditor={noopOpenInEditor}
+            state={{ kind: "pdf", url: SAMPLE_PDF_URL }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="video file"
+        hint="Native controls with preload=metadata against the ranged raw URL"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={VIDEO_PATH}
+            copyPath={copyPathFor(VIDEO_PATH)}
+            downloadUrl={SAMPLE_MEDIA_URL}
+            state={{ kind: "video", url: SAMPLE_MEDIA_URL }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="audio file"
+        hint="Centered card with the file name above native audio controls"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={AUDIO_PATH}
+            copyPath={copyPathFor(AUDIO_PATH)}
+            downloadUrl={SAMPLE_MEDIA_URL}
+            state={{ kind: "audio", url: SAMPLE_MEDIA_URL }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="docx file"
+        hint="Lazy mammoth chunk renders into the markdown prose surface; this sample URL has no file, so it shows the Retry state"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={DOCX_PATH}
+            copyPath={copyPathFor(DOCX_PATH)}
+            downloadUrl={SAMPLE_MISSING_URL}
+            state={{ kind: "office", format: "docx", url: SAMPLE_MISSING_URL }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="xlsx file"
+        hint="Lazy SheetJS chunk feeds the CSV table with a sheet switcher; this sample URL has no file, so it shows the Retry state"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={XLSX_PATH}
+            copyPath={copyPathFor(XLSX_PATH)}
+            downloadUrl={SAMPLE_MISSING_URL}
+            state={{ kind: "office", format: "xlsx", url: SAMPLE_MISSING_URL }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="pptx file"
+        hint="No renderer; a one-byte range probe fills type and size on the unavailable card"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={PPTX_PATH}
+            copyPath={copyPathFor(PPTX_PATH)}
+            downloadUrl={SAMPLE_MISSING_URL}
+            state={{
+              kind: "unsupported",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+              reason: "type",
+              sizeBytes: 2_400_000,
+            }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="preview not available"
+        hint="Binary file with no renderer: glyph, name, type and size, Download and Open externally"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={ZIP_PATH}
+            copyPath={copyPathFor(ZIP_PATH)}
+            downloadUrl={SAMPLE_MISSING_URL}
             onOpenInEditor={noopOpenInEditor}
             state={{
               kind: "unsupported",
-              message: "Preview not available for application/zip.",
+              mimeType: "application/zip",
+              reason: "type",
+              sizeBytes: 4_812_300,
+            }}
+          />
+        </PreviewStage>
+      </StoryRow>
+      <StoryRow
+        label="file too large"
+        hint="Text file over the preview budget; same card with a size-specific sentence"
+      >
+        <PreviewStage>
+          <FilePreview
+            path={LOG_PATH}
+            copyPath={copyPathFor(LOG_PATH)}
+            downloadUrl={SAMPLE_MISSING_URL}
+            state={{
+              kind: "unsupported",
+              mimeType: "text/plain",
+              reason: "too-large",
+              sizeBytes: 48_234_496,
             }}
           />
         </PreviewStage>

@@ -8,7 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { FilePreviewLineRange } from "@bb/client-core";
+import {
+  TEXT_FILE_PREVIEW_MAX_BYTES,
+  type FilePreviewLineRange,
+} from "@bb/client-core";
 import { Button } from "@bb/shared-ui/button";
 import {
   COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS,
@@ -34,6 +37,14 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import { preventOverlayTriggerSelection } from "@bb/shared-ui/overlay-trigger";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { appToast } from "@/components/ui/app-toast";
+import { splitAbsoluteHostFilePath } from "@/hooks/queries/host-file-preview-query";
+import {
+  buildRawFileUrl,
+  downloadRawFile,
+  type RawFileSource,
+} from "@/lib/raw-file-url";
+import { probeFileMetadata, type FileMetadataProbe } from "@/lib/api";
+import { sdk } from "@/lib/sdk";
 import type { FileEditorHandle } from "./CodeEditor";
 import {
   fileLocationKey,
@@ -45,6 +56,7 @@ import {
   type FileDocumentStore,
 } from "./file-document-store";
 import { FileGlyph } from "./FileGlyph";
+import { FileUnavailableCard } from "./FileUnavailableCard";
 import { fileName, isImagePath, isMarkdownPath } from "./file-paths";
 import { useFileTarget, type FileTargetSource } from "./file-target";
 import type { FileLocation } from "./files-transport";
@@ -63,7 +75,10 @@ const MarkdownEditor = lazy(() =>
 const AUTOSAVE_DELAY_MS = 5_000;
 const RICH_MARKDOWN_MAX_CHARS = 500_000;
 
-type Conflict = null | { kind: "changed"; sha256: string } | { kind: "missing" };
+type Conflict =
+  | null
+  | { kind: "changed"; sha256: string }
+  | { kind: "missing" };
 
 interface FileEditorProps {
   source: FileTargetSource;
@@ -71,6 +86,7 @@ interface FileEditorProps {
   copyPath: string | null;
   lineRange: FilePreviewLineRange | null;
   isPanelOpen: boolean;
+  onOpenInEditor?: (path: string) => void;
   onSelectionAddToChat?: (text: string) => void;
 }
 
@@ -94,29 +110,23 @@ function imageSource(file: DiskFile): string {
     : `data:${file.mimeType ?? "application/octet-stream"};charset=utf-8,${encodeURIComponent(file.content)}`;
 }
 
-function downloadFile(name: string, file: DiskFile, text: string): void {
-  let part: BlobPart = text;
-  if (file.encoding === "base64") {
-    const binary = atob(file.content);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    part = bytes;
-  }
-  const blob = new Blob([part], {
-    type:
-      file.mimeType ??
-      (file.encoding === "base64"
-        ? "application/octet-stream"
-        : "text/plain;charset=utf-8"),
+async function resolveRawUrl(
+  rawSource: RawFileSource | null,
+  sourcePath: string,
+  location: FileLocation,
+  download: boolean,
+): Promise<string> {
+  const rawUrl =
+    rawSource === null
+      ? null
+      : buildRawFileUrl(rawSource, sourcePath, { download });
+  if (rawUrl !== null) return rawUrl;
+  const { name, rootPath } = splitAbsoluteHostFilePath(location.absolutePath);
+  const lease = await sdk.files.createPreview({
+    hostId: location.hostId,
+    rootPath,
   });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(href);
+  return `${lease.baseUrl}/${encodeURIComponent(name)}`;
 }
 
 async function copyText(value: string, success: string, failure: string) {
@@ -136,6 +146,7 @@ export function FileEditor(props: FileEditorProps) {
     <FileSession
       key={fileLocationKey(target.location)}
       location={target.location}
+      rawSource={target.rawSource}
       {...props}
     />
   );
@@ -143,14 +154,18 @@ export function FileEditor(props: FileEditorProps) {
 
 interface FileSessionProps extends FileEditorProps {
   location: FileLocation;
+  rawSource: RawFileSource | null;
 }
 
 function FileSession({
   location,
+  rawSource,
+  source,
   displayPath,
   copyPath,
   lineRange,
   isPanelOpen,
+  onOpenInEditor,
   onSelectionAddToChat,
 }: FileSessionProps) {
   const store = useFileDocumentStore();
@@ -182,6 +197,7 @@ function FileSession({
   const restoredDraft = useRef<Draft | null>(null);
   const autosaveTimer = useRef<number | null>(null);
   const saveRef = useRef<() => Promise<void>>(async () => undefined);
+  const pendingWrite = useRef<Promise<void>>(Promise.resolve());
 
   const updateConflict = useCallback((next: Conflict) => {
     conflictRef.current = next;
@@ -234,6 +250,7 @@ function FileSession({
             encoding: "utf8",
             mimeType: null,
             sha256: restored.baseSha256,
+            sizeBytes: 0,
           });
           setDraft(restored.text);
           updateDirty(true);
@@ -369,33 +386,37 @@ function FileSession({
   );
 
   const writeText = useCallback(
-    async (text: string, expectedSha256: string | null) => {
-      cancelAutosave();
-      savingRef.current = true;
-      setSaving(true);
-      setSaveError(null);
-      try {
-        const result = await store.write(
-          location,
-          text,
-          expectedSha256,
-          writer.current,
-        );
-        if (result.outcome === "conflict") {
-          updateConflict(
-            result.currentSha256 === null
-              ? { kind: "missing" }
-              : { kind: "changed", sha256: result.currentSha256 },
+    (text: string, expectedSha256: string | null) => {
+      const write = (async () => {
+        cancelAutosave();
+        savingRef.current = true;
+        setSaving(true);
+        setSaveError(null);
+        try {
+          const result = await store.write(
+            location,
+            text,
+            expectedSha256,
+            writer.current,
           );
-        } else if (dirtyRef.current) {
-          scheduleAutosave();
+          if (result.outcome === "conflict") {
+            updateConflict(
+              result.currentSha256 === null
+                ? { kind: "missing" }
+                : { kind: "changed", sha256: result.currentSha256 },
+            );
+          } else if (dirtyRef.current) {
+            scheduleAutosave();
+          }
+        } catch (error) {
+          setSaveError(errorText(error));
+        } finally {
+          savingRef.current = false;
+          setSaving(false);
         }
-      } catch (error) {
-        setSaveError(errorText(error));
-      } finally {
-        savingRef.current = false;
-        setSaving(false);
-      }
+      })();
+      pendingWrite.current = write;
+      return write;
     },
     [cancelAutosave, location, scheduleAutosave, store, updateConflict],
   );
@@ -474,10 +495,67 @@ function FileSession({
   };
 
   const liveText = () => handle.current?.getDoc() ?? base?.content ?? "";
-  const editable = base !== null && isEditable(displayPath, base);
+  const oversized =
+    base !== null &&
+    base.sizeBytes > TEXT_FILE_PREVIEW_MAX_BYTES &&
+    !isImagePath(displayPath);
+  const editable = base !== null && !oversized && isEditable(displayPath, base);
   const richMarkdown =
     markdown && editable && draft.length <= RICH_MARKDOWN_MAX_CHARS;
   const readOnly = deleted || conflict?.kind === "missing";
+
+  const flushBeforeDownload = async (): Promise<boolean> => {
+    await pendingWrite.current;
+    if (readOnly || !dirtyRef.current) return true;
+    await saveRef.current();
+    return !dirtyRef.current;
+  };
+
+  const download = async () => {
+    if (!(await flushBeforeDownload())) {
+      appToast.error(FILES_COPY.downloadFailed);
+      return;
+    }
+    try {
+      downloadRawFile(
+        await resolveRawUrl(rawSource, source.path, location, true),
+        name,
+      );
+    } catch (error) {
+      appToast.error(FILES_COPY.downloadFailed, {
+        description: errorText(error),
+      });
+    }
+  };
+
+  const tooLargeUnread = base === null && disk.status === "too-large";
+  const [tooLargeMetadata, setTooLargeMetadata] =
+    useState<FileMetadataProbe | null>(null);
+  useEffect(() => {
+    setTooLargeMetadata(null);
+    if (!tooLargeUnread) return;
+    const controller = new AbortController();
+    void resolveRawUrl(rawSource, source.path, location, false)
+      .then((url) => probeFileMetadata(url, controller.signal))
+      .then((metadata) => {
+        if (!controller.signal.aborted) setTooLargeMetadata(metadata);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [location, rawSource, source.path, tooLargeUnread]);
+
+  const tooLargeCard = (mimeType: string | null, sizeBytes: number | null) => (
+    <FileUnavailableCard
+      mimeType={mimeType}
+      onDownload={() => void download()}
+      onOpenExternally={
+        onOpenInEditor ? () => onOpenInEditor(displayPath) : undefined
+      }
+      path={displayPath}
+      reason="too-large"
+      sizeBytes={sizeBytes}
+    />
+  );
 
   let banner: ReactNode = null;
   if (conflict?.kind === "changed") {
@@ -539,6 +617,11 @@ function FileSession({
   let body: ReactNode;
   if (deleted) {
     body = <Notice>{FILES_COPY.deleted(name)}</Notice>;
+  } else if (tooLargeUnread) {
+    body = tooLargeCard(
+      tooLargeMetadata?.mimeType ?? null,
+      tooLargeMetadata?.sizeBytes ?? null,
+    );
   } else if (base === null) {
     body =
       disk.status === "loading" ? (
@@ -557,6 +640,8 @@ function FileSession({
       ) : (
         <Notice>{FILES_COPY.unavailable}</Notice>
       );
+  } else if (oversized) {
+    body = tooLargeCard(base.mimeType, base.sizeBytes);
   } else if (isImagePath(displayPath)) {
     body = imageFailed ? (
       <Notice>{FILES_COPY.imageUnavailable}</Notice>
@@ -708,7 +793,9 @@ function FileSession({
                 type="button"
                 variant="ghost"
                 size="icon"
-                disabled={deleted || base === null}
+                disabled={
+                  deleted || (base === null && disk.status !== "too-large")
+                }
                 aria-label={FILES_COPY.fileActions}
                 className={COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS}
                 onMouseDown={(event) => {
@@ -734,11 +821,7 @@ function FileSession({
                   {FILES_COPY.copyContents}
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem
-                onSelect={() => {
-                  if (base !== null) downloadFile(name, base, liveText());
-                }}
-              >
+              <DropdownMenuItem onSelect={() => void download()}>
                 <Icon name="Download" aria-hidden />
                 {FILES_COPY.download}
               </DropdownMenuItem>

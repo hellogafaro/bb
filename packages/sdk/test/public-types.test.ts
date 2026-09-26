@@ -268,6 +268,7 @@ type ExpectedEnvironmentsKey =
 
 type ExpectedFilesKey =
   | "createPreview"
+  | "experimental_rawFileUrl"
   | "experimental_readIfChanged"
   | "list"
   | "listPaths"

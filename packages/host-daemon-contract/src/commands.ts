@@ -459,6 +459,18 @@ const hostReadFileCommandSchema = z
     }
   });
 
+export const HOST_READ_FILE_RANGE_MAX_BYTES = 4 * 1024 * 1024;
+
+const hostReadFileRangeCommandSchema = z
+  .object({
+    type: z.literal("host.read_file_range"),
+    path: z.string().min(1),
+    rootPath: z.string().min(1).optional(),
+    offset: z.number().int().nonnegative(),
+    length: z.number().int().nonnegative().max(HOST_READ_FILE_RANGE_MAX_BYTES),
+  })
+  .strict();
+
 const hostReadFileRelativeDotfilePolicySchema = z.enum(["allow", "deny"]);
 export type HostReadFileRelativeDotfilePolicy = z.infer<
   typeof hostReadFileRelativeDotfilePolicySchema
@@ -1018,6 +1030,15 @@ const hostReadFileResultSchema = z.union([
   fileReadResultSchema,
   fileReadNotModifiedResultSchema,
 ]);
+
+const fileReadRangeResultSchema = z.object({
+  path: z.string(),
+  mimeType: z.string().optional(),
+  sizeBytes: z.number().int().nonnegative(),
+  modifiedAtMs: z.number().nonnegative(),
+  offset: z.number().int().nonnegative(),
+  content: z.string(),
+});
 
 const fileWriteResultSchema = z.discriminatedUnion("outcome", [
   z
@@ -1808,6 +1829,15 @@ export const hostDaemonCommandRegistry = {
     type: "host.read_file",
     schema: hostReadFileCommandSchema,
     resultSchema: hostReadFileResultSchema,
+    transport: "onlineRpc",
+    retryable: true,
+    flushEventsBeforeResult: false,
+    envLane: null,
+  }),
+  "host.read_file_range": defineHostDaemonCommandDescriptor({
+    type: "host.read_file_range",
+    schema: hostReadFileRangeCommandSchema,
+    resultSchema: fileReadRangeResultSchema,
     transport: "onlineRpc",
     retryable: true,
     flushEventsBeforeResult: false,

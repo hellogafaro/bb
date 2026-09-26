@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactElement, useContext, useEffect, useState } from "react";
 import type { TimelineConversationAttachments } from "@bb/server-contract";
 import { fileNameFromPath } from "@bb/thread-view";
 import {
@@ -6,7 +6,18 @@ import {
   getWrappedImageIndex,
 } from "../../ui/image-lightbox.js";
 import { cn } from "@bb/shared-ui/lib/utils";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@bb/shared-ui/context-menu";
 import { buildProjectAttachmentContentUrl } from "@/lib/file-content-urls";
+import { copyToClipboardWithToast } from "@/lib/clipboard";
+import { downloadRawFile } from "@/lib/raw-file-url";
+import { MarkdownLocalFileContextMenuContext } from "../../ui/markdown-link-routing.js";
+import { renderMarkdownLocalFileContextMenuItem } from "../../ui/markdown-preview.js";
 import type {
   ThreadTimelineLocalFileLinkHandler,
   UserAttachmentImageSrcResolver,
@@ -43,6 +54,13 @@ interface PathClassificationArgs {
   path: string;
 }
 
+interface AttachmentChipMenuProps {
+  children: ReactElement;
+  onOpen: () => void;
+  path: string;
+  projectAttachmentHref: string | null;
+}
+
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[a-zA-Z]:[\\/]/u;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/u;
 
@@ -68,6 +86,59 @@ function projectAttachmentHref({
   }
 
   return buildProjectAttachmentContentUrl(projectId, path);
+}
+
+function AttachmentChipMenu({
+  children,
+  onOpen,
+  path,
+  projectAttachmentHref,
+}: AttachmentChipMenuProps) {
+  const getLocalFileContextMenuItems = useContext(
+    MarkdownLocalFileContextMenuContext,
+  );
+  const localFileItems =
+    projectAttachmentHref === null && getLocalFileContextMenuItems !== null
+      ? getLocalFileContextMenuItems({ lineRange: null, path })
+      : null;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="min-w-44">
+        <ContextMenuItem onSelect={onOpen}>Open preview</ContextMenuItem>
+        <ContextMenuSeparator />
+        {localFileItems === null ? (
+          <>
+            {projectAttachmentHref === null ? null : (
+              <ContextMenuItem
+                onSelect={() => {
+                  downloadRawFile(
+                    projectAttachmentHref,
+                    fileNameFromPath(path),
+                  );
+                }}
+              >
+                Download
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem
+              onSelect={() => {
+                void copyToClipboardWithToast(path, {
+                  successMessage: "File path copied",
+                  errorMessage: "Failed to copy file path",
+                });
+              }}
+            >
+              Copy file path
+            </ContextMenuItem>
+          </>
+        ) : (
+          localFileItems.map(renderMarkdownLocalFileContextMenuItem)
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 export function buildAttachmentItems({
@@ -176,18 +247,26 @@ export function ConversationAttachments({
 
             if (attachmentHref) {
               return (
-                <a
+                <AttachmentChipMenu
                   key={path}
-                  href={attachmentHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    className,
-                    "cursor-pointer hover:bg-state-hover",
-                  )}
+                  onOpen={() => {
+                    window.open(attachmentHref, "_blank", "noreferrer");
+                  }}
+                  path={path}
+                  projectAttachmentHref={attachmentHref}
                 >
-                  {label}
-                </a>
+                  <a
+                    href={attachmentHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      className,
+                      "cursor-pointer hover:bg-state-hover",
+                    )}
+                  >
+                    {label}
+                  </a>
+                </AttachmentChipMenu>
               );
             }
 
@@ -199,17 +278,27 @@ export function ConversationAttachments({
               );
             }
 
+            const openPreview = () => {
+              onOpenLocalFileLink({ lineRange: null, path });
+            };
             return (
-              <button
+              <AttachmentChipMenu
                 key={path}
-                type="button"
-                className={cn(className, "cursor-pointer hover:bg-state-hover")}
-                onClick={() => {
-                  onOpenLocalFileLink({ lineRange: null, path });
-                }}
+                onOpen={openPreview}
+                path={path}
+                projectAttachmentHref={null}
               >
-                {label}
-              </button>
+                <button
+                  type="button"
+                  className={cn(
+                    className,
+                    "cursor-pointer hover:bg-state-hover",
+                  )}
+                  onClick={openPreview}
+                >
+                  {label}
+                </button>
+              </AttachmentChipMenu>
             );
           })}
         </div>

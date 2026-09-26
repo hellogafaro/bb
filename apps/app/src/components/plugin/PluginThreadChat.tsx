@@ -44,6 +44,7 @@ interface AppThreadChatProps extends ThreadChatProps {
   environmentSummary?: "auto" | "none";
   composerAutoFocus?: boolean;
   executionControls?: "visible" | "hidden";
+  timeline?: "visible" | "hidden";
 }
 
 export function PluginThreadChat({
@@ -59,6 +60,7 @@ export function PluginThreadChat({
   environmentSummary = "auto",
   composerAutoFocus = true,
   executionControls = "visible",
+  timeline = "visible",
 }: AppThreadChatProps) {
   const containerClassName = cn(
     layout === "contained" ? "flex h-full min-h-0 flex-col" : "flex flex-col",
@@ -78,6 +80,7 @@ export function PluginThreadChat({
         environmentSummaryMode={environmentSummary}
         composerAutoFocus={composerAutoFocus}
         executionControls={executionControls}
+        timeline={timeline}
       />
     </div>
   );
@@ -95,6 +98,7 @@ interface PluginThreadChatBodyProps {
   environmentSummaryMode: "auto" | "none";
   composerAutoFocus: boolean;
   executionControls: "visible" | "hidden";
+  timeline: "visible" | "hidden";
 }
 
 function PluginThreadChatBody({
@@ -109,6 +113,7 @@ function PluginThreadChatBody({
   environmentSummaryMode,
   composerAutoFocus,
   executionControls,
+  timeline,
 }: PluginThreadChatBodyProps) {
   const threadQuery = useThread(threadId, { enabled: threadId.length > 0 });
   const thread = threadQuery.data;
@@ -327,6 +332,7 @@ function PluginThreadChatBody({
         onOpenLocalFileLink={onOpenLocalFileLink}
         workspaceRootPath={workspaceRootPath}
         readTracking={readTracking}
+        timeline={timeline}
         composer={{
           draftScope: {
             kind: "thread",

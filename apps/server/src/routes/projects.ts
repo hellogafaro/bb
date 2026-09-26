@@ -70,8 +70,8 @@ import {
   writeProjectSkill,
 } from "../services/skills/skill-listing.js";
 import {
-  createDaemonFileContentResponse,
-  serveDaemonFileContent,
+  rawFileRequestFromHeaders,
+  serveDaemonRawFile,
   requestMatchesEntityTag,
 } from "../services/hosts/daemon-file-response.js";
 import { parseBoundedPositiveOptionalInteger } from "../services/lib/validation.js";
@@ -685,19 +685,25 @@ export function registerProjectRoutes(app: Hono, deps: AppDeps): void {
     });
     const filePath = parseSafeRelativeRoutePath(query.path);
 
-    return serveDaemonFileContent(
+    return serveDaemonRawFile(
       deps,
       {
         hostId: target.hostId,
-        ifNoneMatch: context.req.header("if-none-match"),
         path: path.join(target.path, filePath.relativePath),
         rootPath: target.path,
       },
-      (result) =>
-        createDaemonFileContentResponse(result, {
-          headers: { "x-bb-content-encoding": result.contentEncoding },
-          ifNoneMatch: context.req.header("if-none-match"),
+      {
+        fileName: filePath.relativePath,
+        fullReadHeaders: (result) => ({
+          "x-bb-content-encoding": result.contentEncoding,
         }),
+        headers: { "x-content-type-options": "nosniff" },
+        request: rawFileRequestFromHeaders(
+          (name) => context.req.header(name),
+          query.download,
+        ),
+        revalidate: true,
+      },
     );
   });
 

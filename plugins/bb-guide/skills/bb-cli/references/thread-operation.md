@@ -175,6 +175,11 @@ For review or fix pipelines, get the environment ID from
   file access. `--host` targets another machine; `--root` confines mutations.
 - `bb file read <path> --if-none-match <sha256>` prints nothing (`--json`
   prints metadata with `notModified: true`) while the content hash matches.
+- `bb file download <path> --thread <id> [--source worktree|storage|host]` or
+  `--project <id> [--host <id>|--environment <id>]` streams a file of any size
+  to `--out <file>` (default: the file name in the current directory).
+  `--source host` takes an absolute path on the thread's machine. It refuses
+  to replace an existing file unless `--force` is set.
 - File write requires exactly one of `--content` and `--stdin`. File paths lists
   files and directories when neither selector is present. File list and file
   paths include dot-prefixed entries; `--no-hidden` skips them. Both skip
