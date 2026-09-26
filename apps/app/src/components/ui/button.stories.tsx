@@ -17,7 +17,6 @@ const variants: readonly ButtonVariant[] = [
   "destructive",
   "link",
   "primary",
-  "stop",
 ];
 
 const sizes: readonly ButtonSize[] = ["sm", "default", "lg", "icon"];
@@ -30,7 +29,6 @@ const VARIANT_LABEL: Record<ButtonVariant, string> = {
   destructive: "Delete project",
   link: "View docs",
   primary: "Send",
-  stop: "Stop run",
 };
 
 export function Overview() {

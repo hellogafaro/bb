@@ -3411,7 +3411,7 @@ export function PromptBoxInternal({
                         data-promptbox-submit-action=""
                         type="button"
                         size="icon"
-                        variant="stop"
+                        variant="destructive"
                         aria-label="Stop run"
                         onPointerDown={handleStopPointerDown}
                         onClick={handleStopClick}

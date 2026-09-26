@@ -89,7 +89,6 @@
   --color-status-failed: var(--status-failed);
   --color-status-ready: var(--status-ready);
   --color-draft: var(--draft);
-  --color-stop: var(--stop);
   --color-surface-draft: var(--surface-draft);
 
   --font-sans: var(--font-sans);
@@ -519,7 +518,6 @@
   --status-failed: oklch(0.6648 0.1576 22.31);
   --status-ready: oklch(0.7035 0.1323 165.16);
   --draft: oklch(0.6241 0.1338 54.19);
-  --stop: oklch(0.6074 0.1873 22.58);
   --surface-draft: color-mix(in oklab, var(--draft) 10%, transparent);
   /* Focus ring shares the primary accent — kept as one value so they can't
    * drift apart. */
@@ -760,7 +758,6 @@
   --status-failed: oklch(0.6648 0.1576 22.31);
   --status-ready: oklch(0.7035 0.1323 165.16);
   --draft: oklch(0.71 0.1398 59.9);
-  --stop: var(--destructive);
   --surface-draft: color-mix(in oklab, var(--draft) 18%, transparent);
   --ring: var(--primary);
   /* Same model as light; ink is light here, so these lift the dark canvas. */

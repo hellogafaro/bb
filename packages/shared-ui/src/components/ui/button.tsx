@@ -22,7 +22,6 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         primary:
           "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary)_90%,var(--foreground))]",
-        stop: "bg-stop text-white hover:bg-[color-mix(in_oklch,var(--stop)_90%,var(--foreground))]",
       },
       size: {
         default: "h-9 px-4 py-2",
