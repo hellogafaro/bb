@@ -9,10 +9,9 @@ import { Input } from "@bb/shared-ui/input";
 import { Label } from "@bb/shared-ui/label";
 import {
   SECRET_REQUEST_RENDERER_ID,
-  secretRequestPayloadSchema,
   secretRequestResponseSchema,
 } from "@bb/plugin-interaction-contracts";
-import { reconcileDotenv } from "./src/dotenv.js";
+import { infisicalSecretRequestPayloadSchema } from "./src/contract.js";
 
 function SecretRequestInteraction({
   interaction,
@@ -20,7 +19,7 @@ function SecretRequestInteraction({
   cancel,
 }: PluginPendingInteractionProps) {
   const parsed = useMemo(
-    () => secretRequestPayloadSchema.safeParse(interaction.payload),
+    () => infisicalSecretRequestPayloadSchema.safeParse(interaction.payload),
     [interaction.payload],
   );
   const [values, setValues] = useState<Record<string, string>>({});
@@ -49,14 +48,6 @@ function SecretRequestInteraction({
     if (!validated.success) {
       setFormError(
         "Every secret must be a non-empty single-line value no larger than 16 KiB.",
-      );
-      return;
-    }
-    try {
-      reconcileDotenv("", validated.data.values);
-    } catch {
-      setFormError(
-        "One value cannot be represented safely in a dotenv assignment.",
       );
       return;
     }
@@ -92,7 +83,15 @@ function SecretRequestInteraction({
           </p>
         ) : null}
         <p className="min-w-0 text-xs text-muted-foreground">
-          Secrets will be written directly to{" "}
+          Secrets will be written to Infisical project{" "}
+          <code className="break-all rounded bg-surface-raised px-1.5 py-0.5 font-mono text-foreground">
+            {payload.destination.project ?? "linked project"}
+          </code>
+          , environment{" "}
+          <code className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-foreground">
+            {payload.destination.env}
+          </code>
+          , folder{" "}
           <code className="break-all rounded bg-surface-raised px-1.5 py-0.5 font-mono text-foreground">
             {payload.destination.path}
           </code>

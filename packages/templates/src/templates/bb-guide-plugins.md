@@ -268,16 +268,29 @@ label-link/name change, active-thread change, or project-prefix change invalidat
 outstanding cursor; restart without `--cursor` instead of accepting a mixed
 snapshot.
 
-The builtin Secrets plugin provides a secure credential form and guarded
-dotenv reconciliation:
+The builtin Secrets plugin makes Infisical the only secret store and wraps the
+infisical CLI on the server host:
 
-  bb secret request <NAME...> --write-env <path>
-                    [--purpose <text>] [--describe <NAME> <text>]...
+  bb secret status               Installed, authenticated, linked project id
+  bb secret link --project-id <id> --env <env>
+                                 Verify access (names only) and write
+                                 .infisical.json in the working directory
+  bb secret run --env <env> [--path <path>] [--project-id <id>] [--recursive]
+                -- <command...>  Inject secrets into a command
+  bb secret set <NAME...> --env <env> [--path <path>] [--project-id <id>]
+                [--purpose <text>] [--describe <NAME> <text>]...
+                                 Masked form in the thread, then infisical
+                                 secrets set through 0600 temp files
+  bb secret ssh <host> [--login-user <user>] [--out-file-path <path>]
+  bb secret pam <folder/account> [--duration <d>] [--reason <text>] [-- <command...>]
 
-The command blocks until the user submits or cancels the form. Secret values
-never appear in command arguments, model-visible output, or persisted
-interaction data; success prints only the path, variable names, and
-added/updated/unchanged counts.
+--env is always required. bb secret set blocks until the user submits or
+cancels the form. Secret values never appear in command arguments,
+model-visible output, or persisted interaction data; success prints only the
+project, environment, path, and the names created, updated, or unchanged.
+Infisical errors are forwarded with anything after "=" removed on lines that
+mention a requested name. Interactive ssh and pam sessions need the host's
+own TTY. See the plugin's secrets skill for the full procedure.
 
   bb plugin search <query>       Search the store: the plugins bundled with
                                  the app plus every registered marketplace

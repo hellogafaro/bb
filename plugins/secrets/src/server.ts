@@ -1,4 +1,3 @@
-import path from "node:path";
 import {
   PluginCliError,
   cliCommand,
@@ -7,41 +6,36 @@ import {
   type PluginCliContext,
   type PluginCliResult,
 } from "@get-bb/plugin-sdk";
-import { z } from "zod";
 import {
   SECRET_REQUEST_RENDERER_ID,
   secretNameSchema,
   secretRequestResponseSchema,
 } from "@bb/plugin-interaction-contracts";
-import { assertNoDuplicateAssignments, reconcileDotenv } from "./dotenv.js";
+import type { InfisicalSecretRequestPayload } from "./contract.js";
+import {
+  InfisicalUnavailableError,
+  PROJECT_FILE,
+  readAuthState,
+  readLinkedProject,
+  runInfisical,
+  withSecretFiles,
+  writeLinkedProject,
+  type InfisicalResult,
+} from "./infisical.js";
+import { redactSecretValues } from "./redaction.js";
 
-interface ParsedRequest {
-  names: string[];
-  purpose: string | null;
-  descriptions: Map<string, string>;
-  writeEnv: string;
+export const SECRETS_INSTRUCTIONS =
+  "All secrets live in Infisical. Use the `secrets` skill before reading, injecting, or writing any credential, token, key, certificate, or SSH access. Never expose a secret value anywhere.";
+
+export interface SecretsPluginOptions {
+  env?: NodeJS.ProcessEnv;
 }
 
-interface FileSnapshot {
-  content: string;
-  sha256: string | null;
+interface Scope {
+  env: string;
+  path: string;
+  projectId: string | null;
 }
-
-const fileReadResultSchema = z.object({
-  content: z.string(),
-  contentEncoding: z.enum(["utf8", "base64"]),
-  sha256: z.string(),
-});
-const threadHostSchema = z.object({
-  host: z.object({ id: z.string() }).nullable().optional(),
-});
-const fileWriteResultSchema = z.discriminatedUnion("outcome", [
-  z.object({ outcome: z.literal("written") }),
-  z.object({
-    outcome: z.literal("conflict"),
-    currentSha256: z.string().nullable(),
-  }),
-]);
 
 const DESCRIBE_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const DESCRIBE_SPELLINGS = new Set([
@@ -49,6 +43,8 @@ const DESCRIBE_SPELLINGS = new Set([
   "--description",
   "--describe-variable",
 ]);
+const ROW_LABEL_MAX_LENGTH = 80;
+const ROW_TITLE_MAX_LENGTH = 160;
 
 function cliError(message: string, code: string, hint?: string): never {
   throw new PluginCliError(message, {
@@ -129,261 +125,634 @@ function parseDescriptions(
   return descriptions;
 }
 
-function parseRequest(input: {
-  names: readonly string[];
-  purpose: string | undefined;
-  describe: readonly string[];
-  writeEnv: string;
-}): ParsedRequest {
-  const names = input.names.map((name) =>
-    parseSecretName(name, "Variable name"),
-  );
-  if (new Set(names).size !== names.length)
-    cliError("Variable names must be unique.", "duplicate_variable_name");
-  const purpose = input.purpose?.trim();
-  if (purpose !== undefined && purpose.length === 0) {
-    cliError(
-      "--purpose requires a non-empty description.",
-      "invalid_purpose",
-      "Write --purpose 'why these credentials are needed'.",
-    );
-  }
-  const writeEnv = input.writeEnv.trim();
-  if (writeEnv.length === 0)
-    cliError("--write-env requires a path.", "invalid_write_env");
-  return {
-    names,
-    purpose: purpose ?? null,
-    descriptions: parseDescriptions(input.describe, names),
-    writeEnv,
-  };
-}
-
-function resolveHostPath(cwd: string, candidate: string): string {
-  if (path.posix.isAbsolute(candidate)) return path.posix.normalize(candidate);
-  if (path.win32.isAbsolute(candidate)) return path.win32.normalize(candidate);
-  return path.posix.isAbsolute(cwd)
-    ? path.posix.resolve(cwd, candidate)
-    : path.win32.resolve(cwd, candidate);
-}
-
-const ROW_LABEL_MAX_LENGTH = 80;
-const ROW_TITLE_MAX_LENGTH = 160;
-
 function clampToLength(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}\u2026`;
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function httpStatus(error: unknown): number | null {
-  if (typeof error !== "object" || error === null || !("status" in error))
-    return null;
-  const status = error.status;
-  return typeof status === "number" ? status : null;
-}
-
-async function readSnapshot(
-  bb: BbPluginApi,
-  args: { hostId: string; path: string },
-): Promise<FileSnapshot> {
-  try {
-    const result = fileReadResultSchema.parse(await bb.sdk.files.read(args));
-    if (result.contentEncoding !== "utf8")
-      throw new Error("Dotenv file is not valid UTF-8 text.");
-    return { content: result.content, sha256: result.sha256 };
-  } catch (error) {
-    if (httpStatus(error) === 404) return { content: "", sha256: null };
-    throw error;
-  }
-}
-
-async function runRequest(
-  bb: BbPluginApi,
-  parsed: ParsedRequest,
-  ctx: PluginCliContext,
-): Promise<PluginCliResult> {
-  if (!ctx.threadId)
-    cliError("bb secret request must run from a bb thread.", "missing_thread");
+function requireCwd(ctx: PluginCliContext, command: string): string {
   if (!ctx.cwd) {
     cliError(
-      "bb secret request requires the invoking working directory.",
+      `bb secret ${command} requires the invoking working directory.`,
       "missing_cwd",
     );
   }
-  const thread = threadHostSchema.parse(
-    await bb.sdk.threads.get({
-      threadId: ctx.threadId,
-      include: "host",
-    }),
-  );
-  const host = thread.host;
-  if (!host?.id) cliError("The thread needs a live host.", "missing_host");
-  const destinationPath = resolveHostPath(ctx.cwd, parsed.writeEnv);
-  const fileArgs = { hostId: host.id, path: destinationPath };
-  let snapshot = await readSnapshot(bb, fileArgs);
-  assertNoDuplicateAssignments(snapshot.content, parsed.names);
+  return ctx.cwd;
+}
 
-  const result = await bb.ui.requestInput(
-    {
-      threadId: ctx.threadId,
-      rendererId: SECRET_REQUEST_RENDERER_ID,
-      title: "Add secrets",
-      payload: {
-        purpose: parsed.purpose,
-        destination: {
-          kind: "dotenv",
-          path: destinationPath,
-        },
-        fields: parsed.names.map((name) => ({
-          name,
-          description: parsed.descriptions.get(name) ?? null,
-        })),
-      },
-      presentation: {
-        label: {
-          pending: clampToLength(
-            `Requesting ${parsed.names.join(", ")}`,
-            ROW_LABEL_MAX_LENGTH,
-          ),
-          completed: clampToLength(
-            `Requested ${parsed.names.join(", ")}`,
-            ROW_LABEL_MAX_LENGTH,
-          ),
-        },
-      },
-      describeSubmission: (value) => {
-        const response = secretRequestResponseSchema.safeParse(value);
-        const names = response.success
-          ? Object.keys(response.data.values).sort()
-          : [];
-        return {
-          title: clampToLength(
-            `Provided ${names.join(", ")}`,
-            ROW_TITLE_MAX_LENGTH,
-          ),
-          detail: [destinationPath, ...names.map((name) => `- ${name}`)].join(
-            "\n",
-          ),
-        };
-      },
+function parseScope(options: {
+  env: string;
+  path: string | undefined;
+  "project-id": string | undefined;
+}): Scope {
+  const env = options.env.trim();
+  if (env.length === 0) cliError("--env requires a value.", "invalid_env");
+  const path = (options.path ?? "/").trim();
+  if (!path.startsWith("/")) {
+    cliError(
+      "--path must be an absolute folder path such as /.",
+      "invalid_path",
+    );
+  }
+  const projectId = options["project-id"]?.trim();
+  if (projectId !== undefined && projectId.length === 0)
+    cliError("--project-id requires a value.", "invalid_project_id");
+  return { env, path, projectId: projectId ?? null };
+}
+
+function scopeArgs(scope: Scope): string[] {
+  return [
+    "--env",
+    scope.env,
+    "--path",
+    scope.path,
+    ...(scope.projectId === null ? [] : ["--projectId", scope.projectId]),
+  ];
+}
+
+function scopeOptions() {
+  return {
+    env: {
+      type: "string",
+      required: true,
+      placeholder: "ENV",
+      description:
+        "Infisical environment slug (dev, staging, prod); required, never defaulted",
     },
-    { signal: ctx.signal },
-  );
-  if (result.outcome === "cancelled") {
-    cliError(
-      `Secret request cancelled (${result.reason}).`,
-      "secret_request_cancelled",
-    );
-  }
-  const response = secretRequestResponseSchema.parse(result.value);
-  const responseNames = Object.keys(response.values).sort();
-  if (responseNames.join("\0") !== [...parsed.names].sort().join("\0")) {
-    cliError(
-      "Secret response did not contain exactly the requested variables.",
-      "unexpected_secret_response",
-    );
-  }
+    path: {
+      type: "string",
+      placeholder: "PATH",
+      description: "Infisical folder path; defaults to /",
+    },
+    "project-id": {
+      type: "string",
+      placeholder: "ID",
+      description:
+        "Infisical project id; needed when the working directory has no .infisical.json",
+    },
+  } as const;
+}
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const reconciled = reconcileDotenv(snapshot.content, response.values);
-    const write = fileWriteResultSchema.parse(
-      await bb.sdk.files.write({
-        ...fileArgs,
-        content: reconciled.content,
-        contentEncoding: "utf8",
-        createParents: true,
-        expectedSha256: snapshot.sha256,
-        mode: 0o600,
-      }),
+function recursiveOption() {
+  return {
+    recursive: {
+      type: "boolean",
+      description: "Also inject secrets from every sub-folder of --path",
+    },
+  } as const;
+}
+
+function jsonOption() {
+  return {
+    json: {
+      type: "boolean",
+      description:
+        "Report failures as a JSON envelope on stdout; the success line is always JSON",
+    },
+  } as const;
+}
+
+async function resolveProject(
+  cwd: string,
+  explicit: string | null,
+): Promise<string | null> {
+  if (explicit !== null) return explicit;
+  const linked = await readLinkedProject(cwd);
+  return linked?.workspaceId ?? null;
+}
+
+function failFromInfisical(
+  command: string,
+  result: InfisicalResult,
+  names: readonly string[],
+): never {
+  const detail = redactSecretValues(
+    (result.stderr.trim() || result.stdout.trim()).trim(),
+    names,
+  );
+  cliError(
+    `infisical ${command} failed with exit code ${result.exitCode}${detail ? `:\n${detail}` : "."}`,
+    "infisical_failed",
+  );
+}
+
+function rethrow(error: unknown): never {
+  if (error instanceof PluginCliError) throw error;
+  if (error instanceof InfisicalUnavailableError)
+    cliError(error.message, "infisical_unavailable");
+  throw new PluginCliError(
+    error instanceof Error ? error.message : String(error),
+  );
+}
+
+function classifyStatuses(
+  stdout: string,
+  names: readonly string[],
+): { created: string[]; updated: string[]; unchanged: string[] } {
+  const created: string[] = [];
+  const updated: string[] = [];
+  const unchanged: string[] = [];
+  const lines = stdout.split("\n");
+  for (const name of names) {
+    const line = lines.find((candidate) =>
+      new RegExp(`(^|[^A-Za-z0-9_])${name}([^A-Za-z0-9_]|$)`, "u").test(
+        candidate,
+      ),
     );
-    if (write.outcome === "written") {
+    const upper = (line ?? "").toUpperCase();
+    if (upper.includes("CREATED")) created.push(name);
+    else if (upper.includes("UNCHANGED")) unchanged.push(name);
+    else updated.push(name);
+  }
+  return { created, updated, unchanged };
+}
+
+export function createSecretsPlugin(options: SecretsPluginOptions = {}) {
+  const processEnv = options.env ?? process.env;
+
+  return function plugin(bb: BbPluginApi) {
+    bb.agents.contributeInstructions(() => SECRETS_INSTRUCTIONS);
+
+    async function status(ctx: PluginCliContext): Promise<PluginCliResult> {
+      const cwd = requireCwd(ctx, "status");
+      let installed = false;
+      let version: string | null = null;
+      try {
+        const result = await runInfisical({
+          args: ["--version"],
+          cwd,
+          env: processEnv,
+          signal: ctx.signal,
+        });
+        installed = result.exitCode === 0;
+        version = installed ? result.stdout.trim() : null;
+      } catch (error) {
+        if (!(error instanceof InfisicalUnavailableError)) rethrow(error);
+      }
+      const auth = await readAuthState(processEnv);
+      const linked = await readLinkedProject(cwd).catch(() => null);
       return {
         exitCode: 0,
-        stdout: `${JSON.stringify({ path: destinationPath, names: parsed.names, added: reconciled.added, updated: reconciled.updated, unchanged: reconciled.unchanged })}\n`,
+        stdout: `${JSON.stringify({
+          installed,
+          version,
+          authenticated: auth.method !== null,
+          authMethod: auth.method,
+          domain: auth.domain,
+          linkedProjectId: linked?.workspaceId ?? null,
+          projectFile: linked === null ? null : `${cwd}/${PROJECT_FILE}`,
+          missing: [
+            ...(installed ? [] : ["infisical CLI on the server host"]),
+            ...(auth.method === null
+              ? ["an authenticated infisical profile or INFISICAL_TOKEN"]
+              : []),
+          ],
+        })}\n`,
       };
     }
-    if (attempt === 1) {
-      cliError(
-        "Dotenv file changed twice while secrets were being written; no write was applied.",
-        "dotenv_write_conflict",
-      );
+
+    async function link(
+      input: { projectId: string; env: string },
+      ctx: PluginCliContext,
+    ): Promise<PluginCliResult> {
+      const cwd = requireCwd(ctx, "link");
+      const projectId = input.projectId.trim();
+      if (projectId.length === 0)
+        cliError("--project-id requires a value.", "invalid_project_id");
+      const env = input.env.trim();
+      if (env.length === 0) cliError("--env requires a value.", "invalid_env");
+      const existing = await readLinkedProject(cwd);
+      if (existing !== null && existing.workspaceId !== projectId) {
+        cliError(
+          `${cwd} is already linked to project ${existing.workspaceId}; remove ${PROJECT_FILE} to relink.`,
+          "already_linked",
+        );
+      }
+      const verify = await runInfisical({
+        args: [
+          "secrets",
+          "folders",
+          "get",
+          "--projectId",
+          projectId,
+          "--env",
+          env,
+          "--path",
+          "/",
+          "--output",
+          "json",
+          "--silent",
+        ],
+        cwd,
+        env: processEnv,
+        signal: ctx.signal,
+      });
+      if (verify.exitCode !== 0)
+        failFromInfisical("secrets folders get", verify, []);
+      const folders = parseFolderNames(verify.stdout);
+      const file = await writeLinkedProject(cwd, {
+        workspaceId: projectId,
+        defaultEnvironment: env,
+      });
+      return {
+        exitCode: 0,
+        stdout: `${JSON.stringify({ projectId, env, file, folders })}\n`,
+      };
     }
-    snapshot = await readSnapshot(bb, fileArgs);
-    assertNoDuplicateAssignments(snapshot.content, parsed.names);
-  }
-  cliError("Unreachable dotenv write state.", "unreachable_write_state");
+
+    async function run(
+      scope: Scope,
+      recursive: boolean,
+      command: readonly string[],
+      ctx: PluginCliContext,
+    ): Promise<PluginCliResult> {
+      const cwd = requireCwd(ctx, "run");
+      if (command.length === 0) {
+        cliError(
+          "bb secret run needs a command after --.",
+          "missing_command",
+          "Write bb secret run --env dev -- npm start.",
+        );
+      }
+      const result = await runInfisical({
+        args: [
+          "run",
+          ...scopeArgs(scope),
+          ...(recursive ? ["--recursive"] : []),
+          "--silent",
+          "--",
+          ...command,
+        ],
+        cwd,
+        env: processEnv,
+        signal: ctx.signal,
+      });
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      };
+    }
+
+    async function set(
+      input: {
+        names: readonly string[];
+        scope: Scope;
+        purpose: string | undefined;
+        describe: readonly string[];
+      },
+      ctx: PluginCliContext,
+    ): Promise<PluginCliResult> {
+      const names = input.names.map((name) =>
+        parseSecretName(name, "Secret name"),
+      );
+      if (new Set(names).size !== names.length)
+        cliError("Secret names must be unique.", "duplicate_variable_name");
+      const purpose = input.purpose?.trim();
+      if (purpose !== undefined && purpose.length === 0) {
+        cliError(
+          "--purpose requires a non-empty description.",
+          "invalid_purpose",
+          "Write --purpose 'why these credentials are needed'.",
+        );
+      }
+      const descriptions = parseDescriptions(input.describe, names);
+      if (!ctx.threadId)
+        cliError("bb secret set must run from a bb thread.", "missing_thread");
+      const cwd = requireCwd(ctx, "set");
+      const projectId = await resolveProject(cwd, input.scope.projectId);
+      if (projectId === null) {
+        cliError(
+          `No ${PROJECT_FILE} in ${cwd}; pass --project-id or run bb secret link.`,
+          "missing_project",
+        );
+      }
+      const scope: Scope = { ...input.scope, projectId };
+      const payload: InfisicalSecretRequestPayload = {
+        purpose: purpose ?? null,
+        destination: {
+          kind: "infisical",
+          project: projectId,
+          env: scope.env,
+          path: scope.path,
+        },
+        fields: names.map((name) => ({
+          name,
+          description: descriptions.get(name) ?? null,
+        })),
+      };
+      const scopeLabel = `${projectId} ${scope.env}${scope.path}`;
+      const result = await bb.ui.requestInput(
+        {
+          threadId: ctx.threadId,
+          rendererId: SECRET_REQUEST_RENDERER_ID,
+          title: "Add secrets to Infisical",
+          payload,
+          presentation: {
+            label: {
+              pending: clampToLength(
+                `Requesting ${names.join(", ")}`,
+                ROW_LABEL_MAX_LENGTH,
+              ),
+              completed: clampToLength(
+                `Requested ${names.join(", ")}`,
+                ROW_LABEL_MAX_LENGTH,
+              ),
+            },
+          },
+          describeSubmission: (value) => {
+            const response = secretRequestResponseSchema.safeParse(value);
+            const provided = response.success
+              ? Object.keys(response.data.values).sort()
+              : [];
+            return {
+              title: clampToLength(
+                `Provided ${provided.join(", ")}`,
+                ROW_TITLE_MAX_LENGTH,
+              ),
+              detail: [scopeLabel, ...provided.map((name) => `- ${name}`)].join(
+                "\n",
+              ),
+            };
+          },
+        },
+        { signal: ctx.signal },
+      );
+      if (result.outcome === "cancelled") {
+        cliError(
+          `Secret request cancelled (${result.reason}).`,
+          "secret_request_cancelled",
+        );
+      }
+      const response = secretRequestResponseSchema.parse(result.value);
+      const responseNames = Object.keys(response.values).sort();
+      if (responseNames.join("\0") !== [...names].sort().join("\0")) {
+        cliError(
+          "Secret response did not contain exactly the requested variables.",
+          "unexpected_secret_response",
+        );
+      }
+      const written = await withSecretFiles(response.values, (files) =>
+        runInfisical({
+          args: [
+            "secrets",
+            "set",
+            ...scopeArgs(scope),
+            "--silent",
+            ...names.map((name) => `${name}=@${files.get(name) ?? ""}`),
+          ],
+          cwd,
+          env: processEnv,
+          signal: ctx.signal,
+        }),
+      );
+      if (written.exitCode !== 0)
+        failFromInfisical("secrets set", written, names);
+      const statuses = classifyStatuses(written.stdout, names);
+      return {
+        exitCode: 0,
+        stdout: `${JSON.stringify({
+          project: projectId,
+          env: scope.env,
+          path: scope.path,
+          names,
+          ...statuses,
+        })}\n`,
+      };
+    }
+
+    async function passthrough(
+      args: readonly string[],
+      ctx: PluginCliContext,
+      command: string,
+    ): Promise<PluginCliResult> {
+      const cwd = requireCwd(ctx, command);
+      const result = await runInfisical({
+        args,
+        cwd,
+        env: processEnv,
+        signal: ctx.signal,
+      });
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      };
+    }
+
+    const cli = defineCli({
+      name: "secret",
+      summary:
+        "Use Infisical for every secret: status, link, run, set, ssh, pam.",
+      description:
+        "Wraps the infisical CLI on the server host. Values are never accepted on argv, never printed, and never kept in the transcript; the set form is typed by the user.",
+      commands: {
+        status: cliCommand({
+          summary:
+            "Report whether infisical is installed and authenticated and which project the working directory links to.",
+          options: jsonOption(),
+          run: (_input, ctx) => status(ctx).catch(rethrow),
+        }),
+        link: cliCommand({
+          summary:
+            "Link the working directory to an Infisical project by writing .infisical.json after a names-only verification read.",
+          options: {
+            "project-id": {
+              type: "string",
+              required: true,
+              placeholder: "ID",
+              description: "Infisical project id to link",
+            },
+            env: {
+              type: "string",
+              required: true,
+              placeholder: "ENV",
+              description:
+                "Environment slug used to verify access and stored as the link's default",
+            },
+            ...jsonOption(),
+          },
+          run: (input, ctx) =>
+            link(
+              {
+                projectId: input.options["project-id"],
+                env: input.options.env,
+              },
+              ctx,
+            ).catch(rethrow),
+        }),
+        run: cliCommand({
+          summary:
+            "Run a command with secrets injected as environment variables via infisical run.",
+          description:
+            "Everything after -- is the command. Output is the command's own output; secrets are never printed by bb.",
+          passthrough: true,
+          options: { ...scopeOptions(), ...recursiveOption() },
+          run: (input, ctx) =>
+            run(
+              parseScope(input.options),
+              input.options.recursive,
+              input.passthrough,
+              ctx,
+            ).catch(rethrow),
+        }),
+        set: cliCommand({
+          summary:
+            "Ask the user for secret values in a masked form and write them to Infisical.",
+          description:
+            "Batch every known name into one request. The form shows the project, environment, and folder path. Values travel from the form to infisical through 0600 temp files that are deleted immediately.",
+          positionals: [
+            {
+              name: "name",
+              description:
+                "Secret name (letters, digits, underscores; must not start with a digit); repeat for each secret",
+              required: true,
+              variadic: true,
+            },
+          ],
+          options: {
+            ...scopeOptions(),
+            purpose: {
+              type: "string",
+              placeholder: "TEXT",
+              aliases: ["reason", "why"],
+              description:
+                "One line telling the user why these credentials are needed",
+            },
+            describe: {
+              type: "string",
+              repeatable: true,
+              placeholder: "NAME=TEXT",
+              aliases: ["description", "describe-variable"],
+              description:
+                "Short description of one requested secret, written as NAME=TEXT or as the two-token form NAME TEXT; repeat per secret",
+            },
+            ...jsonOption(),
+          },
+          run: (input, ctx) =>
+            set(
+              {
+                names: input.positionals.name,
+                scope: parseScope(input.options),
+                purpose: input.options.purpose,
+                describe: input.options.describe,
+              },
+              ctx,
+            ).catch(rethrow),
+        }),
+        ssh: cliCommand({
+          summary:
+            "Issue SSH credentials for a host through infisical ssh connect.",
+          description:
+            "Interactive sessions need the host's TTY, which bb does not provide; use --out-file-path to issue credentials for your own ssh client. Extra infisical flags go after --.",
+          passthrough: true,
+          positionals: [
+            {
+              name: "host",
+              description: "Hostname of the SSH host",
+              required: true,
+            },
+          ],
+          options: {
+            "login-user": {
+              type: "string",
+              placeholder: "USER",
+              description: "Login user for the SSH connection",
+            },
+            "out-file-path": {
+              type: "string",
+              placeholder: "PATH",
+              description:
+                "Write the issued credentials there instead of opening an interactive session",
+            },
+          },
+          run: (input, ctx) =>
+            passthrough(
+              [
+                "ssh",
+                "connect",
+                "--hostname",
+                input.positionals.host,
+                ...(input.options["login-user"] === undefined
+                  ? []
+                  : ["--login-user", input.options["login-user"]]),
+                ...(input.options["out-file-path"] === undefined
+                  ? []
+                  : ["--out-file-path", input.options["out-file-path"]]),
+                ...input.passthrough,
+              ],
+              ctx,
+              "ssh",
+            ).catch(rethrow),
+        }),
+        pam: cliCommand({
+          summary:
+            "Open a PAM session for folder/account through infisical pam access.",
+          description:
+            "Interactive shells need the host's TTY, which bb does not provide; pass a command after -- to run it and exit.",
+          passthrough: true,
+          positionals: [
+            {
+              name: "target",
+              description: "PAM account path in the form folder/account-name",
+              required: true,
+            },
+          ],
+          options: {
+            duration: {
+              type: "string",
+              placeholder: "DURATION",
+              description: "Session duration such as 30m or 2h",
+            },
+            reason: {
+              type: "string",
+              placeholder: "TEXT",
+              description: "Reason for access, stored for audit",
+            },
+          },
+          run: (input, ctx) =>
+            passthrough(
+              [
+                "pam",
+                "access",
+                input.positionals.target,
+                ...(input.options.duration === undefined
+                  ? []
+                  : ["--duration", input.options.duration]),
+                ...(input.options.reason === undefined
+                  ? []
+                  : ["--reason", input.options.reason]),
+                ...(input.passthrough.length === 0
+                  ? []
+                  : ["--", ...input.passthrough]),
+              ],
+              ctx,
+              "pam",
+            ).catch(rethrow),
+        }),
+      },
+    });
+    bb.cli.register({
+      ...cli,
+      run: (argv, ctx) => cli.run(foldDescribePairs(argv), ctx),
+    });
+  };
 }
 
-export default function plugin(bb: BbPluginApi) {
-  const cli = defineCli({
-    name: "secret",
-    summary: "Securely request credentials and write them to a dotenv file.",
-    description:
-      "Values are typed by the user into a secure form; they never reach the agent, argv, or logs.",
-    commands: {
-      request: cliCommand({
-        summary: "Request one or more secrets in a secure user form.",
-        description:
-          "Batch every currently known variable into one request. Relative --write-env paths resolve from the CLI working directory; absolute paths may point anywhere on the thread's host.",
-        positionals: [
-          {
-            name: "name",
-            description:
-              "Environment variable to request (letters, digits, underscores; must not start with a digit); repeat for each variable",
-            required: true,
-            variadic: true,
-          },
-        ],
-        options: {
-          "write-env": {
-            type: "string",
-            required: true,
-            placeholder: "PATH",
-            aliases: ["env-file", "dotenv", "write-env-file"],
-            description:
-              "Dotenv file the values are written to, with mode 0600 and existing assignments preserved",
-          },
-          purpose: {
-            type: "string",
-            placeholder: "TEXT",
-            aliases: ["reason", "why"],
-            description:
-              "One line telling the user why these credentials are needed",
-          },
-          describe: {
-            type: "string",
-            repeatable: true,
-            placeholder: "NAME=TEXT",
-            aliases: ["description", "describe-variable"],
-            description:
-              "Short description of one requested variable, written as NAME=TEXT or as the two-token form NAME TEXT; repeat per variable",
-          },
-          json: {
-            type: "boolean",
-            description:
-              "Report failures as a JSON envelope on stdout; the success line is always JSON",
-          },
-        },
-        async run(input, ctx) {
-          const parsed = parseRequest({
-            names: input.positionals.name,
-            purpose: input.options.purpose,
-            describe: input.options.describe,
-            writeEnv: input.options["write-env"],
-          });
-          try {
-            return await runRequest(bb, parsed, ctx);
-          } catch (error) {
-            if (error instanceof PluginCliError) throw error;
-            throw new PluginCliError(
-              error instanceof Error ? error.message : String(error),
-            );
-          }
-        },
-      }),
-    },
-  });
-  bb.cli.register({
-    ...cli,
-    run: (argv, ctx) => cli.run(foldDescribePairs(argv), ctx),
-  });
+function parseFolderNames(stdout: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) =>
+      typeof entry === "object" &&
+      entry !== null &&
+      "folderName" in entry &&
+      typeof entry.folderName === "string"
+        ? [entry.folderName]
+        : [],
+    );
+  } catch {
+    return [];
+  }
 }
+
+export default createSecretsPlugin();
