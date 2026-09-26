@@ -1026,7 +1026,7 @@ describe("ThreadRow", () => {
         expect(text).toContain("Alpha thread");
         expect(text).toContain("Opus");
         expect(text).toContain("Medium");
-        expect(text).toContain("Codex");
+        expect(text).not.toContain("Codex");
         expect(text).toContain("feature/alpha");
         expect(text).not.toContain("BB");
         expect(card?.querySelector("[data-agent-mascot]")).toBeNull();
@@ -1065,7 +1065,7 @@ describe("ThreadRow", () => {
       }
     });
 
-    it("closes on scroll", () => {
+    it("closes on scroll and leaves nothing in the DOM", () => {
       vi.useFakeTimers();
       try {
         const { row } = renderHoverRow();
@@ -1078,6 +1078,25 @@ describe("ThreadRow", () => {
           fireEvent.scroll(row);
         });
         expect(hoverCard()).toBeNull();
+        expect(
+          document.querySelector("[data-radix-popper-content-wrapper]"),
+        ).toBeNull();
+        fireEvent.pointerLeave(row, { pointerType: "mouse" });
+        fireEvent.mouseLeave(row);
+        hover(row);
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS);
+        });
+        expect(hoverCard()?.textContent).toContain("Alpha thread");
+        fireEvent.pointerLeave(row, { pointerType: "mouse" });
+        fireEvent.mouseLeave(row);
+        act(() => {
+          vi.advanceTimersByTime(0);
+        });
+        expect(hoverCard()).toBeNull();
+        expect(
+          document.querySelector("[data-radix-popper-content-wrapper]"),
+        ).toBeNull();
       } finally {
         vi.useRealTimers();
       }

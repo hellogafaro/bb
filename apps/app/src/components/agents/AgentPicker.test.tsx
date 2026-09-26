@@ -102,7 +102,7 @@ describe("AgentPicker hover card", () => {
     const content = tooltip();
     expect(content).not.toBeNull();
     const footer = content?.querySelector("[data-agent-model-footer]");
-    expect(footer?.textContent).toBe("Default modelMediumCodex");
+    expect(footer?.textContent).toBe("Default modelMedium");
     expect(content?.textContent).not.toContain("BB");
     expect(content?.querySelector("[data-agent-mascot]")).toBeNull();
     expect(content?.textContent).not.toContain("MCP");

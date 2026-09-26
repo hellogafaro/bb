@@ -48,11 +48,6 @@ export function AgentModelFooter({
           </>
         )}
       </span>
-      {agent === null ? null : (
-        <span className="min-w-0 truncate text-subtle-foreground">
-          {providerName}
-        </span>
-      )}
       {children}
     </div>
   );

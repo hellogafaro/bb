@@ -183,7 +183,7 @@ export function SidebarThreadHoverCard({
           data-sidebar-thread-hover-card={thread.id}
           className={cn(HOVER_CARD_CONTENT_CLASS_NAME, "pointer-events-none")}
         >
-          {visible ? <SidebarThreadHoverCardBody thread={thread} /> : null}
+          <SidebarThreadHoverCardBody thread={thread} />
         </HoverCardContent>
       </HoverCard>
     </TriggerStateContext.Provider>
