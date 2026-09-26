@@ -1,10 +1,10 @@
-# Secure credential requests
+# Infisical secrets
 
-Status: **2026-09-05: 4 passed, 1 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
+Status: **not yet audited after the Infisical rewrite**. The rows below replace the dotenv recipes; run them against a disposable Infisical project and environment only.
 
 ## Setup and entry points
 
-bb secret request in a synthetic thread with a disposable dotenv file. Enter only dummy values; do not read real credentials into agent context.
+`bb secret` in a synthetic thread with a fake `infisical` binary on PATH or a disposable Infisical project. Enter only dummy values; never read real credentials into agent context. The plugin runs `infisical` on the server host from the invoking working directory.
 
 Use the main skill’s isolated targets and evidence rules. A plugin can be present
 in this checkout but disabled in an installation. Enable it only in the test
@@ -16,27 +16,26 @@ SKILL.md. Inspect nested `--help` before selecting flags and IDs.
 
 - `plugins/secrets/package.json`
 - `plugins/secrets/src/server.ts`
+- `plugins/secrets/src/infisical.ts`
 - `plugins/secrets/app.tsx`
+- `plugins/secrets/skills/secrets/references/cli.md`
 
 ## Feature recipes
 
 | Feature | Drive | Observable success |
 | --- | --- | --- |
-| Request and labels | Ask for a dummy variable with a purpose and target file; inspect the card. | User sees the exact requested variable/file/purpose and masked entry field. |
-| Reveal, submit, cancel | Toggle reveal on a dummy value, submit it, then cancel another request. | Only submission writes; transcript contains completion metadata and no entered value. |
-| Dotenv updates | Use fixtures with unrelated entries and request one dummy update; inspect file mode and known synthetic contents locally. | Target value updates with unrelated entries preserved and file permissions set to 0600. |
-| Revision conflict | Modify the fixture file between request and submission. | The first conflict rereads and reconciles unrelated entries, then retries once; a second conflict fails without applying the requested write. |
-| Validation | Try empty/multiline/oversize dummy values around the declared single-value boundary. | Invalid input fails visibly and does not write partial data or expose the attempted value in logs. |
+| Instruction | Start a thread and inspect the injected instructions. | The two-line Infisical router appears verbatim and points at the `secrets` skill. |
+| Status | Run `bb secret status` in linked and unlinked directories. | JSON reports installed, authenticated, auth method, linked project id, and `missing`; no email or token appears. |
+| Link | Run `bb secret link --project-id ID --env ENV` against the disposable project, then against a bad id. | Success writes `.infisical.json` with workspaceId and defaultEnvironment; failure writes nothing and forwards the infisical message. |
+| Run | Run `bb secret run --env ENV -- sh -c 'test -n "$DUMMY"'`. | The command sees the injected variable; bb prints only the command's own output. |
+| Set form and labels | Run `bb secret set DUMMY --env ENV --path /qa --purpose ...` and inspect the card. | The form shows project, environment, folder, purpose, and a masked field per name. |
+| Reveal, submit, cancel | Toggle reveal, submit a dummy value, then cancel another request. | Only submission calls infisical; transcript keeps names and scope, never the value; the temp directory is gone afterwards. |
+| Error redaction | Point the fake binary at a failing `secrets set` that echoes the value. | The forwarded error shows `NAME=[redacted]`. |
+| ssh and pam | Run `bb secret ssh HOST --out-file-path PATH` and `bb secret pam folder/account -- true` with the fake binary. | argv maps to `infisical ssh connect` and `infisical pam access`. |
 
 ## Evidence and cleanup
 
 Record each row’s UI/tool/CLI action and observed result separately. Inspect the
-registered plugin command and SDK call before claiming agent parity; do not
-invent a plugin CLI where the feature uses a core command instead. Preserve
-failed attempts and missing prerequisites as unverified results. Restore plugin
-configuration and remove only this run’s fixtures, registrations, and workers.
-External account changes use authorized disposable targets.
-
-## Maintenance notes
-
-- On the first optimistic write conflict, the plugin rereads and reconciles current dotenv, preserving intervening unrelated entries, then retries once. A second conflict fails without applying its write. Do not expect every first stale snapshot to be rejected. Source: `plugins/secrets/src/server.ts:230`.
+registered plugin command and SDK call before claiming agent parity. Preserve
+failed attempts and missing prerequisites as unverified results. Remove the
+disposable project link, dummy secrets, and any issued credential files.
