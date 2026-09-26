@@ -52,6 +52,33 @@ describe("bb thread list command output", () => {
     });
   });
 
+  it("bb thread list sends no archived filter by default", async () => {
+    const list = vi.fn(async () => []);
+    stubServerApi({ "v1.threads.$get": list });
+
+    await runCommand(["thread", "list"], register);
+
+    expect(list).toHaveBeenCalledWith({ query: {} });
+  });
+
+  it("bb thread list --archived asks the server for archived threads only", async () => {
+    const list = vi.fn(async () => []);
+    stubServerApi({ "v1.threads.$get": list });
+
+    await runCommand(["thread", "list", "--archived"], register);
+
+    expect(list).toHaveBeenCalledWith({ query: { archived: "true" } });
+  });
+
+  it("bb thread list --no-archived excludes archived threads", async () => {
+    const list = vi.fn(async () => []);
+    stubServerApi({ "v1.threads.$get": list });
+
+    await runCommand(["thread", "list", "--no-archived"], register);
+
+    expect(list).toHaveBeenCalledWith({ query: { archived: "false" } });
+  });
+
   it("bb thread list --snoozed asks the server for snoozed threads", async () => {
     const list = vi.fn(async () => [
       fixtures.makeThread({

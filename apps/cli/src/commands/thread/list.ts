@@ -35,6 +35,7 @@ export function registerListCommand(
     .option("--section <id>", "Filter by thread section ID")
     .option("--unsectioned", "Show only threads outside sections")
     .option("--archived", "Show only archived threads")
+    .option("--no-archived", "Exclude archived threads")
     .option("--snoozed", "Show only threads snoozed into the future")
     .option("--include-hidden", "Include hidden threads")
     .option("--json", "Print machine-readable JSON output")
@@ -64,7 +65,7 @@ export function registerListCommand(
           ...(projectId ? { projectId } : {}),
           ...(environmentId ? { environmentId } : {}),
           ...(parentThreadId ? { parentThreadId } : {}),
-          ...(opts.archived ? { archived: true } : {}),
+          ...(opts.archived === undefined ? {} : { archived: opts.archived }),
           ...(sectionId ? { sectionId } : {}),
           ...(opts.unsectioned ? { unsectioned: true } : {}),
           ...(opts.snoozed ? { snoozed: true } : {}),
