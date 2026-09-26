@@ -32,7 +32,7 @@ concurrency:
 jobs:
   macos:
     name: macOS arm64 desktop artifacts
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: macos-15
     timeout-minutes: 45
     outputs:
       has_signing_secrets: ${{ steps.signing.outputs.has_signing_secrets }}
@@ -104,7 +104,7 @@ jobs:
 
           HAS_SIGNING_SECRETS="false"
           if [[ "${#PRESENT_SECRET_NAMES[@]}" -eq 0 ]]; then
-            echo "::warning::macOS signing/notarization secrets are not configured; building unsigned macOS workflow artifacts that a publish run will withhold. Both version feeds and the Linux AppImage still publish."
+            echo "::warning::macOS signing/notarization secrets are not configured; building unsigned macOS artifacts. A publish run attaches them with an unsigned-build note."
           elif [[ "${#MISSING_SECRET_NAMES[@]}" -eq 0 ]]; then
             echo "macOS signing/notarization secrets are complete; signed and notarized artifacts will be produced."
             HAS_SIGNING_SECRETS="true"
@@ -148,7 +148,7 @@ jobs:
     # Pinned rather than ubuntu-latest so the glibc the AppImage links against
     # changes only when we choose it: the build machine's glibc sets the
     # minimum distro version users need.
-    runs-on: blacksmith-4vcpu-ubuntu-2204
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
 
     steps:
@@ -217,12 +217,41 @@ jobs:
             apps/desktop/release/desktop-version-linux.json
           if-no-files-found: error
 
+      - name: Build bb-app server
+        run: pnpm exec turbo run build --filter=bb-app --output-logs=new-only
+
+      - name: Pack bb-app server tarball
+        working-directory: packages/bb-app
+        run: |
+          set -euo pipefail
+
+          SERVER_DIR="$GITHUB_WORKSPACE/release-server"
+          mkdir -p "$SERVER_DIR"
+          npm pack --pack-destination "$SERVER_DIR"
+          cd "$SERVER_DIR"
+          TARBALL="bb-app-$(node -p "require('$GITHUB_WORKSPACE/packages/bb-app/package.json').version").tgz"
+          test -f "$TARBALL"
+          sha256sum "$TARBALL" > "$TARBALL.sha256"
+          cat "$TARBALL.sha256"
+
+      - name: Upload bb-app server tarball
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bb-app-server
+          path: |
+            release-server/bb-app-*.tgz
+            release-server/bb-app-*.tgz.sha256
+          if-no-files-found: error
+
+      - name: Smoke bb-app tarball
+        run: pnpm exec turbo run smoke:tarball --filter=bb-app --force --output-logs=new-only
+
   publish:
     name: Publish stable desktop release
     needs:
       - macos
       - linux
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write
@@ -253,20 +282,18 @@ jobs:
             SHOULD_PUBLISH="true"
           fi
 
-          # Linux AppImages have no notarization equivalent, so they publish on
-          # their own. Only the macOS binaries wait on the Apple secrets.
-          PUBLISH_MACOS_BINARIES="false"
+          MACOS_SIGNED="false"
           if [[ "$HAS_SIGNING_SECRETS" == "true" ]]; then
-            PUBLISH_MACOS_BINARIES="true"
+            MACOS_SIGNED="true"
           elif [[ "$SHOULD_PUBLISH" == "true" ]]; then
-            echo "::warning::macOS signing/notarization secrets are missing; publishing the version feeds and Linux AppImage only, and withholding unsigned .dmg/.zip artifacts."
+            echo "::warning::macOS signing/notarization secrets are missing; publishing unsigned macOS .dmg/.zip artifacts with an unsigned-build note."
           fi
 
           {
             echo "version=$VERSION"
             echo "is_prerelease=$IS_PRERELEASE"
             echo "should_publish=$SHOULD_PUBLISH"
-            echo "publish_macos_binaries=$PUBLISH_MACOS_BINARIES"
+            echo "macos_signed=$MACOS_SIGNED"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download macOS desktop artifacts
@@ -283,12 +310,19 @@ jobs:
           name: bb-desktop-linux-x64
           path: release/linux
 
+      - name: Download bb-app server tarball
+        if: steps.release_plan.outputs.should_publish == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bb-app-server
+          path: release/server
+
       - name: Publish stable desktop release feed
         if: steps.release_plan.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release_plan.outputs.version }}
-          PUBLISH_MACOS_BINARIES: ${{ steps.release_plan.outputs.publish_macos_binaries }}
+          MACOS_SIGNED: ${{ steps.release_plan.outputs.macos_signed }}
         run: |
           set -euo pipefail
 
@@ -296,6 +330,7 @@ jobs:
           LATEST_TAG="desktop-latest"
           MACOS_DIR="release/macos"
           LINUX_DIR="release/linux"
+          SERVER_DIR="release/server"
 
           RELEASE_ASSETS=()
 
@@ -326,14 +361,20 @@ jobs:
           add_required_glob "$LINUX_DIR"/*.AppImage
           # AppImage embeds its block map, so a sidecar file is not guaranteed.
           add_optional_glob "$LINUX_DIR"/*.blockmap
+          add_required_glob "$SERVER_DIR"/bb-app-*.tgz
+          add_required_glob "$SERVER_DIR"/bb-app-*.tgz.sha256
 
-          if [[ "$PUBLISH_MACOS_BINARIES" == "true" ]]; then
-            add_required_glob "$MACOS_DIR/latest-mac.yml"
-            add_required_glob "$MACOS_DIR"/*.dmg
-            add_required_glob "$MACOS_DIR"/*.zip
-            add_required_glob "$MACOS_DIR"/*.blockmap
-          else
-            echo "Signing/notarization gate is closed; publishing the macOS version feed without macOS binaries."
+          add_required_glob "$MACOS_DIR/latest-mac.yml"
+          add_required_glob "$MACOS_DIR"/*.dmg
+          add_required_glob "$MACOS_DIR"/*.zip
+          add_required_glob "$MACOS_DIR"/*.blockmap
+
+          VERSION_NOTES="bb desktop ${VERSION}"
+          LATEST_NOTES="Latest stable bb desktop release metadata."
+          if [[ "$MACOS_SIGNED" != "true" ]]; then
+            UNSIGNED_NOTE='macOS build is unsigned: right-click Open on first launch, or `xattr -d com.apple.quarantine <app>`; macOS auto-update will not work until builds are signed.'
+            VERSION_NOTES="${UNSIGNED_NOTE}"$'\n\n'"${VERSION_NOTES}"
+            LATEST_NOTES="${UNSIGNED_NOTE}"$'\n\n'"${LATEST_NOTES}"
           fi
 
           if gh release view "$VERSION_TAG" >/dev/null 2>&1; then
@@ -344,7 +385,7 @@ jobs:
           gh release create "$VERSION_TAG" "${RELEASE_ASSETS[@]}" \
             --target "$GITHUB_SHA" \
             --title "bb desktop ${VERSION}" \
-            --notes "bb desktop ${VERSION}" \
+            --notes "$VERSION_NOTES" \
             --latest
 
           git tag -f "$LATEST_TAG" "$GITHUB_SHA"
@@ -354,7 +395,7 @@ jobs:
             gh release edit "$LATEST_TAG" \
               --target "$GITHUB_SHA" \
               --title "bb desktop latest" \
-              --notes "Latest stable bb desktop release metadata." \
+              --notes "$LATEST_NOTES" \
               --latest=false
 
             # desktop-latest is a moving release, but --clobber only replaces
@@ -373,14 +414,15 @@ jobs:
             gh release create "$LATEST_TAG" "${RELEASE_ASSETS[@]}" \
               --target "$GITHUB_SHA" \
               --title "bb desktop latest" \
-              --notes "Latest stable bb desktop release metadata." \
+              --notes "$LATEST_NOTES" \
               --latest=false
           fi
 
       - name: Summarize
         env:
+          REPOSITORY: ${{ github.repository }}
           IS_PRERELEASE: ${{ steps.release_plan.outputs.is_prerelease }}
-          PUBLISH_MACOS_BINARIES: ${{ steps.release_plan.outputs.publish_macos_binaries }}
+          MACOS_SIGNED: ${{ steps.release_plan.outputs.macos_signed }}
           SHOULD_PUBLISH: ${{ steps.release_plan.outputs.should_publish }}
           VERSION: ${{ steps.release_plan.outputs.version }}
         run: |
@@ -389,10 +431,12 @@ jobs:
             echo
             echo "- arm64 macOS .dmg, .zip, latest-mac.yml, and desktop-version.json uploaded as workflow artifacts"
             echo "- x64 Linux .AppImage, latest-linux.yml, and desktop-version-linux.json uploaded as workflow artifacts"
+            echo "- bb-app server tarball and .sha256 uploaded as workflow artifacts"
             echo "- version: ${VERSION}"
             echo "- prerelease version: ${IS_PRERELEASE}"
             echo "- stable release publication requested and allowed: ${SHOULD_PUBLISH}"
-            echo "- macOS release binary upload enabled: ${PUBLISH_MACOS_BINARIES}"
-            echo "- macOS feed URL: https://github.com/get-bb/bb/releases/download/desktop-latest/desktop-version.json"
-            echo "- Linux feed URL: https://github.com/get-bb/bb/releases/download/desktop-latest/desktop-version-linux.json"
+            echo "- macOS binaries signed: ${MACOS_SIGNED}"
+            echo "- macOS feed URL: https://github.com/${REPOSITORY}/releases/download/desktop-latest/desktop-version.json"
+            echo "- Linux feed URL: https://github.com/${REPOSITORY}/releases/download/desktop-latest/desktop-version-linux.json"
+            echo "- Server tarball: https://github.com/${REPOSITORY}/releases/download/desktop-v${VERSION}/bb-app-${VERSION}.tgz"
           } >> "$GITHUB_STEP_SUMMARY"

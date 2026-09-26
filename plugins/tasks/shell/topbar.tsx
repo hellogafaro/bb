@@ -147,7 +147,7 @@ function RefreshTasksButton() {
             onClick={handleRefresh}
           >
             <Icon
-              name="RotateCcw"
+              name={isRefreshing ? "Spinner" : "RotateCcw"}
               className={cn("size-3.5", isRefreshing && "animate-spin")}
             />
           </Button>

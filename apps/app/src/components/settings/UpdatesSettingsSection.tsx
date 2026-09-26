@@ -397,7 +397,7 @@ function RowStateControl({
     >
       <Icon
         aria-hidden
-        name={icon}
+        name={spin ? "Loading" : icon}
         className={cn(
           "size-4",
           spin && "animate-spin",

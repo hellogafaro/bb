@@ -590,7 +590,6 @@ function AgentModelSection({
       secondaryReasoningLevel,
     ],
   );
-  const hasSecondary = draft.secondaryModel !== null;
   return (
     <SectionCard
       title="Model"
@@ -642,25 +641,7 @@ function AgentModelSection({
           />
         </div>
         <div className="flex items-center justify-between gap-4 pt-3">
-          <span className="flex min-w-0 items-center gap-2 text-sm">
-            Secondary model
-            {hasSecondary ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs text-muted-foreground"
-                onClick={() =>
-                  onChange({
-                    secondaryModel: null,
-                    secondaryReasoningLevel: null,
-                  })
-                }
-              >
-                Use primary
-              </Button>
-            ) : null}
-          </span>
+          <span className="shrink-0 text-sm">Secondary model</span>
           <ModelReasoningPicker
             modal={false}
             align="end"

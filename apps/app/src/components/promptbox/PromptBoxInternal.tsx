@@ -141,7 +141,6 @@ import {
   modifierSubmitShortcutAria,
 } from "./modifier-submit-shortcut";
 
-import { ComposerSendMenu } from "./ComposerSendMenu";
 
 const PROMPTBOX_MIN_HEIGHT = 24;
 const PROMPTBOX_SELECTION_REVEAL_MARGIN = 12;
@@ -241,7 +240,6 @@ export interface PromptBoxSubmissionConfig {
   onStop?: () => void;
   onModifierSubmit?: () => void;
   swapSubmitActions?: boolean;
-  showModifierSubmitAction?: boolean;
 }
 
 interface PromptSubmitButtonProps {
@@ -1249,7 +1247,6 @@ export function PromptBoxInternal({
     onStop,
     onModifierSubmit: onDefaultModifierSubmit,
     swapSubmitActions = false,
-    showModifierSubmitAction = false,
   } = submission;
   const draftSubmitAction = { onSubmit: onDefaultSubmit, requiresInput: true };
   const immediateSubmitAction = {
@@ -3444,46 +3441,31 @@ export function PromptBoxInternal({
                         <Icon name="Mic" className="size-4" />
                       </Button>
                     ) : (
-                      <ComposerSendMenu
-                        isPointerCoarse={isPointerCoarse}
-                        includePluginContributions={
-                          !suppressPluginComposerCustomizations
-                        }
-                        queue={swapSubmitActions}
-                        hasInput={hasSubmittableInput}
+                      <PromptSubmitButton
                         canSubmit={canSubmit}
-                        onSubmit={
-                          showModifierSubmitAction && onModifierSubmit
-                            ? submitModifierPrompt
+                        hasInput={hasSubmittableInput}
+                        icon={submitIcon}
+                        label={submitLabel}
+                        className={cn(
+                          showCompactLayout
+                            ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
+                            : COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
+                          "transition-colors",
+                        )}
+                        disabledReason={
+                          !canSubmit
+                            ? isAttaching
+                              ? attachmentUploadTitle
+                              : submitDisabledReason
                             : undefined
                         }
-                      >
-                        <PromptSubmitButton
-                          canSubmit={canSubmit}
-                          hasInput={hasSubmittableInput}
-                          icon={submitIcon}
-                          label={submitLabel}
-                          className={cn(
-                            showCompactLayout
-                              ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                              : COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
-                            "transition-colors",
-                          )}
-                          disabledReason={
-                            !canSubmit
-                              ? isAttaching
-                                ? attachmentUploadTitle
-                                : submitDisabledReason
-                              : undefined
-                          }
-                          isBusy={isSubmitting || isAttaching}
-                          isCompact={showCompactLayout}
-                          onPointerDown={handleSubmitPointerDown}
-                          onClick={handleSubmitClick}
-                          onTouchSubmit={handleTouchSubmit}
-                          title={effectiveSubmitTitle}
-                        />
-                      </ComposerSendMenu>
+                        isBusy={isSubmitting || isAttaching}
+                        isCompact={showCompactLayout}
+                        onPointerDown={handleSubmitPointerDown}
+                        onClick={handleSubmitClick}
+                        onTouchSubmit={handleTouchSubmit}
+                        title={effectiveSubmitTitle}
+                      />
                     )}
                   </div>
                 </ComposerActionsSlot>

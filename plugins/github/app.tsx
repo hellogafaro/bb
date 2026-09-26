@@ -26,6 +26,8 @@ import type { githubRpcContract } from "./server.js";
 import { toast } from "sonner";
 import { Badge } from "@bb/shared-ui/badge";
 import { Button } from "@bb/shared-ui/button";
+import { Icon } from "@bb/shared-ui/icon";
+import { cn } from "@bb/shared-ui/lib/utils";
 import { DelayedLoading } from "@bb/shared-ui/delayed-loading";
 import {
   DropdownMenu,
@@ -217,27 +219,6 @@ function ChevronDownIcon() {
   );
 }
 
-function RefreshIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 0 0-15.2-6.5L3 8" />
-      <path d="M3 3v5h5" />
-      <path d="M3 12a9 9 0 0 0 15.2 6.5L21 16" />
-      <path d="M16 16h5v5" />
-    </svg>
-  );
-}
 
 function stateDotClass(kind: "issue" | "pr", state: string): string {
   if (state === "OPEN") return "bg-green-500";
@@ -2023,7 +2004,11 @@ function PanelHeader() {
         onClick={refresh}
         aria-label={syncing ? "Syncing GitHub data" : "Refresh GitHub data"}
       >
-        <RefreshIcon className={syncing ? "animate-spin" : undefined} />
+        <Icon
+          name={syncing ? "Spinner" : "RotateCcw"}
+          className={cn("size-3.5", syncing && "animate-spin")}
+          aria-hidden="true"
+        />
         <span className="hidden sm:inline">
           {syncing ? "Syncing…" : "Refresh"}
         </span>

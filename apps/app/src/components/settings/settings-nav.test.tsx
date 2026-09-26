@@ -81,13 +81,7 @@ describe("useSettingsNavState", () => {
   });
 
   it("omits the fork-hidden sections and treats their routes as unknown", () => {
-    for (const section of [
-      "browser",
-      "marketplaces",
-      "community",
-      "updates",
-      "files",
-    ]) {
+    for (const section of ["browser", "marketplaces", "community", "files"]) {
       const { result } = renderHook(() => useSettingsNavState(), {
         wrapper: wrapperFor(`/settings/${section}`),
       });
@@ -96,6 +90,15 @@ describe("useSettingsNavState", () => {
         section,
       );
     }
+  });
+
+  it("keeps the Updates section visible", () => {
+    const { result } = renderHook(() => useSettingsNavState(), {
+      wrapper: wrapperFor("/settings/updates"),
+    });
+
+    expect(result.current.hasUnknownSection).toBe(false);
+    expect(result.current.activeSection).toBe("updates");
   });
 
   it("hides Files under the built-in file opener even when local helper access can be enabled", () => {

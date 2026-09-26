@@ -142,7 +142,7 @@ export function VoiceInputSettingsSectionContent({
               }
             >
               <Icon
-                name="RotateCcw"
+                name={isLoading ? "Spinner" : "RotateCcw"}
                 className={cn("size-3.5", isLoading && "animate-spin")}
               />
             </Button>

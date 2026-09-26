@@ -16,7 +16,7 @@ import {
   RiGitRepositoryLine,
   RiLayoutLeft2Line,
   RiLayoutRight2Line,
-  RiLoader4Line,
+  RiLoaderLine,
   RiMacbookLine,
   RiMicLine,
   RiMoreLine,
@@ -383,7 +383,7 @@ const GitMergeIcon = ({ className }: IconProps) => (
   <RiGitMergeLine className={className} />
 );
 const Spinner = ({ className }: IconProps) => (
-  <RiLoader4Line className={className} />
+  <RiLoaderLine className={className} />
 );
 const Maximize2 = ({ className }: IconProps) => (
   <RiExpandDiagonalLine className={className} />

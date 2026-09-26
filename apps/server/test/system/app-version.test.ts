@@ -43,11 +43,14 @@ function createStubFetch(
 }
 
 describe("createAppVersionService", () => {
-  it("skips the npm lookup in development mode", async () => {
+  it("skips the GitHub lookup in development mode", async () => {
     const calls: FetchCall[] = [];
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: true },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], calls),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        calls,
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -55,25 +58,30 @@ describe("createAppVersionService", () => {
       currentVersion: "0.0.5",
       isDevelopment: true,
       latestVersion: null,
-      source: "npm",
+      source: "github",
       updateAvailable: false,
-      upgradeCommand: "npx bb-app@latest",
+      upgradeCommand: "bb-reload",
     });
     expect(calls).toEqual([]);
   });
 
-  it("reports updateAvailable=true when npm latest is greater", async () => {
+  it("reports updateAvailable=true when GitHub latest is greater", async () => {
     const calls: FetchCall[] = [];
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], calls),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        calls,
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
     expect(response.latestVersion).toBe("0.0.6");
     expect(response.updateAvailable).toBe(true);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe("https://registry.npmjs.org/bb-app/latest");
+    expect(calls[0]?.url).toBe(
+      "https://api.github.com/repos/hellogafaro/bb/releases/latest",
+    );
   });
 
   it("checks the nightly dist-tag when running a nightly build", async () => {
@@ -124,7 +132,10 @@ describe("createAppVersionService", () => {
   it("reports updateAvailable=false when versions are equal", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.6", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -132,10 +143,13 @@ describe("createAppVersionService", () => {
     expect(response.updateAvailable).toBe(false);
   });
 
-  it("reports updateAvailable=false when local is ahead of npm latest", async () => {
+  it("reports updateAvailable=false when local is ahead of GitHub latest", async () => {
     const service = createAppVersionService({
       config: { appVersion: "9.9.9", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -143,7 +157,7 @@ describe("createAppVersionService", () => {
     expect(response.updateAvailable).toBe(false);
   });
 
-  it("returns latestVersion=null when npm fails and there is no cache", async () => {
+  it("returns latestVersion=null when GitHub fails and there is no cache", async () => {
     const warn = vi.fn();
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
@@ -158,14 +172,14 @@ describe("createAppVersionService", () => {
       currentVersion: "0.0.5",
       isDevelopment: false,
       latestVersion: null,
-      source: "npm",
+      source: "github",
       updateAvailable: false,
-      upgradeCommand: "npx bb-app@latest",
+      upgradeCommand: "bb-reload",
     });
     expect(warn).toHaveBeenCalled();
   });
 
-  it("returns latestVersion=null when npm returns a non-200 status", async () => {
+  it("returns latestVersion=null when GitHub returns a non-200 status", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch([{ ok: false, status: 429, body: {} }], []),
@@ -176,7 +190,7 @@ describe("createAppVersionService", () => {
     expect(response.updateAvailable).toBe(false);
   });
 
-  it("returns latestVersion=null when npm returns an unexpected payload", async () => {
+  it("returns latestVersion=null when GitHub returns an unexpected payload", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch([{ body: { unexpected: true } }], []),
@@ -189,7 +203,10 @@ describe("createAppVersionService", () => {
   it("returns latestVersion but updateAvailable=false when current version is not semver", async () => {
     const service = createAppVersionService({
       config: { appVersion: "totally-not-semver", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -197,12 +214,15 @@ describe("createAppVersionService", () => {
     expect(response.updateAvailable).toBe(false);
   });
 
-  it("caches the npm result and avoids repeat fetches inside the TTL", async () => {
+  it("caches the GitHub result and avoids repeat fetches inside the TTL", async () => {
     const calls: FetchCall[] = [];
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch(
-        [{ body: { version: "0.0.6" } }, { body: { version: "0.0.7" } }],
+        [
+          { body: { tag_name: "desktop-v0.0.6" } },
+          { body: { tag_name: "desktop-v0.0.7" } },
+        ],
         calls,
       ),
       logger: testLogger,
@@ -214,12 +234,15 @@ describe("createAppVersionService", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("bypasses the npm cache for a forced check", async () => {
+  it("bypasses the GitHub cache for a forced check", async () => {
     const calls: FetchCall[] = [];
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch(
-        [{ body: { version: "0.0.6" } }, { body: { version: "0.0.7" } }],
+        [
+          { body: { tag_name: "desktop-v0.0.6" } },
+          { body: { tag_name: "desktop-v0.0.7" } },
+        ],
         calls,
       ),
       logger: testLogger,
@@ -238,7 +261,10 @@ describe("createAppVersionService", () => {
       cacheTtlMs: 100,
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch(
-        [{ body: { version: "0.0.6" } }, { body: { version: "0.0.7" } }],
+        [
+          { body: { tag_name: "desktop-v0.0.6" } },
+          { body: { tag_name: "desktop-v0.0.7" } },
+        ],
         calls,
       ),
       logger: testLogger,
@@ -256,7 +282,10 @@ describe("createAppVersionService", () => {
     const calls: FetchCall[] = [];
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6" } }], calls),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6" } }],
+        calls,
+      ),
       logger: testLogger,
     });
     const [first, second] = await Promise.all([
@@ -276,8 +305,8 @@ describe("createAppVersionService", () => {
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch(
         [
-          { body: { version: "0.0.6" } },
-          { throwError: new Error("npm down later") },
+          { body: { tag_name: "desktop-v0.0.6" } },
+          { throwError: new Error("GitHub down later") },
         ],
         calls,
       ),
@@ -296,7 +325,10 @@ describe("createAppVersionService", () => {
   it("treats a published prerelease latest as an update when local is the stable predecessor", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.6-alpha.1" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.6-alpha.1" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -307,7 +339,10 @@ describe("createAppVersionService", () => {
   it("does not flag updateAvailable when local is the stable that follows a published prerelease", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.5-alpha.1" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.5-alpha.1" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -318,11 +353,25 @@ describe("createAppVersionService", () => {
   it("ignores semver build metadata when comparing equal versions", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ body: { version: "0.0.5+build.1" } }], []),
+      fetchImpl: createStubFetch(
+        [{ body: { tag_name: "desktop-v0.0.5+build.1" } }],
+        [],
+      ),
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
     expect(response.latestVersion).toBe("0.0.5+build.1");
+    expect(response.updateAvailable).toBe(false);
+  });
+
+  it("returns latestVersion=null when the latest release tag is not a desktop-v tag", async () => {
+    const service = createAppVersionService({
+      config: { appVersion: "0.0.5", isDevelopment: false },
+      fetchImpl: createStubFetch([{ body: { tag_name: "v0.0.6" } }], []),
+      logger: testLogger,
+    });
+    const response = await service.getSystemVersion();
+    expect(response.latestVersion).toBeNull();
     expect(response.updateAvailable).toBe(false);
   });
 });

@@ -58,10 +58,10 @@ const hosts: Host[] = [
 const version = {
   currentVersion: "0.0.32",
   latestVersion: "0.0.33",
-  source: "npm" as const,
+  source: "github" as const,
   updateAvailable: true,
   isDevelopment: false,
-  upgradeCommand: "npx bb-app@latest",
+  upgradeCommand: "bb-reload",
 };
 
 function providerStatus(args: {
@@ -134,7 +134,7 @@ describe("bb updates command output", () => {
     const output = collectLogPayloads(vi.mocked(console.log)).join("\n");
     expect(output).toContain("bb-app");
     expect(output).toContain("0.0.32 -> 0.0.33");
-    expect(output).toContain("Update available (run: npx bb-app@latest)");
+    expect(output).toContain("Update available (run: bb-reload)");
     expect(output).toContain("workstation · Codex");
     expect(output).toContain("0.140.0 -> 0.141.0");
     expect(output).toContain("workstation · Claude Code");

@@ -2,6 +2,7 @@ import {
   RiAddLine,
   RiArrowRightUpLine,
   RiGithubLine,
+  RiLoaderLine,
   RiMoreLine,
 } from "react-icons/ri";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -151,7 +152,10 @@ function StatusDot({ state }: { state: "online" | "offline" | "new" }) {
 
 function Spinner() {
   return (
-    <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-border border-t-subtle-foreground" />
+    <RiLoaderLine
+      className="h-3.5 w-3.5 shrink-0 animate-spin text-subtle-foreground"
+      aria-hidden="true"
+    />
   );
 }
 
