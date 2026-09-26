@@ -64,7 +64,11 @@ function seedThreadTarget(harness: TestAppHarness, path: string) {
     hostId: host.id,
     path,
   });
-  seedEnvironment(harness.deps, { hostId: host.id, projectId: project.id, path });
+  seedEnvironment(harness.deps, {
+    hostId: host.id,
+    projectId: project.id,
+    path,
+  });
   return { host, project };
 }
 
@@ -136,6 +140,10 @@ describe("agent routes", () => {
       );
       expect(list.agents.map((agent) => agent.id)).toEqual([created.id]);
 
+      const byHandle = await request(harness, "/agents/coder");
+      expect(agentResponseSchema.parse(await readJson(byHandle)).id).toBe(
+        created.id,
+      );
       const byName = await request(harness, "/agents/coder");
       expect(agentResponseSchema.parse(await readJson(byName)).id).toBe(
         created.id,
@@ -208,17 +216,19 @@ describe("agent routes", () => {
         method: "PATCH",
         body: { name: "Renamed" },
       });
-      expect(agentResponseSchema.parse(await readJson(renamed))).toMatchObject(
-        { mascot: hashed.mascot, color: hashed.color },
-      );
+      expect(agentResponseSchema.parse(await readJson(renamed))).toMatchObject({
+        mascot: hashed.mascot,
+        color: hashed.color,
+      });
 
       const updated = await request(harness, `/agents/${hashed.id}`, {
         method: "PATCH",
         body: { mascot: "dino", color: 8 },
       });
-      expect(agentResponseSchema.parse(await readJson(updated))).toMatchObject(
-        { mascot: "dino", color: 8 },
-      );
+      expect(agentResponseSchema.parse(await readJson(updated))).toMatchObject({
+        mascot: "dino",
+        color: 8,
+      });
     });
   });
 
@@ -256,10 +266,12 @@ describe("agent routes", () => {
         method: "PATCH",
         body: { providerId: "claude-code" },
       });
-      expect(agentResponseSchema.parse(await readJson(response))).toMatchObject({
-        providerId: "claude-code",
-        model: null,
-      });
+      expect(agentResponseSchema.parse(await readJson(response))).toMatchObject(
+        {
+          providerId: "claude-code",
+          model: null,
+        },
+      );
     });
   });
 

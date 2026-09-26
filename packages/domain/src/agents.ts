@@ -7,6 +7,14 @@ export const AGENT_INSTRUCTIONS_MAX_CHARS = 20_000;
 export const AGENT_PERMISSION_MODE = "full";
 export const DEFAULT_AGENT_NAME = "bb";
 
+export function agentHandle(name: string): string {
+  const handle = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+  return handle.length > 0 ? handle : "agent";
+}
+
 export const AGENT_MASCOTS = [
   "invader",
   "ghost",

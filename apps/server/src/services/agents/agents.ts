@@ -96,7 +96,15 @@ export function agentPermissionMode(
 }
 
 export function findAgentByRef(deps: AgentReadDeps, ref: string): Agent | null {
-  return getAgent(deps.db, ref) ?? getAgentByName(deps.db, ref);
+  const handle = ref.trim();
+  return (
+    getAgent(deps.db, handle) ??
+    getAgentByName(deps.db, handle) ??
+    listAgents(deps.db).find(
+      (agent) => agentHomeSlug(agent.name) === agentHomeSlug(handle),
+    ) ??
+    null
+  );
 }
 
 export function requireAgentByRef(deps: AgentReadDeps, ref: string): Agent {

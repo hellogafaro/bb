@@ -88,8 +88,8 @@ describe("bb agent commands", () => {
 
     expect(logLines()).toEqual([
       [
-        "BB  codex/default model  all skills  all MCPs  (default)",
-        "Coder  codex/gpt-5  2 skills  1 MCP",
+        "bb  BB  codex/default model  all skills  all MCPs  (default)",
+        "coder  Coder  codex/gpt-5  2 skills  1 MCP",
       ].join("\n"),
       "No agents. Try: bb agent create Coder",
     ]);
@@ -119,6 +119,7 @@ describe("bb agent commands", () => {
     expect(logLines()).toEqual([
       [
         "Agent: Coder",
+        "  Handle: coder",
         "  ID: agent_coder00001",
         "  Description: Writes code",
         "  Provider: codex",

@@ -66,16 +66,16 @@ cannot be deleted.
 Manage agents:
 
   bb agent list [--json]
-  bb agent show <agent> [--json]
-  bb agent home <agent> [--json]
+  bb agent show <handle> [--json]
+  bb agent home <handle> [--json]
   bb agent create <name> [--provider <id>] [--model <model>]
       [--reasoning <level>] [--skill <name>]... [--mcp <handle>]...
       [--description <text>] [--instructions <text> | --instructions-file <path>]
       [--mascot <name>] [--color <1-8>] [--json]
-  bb agent set <agent> <field> <value> [--json]
-  bb agent set <agent> <field> --clear [--json]
-  bb agent set <agent> instructions --instructions-file <path> [--json]
-  bb agent remove <agent> [--json]
+  bb agent set <handle> <field> <value> [--json]
+  bb agent set <handle> <field> --clear [--json]
+  bb agent set <handle> instructions --instructions-file <path> [--json]
+  bb agent remove <handle> [--json]
 
   create fills omitted fields from the default agent's provider and model,
   medium reasoning, all skills, and all MCPs. set fields are name,
@@ -89,7 +89,7 @@ Manage agents:
 
 Spawn as an agent:
 
-  bb thread spawn --project <id> --agent <agent> --prompt "..."
+  bb thread spawn --project <id> --agent <handle> --prompt "..."
 
   Omit --agent for the default agent. bb thread spawn rejects --provider,
   --model, --reasoning-level, and --permission-mode: pick an agent instead.
@@ -101,7 +101,7 @@ SDK and API:
   update({ agent, ...fields }), remove({ agent }); every agent carries
   homePath
   sdk.threads.spawn({ agent: "Coder", ... }) or { agentId }
-  REST: GET/POST /api/v1/agents, GET/PATCH/DELETE /api/v1/agents/<agent>
+  REST: GET/POST /api/v1/agents, GET/PATCH/DELETE /api/v1/agents/<handle>
   Realtime: `changed` messages with entity "agent" (agent-changed,
   agent-deleted).
 

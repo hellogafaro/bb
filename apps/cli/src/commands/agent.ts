@@ -5,6 +5,7 @@ import {
   AGENT_MASCOTS,
   agentMascotSchema,
   type AgentMascot,
+  agentHandle,
 } from "@bb/domain";
 import { action } from "../action.js";
 import { CliUsageError } from "../cli-usage-error.js";
@@ -104,6 +105,7 @@ function describeModel(agent: AgentResult): string {
 
 function formatAgentRow(agent: AgentResult, isDefault: boolean): string {
   return [
+    agentHandle(agent.name),
     agent.name,
     describeModel(agent),
     describeList(agent.skills, "skills"),
@@ -117,6 +119,7 @@ function formatAgentRow(agent: AgentResult, isDefault: boolean): string {
 function formatAgent(agent: AgentResult, isDefault: boolean): string {
   return [
     `Agent: ${agent.name}${isDefault ? " (default)" : ""}`,
+    `  Handle: ${agentHandle(agent.name)}`,
     `  ID: ${agent.id}`,
     agent.description ? `  Description: ${agent.description}` : null,
     `  Provider: ${agent.providerId}`,
@@ -263,7 +266,7 @@ export function registerAgentCommands(
     );
 
   agent
-    .command("show <agent>")
+    .command("show <handle>")
     .description("Show one agent by name or ID")
     .option("--json", "Print machine-readable JSON output")
     .action(
@@ -276,7 +279,7 @@ export function registerAgentCommands(
     );
 
   agent
-    .command("home <agent>")
+    .command("home <handle>")
     .description(
       "Print the agent's home folder: persistent notes, scripts, and private skills (<home>/skills) shared by its threads",
     )
@@ -368,7 +371,7 @@ export function registerAgentCommands(
     );
 
   agent
-    .command("set <agent> <field> [value]")
+    .command("set <handle> <field> [value]")
     .description(
       `Change one field: ${AGENT_FIELDS.join(", ")}. Skills and mcp take comma lists; mascot takes ${AGENT_MASCOTS.join("|")}; color takes 1-${AGENT_COLOR_COUNT}; --clear resets model, skills, mcp, description, or instructions`,
     )
@@ -399,7 +402,7 @@ export function registerAgentCommands(
     );
 
   agent
-    .command("remove <agent>")
+    .command("remove <handle>")
     .alias("rm")
     .description(
       "Delete an agent; its threads fall back to the default agent. The last agent cannot be deleted",

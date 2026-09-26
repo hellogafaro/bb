@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { Agent } from "@bb/domain";
+import { agentHandle, type Agent } from "@bb/domain";
 import type { ServerLogger } from "../../types.js";
 
 const exec = promisify(execFile);
@@ -11,7 +11,6 @@ const AGENT_HOMES_DIR_NAME = "agents";
 const DELETED_DIR_NAME = ".deleted";
 const AGENT_SKILLS_DIR_NAME = "skills";
 const GITIGNORE_CONTENT = `${DELETED_DIR_NAME}/\n`;
-const FALLBACK_SLUG = "agent";
 const DEFAULT_GIT_NAME = "BB";
 const DEFAULT_GIT_EMAIL = "bb@localhost";
 
@@ -23,11 +22,7 @@ export function agentHomesRootPath(dataDir: string): string {
 }
 
 export function agentHomeSlug(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "");
-  return slug.length > 0 ? slug : FALLBACK_SLUG;
+  return agentHandle(name);
 }
 
 export function agentHomePath(
