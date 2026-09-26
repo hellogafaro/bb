@@ -119,6 +119,15 @@ When targeting a non-default running instance, pass the same `--data-dir` and
 `--server-port` to `bb-app config` or `bb-app env` commands so they write the
 right file and refresh the right server.
 
+## Update Check
+
+The server compares its version with the latest GitHub release of
+`hellogafaro/bb` (tag `desktop-v<version>`) and caches the result for an hour.
+Settings → Updates and `bb updates` show the result with the upgrade command
+`bb-reload`. The repository is private, so set `GITHUB_TOKEN` or `GH_TOKEN` in
+the server environment to a token that can read its releases. Without one the
+check logs a warning and reports no newer version.
+
 ## Stopping A Running bb
 
 A running `bb-app start` writes `<dataDir>/bb-app-runtime.json` and removes the

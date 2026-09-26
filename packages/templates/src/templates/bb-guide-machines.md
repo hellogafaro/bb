@@ -125,8 +125,8 @@ install/update, one at a time
 --json Print per-target results as JSON
 
 `bb updates apply` covers provider CLIs only. Update bb-app itself with the
-printed upgrade command (`npx bb-app@latest`) or the desktop app's relaunch;
-connected daemons then follow the server version automatically.
+printed upgrade command (`bb-reload` on the server) or the desktop app's
+relaunch; connected daemons then follow the server version automatically.
 
 Machine selectors accept either an exact machine ID or an unambiguous machine
 name. `--host` is an alias for `--machine`.

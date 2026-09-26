@@ -1,16 +1,19 @@
 import semver from "semver";
 import { z } from "zod";
+import {
+  FORK_LATEST_RELEASE_API_URL,
+  FORK_RELEASE_TAG_PREFIX,
+} from "@bb/domain/fork-release";
 import type { SystemVersionResponse } from "@bb/server-contract";
 import type { ServerLogger, ServerRuntimeConfig } from "../../types.js";
 
-const NPM_LATEST_URL = "https://registry.npmjs.org/bb-app/latest";
-const NPM_LATEST_TIMEOUT_MS = 5_000;
-const NPM_LATEST_CACHE_TTL_MS = 60 * 60 * 1000;
-const UPGRADE_COMMAND = "npx bb-app@latest";
+const LATEST_RELEASE_TIMEOUT_MS = 5_000;
+const LATEST_RELEASE_CACHE_TTL_MS = 60 * 60 * 1000;
+const UPGRADE_COMMAND = "bb-reload";
 
-const npmLatestResponseSchema = z
+const latestReleaseResponseSchema = z
   .object({
-    version: z.string().min(1),
+    tag_name: z.string().min(1),
   })
   .passthrough();
 
@@ -27,12 +30,13 @@ interface AppVersionGetSystemVersionArgs {
 interface CreateAppVersionServiceArgs {
   config: Pick<ServerRuntimeConfig, "appVersion" | "isDevelopment">;
   fetchImpl?: typeof fetch;
+  githubToken: string | null;
   logger: ServerLogger;
   cacheTtlMs?: number;
   now?: () => number;
 }
 
-interface NpmLatestCacheEntry {
+interface LatestReleaseCacheEntry {
   cachedAt: number;
   latestVersion: string;
 }
@@ -41,47 +45,70 @@ export function createAppVersionService(
   args: CreateAppVersionServiceArgs,
 ): AppVersionService {
   const fetchImpl = args.fetchImpl ?? fetch;
-  const cacheTtlMs = args.cacheTtlMs ?? NPM_LATEST_CACHE_TTL_MS;
+  const cacheTtlMs = args.cacheTtlMs ?? LATEST_RELEASE_CACHE_TTL_MS;
   const now = args.now ?? (() => Date.now());
   const logger = args.logger;
   const config = args.config;
+  const githubToken = args.githubToken;
 
-  let cache: NpmLatestCacheEntry | null = null;
+  let cache: LatestReleaseCacheEntry | null = null;
   let inflight: Promise<string | null> | null = null;
 
-  async function fetchNpmLatest(): Promise<string | null> {
+  async function fetchLatestRelease(): Promise<string | null> {
     const controller = new AbortController();
     const timeoutHandle = setTimeout(
       () => controller.abort(),
-      NPM_LATEST_TIMEOUT_MS,
+      LATEST_RELEASE_TIMEOUT_MS,
     );
+    const authenticated = githubToken !== null;
     try {
-      const response = await fetchImpl(NPM_LATEST_URL, {
-        headers: { accept: "application/json" },
+      const response = await fetchImpl(FORK_LATEST_RELEASE_API_URL, {
+        headers: {
+          accept: "application/vnd.github+json",
+          "user-agent": "bb-app",
+          "x-github-api-version": "2022-11-28",
+          ...(githubToken === null
+            ? {}
+            : { authorization: `Bearer ${githubToken}` }),
+        },
         signal: controller.signal,
       });
       if (!response.ok) {
         logger.warn(
-          { status: response.status, url: NPM_LATEST_URL },
-          "Failed to fetch latest bb-app version from npm",
+          {
+            status: response.status,
+            url: FORK_LATEST_RELEASE_API_URL,
+            authenticated,
+          },
+          authenticated
+            ? "Failed to fetch latest bb release from GitHub"
+            : "Failed to fetch latest bb release from GitHub; set GITHUB_TOKEN or GH_TOKEN if the release repository is private",
         );
         return null;
       }
       const json = await response.json();
-      const parsed = npmLatestResponseSchema.safeParse(json);
+      const parsed = latestReleaseResponseSchema.safeParse(json);
       if (!parsed.success) {
         logger.warn(
-          { url: NPM_LATEST_URL, issue: parsed.error.message },
-          "npm latest response did not match expected shape",
+          { url: FORK_LATEST_RELEASE_API_URL, issue: parsed.error.message },
+          "GitHub latest release response did not match expected shape",
         );
         return null;
       }
-      return parsed.data.version;
+      const tagName = parsed.data.tag_name;
+      if (!tagName.startsWith(FORK_RELEASE_TAG_PREFIX)) {
+        logger.warn(
+          { url: FORK_LATEST_RELEASE_API_URL, tagName },
+          "GitHub latest release tag is not a desktop-v<version> tag",
+        );
+        return null;
+      }
+      return tagName.slice(FORK_RELEASE_TAG_PREFIX.length);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.warn(
-        { url: NPM_LATEST_URL, error: message },
-        "npm latest lookup failed",
+        { url: FORK_LATEST_RELEASE_API_URL, error: message },
+        "GitHub latest release lookup failed",
       );
       return null;
     } finally {
@@ -104,7 +131,7 @@ export function createAppVersionService(
       return inflight;
     }
     const requestPromise = (async () => {
-      const result = await fetchNpmLatest();
+      const result = await fetchLatestRelease();
       if (result !== null) {
         cache = { cachedAt: now(), latestVersion: result };
       }
@@ -127,7 +154,7 @@ export function createAppVersionService(
       const baseResponse: SystemVersionResponse = {
         currentVersion: config.appVersion,
         latestVersion: null,
-        source: "npm",
+        source: "github",
         updateAvailable: false,
         isDevelopment: config.isDevelopment,
         upgradeCommand: UPGRADE_COMMAND,

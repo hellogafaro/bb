@@ -264,6 +264,7 @@ export async function createTestAppHarness(
     appVersionService ??
     createAppVersionService({
       config,
+      githubToken: null,
       logger,
     });
   const deps: ServerAppDeps = {

@@ -39,6 +39,11 @@
       "types": "./src/update-state.ts",
       "default": "./src/update-state.ts"
     },
+    "./fork-release": {
+      "source": "./src/fork-release.ts",
+      "types": "./src/fork-release.ts",
+      "default": "./src/fork-release.ts"
+    },
     "./plugin-cli": {
       "source": "./src/plugin-cli.ts",
       "types": "./src/plugin-cli.ts",
