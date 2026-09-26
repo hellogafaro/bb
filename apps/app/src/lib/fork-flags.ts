@@ -8,7 +8,6 @@ export const FORK_HIDDEN_SETTINGS_SECTIONS: readonly string[] = [
   "browser",
   "marketplaces",
   "community",
-  "updates",
   ...(FORK_BUILTIN_FILE_OPENER ? ["files"] : []),
 ];
 
