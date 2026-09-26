@@ -188,13 +188,33 @@ export function shouldGenerateThreadTitle(input: PromptInput[]): boolean {
   return countWords(text) >= MIN_TITLE_GENERATION_WORDS;
 }
 
+function toPlainProseTitle(value: string): string {
+  return value
+    .replace(/[`*_~"“”«»]/gu, "")
+    .replace(/\s*[(\[{][^)\]}]*[)\]}]/gu, "")
+    .replace(/(^|\s)[/@][\w.:-]+/gu, " ")
+    .replace(/\s*&\s*/gu, " and ")
+    .replace(/\s*[—–]+\s*|\s+-\s+|\s*:\s+|\s*;\s*/gu, ", ")
+    .replace(/\s*,\s*/gu, ", ")
+    .replace(/(, )+/gu, ", ")
+    .replace(/\s+/gu, " ")
+    .replace(/^[\s,.:;!?-]+|[\s,.:;!?-]+$/gu, "");
+}
+
+function capitalizeFirstLetter(value: string): string {
+  const first = value.match(/^\p{L}/u);
+  return first ? `${first[0].toLocaleUpperCase()}${value.slice(first[0].length)}` : value;
+}
+
 export function sanitizeGeneratedTitle(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/gu, " ");
+  const normalized = toPlainProseTitle(value.trim().replace(/\s+/gu, " "));
   const title = truncateToWidthAtWordBoundary(
     normalized,
     MAX_GENERATED_TITLE_WIDTH,
-  ).trim();
-  return title.length > 0 ? title : null;
+  )
+    .trim()
+    .replace(/[\s,.:;!?-]+$/u, "");
+  return title.length > 0 ? capitalizeFirstLetter(title) : null;
 }
 
 export function sanitizeGeneratedBranchSlug(value: string): string | null {

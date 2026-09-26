@@ -131,8 +131,27 @@ describe("thread title generation", () => {
     expect(sanitizeGeneratedTitle("A".repeat(120))).toBe("A".repeat(60));
   });
 
+  it("flattens generated titles into plain prose", () => {
+    expect(
+      sanitizeGeneratedTitle("Phase K: Simplify the Customize page (MCPs)"),
+    ).toBe("Phase K, Simplify the Customize page");
+    expect(sanitizeGeneratedTitle("/deslop cleanup — sidebar & inbox")).toBe(
+      "Cleanup, sidebar and inbox",
+    );
+    expect(
+      sanitizeGeneratedTitle("@sidekick: log time for `Acme` [urgent]."),
+    ).toBe("Log time for Acme");
+    expect(sanitizeGeneratedTitle("“Fix login” – Safari; OAuth redirect")).toBe(
+      "Fix login, Safari, OAuth redirect",
+    );
+    expect(sanitizeGeneratedTitle("update the docs/cli-guide page")).toBe(
+      "Update the docs/cli-guide page",
+    );
+  });
+
   it("returns null for empty generated titles", () => {
     expect(sanitizeGeneratedTitle("   ")).toBeNull();
+    expect(sanitizeGeneratedTitle("/deslop (all)")).toBeNull();
   });
 
   it("generates titles for invoked skills regardless of prompt length", () => {
