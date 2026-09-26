@@ -15,7 +15,6 @@ const DEFAULT_GIT_NAME = "BB";
 const DEFAULT_GIT_EMAIL = "bb@localhost";
 
 export const AGENT_HOME_ENV_NAME = "BB_AGENT_HOME";
-export const AGENT_HOME_INSTRUCTION = `Your home folder is $${AGENT_HOME_ENV_NAME}. Keep your notes, inventories, scripts, and reference files there; it persists across threads and projects.`;
 
 export function agentHomesRootPath(dataDir: string): string {
   return path.join(dataDir, AGENT_HOMES_DIR_NAME);

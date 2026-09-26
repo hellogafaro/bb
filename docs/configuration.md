@@ -1469,8 +1469,9 @@ introduction and skills; other plugins and independently installed skill
 copies retain their own configuration.
 
 Connect's `sendRemoteInstructions` setting ("Tell agents about remote access")
-defaults to true. When false it suppresses Connect's active/recent remote-use
-message without disabling sharing.
+defaults to true. While the server is paired it adds one fixed sentence to
+agent instructions telling agents to share servers through `bb connect expose`.
+When false it suppresses that sentence without disabling sharing.
 
 Use `bb plugin config <id> set <key> true|false` or the SDK's
 `plugins.updateSettings({ pluginId, values })`. These settings apply when

@@ -40,5 +40,6 @@ Settings → Installed plugins → Connect has a "Tell agents about remote acces
 toggle, enabled by default. Use
 `bb plugin config connect set sendRemoteInstructions false` to suppress the
 remote-access message, or `true` to restore it. This controls only the message;
-sharing still works. The message otherwise requires active or recent remote
-usage. Changes apply when session instructions are next assembled.
+sharing still works. The message is one fixed sentence, present whenever the
+server is paired, so agent instructions stay stable across turns. Changes apply
+when session instructions are next assembled.

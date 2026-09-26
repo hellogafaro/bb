@@ -177,7 +177,7 @@ estimates in `providerDetails` when available. Provider inventory failures are
 reported; this is not billing/invoice data. Suspension requires idle live threads
 and no open terminals; empty machines can use an opted-in provider idle policy.
 
-`bb thread context` reads recorded context usage without sending a model request. A breakdown is optional; absent usage is returned as `null`.
+`bb thread context` reads recorded context usage without sending a model request. A breakdown is optional; absent usage is returned as `null`. `--instructions` adds the assembled BB instruction text with per-group character and estimated token counts, injected skill roots, dynamic tool names, and contributed env names.
 
 `bb machine reconcile <id-or-name> [--json]` asks core to enforce its recorded
 suspended state through the provider and waits for completion. It leaves active

@@ -8,7 +8,7 @@ type ConnectedSource = Pick<
 export const INSTRUCTIONS_MAX_CHARS = 4096;
 export const GUIDE_MAX_CHARS = 600;
 const DESCRIPTION_MAX_CHARS = 160;
-const TRAILER =
+export const MCP_TOOLS_GUIDANCE =
   "Use mcp_search to find tools on connected MCPs, then mcp_call.";
 
 function clip(text: string, max: number): string {
@@ -74,7 +74,6 @@ export function connectedInstructions(
         ? [`  <more count="${listed.length - count}" />`]
         : []),
       "</connected_mcps>",
-      TRAILER,
     ].join("\n");
   let text = render(0);
   for (let count = 1; count <= listed.length; count += 1) {

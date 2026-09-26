@@ -1233,7 +1233,7 @@ describe("thread runtime config", () => {
     });
   });
 
-  it("keeps local-host workspace .bb/AGENTS.md instructions unchanged", async () => {
+  it("leaves the local-host workspace .bb/AGENTS.md to the provider", async () => {
     await withTestHarness(async (harness) => {
       const hostId = "host-runtime-agents-md";
       seedHostSession(harness.deps, { id: hostId });
@@ -1280,16 +1280,14 @@ describe("thread runtime config", () => {
       expect(runtimeConfig.instructions).not.toContain(
         "You are working inside bb, an agentic IDE",
       );
-      expect(runtimeConfig.instructions).toContain(
-        "The following workspace instructions come from .bb/AGENTS.md:",
-      );
-      expect(runtimeConfig.instructions).toContain(
+      expect(runtimeConfig.instructions).not.toContain(".bb/AGENTS.md");
+      expect(runtimeConfig.instructions).not.toContain(
         "Always run the smoke test before pushing.",
       );
     });
   });
 
-  it("reads workspace .bb/AGENTS.md from a non-primary host", async () => {
+  it("does not read the workspace .bb/AGENTS.md from a non-primary host", async () => {
     await withTestHarness(async (harness) => {
       const { host: primary } = seedHostSession(harness.deps, {
         id: "host-runtime-agents-primary",
@@ -1340,20 +1338,14 @@ describe("thread runtime config", () => {
         },
       );
 
-      expect(runtimeConfig.instructions).toContain(
-        "# Remote Rules\n\nRead me from the remote daemon.",
-      );
-      expect(responder.requests).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            command: expect.objectContaining({
-              type: "host.read_file",
-              path: agentInstructionsPath,
-              rootPath: workspacePath,
-            }),
-          }),
-        ]),
-      );
+      expect(runtimeConfig.instructions).not.toContain("Remote Rules");
+      expect(
+        responder.requests.filter(
+          (request) =>
+            request.command.type === "host.read_file" &&
+            request.command.path === agentInstructionsPath,
+        ),
+      ).toEqual([]);
     });
   });
 
@@ -1394,9 +1386,7 @@ describe("thread runtime config", () => {
         { thread, environment, model: "test-model" },
       );
 
-      expect(runtimeConfig.instructions).not.toContain(
-        "The following workspace instructions come from .bb/AGENTS.md:",
-      );
+      expect(runtimeConfig.instructions).not.toContain(".bb/AGENTS.md");
     });
   });
 
@@ -1551,7 +1541,7 @@ describe("thread runtime config", () => {
     );
   });
 
-  it("appends data-dir AGENTS.md instructions before workspace instructions", async () => {
+  it("wraps data-dir AGENTS.md in bb_rules and skips the workspace file", async () => {
     await withTestHarness(async (harness) => {
       const hostId = "host-runtime-data-dir-agents-md";
       seedHostSession(harness.deps, { id: hostId });
@@ -1597,20 +1587,15 @@ describe("thread runtime config", () => {
         },
       );
 
-      const userSource =
-        "The following user instructions come from <dataDir>/AGENTS.md:";
-      const workspaceSource =
-        "The following workspace instructions come from .bb/AGENTS.md:";
-      expect(runtimeConfig.instructions).toContain(userSource);
       expect(runtimeConfig.instructions).toContain(
-        "Prefer concise progress updates.",
+        '<bb_rules source="<dataDir>/AGENTS.md">\n# User Rules\n\nPrefer concise progress updates.\n</bb_rules>',
       );
-      expect(runtimeConfig.instructions).toContain(workspaceSource);
-      expect(runtimeConfig.instructions).toContain(
+      expect(runtimeConfig.instructions).not.toContain(".bb/AGENTS.md");
+      expect(runtimeConfig.instructions).not.toContain(
         "Always run the smoke test before pushing.",
       );
-      expect(runtimeConfig.instructions.indexOf(userSource)).toBeLessThan(
-        runtimeConfig.instructions.indexOf(workspaceSource),
+      expect(runtimeConfig.instructions).not.toContain(
+        "The following user instructions come from",
       );
     });
   });
@@ -1646,7 +1631,7 @@ describe("thread runtime config", () => {
       });
     }
 
-    it("appends attributed plugin instructions after tool snippets and before data-dir instructions", async () => {
+    it("groups plugin tool and instruction contributions before data-dir rules", async () => {
       await withTestHarness(async (harness) => {
         const hostId = "host-runtime-plugin-instr";
         seedHostSession(harness.deps, { id: hostId });
@@ -1709,14 +1694,14 @@ describe("thread runtime config", () => {
         );
 
         const toolHeader =
-          'The following instructions come from the BB plugin "tooldemo" for its tool "demo_lookup":';
-        const pluginHeader =
-          'The following instructions come from the BB plugin "connect":';
-        const dataDirHeader =
-          "The following user instructions come from <dataDir>/AGENTS.md:";
+          '<tool plugin="tooldemo" name="demo_lookup">\nCall demo_lookup before guessing.\n</tool>';
+        const pluginHeader = '<bb_plugin id="connect">';
+        const dataDirHeader = '<bb_rules source="<dataDir>/AGENTS.md">';
         const instructions = runtimeConfig.instructions;
         expect(instructions).toContain(toolHeader);
-        expect(instructions).toContain("Call demo_lookup before guessing.");
+        expect(instructions.indexOf("<bb_tools>")).toBeLessThan(
+          instructions.indexOf(toolHeader),
+        );
         expect(instructions).toContain(pluginHeader);
         expect(instructions).toContain(
           `Remote session for ${thread.id} in ${project.id}`,
@@ -1792,21 +1777,11 @@ describe("thread runtime config", () => {
         );
 
         const instructions = runtimeConfig.instructions;
-        expect(instructions).not.toContain(
-          'The following instructions come from the BB plugin "nuller":',
-        );
-        expect(instructions).not.toContain(
-          'The following instructions come from the BB plugin "blank":',
-        );
-        expect(instructions).not.toContain(
-          'The following instructions come from the BB plugin "boom":',
-        );
-        expect(instructions).toContain(
-          'The following instructions come from the BB plugin "verbose":',
-        );
-        expect(instructions).toContain(
-          'The following instructions come from the BB plugin "ok":',
-        );
+        expect(instructions).not.toContain('<bb_plugin id="nuller">');
+        expect(instructions).not.toContain('<bb_plugin id="blank">');
+        expect(instructions).not.toContain('<bb_plugin id="boom">');
+        expect(instructions).toContain('<bb_plugin id="verbose">');
+        expect(instructions).toContain('<bb_plugin id="ok">');
         expect(instructions).toContain("still contributes");
         expect(instructions).not.toContain(longBody);
         expect(instructions).toContain("x".repeat(4096));

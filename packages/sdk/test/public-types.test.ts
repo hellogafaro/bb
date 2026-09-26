@@ -389,6 +389,7 @@ type ExpectedThreadsKey =
   | "getPluginMetadata"
   | "updatePluginMetadata"
   | "context"
+  | "contextInstructions"
   | "archive"
   | "archiveAll"
   | "cancelPlan"

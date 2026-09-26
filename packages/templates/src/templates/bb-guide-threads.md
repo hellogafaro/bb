@@ -191,7 +191,7 @@ Sections:
 
 Inspecting:
 
-  bb thread context [id]                   Show recorded context usage and available breakdown (--self, --json)
+  bb thread context [id]                   Show recorded context usage and available breakdown (--self, --instructions, --json)
   bb thread show [id]                      Show thread details and pull request status
     --self                                 Target current thread
     --work-status                          Include git working-tree status
@@ -469,6 +469,19 @@ starting a provider request. Use `--self` for the current thread and `--json` fo
 breakdown after turns and compaction when its SDK supports context inspection.
 A later aggregate-only measurement replaces any older breakdown. Other providers
 continue to expose their available totals.
+
+`bb thread context [id] --instructions` prints the BB instruction text the
+thread's next turn appends to the provider's system prompt, exactly as sent,
+then a table of its XML groups (`bb_tools`, `connected_mcps`, `bb_plugin`,
+`bb_rules`, `bb_agent`, `bb_run`) with characters and estimated tokens
+(chars/4), the injected skill roots with file counts and bytes, the dynamic
+tool names, the contributed environment variable names (never values), and the
+recorded usage breakdown when one exists. `--json` returns the same fields plus
+`usage`. The workspace AGENTS.md is not part of this text: Claude Code and
+Codex read it natively from the working directory. The `bb_run` block marks an
+unattended thread and is keyed on the thread, not the turn: a thread with a
+parent thread or a plugin origin (automations, workflows, agent-spawned
+children) gets it; a root chat thread never does.
 
 Lifecycle ownership:
   spawn and fork accept --lifecycle-owner-thread <id>. SDK arguments use

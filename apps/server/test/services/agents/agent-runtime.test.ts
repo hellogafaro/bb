@@ -256,7 +256,7 @@ describe("thread runtime config from an agent", () => {
         getThreadPluginMetadata(harness.db, thread.id, "mcp").metadata,
       ).toEqual({ servers: ["notion"] });
       expect(config.instructions).toContain(
-        'The following instructions come from the BB agent "Writer":\n\nWrite in plain English.',
+        '<bb_agent name="Writer">\nWrite in plain English.\n</bb_agent>',
       );
     });
   });

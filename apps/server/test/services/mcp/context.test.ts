@@ -42,10 +42,8 @@ function render(store: McpStore, metadata: Record<string, unknown> = {}) {
   );
 }
 
-const TRAILER =
-  "Use mcp_search to find tools on connected MCPs, then mcp_call.";
 const block = (...lines: string[]) =>
-  ["<connected_mcps>", ...lines, "</connected_mcps>", TRAILER].join("\n");
+  ["<connected_mcps>", ...lines, "</connected_mcps>"].join("\n");
 
 describe("connected MCP instructions", () => {
   it("omits the section when no enabled server exists", () => {
@@ -97,8 +95,8 @@ describe("connected MCP instructions", () => {
     const shown = text.match(/<mcp handle="server\d\d"/g)!.length;
     expect(shown).toBeGreaterThan(0);
     expect(shown).toBeLessThan(80);
-    expect(text).toContain(
-      `  <more count="${80 - shown}" />\n</connected_mcps>\n${TRAILER}`,
+    expect(text.endsWith(`  <more count="${80 - shown}" />\n</connected_mcps>`)).toBe(
+      true,
     );
   });
 

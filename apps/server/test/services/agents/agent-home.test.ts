@@ -247,7 +247,7 @@ describe("agent home runtime injection", () => {
         }),
       );
       expect(config.instructions).toContain(
-        'The following instructions come from the BB agent "Dexter":\n\nBe precise.\n\nYour home folder is $BB_AGENT_HOME. Keep your notes, inventories, scripts, and reference files there; it persists across threads and projects.',
+        `<bb_agent name="Dexter" home="${path.join(root, "dexter")}">\nBe precise.\n</bb_agent>`,
       );
       expect(
         config.injectedSkillSources.map((source) => source.name).sort(),
@@ -310,6 +310,7 @@ describe("agent home runtime injection", () => {
         config.contributedEnv.some((entry) => entry.name === "BB_AGENT_HOME"),
       ).toBe(false);
       expect(config.instructions).not.toContain("BB_AGENT_HOME");
+      expect(config.instructions).not.toContain("<bb_agent");
     });
   });
 });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   contextSnapshotSchema,
+  instructionModeSchema,
   BRANCH_LIST_QUERY_MAX_LENGTH,
   changedMessageLenientSchema,
   changedMessageSchema,
@@ -43,6 +44,40 @@ export const threadContextResponseSchema = z.object({
   usage: threadContextWindowUsageSchema.nullable(),
 });
 export type ThreadContextResponse = z.infer<typeof threadContextResponseSchema>;
+
+export const threadContextInstructionGroupSchema = z.object({
+  tag: z.string().min(1),
+  chars: z.number().int().nonnegative(),
+  estimatedTokens: z.number().int().nonnegative(),
+});
+export type ThreadContextInstructionGroup = z.infer<
+  typeof threadContextInstructionGroupSchema
+>;
+
+export const threadContextInjectedSkillSchema = z.object({
+  name: z.string().min(1),
+  sourceType: z.string().min(1),
+  rootPath: z.string().min(1),
+  fileCount: z.number().int().nonnegative().nullable(),
+  bytes: z.number().int().nonnegative().nullable(),
+});
+export type ThreadContextInjectedSkill = z.infer<
+  typeof threadContextInjectedSkillSchema
+>;
+
+export const threadContextInstructionsResponseSchema = z.object({
+  instructionMode: instructionModeSchema,
+  instructions: z.string(),
+  chars: z.number().int().nonnegative(),
+  estimatedTokens: z.number().int().nonnegative(),
+  groups: z.array(threadContextInstructionGroupSchema),
+  skills: z.array(threadContextInjectedSkillSchema),
+  dynamicTools: z.array(z.string()),
+  contributedEnv: z.array(z.string()),
+});
+export type ThreadContextInstructionsResponse = z.infer<
+  typeof threadContextInstructionsResponseSchema
+>;
 
 export { gitBranchNameSchema };
 

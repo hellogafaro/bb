@@ -23,7 +23,7 @@ import {
   serverOwnPort,
 } from "./shares.js";
 import { CREDENTIAL_KV_KEY } from "./credential.js";
-import plugin from "./server.js";
+import plugin, { REMOTE_ACCESS_INSTRUCTIONS } from "./server.js";
 import { ConnectTunnel } from "./tunnel.js";
 import {
   DEFAULT_CONNECT_BASE_URL,
@@ -1406,7 +1406,7 @@ describe("connect plugin", () => {
     );
   });
 
-  it("toggles remote instructions while preserving active and recent usage conditions", async () => {
+  it("contributes one static remote-access sentence while paired, gated by the setting", async () => {
     const status: ConnectStatus = {
       state: "connected",
       paired: true,
@@ -1430,19 +1430,19 @@ describe("connect plugin", () => {
           threadId: "thr_test",
           projectId: "proj_test",
         });
-      expect(instructions()).toContain("bb connect expose");
+      expect(instructions()).toBe(REMOTE_ACCESS_INSTRUCTIONS);
+      expect(instructions()).not.toContain("https://test.getbb.app");
       await harness.behavior.setSettings({ sendRemoteInstructions: false });
       expect(instructions()).toBeNull();
       await harness.behavior.setSettings({ sendRemoteInstructions: true });
-      expect(instructions()).toContain("https://test.getbb.app");
-      statusSpy.mockReturnValue({ ...status, remoteClients: 0 });
-      expect(instructions()).toBeNull();
       statusSpy.mockReturnValue({
         ...status,
         remoteClients: 0,
-        lastRemoteActivityAt: Date.now(),
+        lastRemoteActivityAt: null,
       });
-      expect(instructions()).toContain("bb connect expose");
+      expect(instructions()).toBe(REMOTE_ACCESS_INSTRUCTIONS);
+      statusSpy.mockReturnValue({ ...status, paired: false, url: null });
+      expect(instructions()).toBeNull();
     } finally {
       statusSpy.mockRestore();
     }

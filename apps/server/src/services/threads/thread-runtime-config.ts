@@ -38,7 +38,7 @@ import { resolveSharedSkills } from "../skills/shared-skills.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL } from "./thread-environment-directory.js";
 import { mcpDynamicToolContributions } from "./mcp-tools.js";
 import { currentMcpService } from "../mcp/mcp-service-registry.js";
-import { threadServerSelection } from "../mcp/context.js";
+import { MCP_TOOLS_GUIDANCE, threadServerSelection } from "../mcp/context.js";
 import {
   DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH,
   WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
@@ -48,9 +48,17 @@ import {
 import { resolveDeprecatedWorkspaceProvisionType } from "../environments/environment-response.js";
 import {
   agentHomeEnvEntry,
-  agentInstructionSection,
   syncThreadAgentMcpScope,
 } from "../agents/agent-runtime.js";
+import { FORK_NATIVE_WORKSPACE_INSTRUCTIONS } from "../../fork-config.js";
+import {
+  buildInstructionGroups,
+  joinInstructionGroups,
+  resolveThreadRunMode,
+  type InstructionGroup,
+  type InstructionPluginContribution,
+  type InstructionRulesSource,
+} from "./instruction-sections.js";
 import { resolveThreadAgent } from "../agents/agents.js";
 import { agentSkillsRootPath, ensureAgentHome } from "../agents/agent-home.js";
 import { isServerMachineHost } from "../hosts/primary-host.js";
@@ -82,6 +90,7 @@ export interface ResolvedThreadRuntimeCommandConfig {
   contributedEnv: HostDaemonContributedEnvEntry[];
   dynamicTools: DynamicTool[];
   injectedSkillSources: HostDaemonInjectedSkillSource[];
+  instructionGroups: InstructionGroup[];
   instructionMode: InstructionMode;
   instructions: string;
   projectId: string;
@@ -168,10 +177,12 @@ export async function resolveThreadRuntimeCommandConfig(
         hostId: args.environment.hostId,
         cwd: workspacePath,
       }),
-      readWorkspaceAgentInstructions(deps, {
-        hostId: args.environment.hostId,
-        workspacePath,
-      }),
+      FORK_NATIVE_WORKSPACE_INSTRUCTIONS
+        ? null
+        : readWorkspaceAgentInstructions(deps, {
+            hostId: args.environment.hostId,
+            workspacePath,
+          }),
     ]);
   const pluginSkillRoots = getPluginSkillRootContributions();
   const skillIdsByPlugin = discoverPluginSkillIds(deps.logger, {
@@ -257,25 +268,14 @@ export async function resolveThreadRuntimeCommandConfig(
     deps.config.dataDir,
   );
   const mcpService = currentMcpService();
+  const includeMcpTools = mcpService?.hasEnabledServers() ?? false;
   const dynamicToolContributions = resolveDynamicTools(
     conditionalConfiguration.tools,
-    mcpService?.hasEnabledServers() ?? false,
+    includeMcpTools,
   );
   const dynamicTools = dynamicToolContributions.map(
     (contribution) => contribution.tool,
   );
-  const instructionSections: string[] = [];
-  for (const contribution of dynamicToolContributions) {
-    if (!contribution.instructions) continue;
-    if (contribution.pluginId === null) {
-      instructionSections.push(contribution.instructions);
-    } else {
-      instructionSections.push(
-        `The following instructions come from the BB plugin "${contribution.pluginId}" for its tool "${contribution.tool.name}":`,
-        contribution.instructions,
-      );
-    }
-  }
   syncThreadAgentMcpScope(deps, { agent, threadId: args.thread.id });
   const mcpInstructions = mcpService?.instructions(
     threadServerSelection(
@@ -283,9 +283,7 @@ export async function resolveThreadRuntimeCommandConfig(
         .metadata,
     ),
   );
-  if (mcpInstructions) {
-    instructionSections.push(mcpInstructions);
-  }
+  const pluginInstructions: InstructionPluginContribution[] = [];
   for (const contribution of listPluginInstructionContributions()) {
     let text: string | null;
     try {
@@ -308,35 +306,43 @@ export async function resolveThreadRuntimeCommandConfig(
     if (text.length > PLUGIN_INSTRUCTION_CONTRIBUTION_MAX_CHARS) {
       text = text.slice(0, PLUGIN_INSTRUCTION_CONTRIBUTION_MAX_CHARS);
     }
-    instructionSections.push(
-      `The following instructions come from the BB plugin "${contribution.pluginId}":`,
-      text,
-    );
+    pluginInstructions.push({ pluginId: contribution.pluginId, text });
   }
-  for (const contribution of conditionalConfiguration.dynamicInstructions) {
-    instructionSections.push(
-      `The following dynamic instructions come from the BB plugin "${contribution.pluginId}":`,
-      contribution.text,
-    );
-  }
+  const rules: InstructionRulesSource[] = [];
   if (dataDirAgentInstructions) {
-    instructionSections.push(
-      `The following user instructions come from <dataDir>/${DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH}:`,
-      dataDirAgentInstructions,
-    );
+    rules.push({
+      source: `<dataDir>/${DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH}`,
+      text: dataDirAgentInstructions,
+    });
   }
   if (workspaceAgentInstructions) {
-    instructionSections.push(
-      `The following workspace instructions come from ${WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH}:`,
-      workspaceAgentInstructions,
-    );
+    rules.push({
+      source: WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
+      text: workspaceAgentInstructions,
+    });
   }
-  if (agent !== null) {
-    instructionSections.push(
-      ...agentInstructionSection(agent, { hasHome: agentHomePath !== null }),
-    );
-  }
-  const instructions = instructionSections.join("\n\n");
+  const instructionGroups = buildInstructionGroups({
+    tools: dynamicToolContributions.map((contribution) => ({
+      pluginId: contribution.pluginId,
+      toolName: contribution.tool.name,
+      instructions: contribution.instructions,
+    })),
+    toolGuidance: includeMcpTools ? [MCP_TOOLS_GUIDANCE] : [],
+    connectedMcps: mcpInstructions ?? null,
+    pluginInstructions,
+    dynamicInstructions: conditionalConfiguration.dynamicInstructions,
+    rules,
+    agent:
+      agent === null
+        ? null
+        : {
+            name: agent.name,
+            instructions: agent.instructions,
+            homePath: agentHomePath,
+          },
+    runMode: resolveThreadRunMode(args.thread),
+  });
+  const instructions = joinInstructionGroups(instructionGroups);
   const threadStoragePath = await requireLiveThreadStoragePath(deps, {
     hostId: args.environment.hostId,
     threadId: args.thread.id,
@@ -345,6 +351,7 @@ export async function resolveThreadRuntimeCommandConfig(
     contributedEnv: runtimeEnv,
     dynamicTools,
     injectedSkillSources,
+    instructionGroups,
     instructionMode: "append",
     instructions,
     projectId: args.thread.projectId,

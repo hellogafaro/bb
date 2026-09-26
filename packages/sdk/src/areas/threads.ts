@@ -48,6 +48,7 @@ import type {
   ThreadStoragePathListResponse,
   ThreadTabsResponse,
   ThreadTimelineResponse,
+  ThreadContextInstructionsResponse,
   ThreadContextResponse,
   ThreadWithIncludesResponse,
   TimelineTurnSummaryDetailsResponse,
@@ -178,6 +179,8 @@ export type ThreadInteractionCancelResult = PendingInteraction;
 export type ThreadEventsListResult = ThreadEventRow[];
 export type ThreadEventWaitResult = ThreadEventRow | null;
 export type ThreadContextResult = ThreadContextResponse;
+export type ThreadContextInstructionsResult =
+  ThreadContextInstructionsResponse;
 export type ThreadTimelineResult = ThreadTimelineResponse;
 export type ThreadArchiveResult = ThreadArchiveAllResponse;
 export type ThreadOpenResult = ThreadOpenResponse;
@@ -621,6 +624,20 @@ export interface ThreadsArea {
   stop(args: ThreadActionArgs): Promise<ThreadStopResult>;
   tabs: ThreadTabsArea;
   context(args: ThreadStatusArgs): Promise<ThreadContextResult>;
+  /**
+   * Assemble the BB instruction text the thread's next turn would append to
+   * the provider's system prompt, with per-group sizes, injected skill roots,
+   * dynamic tool names, and contributed environment variable names (never
+   * values). Groups are XML: bb_tools, connected_mcps, bb_plugin, bb_rules,
+   * bb_agent, and bb_run. The bb_run block marks unattended threads and is
+   * keyed on the thread, not the turn: a thread with a parent thread or a
+   * plugin origin (automations, workflows, agent-spawned children) is
+   * unattended; a root chat thread never gets it, even on retries or
+   * child-report turns. Reads the workspace host for project skill roots.
+   */
+  contextInstructions(
+    args: ThreadStatusArgs,
+  ): Promise<ThreadContextInstructionsResult>;
   timeline(args: ThreadTimelineArgs): Promise<ThreadTimelineResult>;
   timelineTurnSummaryDetails(
     args: ThreadTimelineTurnSummaryDetailsArgs,
@@ -1377,6 +1394,14 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
     async context(input) {
       return transport.readJson(
         transport.api.v1.threads[":id"].context.$get(
+          { param: { id: input.threadId } },
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+    },
+    async contextInstructions(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"].context.instructions.$get(
           { param: { id: input.threadId } },
           ...signalRequestArgs(input.signal),
         ),

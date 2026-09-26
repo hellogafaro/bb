@@ -2,29 +2,10 @@ import { getThread, patchThreadPluginMetadata } from "@bb/db";
 import type { Agent } from "@bb/domain";
 import type { HostDaemonContributedEnvEntry } from "@bb/host-daemon-contract";
 import type { AppDeps } from "../../types.js";
-import {
-  AGENT_HOME_ENV_NAME,
-  AGENT_HOME_INSTRUCTION,
-  commitAgentHomeAfterTurn,
-} from "./agent-home.js";
+import { AGENT_HOME_ENV_NAME, commitAgentHomeAfterTurn } from "./agent-home.js";
 import { resolveThreadAgent } from "./agents.js";
 
 export const AGENT_MCP_METADATA_KEY = "mcp";
-
-export function agentInstructionSection(
-  agent: Agent,
-  options: { hasHome: boolean },
-): string[] {
-  const body = [
-    agent.instructions.trim(),
-    options.hasHome ? AGENT_HOME_INSTRUCTION : "",
-  ].filter((part) => part.length > 0);
-  if (body.length === 0) return [];
-  return [
-    `The following instructions come from the BB agent "${agent.name}":`,
-    body.join("\n\n"),
-  ];
-}
 
 export function agentHomeEnvEntry(
   agent: Agent,

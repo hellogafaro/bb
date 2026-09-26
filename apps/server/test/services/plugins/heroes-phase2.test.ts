@@ -106,7 +106,7 @@ describe("hero plugin: agent-enrichment (Phase 2 surfaces)", () => {
       required: ["query"],
     });
     expect(command.instructions).toContain(
-      'The following instructions come from the BB plugin "agent-enrichment" for its tool "docs_search":',
+      '<tool plugin="agent-enrichment" name="docs_search">',
     );
     expect(command.instructions).toContain(
       "Use the docs_search tool to look up repo conventions",

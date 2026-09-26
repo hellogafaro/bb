@@ -820,7 +820,7 @@ describe("plugin tools reach thread runtime config", () => {
     ).toMatchObject({ type: "object" });
     expect(command.instructions).toContain("update_environment_directory");
     expect(command.instructions).toContain(
-      'The following instructions come from the BB plugin "tooldemo" for its tool "demo_lookup":',
+      '<tool plugin="tooldemo" name="demo_lookup">',
     );
     expect(command.instructions).toContain(
       "Call demo_lookup before guessing demo data.",
@@ -1075,9 +1075,8 @@ describe("plugin tools reach thread runtime config", () => {
     expect(
       sideCommand.injectedSkillSources.map((skill) => skill.name),
     ).not.toContain("beta-skill");
-    expect(sideCommand.instructions).toContain(
-      'The following dynamic instructions come from the BB plugin "conditional":',
-    );
+    expect(sideCommand.instructions).toContain('<bb_plugin id="conditional">');
+    expect(sideCommand.instructions).toContain('<bb_run mode="unattended">');
     expect(
       harness.pluginService.list().find((plugin) => plugin.id === "conditional")
         ?.handlerStats.errorCount,

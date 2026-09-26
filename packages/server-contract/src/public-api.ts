@@ -259,6 +259,7 @@ import type {
   ThreadStoragePathsQuery,
   ThreadTimelineQuery,
   ThreadTimelineResponse,
+  ThreadContextInstructionsResponse,
   ThreadContextResponse,
   ThreadWithIncludesResponse,
   TimelineTurnSummaryDetailsQuery,
@@ -1602,6 +1603,12 @@ export const publicApiRoutes = {
       method: "get",
       request: noRequest<PathId>(),
       response: jsonResponse<ThreadContextResponse>(),
+    }),
+    contextInstructions: defineRoute({
+      path: "/threads/:id/context/instructions",
+      method: "get",
+      request: noRequest<PathId>(),
+      response: jsonResponse<ThreadContextInstructionsResponse>(),
     }),
     conversationOutline: defineRoute({
       path: "/threads/:id/conversation-outline",

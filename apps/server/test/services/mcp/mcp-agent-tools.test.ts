@@ -25,12 +25,7 @@ afterEach(() => {
 });
 
 const instructionsBlock = (...lines: string[]) =>
-  [
-    "<connected_mcps>",
-    ...lines,
-    "</connected_mcps>",
-    "Use mcp_search to find tools on connected MCPs, then mcp_call.",
-  ].join("\n");
+  ["<connected_mcps>", ...lines, "</connected_mcps>"].join("\n");
 
 async function addStdio(harness: TestAppHarness, name: string) {
   return harness.mcpService.admin.add({
