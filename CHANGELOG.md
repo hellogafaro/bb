@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.43.5
+
+Fork updates now come from hellogafaro/bb GitHub releases.
+
+### Updates
+
+- **Update check.** The server compares its version with the latest `desktop-v<version>` release on hellogafaro/bb. Settings → Updates is visible again, and it and `bb updates` show `bb-reload` as the upgrade command.
+- **Desktop updates.** The desktop app reads its update feed from hellogafaro/bb releases. This macOS build is unsigned: right-click Open on first launch, or run `xattr -d com.apple.quarantine` on the app. macOS auto-update won't work until builds are signed.
+- **Server releases.** Each release includes `bb-app-<version>.tgz` and its `.sha256`. `scripts/fork/bb-reload.sh --from-release` installs the tarball and restarts the server.
+
 ## 0.43.3
 
 Save messages as drafts, annotate pages for your agent, and watch browser automation live in chat. This release also redesigns handoffs and improves everyday navigation, configuration across machines, and conversation performance.
