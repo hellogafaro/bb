@@ -66,6 +66,7 @@ describe("BuiltInSidebarNavigation agents entry", () => {
     expect(entries).toEqual([
       "entry-new-thread",
       "entry-search-threads",
+      "entry-threads",
       "entry-skills",
       "entry-agents",
     ]);
@@ -73,6 +74,33 @@ describe("BuiltInSidebarNavigation agents entry", () => {
     fireEvent.click(screen.getByRole("button", { name: "Agents" }));
     expect(onNavigate).toHaveBeenCalledOnce();
     expect(screen.getByTestId("pathname").textContent).toBe("/agents");
+  });
+
+  it("opens /threads from the Threads entry", () => {
+    const onNavigate = vi.fn();
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <BuiltInSidebarNavigation
+          onNavigate={onNavigate}
+          onNewChat={vi.fn()}
+          onSearch={vi.fn()}
+          splitEnabled={false}
+        />
+        <Pathname />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Threads" }));
+    expect(onNavigate).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("pathname").textContent).toBe("/threads");
+  });
+
+  it("orders Threads right after Search by default", () => {
+    expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER.slice(0, 3)).toEqual([
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.threads,
+    ]);
+    expect(BUILT_IN_SIDEBAR_NAVIGATION_KEYS.threads).toBe("__bb__/threads");
   });
 
   it("orders Agents right after Customize by default", () => {

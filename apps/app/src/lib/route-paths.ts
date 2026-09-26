@@ -56,6 +56,8 @@ export {
   AUTOMATION_DETAIL_ROUTE_PATH,
   AUTOMATION_EDIT_ROUTE_PATH,
   LEGACY_PROJECT_COMPOSE_ROUTE_PATH,
+  THREADS_ROUTE_PATH,
+  THREADS_ARCHIVED_ROUTE_PATH,
   PROJECTLESS_ARCHIVED_ROUTE_PATH,
   LEGACY_PROJECT_SETTINGS_ROUTE_PATH,
   PROJECT_ARCHIVED_ROUTE_PATH,
@@ -75,13 +77,14 @@ export {
   getPluginConfigurationRoutePath,
   getAgentsRoutePath,
   getAgentDetailRoutePath,
+  getThreadsRoutePath,
   getAutomationsRoutePath,
   getAutomationDetailRoutePath,
   getAutomationEditRoutePath,
   getPluginPanelRoutePath,
   getThreadRoutePath,
 } from "@bb/client-core";
-export type { ThreadRoutePathArgs } from "@bb/client-core";
+export type { ThreadRoutePathArgs, ThreadsListTab } from "@bb/client-core";
 
 export function getSkillsRoutePath(): string {
   return FORK_CUSTOMIZE_PAGE ? CUSTOMIZE_ROUTE_PATH : SKILLS_ROUTE_PATH;

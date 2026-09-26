@@ -9,7 +9,11 @@ import {
   ProjectListSearchAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
-import { getAgentsRoutePath, getSkillsRoutePath } from "@/lib/route-paths";
+import {
+  getAgentsRoutePath,
+  getSkillsRoutePath,
+  getThreadsRoutePath,
+} from "@/lib/route-paths";
 
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
@@ -46,6 +50,19 @@ export function BuiltInSidebarNavigation({
       pluginId: "__bb__",
       id: "search-threads",
       content: <ProjectListSearchAction onSearch={onSearch} />,
+    },
+    {
+      kind: "built-in",
+      pluginId: "__bb__",
+      id: "threads",
+      content: (
+        <ResourceNavSidebarItem
+          icon="ChatThread"
+          title="Threads"
+          routePath={getThreadsRoutePath()}
+          onNavigate={onNavigate}
+        />
+      ),
     },
     {
       kind: "built-in",

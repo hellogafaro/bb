@@ -85,7 +85,6 @@ import {
 import { useDesktopWindowState } from "@/hooks/useDesktopWindowState";
 import { useServerDaemonLogsCommand } from "@/hooks/useServerDaemonLogsCommand";
 import {
-  getLegacyProjectComposeRoutePath,
   getSettingsProjectRoutePath,
   getRootComposeRoutePath,
   getThreadRoutePath,
@@ -120,6 +119,7 @@ import { BackToAppCommandHandler } from "./BackToAppCommandHandler";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 import { resolveCustomizeHeaderMeta } from "@/components/tools/customize-navigation";
 import { resolveAgentsHeaderMeta } from "@/components/agents/agents-navigation";
+import { resolveThreadsListHeaderMeta } from "@/components/threads-page/threads-page-navigation";
 
 const SIDEBAR_WIDTH_KEY = "bb.sidebar.width";
 const SIDEBAR_OPEN_KEY = "bb.sidebar.open";
@@ -384,8 +384,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     restoreIOSViewportOnKeyboardDismissal,
   );
   const location = useLocation();
-  const { projectId, threadId, isThreadView, isArchivedView, isRootView } =
-    useRouteState();
+  const { projectId, threadId, isThreadView, isRootView } = useRouteState();
   const [resourceRouteLabel, setResourceRouteLabel] = useAtom(
     resourceRouteLabelAtom,
   );
@@ -461,9 +460,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     return true;
   });
   useServerDaemonLogsCommand();
-  const archivedSectionId = isArchivedView
-    ? new URLSearchParams(location.search).get("sectionId")
-    : null;
   const navPanelChrome = usePluginNavPanelChrome();
   const isGlobalSettingsView =
     matchPath(`${SETTINGS_ROUTE_PATH}/*`, location.pathname) !== null;
@@ -541,11 +537,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const project = projectId
     ? projects?.find((candidate) => candidate.id === projectId)
     : undefined;
-  const archivedSectionName = archivedSectionId
-    ? (sidebarNavigationQuery.data?.sections.find(
-        (section) => section.id === archivedSectionId,
-      )?.name ?? archivedSectionId)
-    : null;
   const projectName = projectId ? project?.name : undefined;
   const projectLabel = projectName ?? (projectId ? projectId : undefined);
   const { data: thread } = useThread(threadId ?? "", {
@@ -575,6 +566,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const resourceWorkspaceHeaderMeta =
     resolveCustomizeHeaderMeta(location.pathname, resourceRouteLabel) ??
     resolveAgentsHeaderMeta(location.pathname, resourceRouteLabel) ??
+    resolveThreadsListHeaderMeta(location.pathname) ??
     resolvePluginsWorkspaceHeaderMeta(location.pathname, location.search) ??
     resolveSkillsWorkspaceHeaderMeta(location.pathname);
   const meta =
@@ -587,33 +579,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           }
         : automationBreadcrumbs !== null
           ? { title: "", breadcrumbs: automationBreadcrumbs }
-          : isArchivedView && projectId
-            ? isProjectlessProjectId(projectId)
-              ? {
-                  title: "",
-                  breadcrumbs: [
-                    { label: "Threads", to: getRootComposeRoutePath() },
-                    ...(archivedSectionName
-                      ? [{ label: archivedSectionName }]
-                      : []),
-                    { label: "Archived" },
-                  ],
-                }
-              : {
-                  title: "",
-                  breadcrumbs: [
-                    {
-                      label: projectLabel ?? projectId,
-                      to: getLegacyProjectComposeRoutePath(projectId),
-                    },
-                    { label: "Archived" },
-                  ],
-                }
-            : projectId
-              ? {
-                  title: projectLabel ?? projectId,
-                }
-              : (resolveRouteTitle(location.pathname) ?? { title: "" });
+          : projectId
+            ? {
+                title: projectLabel ?? projectId,
+              }
+            : (resolveRouteTitle(location.pathname) ?? { title: "" });
 
   const documentTitle = (() => {
     if (isThreadView) {
@@ -628,14 +598,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       return pageLabel === sectionLabel
         ? sectionLabel
         : `${pageLabel} · ${sectionLabel}`;
-    }
-    if (isArchivedView && projectId) {
-      if (isProjectlessProjectId(projectId)) {
-        return archivedSectionName
-          ? `${archivedSectionName} · Archived`
-          : "Threads · Archived";
-      }
-      return `${projectLabel ?? projectId} · Archived`;
     }
     if (projectId) {
       return projectLabel ?? projectId;
@@ -786,7 +748,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     {showHeader ? (
                       <AppHeader
                         usesDesktopChrome={usesDesktopChrome}
-                        usesProjectChromeStyle={isRootView || isArchivedView}
+                        usesProjectChromeStyle={isRootView}
                         projectId={projectId}
                         project={project}
                         pluginPanel={pluginPanel}

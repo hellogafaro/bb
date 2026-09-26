@@ -35,7 +35,8 @@ describe("route path helpers", () => {
     },
   );
 
-  it("recognizes the legacy archived URL", () => {
+  it("recognizes the threads list URLs", () => {
+    expect(isRoutePath({ path: "/threads" })).toBe(true);
     expect(isRoutePath({ path: "/archived" })).toBe(true);
   });
 

@@ -8,6 +8,7 @@ interface PluginNavPanelIdentity {
 export const BUILT_IN_SIDEBAR_NAVIGATION_KEYS = {
   newThread: "__bb__/new-thread",
   searchThreads: "__bb__/search-threads",
+  threads: "__bb__/threads",
   extensions: "__bb__/extensions",
   skills: "__bb__/skills",
   automations: "__bb__/automations",
@@ -19,6 +20,7 @@ export const DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS = [] as const;
 export const DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER = [
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
+  BUILT_IN_SIDEBAR_NAVIGATION_KEYS.threads,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.skills,
   BUILT_IN_SIDEBAR_NAVIGATION_KEYS.agents,
@@ -54,17 +56,28 @@ export function seedSkillsNavigationPreference(
     }
   }
   return {
-    order: placeAgentsAfterCustomize(nextOrder),
+    order: placeBuiltInNavigationKeys(nextOrder),
     visibleKeys:
       nextVisibleKeys === null
         ? null
-        : placeAgentsAfterCustomize(nextVisibleKeys),
+        : placeBuiltInNavigationKeys(nextVisibleKeys),
   };
 }
 
 export function placeAgentsAfterCustomize(keys: string[]): string[] {
   const { agents, skills } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
   return placeAfter(keys, agents, skills);
+}
+
+export function placeThreadsAfterSearch(keys: string[]): string[] {
+  const { threads, searchThreads, newThread } =
+    BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+  const anchor = keys.includes(searchThreads) ? searchThreads : newThread;
+  return placeAfter(keys, threads, anchor);
+}
+
+export function placeBuiltInNavigationKeys(keys: string[]): string[] {
+  return placeThreadsAfterSearch(placeAgentsAfterCustomize(keys));
 }
 
 export function getPluginNavPanelKey(panel: PluginNavPanelIdentity): string {

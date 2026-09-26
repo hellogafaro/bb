@@ -21,6 +21,7 @@ export interface PillProps {
   variant: PillVariant;
   size?: PillSize;
   className?: string;
+  leading?: ReactNode;
   children: ReactNode;
 }
 
@@ -28,17 +29,22 @@ export function Pill({
   variant,
   size = "default",
   className,
+  leading,
   children,
 }: PillProps) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded border text-xs",
+        leading !== undefined && "gap-1",
         PILL_SIZE_CLASS[size],
         PILL_VARIANT_CLASS[variant],
         className,
       )}
     >
+      {leading !== undefined ? (
+        <span className="inline-flex shrink-0 items-center">{leading}</span>
+      ) : null}
       <span className="min-w-0 truncate">{children}</span>
     </span>
   );

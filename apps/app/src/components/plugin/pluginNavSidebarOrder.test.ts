@@ -6,6 +6,8 @@ import {
   DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS,
   getPluginNavPanelKey,
   placeAgentsAfterCustomize,
+  placeBuiltInNavigationKeys,
+  placeThreadsAfterSearch,
   seedSkillsNavigationPreference,
   togglePluginNavPanelVisibility,
 } from "./pluginNavSidebarOrder";
@@ -31,6 +33,46 @@ describe("placeAgentsAfterCustomize", () => {
         automations,
       ]),
     ).toEqual([newThread, searchThreads, skills, agents, automations]);
+  });
+});
+
+describe("placeThreadsAfterSearch", () => {
+  it("moves a newly prepended Threads key to right after Search", () => {
+    const { agents, newThread, searchThreads, skills, threads } =
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(
+      placeThreadsAfterSearch([
+        threads,
+        newThread,
+        searchThreads,
+        skills,
+        agents,
+      ]),
+    ).toEqual([newThread, searchThreads, threads, skills, agents]);
+  });
+
+  it("falls back to New thread when Search is absent", () => {
+    const { newThread, skills, threads } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(placeThreadsAfterSearch([threads, newThread, skills])).toEqual([
+      newThread,
+      threads,
+      skills,
+    ]);
+  });
+
+  it("places Threads and Agents together for stored orders", () => {
+    const { agents, automations, newThread, searchThreads, skills, threads } =
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(
+      placeBuiltInNavigationKeys([
+        threads,
+        agents,
+        newThread,
+        searchThreads,
+        skills,
+        automations,
+      ]),
+    ).toEqual([newThread, searchThreads, threads, skills, agents, automations]);
   });
 });
 
