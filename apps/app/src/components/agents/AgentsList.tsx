@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAgentDetailRoutePath } from "@bb/client-core";
 import type { Agent } from "@bb/domain";
@@ -7,13 +7,17 @@ import {
   ResourceListState,
   ResourceToolbar,
 } from "@bb/shared-ui/resource-list";
-import { Skeleton } from "@bb/shared-ui/skeleton";
+import {
+  CustomizeCard,
+  CustomizeCardGrid,
+  CustomizeCardSkeletonGrid,
+} from "@/components/customize/CustomizeCards";
+import { ProvenancePill } from "@/components/tools/ProvenancePill";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 import { useAgents } from "@/hooks/queries/agent-queries";
-import { AgentMascot } from "./mascots/AgentMascot";
-import { ProviderMark } from "./ProviderMark";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentExecutionLabel, agentRowSubtitle } from "./agent-display";
+import { AgentMascot, agentAvatarStyle } from "./mascots/AgentMascot";
 
 function agentHaystack(agent: Agent, executionLabel: string): string {
   return [
@@ -29,7 +33,7 @@ function agentHaystack(agent: Agent, executionLabel: string): string {
     .toLowerCase();
 }
 
-export function AgentsList() {
+export function AgentsList({ action }: { action?: ReactNode }) {
   const navigate = useNavigate();
   const agentsQuery = useAgents();
   const providersQuery = useSystemProviders();
@@ -59,6 +63,7 @@ export function AgentsList() {
           searchValue={query}
           searchPlaceholder="Search agents"
           onSearchChange={setQuery}
+          action={action}
         />
       }
     >
@@ -70,81 +75,44 @@ export function AgentsList() {
             onRetry={() => void agentsQuery.refetch()}
           />
         ) : agents === null || filtered === null ? (
-          <div
-            className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5"
-            role="status"
-            aria-label="Loading agents"
-          >
-            <div className="divide-y divide-border">
-              {[0, 1, 2].map((row) => (
-                <div
-                  key={row}
-                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-                  aria-hidden="true"
-                >
-                  <Skeleton className="size-6 rounded-md" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <CustomizeCardSkeletonGrid label="Loading agents" />
         ) : filtered.length === 0 ? (
-          <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-            {agents.length === 0
-              ? "No agents yet. Use New agent to create one in chat."
-              : "No agents match this search."}
-          </p>
+          <ResourceListState
+            state="empty"
+            message={
+              agents.length === 0
+                ? "No agents yet. Use New agent to create one in chat."
+                : "No agents match this search."
+            }
+          />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5">
-            <ul className="divide-y divide-border">
-              {filtered.map((agent) => (
-                <li
-                  key={agent.id}
-                  className="group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-3 py-2.5 text-left first:pt-0 last:pb-0"
-                  onClick={() => navigate(getAgentDetailRoutePath(agent.id))}
-                >
-                  <span className="flex size-6 shrink-0 items-center justify-center">
+          <CustomizeCardGrid>
+            {filtered.map((agent) => (
+              <div key={agent.id} data-testid={`agent-card-${agent.id}`}>
+                <CustomizeCard
+                  leading={
                     <AgentMascot
                       mascot={agent.mascot}
                       color={agent.color}
-                      className="size-5"
+                      className="size-4"
                     />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <button
-                        type="button"
-                        className="block max-w-full truncate text-left text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigate(getAgentDetailRoutePath(agent.id));
-                        }}
-                      >
-                        {agent.name}
-                      </button>
-                      {agent.id === defaultAgentId ? (
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          Default
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                      <ProviderMark
-                        providerId={agent.providerId}
-                        className="size-3"
-                      />
-                      <span className="min-w-0 truncate">
-                        {agentRowSubtitle(agent, providers)}
-                      </span>
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+                  }
+                  leadingStyle={agentAvatarStyle(agent.color)}
+                  title={agent.name}
+                  headerAction={
+                    agent.id === defaultAgentId ? (
+                      <ProvenancePill label="Default" />
+                    ) : undefined
+                  }
+                  description={
+                    agent.description || agentRowSubtitle(agent, providers)
+                  }
+                  openLabel={agent.name}
+                  onOpen={() => navigate(getAgentDetailRoutePath(agent.id))}
+                />
+              </div>
+            ))}
+          </CustomizeCardGrid>
         )}
       </div>
     </ResourceCollectionViewport>

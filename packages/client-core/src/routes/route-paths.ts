@@ -11,9 +11,16 @@ export const SETTINGS_PROJECT_ROUTE_PATH = "/settings/projects/:projectId";
 export const PLUGINS_ROUTE_PATH = "/plugins";
 export const PLUGIN_DETAIL_ROUTE_PATH = "/plugins/:pluginId";
 export const SKILLS_ROUTE_PATH = "/skills";
-export const CUSTOMIZE_ROUTE_PATH = "/customize";
-export const AGENTS_ROUTE_PATH = "/agents";
-export const AGENT_DETAIL_ROUTE_PATH = "/agents/:agentRef";
+export const SETTINGS_SKILLS_ROUTE_PATH = "/settings/skills";
+export const SETTINGS_SKILL_DETAIL_ROUTE_PATH = "/settings/skills/:skillId";
+export const MCPS_ROUTE_PATH = "/settings/mcps";
+export const MCP_DETAIL_ROUTE_PATH = "/settings/mcps/:mcpRef";
+export const AGENTS_ROUTE_PATH = "/settings/agents";
+export const AGENT_DETAIL_ROUTE_PATH = "/settings/agents/:agentRef";
+export const LEGACY_CUSTOMIZE_ROUTE_PATH = "/customize";
+export const LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH = "/customize/*";
+export const LEGACY_AGENTS_ROUTE_PATH = "/agents";
+export const LEGACY_AGENT_DETAIL_ROUTE_PATH = "/agents/:agentRef";
 export const SKILL_DETAIL_ROUTE_PATH = "/skills/library/:skillId";
 export const REGISTRY_SKILLS_ROUTE_PATH = "/skills/registry";
 export const REGISTRY_SKILL_DETAIL_ROUTE_PATH =
@@ -160,6 +167,14 @@ export function getAgentsRoutePath(): string {
   return AGENTS_ROUTE_PATH;
 }
 
+export function getMcpsRoutePath(): string {
+  return MCPS_ROUTE_PATH;
+}
+
+export function getMcpDetailRoutePath(mcpRef: string): string {
+  return `${MCPS_ROUTE_PATH}/${encodeURIComponent(mcpRef)}`;
+}
+
 export function getThreadsRoutePath(tab: ThreadsListTab = "all"): string {
   return tab === "archived"
     ? `${THREADS_ROUTE_PATH}?${THREADS_STATUS_SEARCH_PARAM}=archived`
@@ -234,9 +249,16 @@ export const ROUTE_PATTERNS: readonly string[] = [
   PLUGINS_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
   SKILLS_ROUTE_PATH,
-  `${CUSTOMIZE_ROUTE_PATH}/*`,
+  SETTINGS_SKILLS_ROUTE_PATH,
+  SETTINGS_SKILL_DETAIL_ROUTE_PATH,
+  MCPS_ROUTE_PATH,
+  MCP_DETAIL_ROUTE_PATH,
+  LEGACY_CUSTOMIZE_ROUTE_PATH,
+  LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH,
   AGENTS_ROUTE_PATH,
   AGENT_DETAIL_ROUTE_PATH,
+  LEGACY_AGENTS_ROUTE_PATH,
+  LEGACY_AGENT_DETAIL_ROUTE_PATH,
   SKILL_DETAIL_ROUTE_PATH,
   REGISTRY_SKILLS_ROUTE_PATH,
   REGISTRY_SKILL_DETAIL_ROUTE_PATH,

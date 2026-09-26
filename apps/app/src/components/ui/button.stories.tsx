@@ -15,6 +15,7 @@ const variants: readonly ButtonVariant[] = [
   "outline",
   "ghost",
   "destructive",
+  "destructiveSubtle",
   "link",
   "primary",
 ];
@@ -27,6 +28,7 @@ const VARIANT_LABEL: Record<ButtonVariant, string> = {
   outline: "Connect repo",
   ghost: "Settings",
   destructive: "Delete project",
+  destructiveSubtle: "Stop run",
   link: "View docs",
   primary: "Send",
 };

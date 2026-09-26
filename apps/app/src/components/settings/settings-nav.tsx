@@ -5,14 +5,19 @@ import { usePluginSlots, type PluginFileOpenerSlot } from "@/lib/plugin-slots";
 import { usePluginList } from "@/hooks/queries/plugin-settings-queries";
 import { isForkHiddenSettingsSection } from "@/lib/fork-settings";
 import {
+  AGENT_DETAIL_ROUTE_PATH,
+  MCP_DETAIL_ROUTE_PATH,
   SETTINGS_MACHINE_ROUTE_PATH,
   SETTINGS_PLUGIN_ROUTE_PATH,
   SETTINGS_PROJECT_ROUTE_PATH,
   SETTINGS_SECTION_ROUTE_PATH,
+  SETTINGS_SKILL_DETAIL_ROUTE_PATH,
 } from "@/lib/route-paths";
 import {
+  CUSTOMIZE_NAV_SECTIONS,
   isSettingsSectionId,
   SETTINGS_NAV_SECTIONS,
+  type CustomizeSectionId,
   type SettingsNavSection,
   type SettingsSectionId,
 } from "./settings-sections";
@@ -27,6 +32,22 @@ export interface SettingsNavState {
   activePluginId: string | null;
   pluginEntries: readonly PluginSettingsEntry[];
   sections: readonly SettingsNavSection[];
+  customizeSections: readonly SettingsNavSection[];
+}
+
+const CUSTOMIZE_DETAIL_ROUTES: readonly [string, CustomizeSectionId][] = [
+  [SETTINGS_SKILL_DETAIL_ROUTE_PATH, "skills"],
+  [MCP_DETAIL_ROUTE_PATH, "mcps"],
+  [AGENT_DETAIL_ROUTE_PATH, "agents"],
+];
+
+function resolveCustomizeDetailSection(
+  pathname: string,
+): CustomizeSectionId | null {
+  for (const [pattern, section] of CUSTOMIZE_DETAIL_ROUTES) {
+    if (matchPath(pattern, pathname) !== null) return section;
+  }
+  return null;
 }
 
 export function useSettingsNavSections(
@@ -76,6 +97,9 @@ export function useSettingsNavState(): SettingsNavState {
   );
   const activeProjectId = projectMatch?.params.projectId ?? null;
   const sectionParam = sectionMatch?.params.section;
+  const customizeDetailSection = resolveCustomizeDetailSection(
+    location.pathname,
+  );
   const hasUnknownSection =
     sectionParam !== undefined && !isSettingsSectionId(sectionParam);
   const activeSection: SettingsSectionId | null =
@@ -85,11 +109,13 @@ export function useSettingsNavState(): SettingsNavState {
         ? "machines"
         : activeProjectId !== null
           ? "projects"
-          : activePluginId !== null
-            ? null
-            : sectionParam !== undefined && isSettingsSectionId(sectionParam)
-              ? sectionParam
-              : "general";
+          : customizeDetailSection !== null
+            ? customizeDetailSection
+            : activePluginId !== null
+              ? null
+              : sectionParam !== undefined && isSettingsSectionId(sectionParam)
+                ? sectionParam
+                : "general";
 
   const installedPlugins = pluginListQuery.data?.plugins ?? [];
   const pluginEntries = buildPluginSettingsEntries({
@@ -103,5 +129,6 @@ export function useSettingsNavState(): SettingsNavState {
     hasUnknownSection,
     pluginEntries,
     sections,
+    customizeSections: CUSTOMIZE_NAV_SECTIONS,
   };
 }

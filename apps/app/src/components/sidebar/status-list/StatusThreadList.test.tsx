@@ -13,10 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  PERSONAL_PROJECT_ID,
-  type ThreadListEntry,
-} from "@bb/domain";
+import { PERSONAL_PROJECT_ID, type ThreadListEntry } from "@bb/domain";
 import type { SidebarBootstrapResponse } from "@bb/server-contract";
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
@@ -280,7 +277,9 @@ describe("StatusThreadList", () => {
     const { store } = renderList([parent, child]);
 
     expect(rowLink("Child")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse Parent threads" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse Parent threads" }),
+    );
 
     expect(store.get(collapsedThreadIdsAtom)).toEqual([parent.id]);
     expect(screen.queryByRole("link", { name: "Open Child" })).toBeNull();
@@ -292,7 +291,9 @@ describe("StatusThreadList", () => {
   it("persists a collapsed status section through ui preferences", () => {
     const { container, store } = renderList([thread({ title: "Done one" })]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Collapse Done section" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse Done section" }),
+    );
 
     expect(store.get(collapsedStatusSectionsAtom)).toEqual(["done"]);
     expect(mocks.scheduleUiPreferenceWrite).toHaveBeenCalledWith(
@@ -386,9 +387,9 @@ describe("StatusThreadList", () => {
       }),
       thread({ title: "Idle" }),
     ]);
-    expect(screen.getAllByRole("button", { name: "Snooze thread" })).toHaveLength(
-      2,
-    );
+    expect(
+      screen.getAllByRole("button", { name: "Snooze thread" }),
+    ).toHaveLength(2);
   });
 
   it("pins from the row's quick action", () => {

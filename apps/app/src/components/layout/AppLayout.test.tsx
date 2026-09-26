@@ -285,9 +285,10 @@ describe("canonical thread routes", () => {
 
 describe("Customize page sidebar", () => {
   it.each([
-    ["/customize", "app"],
-    ["/customize/mcps/github", "app"],
-    ["/skills/library/skill_abc123", "app"],
+    ["/settings/skills", "settings"],
+    ["/settings/skills/skill_abc123", "settings"],
+    ["/settings/mcps/github", "settings"],
+    ["/settings/agents", "settings"],
     ["/plugins", "plugins"],
   ])("renders the %s sidebar as %s", (route, mode) => {
     renderLayout(route);

@@ -133,6 +133,30 @@ describe("useSettingsNavState", () => {
     );
   });
 
+  it.each([
+    ["/settings/skills", "skills"],
+    ["/settings/skills/skill_abc123", "skills"],
+    ["/settings/mcps", "mcps"],
+    ["/settings/mcps/github", "mcps"],
+    ["/settings/agents", "agents"],
+    ["/settings/agents/Code%20Reviewer", "agents"],
+  ])("resolves %s to the %s Customize section", (path, section) => {
+    const { result } = renderHook(() => useSettingsNavState(), {
+      wrapper: wrapperFor(path),
+    });
+
+    expect(result.current.activeSection).toBe(section);
+    expect(result.current.hasUnknownSection).toBe(false);
+    expect(result.current.sections.map((entry) => entry.id)).not.toContain(
+      section,
+    );
+    expect(result.current.customizeSections.map((entry) => entry.id)).toEqual([
+      "skills",
+      "mcps",
+      "agents",
+    ]);
+  });
+
   it("does not treat archived threads as a settings section", () => {
     const { result } = renderHook(() => useSettingsNavState(), {
       wrapper: wrapperFor("/settings/archived"),

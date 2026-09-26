@@ -10,6 +10,7 @@ import {
   ResourceCollectionPage,
   ResourceCollectionViewport,
   ResourceCreateButton,
+  ResourceIconFrame,
   ResourceListPanel,
   ResourceListState,
   ResourceOverflowMenu,
@@ -17,7 +18,14 @@ import {
   ResourceRowDetailChevron,
   ResourceToolbar,
 } from "@bb/shared-ui/resource-list";
+import { cn } from "@bb/shared-ui/lib/utils";
 import { BbLogo } from "@/components/ui/bb-logo";
+import {
+  CUSTOMIZE_CARD_AVATAR_CLASS_NAME,
+  CustomizeCard,
+  CustomizeCardGrid,
+  CustomizeCardSkeletonGrid,
+} from "@/components/customize/CustomizeCards";
 import {
   ConfirmDeleteDialog,
   ConfirmDeleteDialogContent,
@@ -104,20 +112,22 @@ export function SkillProvenanceTooltip({
 function SkillLeading({
   skill,
   providerRoster,
+  className = "size-6",
 }: {
   skill: SkillSummary;
   providerRoster: ProviderRoster;
+  className?: string;
 }) {
   if (skill.provider !== null) {
     return (
       <ProviderLogo
         providerId={skill.provider}
         provider={providerRoster.get(skill.provider)}
-        className="size-6"
+        className={className}
       />
     );
   }
-  return <BbLogo className="size-6" />;
+  return <BbLogo className={className} />;
 }
 
 function skillDescription(
@@ -185,18 +195,10 @@ const SKILLS_LIBRARY_DESCRIPTION =
 
 const PREFETCH_HOVER_INTENT_MS = 150;
 
-function SkillRow({
-  skill,
-  providerRoster,
-  onSelect,
-  onPrefetch,
-}: {
-  skill: SkillSummary;
-  providerRoster: ProviderRoster;
-  onSelect: () => void;
-  onPrefetch?: (skill: SkillSummary) => void;
-}) {
-  const description = skillDescription(skill, providerRoster);
+function useSkillPrefetchIntent(
+  skill: SkillSummary,
+  onPrefetch: ((skill: SkillSummary) => void) | undefined,
+) {
   const prefetchTimer = useRef<number | null>(null);
   const cancelScheduledPrefetch = () => {
     if (prefetchTimer.current === null) return;
@@ -211,38 +213,123 @@ function SkillRow({
     }, PREFETCH_HOVER_INTENT_MS);
   };
   useEffect(() => cancelScheduledPrefetch, []);
+  return {
+    onPointerEnter: schedulePrefetch,
+    onPointerLeave: cancelScheduledPrefetch,
+    onFocus: schedulePrefetch,
+    onBlur: cancelScheduledPrefetch,
+  };
+}
+
+function skillProvenance(
+  skill: SkillSummary,
+  providerRoster: ProviderRoster,
+): ReactNode {
+  if (skill.scope === "bb-builtin")
+    return <ProvenancePill label="BB Official" />;
+  if (skill.scope !== "plugin") return undefined;
   return (
-    <div
-      onPointerEnter={schedulePrefetch}
-      onPointerLeave={cancelScheduledPrefetch}
-      onFocus={schedulePrefetch}
-      onBlur={cancelScheduledPrefetch}
-    >
+    <ProvenancePill
+      label="Included"
+      tooltip={
+        <SkillProvenanceTooltip
+          prefix="Included with"
+          providerId={skill.provider}
+          provider={
+            skill.provider === null
+              ? undefined
+              : providerRoster.get(skill.provider)
+          }
+          name={`${providerPluginDisplayName(skill)} plugin.`}
+        />
+      }
+      accessibleLabel={`${skill.name} is included with ${includedPluginDescription(skill, providerRoster)}`}
+    />
+  );
+}
+
+function SkillCard({
+  skill,
+  providerRoster,
+  onSelect,
+  onPrefetch,
+}: {
+  skill: SkillSummary;
+  providerRoster: ProviderRoster;
+  onSelect: () => void;
+  onPrefetch?: (skill: SkillSummary) => void;
+}) {
+  const prefetchHandlers = useSkillPrefetchIntent(skill, onPrefetch);
+  return (
+    <div {...prefetchHandlers} data-testid={`skill-card-${skill.id}`}>
+      <CustomizeCard
+        leading={
+          <SkillLeading
+            skill={skill}
+            providerRoster={providerRoster}
+            className="size-4"
+          />
+        }
+        title={skill.name}
+        headerAction={skillProvenance(skill, providerRoster)}
+        description={skillDescription(skill, providerRoster)}
+        openLabel={skill.name}
+        onOpen={onSelect}
+      />
+    </div>
+  );
+}
+
+function useVisibleSkills(
+  skills: readonly SkillSummary[],
+  providerRoster: ProviderRoster,
+  normalizedQuery: string,
+): SkillSummary[] {
+  return useMemo(() => {
+    const matching =
+      normalizedQuery === ""
+        ? skills
+        : skills.filter((skill) =>
+            [
+              skill.name,
+              skill.description ?? "",
+              providerLabel(skill.provider, providerRoster),
+              skillScopeLabel(
+                skill,
+                providerLabelForScope(skill, providerRoster),
+              ),
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(normalizedQuery),
+          );
+    return [...matching].sort(
+      (left, right) =>
+        left.name.localeCompare(right.name) ||
+        left.filePath.localeCompare(right.filePath),
+    );
+  }, [normalizedQuery, providerRoster, skills]);
+}
+
+function SkillRow({
+  skill,
+  providerRoster,
+  onSelect,
+  onPrefetch,
+}: {
+  skill: SkillSummary;
+  providerRoster: ProviderRoster;
+  onSelect: () => void;
+  onPrefetch?: (skill: SkillSummary) => void;
+}) {
+  const description = skillDescription(skill, providerRoster);
+  const prefetchHandlers = useSkillPrefetchIntent(skill, onPrefetch);
+  return (
+    <div {...prefetchHandlers}>
       <ResourceRow
         leading={<SkillLeading skill={skill} providerRoster={providerRoster} />}
         title={skill.name}
-        titleMeta={
-          skill.scope === "bb-builtin" ? (
-            <ProvenancePill label="BB Official" />
-          ) : skill.scope === "plugin" ? (
-            <ProvenancePill
-              label="Included"
-              tooltip={
-                <SkillProvenanceTooltip
-                  prefix="Included with"
-                  providerId={skill.provider}
-                  provider={
-                    skill.provider === null
-                      ? undefined
-                      : providerRoster.get(skill.provider)
-                  }
-                  name={`${providerPluginDisplayName(skill)} plugin.`}
-                />
-              }
-              accessibleLabel={`${skill.name} is included with ${includedPluginDescription(skill, providerRoster)}`}
-            />
-          ) : undefined
-        }
+        titleMeta={skillProvenance(skill, providerRoster)}
         description={description}
         onOpen={onSelect}
         trailingVisual={<ResourceRowDetailChevron />}
@@ -283,30 +370,11 @@ export function SkillsLibraryResults({
   const libraryPageSize = useResourceViewportPageSize(libraryViewport, {
     resetKey: normalizedQuery,
   });
-  const visibleSkills = useMemo(() => {
-    const matching =
-      normalizedQuery === ""
-        ? skills
-        : skills.filter((skill) =>
-            [
-              skill.name,
-              skill.description ?? "",
-              providerLabel(skill.provider, providerRoster),
-              skillScopeLabel(
-                skill,
-                providerLabelForScope(skill, providerRoster),
-              ),
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(normalizedQuery),
-          );
-    return [...matching].sort(
-      (left, right) =>
-        left.name.localeCompare(right.name) ||
-        left.filePath.localeCompare(right.filePath),
-    );
-  }, [normalizedQuery, providerRoster, skills]);
+  const visibleSkills = useVisibleSkills(
+    skills,
+    providerRoster,
+    normalizedQuery,
+  );
   const libraryList = useResourceInfiniteItems(visibleSkills, {
     pageSize: libraryPageSize,
     resetKey: normalizedQuery,
@@ -364,6 +432,73 @@ export function SkillsLibraryResults({
       }
     >
       <div className={TOOLS_PAGE_BAND_CLASSES}>{libraryBody}</div>
+    </ResourceCollectionViewport>
+  );
+}
+
+export function SkillsCardResults({
+  skills,
+  providerRoster,
+  isLoading,
+  hasError,
+  query,
+  action,
+  onSelectSkill,
+  onPrefetchSkill,
+  onQueryChange,
+  onRetry,
+}: SkillsLibraryResultsProps) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleSkills = useVisibleSkills(
+    skills,
+    providerRoster,
+    normalizedQuery,
+  );
+  const body = hasError ? (
+    <ResourceListState
+      state="error"
+      message="Couldn't load skills."
+      onRetry={onRetry}
+    />
+  ) : isLoading ? (
+    <CustomizeCardSkeletonGrid label="Loading skills" />
+  ) : visibleSkills.length === 0 ? (
+    <ResourceListState
+      state="empty"
+      message={
+        normalizedQuery === ""
+          ? "No skills yet. Use New skill to create one in chat."
+          : `No skills match "${query}"`
+      }
+    />
+  ) : (
+    <CustomizeCardGrid>
+      {visibleSkills.map((skill) => (
+        <SkillCard
+          key={`${skill.scope}-${skill.provider ?? "bb"}-${skill.name}-${skill.filePath}`}
+          skill={skill}
+          providerRoster={providerRoster}
+          onSelect={() => onSelectSkill(skill)}
+          onPrefetch={onPrefetchSkill}
+        />
+      ))}
+    </CustomizeCardGrid>
+  );
+
+  return (
+    <ResourceCollectionViewport
+      scrollId="skills-results"
+      bandClassName={TOOLS_PAGE_BAND_CLASSES}
+      toolbar={
+        <ResourceToolbar
+          searchValue={query}
+          searchPlaceholder="Search skills"
+          onSearchChange={onQueryChange}
+          action={action}
+        />
+      }
+    >
+      <div className={TOOLS_PAGE_BAND_CLASSES}>{body}</div>
     </ResourceCollectionViewport>
   );
 }
@@ -525,7 +660,19 @@ export function SkillDetailDialogView({
     ) : null;
   return (
     <SkillDetailView
-      leading={<SkillLeading skill={skill} providerRoster={providerRoster} />}
+      leading={
+        <ResourceIconFrame
+          className={cn(CUSTOMIZE_CARD_AVATAR_CLASS_NAME, "size-8 rounded-md")}
+        >
+          {() => (
+            <SkillLeading
+              skill={skill}
+              providerRoster={providerRoster}
+              className="size-5"
+            />
+          )}
+        </ResourceIconFrame>
+      }
       title={skill.name}
       path={skill.filePath}
       titleBadge={

@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLayout } from "./AppLayout";
+import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { APP_OVERLAY_LAYER } from "@/components/ui/app-overlay-layers";
 import {
   COMPACT_SHELF_HIDDEN_FIXED_CHROME_CLASS,
@@ -288,27 +289,27 @@ describe("Customize page header", () => {
   afterEach(cleanup);
 
   it.each([
-    ["/customize", ["Customize"], "Customize"],
-    ["/customize/mcps", ["Customize"], "Customize"],
-    ["/customize/mcps/github", ["Customize", "github"], "github · Customize"],
-    [
-      "/skills/library/skill_abc123",
-      ["Customize", "skill_abc123"],
-      "skill_abc123 · Customize",
-    ],
-  ])("titles %s under Customize", (route, crumbs, title) => {
+    "/settings/skills",
+    "/settings/skills/skill_abc123",
+    "/settings/mcps",
+    "/settings/mcps/github",
+    "/settings/agents",
+    "/settings/agents/agent_x",
+  ])("titles %s as Settings", (route) => {
+    const { wrapper: QueryClientWrapper } = createQueryClientTestHarness();
     render(
       <MemoryRouter initialEntries={[route]}>
-        <AppLayout>
-          <div>Customize body</div>
-        </AppLayout>
+        <QueryClientWrapper>
+          <AppLayout>
+            <div>Customize body</div>
+          </AppLayout>
+        </QueryClientWrapper>
       </MemoryRouter>,
     );
     const header = screen.getByTestId("app-page-header");
-    expect(
-      Array.from(header.querySelectorAll("li"), (item) => item.textContent),
-    ).toEqual(crumbs);
+    expect(header.querySelectorAll("li")).toHaveLength(0);
+    expect(header.textContent).toContain("Settings");
     expect(screen.queryByTestId("plugin-panel-header-center")).toBeNull();
-    expect(document.title).toBe(title);
+    expect(document.title).toBe("Settings");
   });
 });

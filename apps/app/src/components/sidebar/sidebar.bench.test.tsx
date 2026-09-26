@@ -16,7 +16,10 @@ import {
   type ThreadStatus,
 } from "@bb/domain";
 import type { SidebarBootstrapResponse } from "@bb/server-contract";
-import { makeHost, makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+import {
+  makeHost,
+  makeThreadListEntry,
+} from "@bb/test-helpers/domain-fixtures";
 import { makeProjectWithThreadsResponse } from "@/test/fixtures/projects";
 import {
   hostsQueryKey,
@@ -24,7 +27,11 @@ import {
   uiPreferencesQueryKey,
 } from "@/hooks/queries/query-keys";
 import { updateCachedThreadListStatusState } from "@/hooks/cache-owners/query-cache";
-import { Sidebar, SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 import { StatusThreadList } from "./status-list/StatusThreadList";
 
 const BENCH_ENABLED = process.env.BB_SIDEBAR_BENCH === "1";
@@ -110,7 +117,9 @@ function buildBootstrap(threadCount: number): SidebarBootstrapResponse {
   for (let index = 0; index < threadCount; index += 1) {
     const projectIndex = index % (PROJECT_COUNT + 1);
     const project =
-      projectIndex === PROJECT_COUNT ? personalProject : projects[projectIndex]!;
+      projectIndex === PROJECT_COUNT
+        ? personalProject
+        : projects[projectIndex]!;
     const isChild = index % 10 === 9 && roots.length > 0;
     const parent = isChild ? roots[roots.length - 1]! : null;
     const status = STATUSES[index % STATUSES.length]!;
@@ -121,7 +130,9 @@ function buildBootstrap(threadCount: number): SidebarBootstrapResponse {
       titleFallback: `Thread ${index}`,
       parentThreadId: parent?.id ?? null,
       sectionId:
-        parent === null && index % 2 === 0 ? `sec_${index % SECTION_COUNT}` : null,
+        parent === null && index % 2 === 0
+          ? `sec_${index % SECTION_COUNT}`
+          : null,
       pinnedAt: parent === null && index % 150 === 0 ? 1_000 + index : null,
       status,
       runtime: { displayStatus: status },
@@ -138,9 +149,10 @@ function buildBootstrap(threadCount: number): SidebarBootstrapResponse {
         index % 4 !== 0 ? "managed-worktree" : "other",
     });
     if (parent === null) roots.push(thread);
-    const target = thread.projectId === PERSONAL_PROJECT_ID
-      ? personalProject
-      : projects.find((candidate) => candidate.id === thread.projectId)!;
+    const target =
+      thread.projectId === PERSONAL_PROJECT_ID
+        ? personalProject
+        : projects.find((candidate) => candidate.id === thread.projectId)!;
     target.threads.push(thread);
   }
   return { sections, projects, personalProject };
@@ -183,7 +195,9 @@ function installViewport(): () => void {
   Object.defineProperty(HTMLElement.prototype, "clientHeight", {
     configurable: true,
     get(this: HTMLElement) {
-      return this.matches('[data-sidebar="content"]') ? VIEWPORT_HEIGHT : ROW_HEIGHT;
+      return this.matches('[data-sidebar="content"]')
+        ? VIEWPORT_HEIGHT
+        : ROW_HEIGHT;
     },
   });
   const originalRect = HTMLElement.prototype.getBoundingClientRect;
@@ -213,7 +227,11 @@ function installViewport(): () => void {
   return () => {
     globalThis.IntersectionObserver = originalObserver;
     if (heightDescriptor) {
-      Object.defineProperty(HTMLElement.prototype, "clientHeight", heightDescriptor);
+      Object.defineProperty(
+        HTMLElement.prototype,
+        "clientHeight",
+        heightDescriptor,
+      );
     }
     HTMLElement.prototype.getBoundingClientRect = originalRect;
   };
@@ -236,7 +254,10 @@ function seedQueryClient(): QueryClient {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
-  queryClient.setQueryData(sidebarNavigationQueryKey(), buildBootstrap(THREAD_COUNT));
+  queryClient.setQueryData(
+    sidebarNavigationQueryKey(),
+    buildBootstrap(THREAD_COUNT),
+  );
   queryClient.setQueryData(uiPreferencesQueryKey(), {
     preferences: Object.fromEntries(
       UI_PREFERENCE_KEYS.map((key) => [
@@ -392,15 +413,19 @@ async function runScenario(
 describe.skipIf(!BENCH_ENABLED)("sidebar thread list benchmark", () => {
   const collected: BenchResults[] = [];
 
-  it(`mounts and updates the status list with ${THREAD_COUNT} threads`, { timeout: 180_000 }, async () => {
-    collected.push(
-      await runScenario(
-        "status",
-        seedQueryClient(),
-        <StatusThreadList onNavigate={() => {}} />,
-      ),
-    );
-  });
+  it(
+    `mounts and updates the status list with ${THREAD_COUNT} threads`,
+    { timeout: 180_000 },
+    async () => {
+      collected.push(
+        await runScenario(
+          "status",
+          seedQueryClient(),
+          <StatusThreadList onNavigate={() => {}} />,
+        ),
+      );
+    },
+  );
 
   it("writes the comparison", () => {
     const out = process.env.BB_SIDEBAR_BENCH_OUT;

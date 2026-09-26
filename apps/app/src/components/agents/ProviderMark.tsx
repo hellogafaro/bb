@@ -19,7 +19,7 @@ export function ProviderMark({
   if (mark === undefined) {
     return (
       <Icon
-        name="UserSmile"
+        name="Robot"
         className={cn("shrink-0 text-muted-foreground", className)}
         aria-hidden="true"
       />

@@ -18,8 +18,14 @@ vi.mock("./views/ToolsView", () => ({
   ),
   SkillsView: () => <h1>Skills</h1>,
 }));
-vi.mock("./views/CustomizeView", () => ({
-  CustomizeView: () => <h1>Customize</h1>,
+vi.mock("./views/CustomizeSkillsView", () => ({
+  CustomizeSkillsView: () => <h1>Skills</h1>,
+}));
+vi.mock("./views/CustomizeMcpsView", () => ({
+  CustomizeMcpsView: () => <h1>MCPs</h1>,
+}));
+vi.mock("./views/AgentsView", () => ({
+  AgentsView: () => <h1>Agents</h1>,
 }));
 vi.mock("./views/SplitWorkspaceRoute", () => ({
   default: () => <h1>App workspace</h1>,
@@ -96,21 +102,35 @@ describe("legacy resource redirects", () => {
       "/extensions/plugins/github?view=installed#configuration",
       "/plugins/github?view=installed#configuration",
     ],
-    ["/extensions/skills", "/customize"],
+    ["/extensions/skills", "/settings/skills"],
     [
       "/extensions/skills/library/skill_abc123?source=local#details",
-      "/skills/library/skill_abc123?source=local#details",
+      "/settings/skills/skill_abc123?source=local#details",
     ],
     [
       "/extensions/skills/installed/skill_abc123",
-      "/skills/library/skill_abc123",
+      "/settings/skills/skill_abc123",
     ],
-    ["/extensions/skills/registry", "/customize"],
-    ["/extensions/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
-    ["/skills", "/customize"],
-    ["/skills?view=library", "/customize"],
-    ["/skills/registry?sort=trending", "/customize"],
-    ["/skills/registry/moss-skills%2Fmoss-notes", "/customize"],
+    ["/extensions/skills/registry", "/settings/skills"],
+    [
+      "/extensions/skills/registry/moss-skills%2Fmoss-notes",
+      "/settings/skills",
+    ],
+    ["/skills", "/settings/skills"],
+    ["/skills?view=library", "/settings/skills"],
+    [
+      "/skills/library/skill_abc123#files",
+      "/settings/skills/skill_abc123#files",
+    ],
+    ["/skills/registry?sort=trending", "/settings/skills"],
+    ["/skills/registry/moss-skills%2Fmoss-notes", "/settings/skills"],
+    ["/customize", "/settings/skills"],
+    ["/customize/unknown", "/settings/skills"],
+    ["/customize/mcps", "/settings/mcps"],
+    ["/customize/mcps/github?tab=tools", "/settings/mcps/github?tab=tools"],
+    ["/customize/mcps/installed/github", "/settings/mcps"],
+    ["/agents", "/settings/agents"],
+    ["/agents/Code%20Reviewer", "/settings/agents/Code%20Reviewer"],
     ["/tools", "/plugins"],
     ["/tools/plugins/browse", "/plugins"],
     ["/tools/plugins/browse/?sort=name#catalog", "/plugins?sort=name#catalog"],
@@ -120,7 +140,7 @@ describe("legacy resource redirects", () => {
     ],
     [
       "/tools/skills/installed/skill_abc123?source=local#details",
-      "/skills/library/skill_abc123?source=local#details",
+      "/settings/skills/skill_abc123?source=local#details",
     ],
     ["/tools/automations", "/plugins/automations/automations"],
   ])("redirects %s to %s", async (entry, expected) => {
@@ -146,6 +166,6 @@ describe("legacy resource redirects", () => {
       await screen.findByRole("heading", { name: "App workspace" }),
     ).toBeTruthy();
     expect(screen.getByText("/plugins/mcp/mcp/installed/github")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Customize" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "MCPs" })).toBeNull();
   });
 });

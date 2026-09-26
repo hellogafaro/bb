@@ -3,6 +3,7 @@ import { matchPath, useLocation } from "react-router-dom";
 import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import { SettingsSidebarContent } from "@/components/settings/SettingsSidebar";
 import {
+  CUSTOMIZE_NAV_SECTIONS,
   SETTINGS_NAV_SECTIONS,
   type SettingsSectionId,
 } from "@/components/settings/settings-sections";
@@ -73,6 +74,7 @@ export function SettingsStoryChrome({
           activeSection: resolvedActiveSection,
           pluginEntries: [],
           sections: SETTINGS_NAV_SECTIONS,
+          customizeSections: CUSTOMIZE_NAV_SECTIONS,
         }}
         onResizeMouseDown={() => {}}
         testIdPrefix="settings-story"

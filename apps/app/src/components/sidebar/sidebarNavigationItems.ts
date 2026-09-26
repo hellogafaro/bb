@@ -7,21 +7,17 @@ import type { PluginNavPanelSlot } from "@/lib/plugin-slots";
 import {
   getPluginPanelRoutePath,
   getPluginsRoutePath,
-  getSkillsRoutePath,
-  isSkillsRoutePath,
   isToolsRoutePath,
 } from "@/lib/route-paths";
 
 export const NEW_THREAD_NAVIGATION_ITEM_ID = "new-thread";
 export const SEARCH_THREADS_NAVIGATION_ITEM_ID = "search-threads";
 export const PLUGINS_NAVIGATION_ITEM_ID = "extensions";
-export const SKILLS_NAVIGATION_ITEM_ID = "skills";
 
 export function getResourceNavigationItemRoutePath(
   itemId: string,
 ): string | null {
   if (itemId === PLUGINS_NAVIGATION_ITEM_ID) return getPluginsRoutePath();
-  if (itemId === SKILLS_NAVIGATION_ITEM_ID) return getSkillsRoutePath();
   return null;
 }
 
@@ -55,7 +51,6 @@ export function createSidebarNavigationItems({
 }: CreateSidebarNavigationItemsOptions): readonly ExperimentalSidebarNavigationItem[] {
   const newThreadAction = { kind: "new-thread" } as const;
   const searchAction = { kind: "search-threads" } as const;
-  const resourceWorkspaceAction = { kind: "open-extensions" } as const;
   return [
     {
       id: NEW_THREAD_NAVIGATION_ITEM_ID,
@@ -73,15 +68,6 @@ export function createSidebarNavigationItems({
       action: searchAction,
       isDisabled: searchThreadsDisabled,
       shortcut: searchShortcut,
-      experimental_splitProps: {},
-    },
-    {
-      id: SKILLS_NAVIGATION_ITEM_ID,
-      label: "Customize",
-      icon: { kind: "host", name: "extensions" },
-      action: resourceWorkspaceAction,
-      isDisabled: false,
-      shortcut: null,
       experimental_splitProps: {},
     },
     ...navPanels.map((panel): ExperimentalSidebarNavigationItem => {
@@ -118,10 +104,9 @@ export function resolveActiveSidebarNavigationItemId({
 }): string | null {
   if (pathname === "/") return NEW_THREAD_NAVIGATION_ITEM_ID;
   if (isToolsRoutePath(pathname)) {
-    const itemId = isSkillsRoutePath(pathname)
-      ? SKILLS_NAVIGATION_ITEM_ID
-      : PLUGINS_NAVIGATION_ITEM_ID;
-    return items.some((item) => item.id === itemId) ? itemId : null;
+    return items.some((item) => item.id === PLUGINS_NAVIGATION_ITEM_ID)
+      ? PLUGINS_NAVIGATION_ITEM_ID
+      : null;
   }
   for (const panel of navPanels) {
     const path = getPluginPanelRoutePath({

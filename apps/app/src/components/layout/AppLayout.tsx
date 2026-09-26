@@ -117,8 +117,6 @@ import { useAppSettingsRouteMemory } from "@/hooks/useAppSettingsRouteMemory";
 import { useSetRootComposeProjectId } from "@/lib/root-compose-selection";
 import { BackToAppCommandHandler } from "./BackToAppCommandHandler";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
-import { resolveCustomizeHeaderMeta } from "@/components/tools/customize-navigation";
-import { resolveAgentsHeaderMeta } from "@/components/agents/agents-navigation";
 import { resolveThreadsListHeaderMeta } from "@/components/threads-page/threads-page-navigation";
 
 const SIDEBAR_WIDTH_KEY = "bb.sidebar.width";
@@ -564,8 +562,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   );
   const documentTitleBreadcrumbs = toolsBreadcrumbs ?? automationBreadcrumbs;
   const resourceWorkspaceHeaderMeta =
-    resolveCustomizeHeaderMeta(location.pathname, resourceRouteLabel) ??
-    resolveAgentsHeaderMeta(location.pathname, resourceRouteLabel) ??
     resolveThreadsListHeaderMeta(location.pathname) ??
     resolvePluginsWorkspaceHeaderMeta(location.pathname, location.search) ??
     resolveSkillsWorkspaceHeaderMeta(location.pathname);

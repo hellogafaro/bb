@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   matchPath,
   useLocation,
@@ -26,7 +32,7 @@ import {
 import { getToolsOwnedCollectionRoutePath } from "@/components/tools/tools-navigation";
 import {
   SkillDetailDialogView,
-  SkillsLibraryResults,
+  SkillsCardResults,
   SkillsOverview,
   type ProviderRoster,
 } from "@/components/tools/SkillsCollection";
@@ -161,7 +167,7 @@ function SkillDetailPage({
   );
 }
 
-export function SkillsLibrary() {
+export function SkillsLibrary({ action }: { action?: ReactNode } = {}) {
   const providerRoster = useProviderRoster();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -562,12 +568,13 @@ export function SkillsLibrary() {
           onEditLocalSkill={editSkillViaThread}
         />
       ) : FORK_CUSTOMIZE_PAGE ? (
-        <SkillsLibraryResults
+        <SkillsCardResults
           skills={skills}
           providerRoster={providerRoster}
           isLoading={isLoading}
           hasError={hasError}
           query={libraryQuery}
+          action={action}
           onSelectSkill={openSkill}
           onPrefetchSkill={(skill) =>
             prefetchSkillDetail(queryClient, PERSONAL_PROJECT_ID, skill)

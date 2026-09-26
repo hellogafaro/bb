@@ -78,12 +78,12 @@ describe("route path helpers", () => {
   });
 
   it("builds and recognizes canonical Plugins and Skills routes", () => {
-    expect(getSkillsRoutePath()).toBe("/customize");
+    expect(getSkillsRoutePath()).toBe("/settings/skills");
     expect(
       getSkillDetailRoutePath({
         skillId: "skill_abc123",
       }),
-    ).toBe("/skills/library/skill_abc123");
+    ).toBe("/settings/skills/skill_abc123");
     expect(
       getRegistrySkillDetailRoutePath({
         registrySkillId: "moss-skills/moss-notes",
@@ -113,6 +113,12 @@ describe("route path helpers", () => {
       "/skills",
       "/customize",
       "/customize/mcps/github",
+      "/settings/skills",
+      "/settings/skills/skill_abc123",
+      "/settings/mcps",
+      "/settings/mcps/github",
+      "/settings/agents",
+      "/settings/agents/agent_x",
       "/skills/library/skill_abc123",
       "/skills/registry/moss-skills%2Fmoss-notes",
       "/extensions",

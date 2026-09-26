@@ -72,7 +72,7 @@ import type {
   SecondaryPanelTabReorderHandler,
 } from "@/components/secondary-panel/secondaryPanelTab";
 
-function ResourceBodyFallback() {
+export function ResourceBodyFallback() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto w-full max-w-5xl px-4 pb-4 pt-2 md:px-5">
@@ -86,7 +86,7 @@ function ResourceBodyFallback() {
   );
 }
 
-function ResourceScrollPage({
+export function ResourceScrollPage({
   children,
   fillViewport = false,
 }: {

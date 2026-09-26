@@ -1,15 +1,17 @@
 import { matchPath } from "react-router-dom";
 import {
-  CUSTOMIZE_ROUTE_PATH,
+  LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
   PLUGINS_ROUTE_PATH,
   PLUGIN_PANEL_ROUTE_PATH,
   REGISTRY_SKILL_DETAIL_ROUTE_PATH,
   REGISTRY_SKILLS_ROUTE_PATH,
   ROUTE_PATTERNS,
+  SETTINGS_SKILLS_ROUTE_PATH,
   SKILL_DETAIL_ROUTE_PATH,
   SKILLS_ROUTE_PATH,
   TOOLS_ROUTE_PATH,
+  getSkillDetailRoutePath as getUpstreamSkillDetailRoutePath,
   stripRoutePathSuffix,
 } from "@bb/client-core";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
@@ -26,9 +28,16 @@ export {
   PLUGINS_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
   SKILLS_ROUTE_PATH,
-  CUSTOMIZE_ROUTE_PATH,
+  SETTINGS_SKILLS_ROUTE_PATH,
+  SETTINGS_SKILL_DETAIL_ROUTE_PATH,
+  MCPS_ROUTE_PATH,
+  MCP_DETAIL_ROUTE_PATH,
+  LEGACY_CUSTOMIZE_ROUTE_PATH,
+  LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH,
   AGENTS_ROUTE_PATH,
   AGENT_DETAIL_ROUTE_PATH,
+  LEGACY_AGENTS_ROUTE_PATH,
+  LEGACY_AGENT_DETAIL_ROUTE_PATH,
   SKILL_DETAIL_ROUTE_PATH,
   REGISTRY_SKILLS_ROUTE_PATH,
   REGISTRY_SKILL_DETAIL_ROUTE_PATH,
@@ -70,13 +79,14 @@ export {
   getSettingsMachineRoutePath,
   getSettingsProjectRoutePath,
   getRegistrySkillsRoutePath,
-  getSkillDetailRoutePath,
   getRegistrySkillDetailRoutePath,
   getPluginsRoutePath,
   getPluginDetailRoutePath,
   getPluginConfigurationRoutePath,
   getAgentsRoutePath,
   getAgentDetailRoutePath,
+  getMcpsRoutePath,
+  getMcpDetailRoutePath,
   getThreadsRoutePath,
   getAutomationsRoutePath,
   getAutomationDetailRoutePath,
@@ -87,7 +97,13 @@ export {
 export type { ThreadRoutePathArgs, ThreadsListTab } from "@bb/client-core";
 
 export function getSkillsRoutePath(): string {
-  return FORK_CUSTOMIZE_PAGE ? CUSTOMIZE_ROUTE_PATH : SKILLS_ROUTE_PATH;
+  return FORK_CUSTOMIZE_PAGE ? SETTINGS_SKILLS_ROUTE_PATH : SKILLS_ROUTE_PATH;
+}
+
+export function getSkillDetailRoutePath(args: { skillId: string }): string {
+  return FORK_CUSTOMIZE_PAGE
+    ? `${SETTINGS_SKILLS_ROUTE_PATH}/${encodeURIComponent(args.skillId)}`
+    : getUpstreamSkillDetailRoutePath(args);
 }
 
 export function getPluginPanelRoutePluginId(pathname: string): string | null {
@@ -126,7 +142,7 @@ export function isPluginsRoutePath(pathname: string): boolean {
 export function isSkillsRoutePath(pathname: string): boolean {
   return (
     (FORK_CUSTOMIZE_PAGE &&
-      matchPath(`${CUSTOMIZE_ROUTE_PATH}/*`, pathname) !== null) ||
+      matchPath(LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH, pathname) !== null) ||
     matchPath(SKILLS_ROUTE_PATH, pathname) !== null ||
     matchPath(REGISTRY_SKILLS_ROUTE_PATH, pathname) !== null ||
     matchPath(SKILL_DETAIL_ROUTE_PATH, pathname) !== null ||

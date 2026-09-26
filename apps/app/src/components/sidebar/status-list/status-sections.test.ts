@@ -82,11 +82,7 @@ describe("status sections", () => {
     ];
     const parent = threads[5]!;
     const child = thread({ parentThreadId: parent.id });
-    const sections = buildStatusSections(
-      [...threads, child],
-      NO_DRAFTS,
-      1_000,
-    );
+    const sections = buildStatusSections([...threads, child], NO_DRAFTS, 1_000);
     for (const entry of [...threads, child]) {
       expect(sectionOf(sections, entry.id)).toHaveLength(1);
     }
@@ -238,7 +234,10 @@ describe("status sections", () => {
     const later = thread({ snoozedUntil: 9_000 });
     const sooner = thread({ snoozedUntil: 3_000 });
     expect(
-      rootIds(buildStatusSections([later, sooner], NO_DRAFTS, 1_000), "snoozed"),
+      rootIds(
+        buildStatusSections([later, sooner], NO_DRAFTS, 1_000),
+        "snoozed",
+      ),
     ).toEqual([sooner.id, later.id]);
   });
 

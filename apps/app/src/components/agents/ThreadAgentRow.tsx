@@ -30,7 +30,7 @@ export function ThreadAgentRow({
   if (agent === null) return null;
   return (
     <DetailRow
-      label={<DetailRowIconLabel icon="UserSmile">Agent</DetailRowIconLabel>}
+      label={<DetailRowIconLabel icon="Robot">Agent</DetailRowIconLabel>}
       align="start"
       valueClassName="min-w-0"
     >

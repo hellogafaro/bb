@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { getAgentsRoutePath } from "@bb/client-core";
 import {
@@ -14,30 +21,25 @@ import {
 import type { AgentResponse, UpdateAgentRequest } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
 import { Checkbox } from "@bb/shared-ui/checkbox";
-import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Input } from "@bb/shared-ui/input";
 import {
+  ResourceIconFrame,
   ResourceListState,
   ResourceOverflowMenu,
   useResourceRouteLabel,
 } from "@bb/shared-ui/resource-list";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { Textarea } from "@bb/shared-ui/textarea";
+import { CUSTOMIZE_CARD_AVATAR_CLASS_NAME } from "@/components/customize/CustomizeCards";
 import {
   ConfirmDeleteDialog,
   ConfirmDeleteDialogContent,
 } from "@/components/dialogs/ConfirmDeleteDialog";
-import {
-  FilesBrowser,
-  type FilesBrowserStatus,
-} from "@/components/files/FilesPanel";
-import { LazyFileEditor } from "@/components/files/LazyFileEditor";
-import { joinRoot } from "@/components/files/file-paths";
-import type { DirectoryLocation } from "@/components/files/files-transport";
 import { McpPageShell } from "@/components/mcp/McpPageShell";
 import { ModelReasoningPicker } from "@/components/pickers/ModelReasoningPicker";
 import type { ProviderPickerOption } from "@/components/pickers/model-brand-prefix";
+import { ProvenancePill } from "@/components/tools/ProvenancePill";
 import { appToast } from "@/components/ui/app-toast";
 import {
   useDeleteAgent,
@@ -47,7 +49,6 @@ import { useAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useMcpServers } from "@/hooks/queries/mcp-queries";
 import { useProjectSkills } from "@/hooks/queries/skills-queries";
 import {
-  useSystemConfig,
   useSystemExecutionOptions,
   useSystemProviders,
 } from "@/hooks/queries/system-queries";
@@ -58,11 +59,15 @@ import {
 import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
 import { getProviderIconInfo } from "@/lib/provider-icon";
 import { customizeSkills } from "@/lib/fork-customize-skills";
-import { agentExecutionLabel } from "./agent-display";
-import { AgentMascot, agentColorVar } from "./mascots/AgentMascot";
-import { ProviderMark } from "./ProviderMark";
+import {
+  AgentMascot,
+  agentAvatarStyle,
+  agentColorVar,
+} from "./mascots/AgentMascot";
 
 const EMPTY_PROVIDERS: readonly ProviderInfo[] = [];
+export const AGENT_AUTOSAVE_DELAY_MS = 600;
+const AGENT_UPDATED_TOAST = "Agent updated";
 
 export function AgentDetailView({ agentRef }: { agentRef: string }) {
   const navigate = useNavigate();
@@ -113,6 +118,133 @@ export function AgentDetailView({ agentRef }: { agentRef: string }) {
   );
 }
 
+type AgentDraft = Pick<
+  Agent,
+  | "name"
+  | "description"
+  | "mascot"
+  | "color"
+  | "providerId"
+  | "model"
+  | "reasoningLevel"
+  | "skills"
+  | "mcpServers"
+  | "instructions"
+>;
+
+type UpdateDraft = (changes: Partial<AgentDraft>) => void;
+
+const DRAFT_KEYS: readonly (keyof AgentDraft)[] = [
+  "name",
+  "description",
+  "mascot",
+  "color",
+  "providerId",
+  "model",
+  "reasoningLevel",
+  "skills",
+  "mcpServers",
+  "instructions",
+];
+
+function toDraft(agent: Agent): AgentDraft {
+  return {
+    name: agent.name,
+    description: agent.description,
+    mascot: agent.mascot,
+    color: agent.color,
+    providerId: agent.providerId,
+    model: agent.model,
+    reasoningLevel: agent.reasoningLevel,
+    skills: agent.skills,
+    mcpServers: agent.mcpServers,
+    instructions: agent.instructions,
+  };
+}
+
+function sameValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function useAgentDraft(agent: Agent) {
+  const [draft, setDraft] = useState<AgentDraft>(() => toDraft(agent));
+  const baselineRef = useRef<AgentDraft>(toDraft(agent));
+  useEffect(() => {
+    const next = toDraft(agent);
+    const previous = baselineRef.current;
+    baselineRef.current = next;
+    setDraft((current) => {
+      let changed = false;
+      const merged = { ...current };
+      for (const key of DRAFT_KEYS) {
+        if (
+          !sameValue(previous[key], next[key]) &&
+          sameValue(current[key], previous[key])
+        ) {
+          (merged as Record<keyof AgentDraft, unknown>)[key] = next[key];
+          changed = true;
+        }
+      }
+      return changed ? merged : current;
+    });
+  }, [agent]);
+  const update = useCallback<UpdateDraft>(
+    (changes) => setDraft((current) => ({ ...current, ...changes })),
+    [],
+  );
+  return [draft, update] as const;
+}
+
+function draftPatch(
+  agent: Agent,
+  draft: AgentDraft,
+): UpdateAgentRequest | null {
+  const patch: UpdateAgentRequest = {};
+  const name = draft.name.trim();
+  if (name !== "" && name !== agent.name) patch.name = name;
+  const description = draft.description.trim();
+  if (description !== agent.description) patch.description = description;
+  if (draft.mascot !== agent.mascot) patch.mascot = draft.mascot;
+  if (draft.color !== agent.color) patch.color = draft.color;
+  if (
+    draft.providerId !== agent.providerId ||
+    draft.model !== agent.model ||
+    draft.reasoningLevel !== agent.reasoningLevel
+  ) {
+    patch.providerId = draft.providerId;
+    patch.model = draft.model;
+    patch.reasoningLevel = draft.reasoningLevel;
+  }
+  if (!sameValue(draft.skills, agent.skills)) patch.skills = [...draft.skills];
+  if (!sameValue(draft.mcpServers, agent.mcpServers)) {
+    patch.mcpServers = [...draft.mcpServers];
+  }
+  const instructions = draft.instructions.trim();
+  if (instructions !== agent.instructions.trim()) {
+    patch.instructions = instructions;
+  }
+  return Object.keys(patch).length === 0 ? null : patch;
+}
+
+function useAutosave(
+  patch: UpdateAgentRequest | null,
+  onSave: (patch: UpdateAgentRequest) => void,
+  delayMs = AGENT_AUTOSAVE_DELAY_MS,
+) {
+  const serialized = patch === null ? null : JSON.stringify(patch);
+  const lastSentRef = useRef<string | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  useEffect(() => {
+    if (serialized === null || serialized === lastSentRef.current) return;
+    const timeout = window.setTimeout(() => {
+      lastSentRef.current = serialized;
+      onSaveRef.current(JSON.parse(serialized) as UpdateAgentRequest);
+    }, delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, serialized]);
+}
+
 function AgentDetail({
   agent,
   onDeleted,
@@ -121,24 +253,22 @@ function AgentDetail({
   onDeleted: () => void;
 }) {
   const agentsQuery = useAgents();
-  const providersQuery = useSystemProviders();
   const update = useUpdateAgent();
   const remove = useDeleteAgent();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const agentCount = agentsQuery.data?.length ?? 0;
   const isDefault = agentsQuery.data?.[0]?.id === agent.id;
+  const [draft, updateDraft] = useAgentDraft(agent);
+  const patch = useMemo(() => draftPatch(agent, draft), [agent, draft]);
   const save = useCallback(
-    (patch: UpdateAgentRequest, message?: string) =>
+    (next: UpdateAgentRequest) =>
       update.mutate(
-        { agentId: agent.id, update: patch },
-        {
-          onSuccess: () => {
-            if (message) appToast.success(message);
-          },
-        },
+        { agentId: agent.id, update: next },
+        { onSuccess: () => appToast.success(AGENT_UPDATED_TOAST) },
       ),
     [agent.id, update],
   );
+  useAutosave(patch, save);
 
   const deleteAgent = () => {
     remove.mutate(
@@ -155,70 +285,50 @@ function AgentDetail({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
-      <div className="flex min-w-0 items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <AgentMascot
-              mascot={agent.mascot}
-              color={agent.color}
-              className="size-5"
-            />
-            <h1 className="min-w-0 truncate text-base font-semibold">
-              {agent.name}
-            </h1>
-            {isDefault ? (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                Default
-              </span>
-            ) : null}
-          </div>
-          <p className="flex min-w-0 items-center gap-1.5 text-xs text-subtle-foreground">
-            <ProviderMark providerId={agent.providerId} className="size-3.5" />
-            <span className="min-w-0 truncate">
-              {agentExecutionLabel(agent, providersQuery.data)} · full
-              permissions
-            </span>
-          </p>
+      <div className="flex min-w-0 items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <ResourceIconFrame
+            className={cn(
+              CUSTOMIZE_CARD_AVATAR_CLASS_NAME,
+              "size-8 rounded-md",
+            )}
+            style={agentAvatarStyle(draft.color)}
+          >
+            {() => (
+              <AgentMascot
+                mascot={draft.mascot}
+                color={draft.color}
+                className="size-5"
+              />
+            )}
+          </ResourceIconFrame>
+          <h1 className="min-w-0 truncate text-base font-semibold">
+            {agent.name}
+          </h1>
+          {isDefault ? <ProvenancePill label="Default" /> : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          <ResourceOverflowMenu
-            label={`${agent.name} actions`}
-            items={[
-              {
-                label: "Delete",
-                icon: "Trash2",
-                tone: "destructive",
-                disabled: remove.isPending || agentCount <= 1,
-                onSelect: () => setConfirmingDelete(true),
-              },
-            ]}
-          />
-        </div>
+        <ResourceOverflowMenu
+          label={`${agent.name} actions`}
+          items={[
+            {
+              label: "Delete",
+              icon: "Trash2",
+              tone: "destructive",
+              disabled: remove.isPending || agentCount <= 1,
+              onSelect: () => setConfirmingDelete(true),
+            },
+          ]}
+        />
       </div>
-      <AgentProfileSection
-        key={`${agent.name}\0${agent.description}`}
-        agent={agent}
-        pending={update.isPending}
-        onSave={save}
-      />
+      <AgentProfileSection draft={draft} onChange={updateDraft} />
       <AgentModelSection
-        agent={agent}
-        pendingUpdate={update.isPending ? update.variables?.update : undefined}
-        onSave={save}
+        agentProviderId={agent.providerId}
+        draft={draft}
+        onChange={updateDraft}
       />
-      <AgentSkillsSection
-        agent={agent}
-        pending={update.isPending}
-        onSave={save}
-      />
-      <AgentMcpSection agent={agent} pending={update.isPending} onSave={save} />
-      <AgentInstructionsSection
-        key={agent.instructions}
-        agent={agent}
-        pending={update.isPending}
-        onSave={save}
-      />
-      <AgentFilesSection homePath={agent.homePath} />
+      <AgentSkillsSection draft={draft} onChange={updateDraft} />
+      <AgentMcpSection draft={draft} onChange={updateDraft} />
+      <AgentInstructionsSection draft={draft} onChange={updateDraft} />
       <ConfirmDeleteDialog
         open={confirmingDelete}
         onOpenChange={(open) => {
@@ -239,24 +349,30 @@ function AgentDetail({
 }
 
 interface AgentSectionProps {
-  agent: Agent;
-  pending: boolean;
-  onSave: (patch: UpdateAgentRequest, message?: string) => void;
+  draft: AgentDraft;
+  onChange: UpdateDraft;
 }
 
 function SectionCard({
   title,
+  description,
   action,
   children,
 }: {
   title: string;
+  description?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-3">
       <div className="flex min-h-6 items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-foreground">{title}</h2>
+        <div className="min-w-0 space-y-0.5">
+          <h2 className="text-sm font-medium text-foreground">{title}</h2>
+          {description ? (
+            <p className="text-xs text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
         {action}
       </div>
       {children}
@@ -264,56 +380,29 @@ function SectionCard({
   );
 }
 
-function AgentProfileSection({ agent, pending, onSave }: AgentSectionProps) {
-  const [name, setName] = useState(agent.name);
-  const [description, setDescription] = useState(agent.description);
-  const trimmedName = name.trim();
-  const dirty =
-    trimmedName !== agent.name || description.trim() !== agent.description;
+function AgentProfileSection({ draft, onChange }: AgentSectionProps) {
   return (
-    <SectionCard
-      title="Profile"
-      action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending || !dirty || trimmedName === ""}
-          onClick={() =>
-            onSave(
-              {
-                ...(trimmedName !== agent.name ? { name: trimmedName } : {}),
-                ...(description.trim() !== agent.description
-                  ? { description: description.trim() }
-                  : {}),
-              },
-              "Agent saved",
-            )
-          }
-        >
-          Save
-        </Button>
-      }
-    >
+    <SectionCard title="Profile">
       <div className="space-y-3 rounded-lg border border-border bg-card px-4 py-3.5">
         <label className="block space-y-1.5">
           <span className="text-sm">Name</span>
           <Input
-            value={name}
+            value={draft.name}
             maxLength={AGENT_NAME_MAX_CHARS}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => onChange({ name: event.target.value })}
           />
         </label>
         <label className="block space-y-1.5">
           <span className="text-sm">Description</span>
           <Input
-            value={description}
+            value={draft.description}
             maxLength={AGENT_DESCRIPTION_MAX_CHARS}
             placeholder="What this agent is for"
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => onChange({ description: event.target.value })}
           />
         </label>
-        <AgentAppearanceRow agent={agent} pending={pending} onSave={onSave} />
+        <AgentIconRow draft={draft} onChange={onChange} />
+        <AgentColorRow draft={draft} onChange={onChange} />
       </div>
     </SectionCard>
   );
@@ -324,111 +413,93 @@ const AGENT_COLOR_CHOICES = Array.from(
   (_, index) => index + 1,
 );
 
-function AgentAppearanceRow({ agent, pending, onSave }: AgentSectionProps) {
+function AgentIconRow({ draft, onChange }: AgentSectionProps) {
   return (
-    <div className="space-y-1.5" role="group" aria-label="Appearance">
-      <span className="block text-sm">Appearance</span>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div
-          role="radiogroup"
-          aria-label="Mascot"
-          className="grid grid-cols-10 gap-1"
-        >
-          {AGENT_MASCOTS.map((mascot) => {
-            const selected = agent.mascot === mascot;
-            return (
-              <button
-                key={mascot}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={mascot}
-                title={mascot}
-                disabled={pending}
-                onClick={() => {
-                  if (!selected) onSave({ mascot }, "Agent saved");
-                }}
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-md border hover:bg-state-hover disabled:cursor-default",
-                  selected
-                    ? "border-foreground/40 bg-state-active"
-                    : "border-transparent",
-                )}
-              >
-                <AgentMascot
-                  mascot={mascot}
-                  color={agent.color}
-                  className="size-4"
-                />
-              </button>
-            );
-          })}
-        </div>
-        <div
-          role="radiogroup"
-          aria-label="Color"
-          className="flex items-center gap-1"
-        >
-          {AGENT_COLOR_CHOICES.map((color) => {
-            const selected = agent.color === color;
-            return (
-              <button
-                key={color}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={`Color ${color}`}
-                disabled={pending}
-                onClick={() => {
-                  if (!selected) onSave({ color }, "Agent saved");
-                }}
-                className={cn(
-                  "flex size-6 items-center justify-center rounded-full border disabled:cursor-default",
-                  selected ? "border-foreground/40" : "border-transparent",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-4 rounded-full"
-                  style={{ backgroundColor: agentColorVar(color) }}
-                />
-              </button>
-            );
-          })}
-        </div>
+    <div className="space-y-1.5">
+      <span className="block text-sm">Icon</span>
+      <div
+        role="radiogroup"
+        aria-label="Icon"
+        className="flex flex-wrap items-center gap-1"
+      >
+        {AGENT_MASCOTS.map((mascot) => {
+          const selected = draft.mascot === mascot;
+          return (
+            <button
+              key={mascot}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={mascot}
+              onClick={() => onChange({ mascot })}
+              className={cn(
+                "flex size-7 items-center justify-center rounded-md border hover:bg-state-hover",
+                selected
+                  ? "border-foreground/40 bg-state-active"
+                  : "border-transparent",
+              )}
+            >
+              <AgentMascot
+                mascot={mascot}
+                color={draft.color}
+                className="size-4"
+              />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function SettingRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function AgentColorRow({ draft, onChange }: AgentSectionProps) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2 first:pt-0 last:pb-0">
-      <span className="shrink-0 text-sm">{label}</span>
-      {children}
+    <div className="space-y-1.5">
+      <span className="block text-sm">Color</span>
+      <div
+        role="radiogroup"
+        aria-label="Color"
+        className="flex flex-wrap items-center gap-1"
+      >
+        {AGENT_COLOR_CHOICES.map((color) => {
+          const selected = draft.color === color;
+          return (
+            <button
+              key={color}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={`Color ${color}`}
+              onClick={() => onChange({ color })}
+              className={cn(
+                "flex size-7 items-center justify-center rounded-md border hover:bg-state-hover",
+                selected
+                  ? "border-foreground/40 bg-state-active"
+                  : "border-transparent",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className="size-4 rounded-full"
+                style={{ backgroundColor: agentColorVar(color) }}
+              />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 function AgentModelSection({
-  agent,
-  pendingUpdate,
-  onSave,
-}: Omit<AgentSectionProps, "pending"> & {
-  pendingUpdate: UpdateAgentRequest | undefined;
-}) {
+  agentProviderId,
+  draft,
+  onChange,
+}: AgentSectionProps & { agentProviderId: string }) {
   const providersQuery = useSystemProviders();
-  const providerId = pendingUpdate?.providerId ?? agent.providerId;
-  const model =
-    pendingUpdate?.model !== undefined ? pendingUpdate.model : agent.model;
-  const preferredReasoningLevel =
-    pendingUpdate?.reasoningLevel ?? agent.reasoningLevel;
+  const providerId = draft.providerId;
+  const model = draft.model;
+  const preferredReasoningLevel = draft.reasoningLevel;
   const executionOptions = useSystemExecutionOptions({ providerId });
   const providers = providersQuery.data ?? EMPTY_PROVIDERS;
   const providerInfo = providers.find((provider) => provider.id === providerId);
@@ -467,10 +538,10 @@ function AgentModelSection({
         ? {}
         : { brandPrefix: provider.strings.brandPrefix }),
     }));
-    return options.some((option) => option.value === agent.providerId)
+    return options.some((option) => option.value === agentProviderId)
       ? options
-      : [...options, { value: agent.providerId, label: agent.providerId }];
-  }, [agent.providerId, providers]);
+      : [...options, { value: agentProviderId, label: agentProviderId }];
+  }, [agentProviderId, providers]);
   const modelsLoading =
     executionOptions.isLoading ||
     (executionOptions.isPlaceholderData &&
@@ -482,55 +553,42 @@ function AgentModelSection({
     ].find((entry) => entry.model === value);
   return (
     <SectionCard title="Model">
-      <div className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-3.5">
-        <SettingRow label="Model">
-          <ModelReasoningPicker
-            modal={false}
-            align="end"
-            commandShortcutsEnabled={false}
-            providerOptions={providerOptions}
-            selectedProviderId={providerId}
-            onSelectedProviderChange={(nextProviderId) => {
-              if (nextProviderId === providerId) return;
-              onSave({
-                providerId: nextProviderId,
-                model: null,
-                reasoningLevel: preferredReasoningLevel,
-              });
-            }}
-            hasMultipleProviders={providerOptions.length > 1}
-            modelValue={selection.selectedModel}
-            modelOptions={selection.modelOptions}
-            moreModelOptions={selection.moreModelOptions}
-            modelIsLoading={modelsLoading}
-            modelLoadFailed={
-              executionOptions.isError || modelLoadError !== null
-            }
-            modelLoadError={modelLoadError}
-            onModelChange={(nextModel) =>
-              onSave({
-                providerId,
-                model: nextModel,
-                reasoningLevel: resolveModelReasoningLevel(
-                  findModel(nextModel),
-                  preferredReasoningLevel,
-                ),
-              })
-            }
-            formatModelLabel={formatModelLabel}
-            reasoningValue={selection.reasoningLevel}
-            reasoningOptions={selection.reasoningOptions}
-            onReasoningChange={(reasoningLevel) =>
-              onSave({ providerId, model, reasoningLevel })
-            }
-            fastModeEnabled={false}
-            onFastModeChange={() => {}}
-            showFastModeToggle={false}
-          />
-        </SettingRow>
-        <SettingRow label="Permissions">
-          <span className="text-sm text-muted-foreground">Full</span>
-        </SettingRow>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3.5">
+        <span className="shrink-0 text-sm">Model</span>
+        <ModelReasoningPicker
+          modal={false}
+          align="end"
+          commandShortcutsEnabled={false}
+          providerOptions={providerOptions}
+          selectedProviderId={providerId}
+          onSelectedProviderChange={(nextProviderId) => {
+            if (nextProviderId === providerId) return;
+            onChange({ providerId: nextProviderId, model: null });
+          }}
+          hasMultipleProviders={providerOptions.length > 1}
+          modelValue={selection.selectedModel}
+          modelOptions={selection.modelOptions}
+          moreModelOptions={selection.moreModelOptions}
+          modelIsLoading={modelsLoading}
+          modelLoadFailed={executionOptions.isError || modelLoadError !== null}
+          modelLoadError={modelLoadError}
+          onModelChange={(nextModel) =>
+            onChange({
+              model: nextModel,
+              reasoningLevel: resolveModelReasoningLevel(
+                findModel(nextModel),
+                preferredReasoningLevel,
+              ),
+            })
+          }
+          formatModelLabel={formatModelLabel}
+          reasoningValue={selection.reasoningLevel}
+          reasoningOptions={selection.reasoningOptions}
+          onReasoningChange={(reasoningLevel) => onChange({ reasoningLevel })}
+          fastModeEnabled={false}
+          onFastModeChange={() => {}}
+          showFastModeToggle={false}
+        />
       </div>
     </SectionCard>
   );
@@ -546,19 +604,19 @@ function toggleName(
     : selected.filter((entry) => entry !== name);
 }
 
-function NameChecklist({
-  label,
+function AccessSection({
+  title,
+  noun,
+  emptyText,
   names,
   selected,
-  pending,
-  emptyText,
   onChange,
 }: {
-  label: string;
+  title: string;
+  noun: string;
+  emptyText: string;
   names: readonly { name: string; description: string | null }[];
   selected: readonly string[];
-  pending: boolean;
-  emptyText: string;
   onChange: (next: string[]) => void;
 }) {
   const known = new Set(names.map((entry) => entry.name));
@@ -568,46 +626,82 @@ function NameChecklist({
       .filter((name) => !known.has(name))
       .map((name) => ({ name, description: null })),
   ];
-  if (rows.length === 0) {
-    return (
-      <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-        {emptyText}
-      </p>
-    );
-  }
+  const allSelected = selected.length === 0;
+  const isChecked = (name: string) => allSelected || selected.includes(name);
+  const checkedCount = allSelected
+    ? rows.length
+    : rows.filter((entry) => selected.includes(entry.name)).length;
+  const toggle = (name: string, checked: boolean) => {
+    const current = allSelected ? rows.map((entry) => entry.name) : selected;
+    const next = toggleName(current, name, checked);
+    onChange(rows.every((entry) => next.includes(entry.name)) ? [] : next);
+  };
   return (
-    <ul
-      aria-label={label}
-      className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-2"
+    <SectionCard
+      title={title}
+      description={
+        rows.length === 0
+          ? undefined
+          : allSelected
+            ? `This agent can use every ${noun}.`
+            : `This agent can use ${checkedCount} of ${rows.length} ${noun}s.`
+      }
+      action={
+        rows.length > 0 && !allSelected ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange([])}
+          >
+            Select all
+          </Button>
+        ) : undefined
+      }
     >
-      {rows.map((entry) => (
-        <li key={entry.name} className="py-2">
-          <label className="flex cursor-pointer items-start gap-3">
-            <Checkbox
-              className="mt-0.5"
-              checked={selected.includes(entry.name)}
-              disabled={pending}
-              aria-label={entry.name}
-              onCheckedChange={(checked) =>
-                onChange(toggleName(selected, entry.name, checked === true))
-              }
-            />
-            <span className="min-w-0">
-              <span className="block truncate text-sm">{entry.name}</span>
-              {entry.description ? (
-                <span className="block truncate text-xs text-muted-foreground">
-                  {entry.description}
-                </span>
-              ) : null}
-            </span>
-          </label>
-        </li>
-      ))}
-    </ul>
+      {rows.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+          {emptyText}
+        </p>
+      ) : (
+        <ul
+          aria-label={title}
+          className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-2"
+        >
+          {rows.map((entry) => {
+            const checked = isChecked(entry.name);
+            const lastChecked = checked && checkedCount === 1;
+            return (
+              <li key={entry.name} className="py-2">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={checked}
+                    disabled={lastChecked}
+                    aria-label={entry.name}
+                    onCheckedChange={(next) =>
+                      toggle(entry.name, next === true)
+                    }
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm">{entry.name}</span>
+                    {entry.description ? (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {entry.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
   );
 }
 
-function AgentSkillsSection({ agent, pending, onSave }: AgentSectionProps) {
+function AgentSkillsSection({ draft, onChange }: AgentSectionProps) {
   const skillsQuery = useProjectSkills(PERSONAL_PROJECT_ID);
   const skills = useMemo(
     () =>
@@ -618,25 +712,18 @@ function AgentSkillsSection({ agent, pending, onSave }: AgentSectionProps) {
     [skillsQuery.data],
   );
   return (
-    <SectionCard title="Skills">
-      <p className="text-xs text-muted-foreground">
-        {agent.skills.length === 0
-          ? "None checked: the agent can use every skill."
-          : "The agent can use only the checked skills. Uncheck all to allow every skill."}
-      </p>
-      <NameChecklist
-        label="Skills"
-        names={skills}
-        selected={agent.skills}
-        pending={pending}
-        emptyText="No BB skills yet."
-        onChange={(next) => onSave({ skills: next })}
-      />
-    </SectionCard>
+    <AccessSection
+      title="Skills"
+      noun="skill"
+      emptyText="No skills yet."
+      names={skills}
+      selected={draft.skills}
+      onChange={(skills) => onChange({ skills })}
+    />
   );
 }
 
-function AgentMcpSection({ agent, pending, onSave }: AgentSectionProps) {
+function AgentMcpSection({ draft, onChange }: AgentSectionProps) {
   const serversQuery = useMcpServers();
   const servers = useMemo(
     () =>
@@ -646,133 +733,30 @@ function AgentMcpSection({ agent, pending, onSave }: AgentSectionProps) {
     [serversQuery.data],
   );
   return (
-    <SectionCard title="MCPs">
-      <p className="text-xs text-muted-foreground">
-        {agent.mcpServers.length === 0
-          ? "None checked: the agent sees every enabled MCP."
-          : "The agent sees only the checked MCPs. Uncheck all to allow every enabled MCP."}
-      </p>
-      <NameChecklist
-        label="MCPs"
-        names={servers}
-        selected={agent.mcpServers}
-        pending={pending}
-        emptyText="No enabled MCPs."
-        onChange={(next) => onSave({ mcpServers: next })}
-      />
-    </SectionCard>
+    <AccessSection
+      title="MCPs"
+      noun="MCP"
+      emptyText="No enabled MCPs."
+      names={servers}
+      selected={draft.mcpServers}
+      onChange={(mcpServers) => onChange({ mcpServers })}
+    />
   );
 }
 
-function AgentInstructionsSection({
-  agent,
-  pending,
-  onSave,
-}: AgentSectionProps) {
-  const [draft, setDraft] = useState(agent.instructions);
+function AgentInstructionsSection({ draft, onChange }: AgentSectionProps) {
   return (
     <SectionCard
       title="Instructions"
-      action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending || draft.trim() === agent.instructions.trim()}
-          onClick={() =>
-            onSave({ instructions: draft.trim() }, "Instructions saved")
-          }
-        >
-          Save
-        </Button>
-      }
+      description="Added to every thread this agent runs, after workspace instructions."
     >
       <Textarea
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder="Added to every thread this agent runs, after workspace instructions."
+        value={draft.instructions}
+        onChange={(event) => onChange({ instructions: event.target.value })}
         aria-label="Instructions"
         maxLength={AGENT_INSTRUCTIONS_MAX_CHARS}
         rows={6}
       />
-    </SectionCard>
-  );
-}
-
-const AGENT_HOME_UNAVAILABLE =
-  "This agent's home lives on the server's machine, which isn't connected.";
-
-function AgentFilesSection({ homePath }: { homePath: string }) {
-  const systemConfig = useSystemConfig();
-  const hostId = systemConfig.data?.primaryHostId ?? null;
-  const [openPath, setOpenPath] = useState<string | null>(null);
-  const directory = useMemo<DirectoryLocation | null>(
-    () => (hostId === null ? null : { hostId, rootPath: homePath }),
-    [homePath, hostId],
-  );
-  let status: FilesBrowserStatus | null = null;
-  if (systemConfig.data === undefined && systemConfig.error !== null) {
-    status = { message: systemConfig.error.message, destructive: true };
-  } else if (systemConfig.data !== undefined && hostId === null) {
-    status = { message: AGENT_HOME_UNAVAILABLE, destructive: false };
-  }
-  const openFile = openPath === null ? null : joinRoot(homePath, openPath);
-
-  return (
-    <SectionCard
-      title="Files"
-      action={
-        openPath === null ? undefined : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setOpenPath(null)}
-          >
-            <Icon name="X" aria-hidden />
-            Close file
-          </Button>
-        )
-      }
-    >
-      <p className="truncate font-mono text-xs text-subtle-foreground">
-        {homePath}
-      </p>
-      <div
-        data-agent-files=""
-        className="grid h-96 min-h-0 grid-cols-1 overflow-hidden rounded-lg border border-border md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]"
-      >
-        <FilesBrowser
-          className={cn("px-2 pt-2", openFile !== null && "max-md:hidden")}
-          directory={directory}
-          status={status}
-          isActive
-          onOpenFile={setOpenPath}
-        />
-        <div
-          className={cn(
-            "min-h-0 flex-col md:flex md:border-l md:border-border",
-            openFile === null
-              ? "hidden md:items-center md:justify-center"
-              : "flex",
-          )}
-        >
-          {openFile !== null && openPath !== null && hostId !== null ? (
-            <LazyFileEditor
-              key={openFile}
-              source={{ kind: "host", hostId, path: openFile }}
-              displayPath={openPath}
-              copyPath={openFile}
-              lineRange={null}
-              isPanelOpen
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select a file to open it.
-            </p>
-          )}
-        </div>
-      </div>
     </SectionCard>
   );
 }

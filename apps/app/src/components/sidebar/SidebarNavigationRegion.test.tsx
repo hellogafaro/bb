@@ -204,21 +204,15 @@ describe("SidebarNavigationRegion", () => {
     );
   });
 
-  it.each(["/skills/library/demo", "/customize", "/customize/mcps/x"])(
-    "marks Customize active on %s and routes it to /customize",
+  it.each(["/settings/skills", "/settings/agents", "/plugins"])(
+    "offers no Customize, Agents, or Plugins entry on %s",
     (route) => {
       registerFixture();
       renderHarness(vi.fn(), [route]);
 
-      expect(
-        screen
-          .getByRole("button", { name: "Customize" })
-          .getAttribute("aria-current"),
-      ).toBe("page");
+      expect(screen.queryByRole("button", { name: "Customize" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Agents" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
-
-      fireEvent.click(screen.getByRole("button", { name: "Customize" }));
-      expect(screen.getByTestId("pathname").textContent).toBe("/customize");
     },
   );
 

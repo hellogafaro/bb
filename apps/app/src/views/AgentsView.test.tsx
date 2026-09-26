@@ -164,21 +164,43 @@ afterEach(() => {
 });
 
 describe("Agents page", () => {
-  it("lists agents with provider, model, skill, and MCP counts", async () => {
-    renderRoutes("/agents", [makeAgent(), coder]);
+  it("lists agents as cards with their descriptions", async () => {
+    renderRoutes("/settings/agents", [
+      makeAgent(),
+      { ...coder, description: "" },
+    ]);
     expect(await screen.findByText("Coder")).toBeTruthy();
     expect(screen.getByText(AGENTS_PAGE_DESCRIPTION)).toBeTruthy();
     expect(screen.getByText("Default")).toBeTruthy();
+    expect(screen.getByText("The default agent.")).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByText("Codex · GPT 5 · 1 skill · 1 MCP")).toBeTruthy(),
     );
-    expect(
-      screen.getByText("Codex · Default model · all skills · all MCPs"),
-    ).toBeTruthy();
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("shows a card skeleton while agents load", () => {
+    vi.spyOn(sdk.agents, "list").mockImplementation(
+      () => new Promise(() => {}),
+    );
+    vi.spyOn(sdk.providers, "list").mockResolvedValue([]);
+    const { wrapper: QueryClientWrapper } = createQueryClientTestHarness();
+    render(
+      <MemoryRouter initialEntries={["/settings/agents"]}>
+        <QueryClientWrapper>
+          <AppRoutes />
+        </QueryClientWrapper>
+      </MemoryRouter>,
+    );
+    return waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: "Loading agents" }),
+      ).toBeTruthy(),
+    );
   });
 
   it("filters rows with the search box", async () => {
-    renderRoutes("/agents", [makeAgent(), coder]);
+    renderRoutes("/settings/agents", [makeAgent(), coder]);
     expect(await screen.findByText("Coder")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("Search agents"), {
       target: { value: "writes" },
@@ -192,7 +214,7 @@ describe("Agents page", () => {
   });
 
   it("prefills chat from New agent", async () => {
-    renderRoutes("/agents", [makeAgent()]);
+    renderRoutes("/settings/agents", [makeAgent()]);
     fireEvent.click(await screen.findByRole("button", { name: "New agent" }));
     expect(location()).toBe("/");
     expect(
@@ -205,64 +227,76 @@ describe("Agents page", () => {
   });
 
   it("opens an agent's detail page from its row", async () => {
-    renderRoutes("/agents", [makeAgent(), coder]);
+    renderRoutes("/settings/agents", [makeAgent(), coder]);
     fireEvent.click(await screen.findByRole("button", { name: "Coder" }));
-    expect(location()).toBe("/agents/agent_coder0001");
+    expect(location()).toBe("/settings/agents/agent_coder0001");
     expect(await screen.findByRole("heading", { name: "Coder" })).toBeTruthy();
   });
 
   it("edits skills, MCPs, and instructions inline", async () => {
-    const { update } = renderRoutes("/agents/Coder", [makeAgent(), coder]);
+    const { update } = renderRoutes("/settings/agents/Coder", [
+      makeAgent(),
+      coder,
+    ]);
     expect(await screen.findByRole("heading", { name: "Coder" })).toBeTruthy();
 
     const skills = await screen.findByRole("list", { name: "Skills" });
+    expect(screen.getByText("This agent can use 1 of 2 skills.")).toBeTruthy();
+    expect(
+      within(skills)
+        .getByRole("checkbox", { name: "bb-review" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
     fireEvent.click(within(skills).getByRole("checkbox", { name: "triage" }));
-    await waitFor(() =>
-      expect(update).toHaveBeenCalledWith({
-        agent: coder.id,
-        skills: ["bb-review", "triage"],
-      }),
-    );
+    expect(screen.getByText("This agent can use every skill.")).toBeTruthy();
 
     const mcps = await screen.findByRole("list", { name: "MCPs" });
     expect(within(mcps).queryByRole("checkbox", { name: "off" })).toBeNull();
-    fireEvent.click(within(mcps).getByRole("checkbox", { name: "notion" }));
-    await waitFor(() =>
-      expect(update).toHaveBeenCalledWith({
-        agent: coder.id,
-        mcpServers: [],
-      }),
-    );
+    expect(
+      within(mcps)
+        .getByRole("checkbox", { name: "notion" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Instructions" }), {
       target: { value: "Ship small diffs." },
     });
-    const instructions = screen
-      .getByRole("heading", { name: "Instructions" })
-      .closest("section");
-    if (instructions === null) throw new Error("instructions section missing");
-    fireEvent.click(within(instructions).getByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(update).toHaveBeenCalledWith({
-        agent: coder.id,
-        instructions: "Ship small diffs.",
-      }),
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    await waitFor(
+      () =>
+        expect(update).toHaveBeenCalledWith({
+          agent: coder.id,
+          skills: [],
+          instructions: "Ship small diffs.",
+        }),
+      { timeout: 3000 },
     );
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
-  it("explains that no checked skills means every skill", async () => {
-    renderRoutes("/agents/BB", [makeAgent(), coder]);
+  it("shows the default agent with every skill and MCP allowed", async () => {
+    renderRoutes("/settings/agents/BB", [makeAgent(), coder]);
     expect(await screen.findByRole("heading", { name: "BB" })).toBeTruthy();
     expect(
-      screen.getByText("None checked: the agent can use every skill."),
+      await screen.findByText("This agent can use every skill."),
     ).toBeTruthy();
     expect(
-      screen.getByText("None checked: the agent sees every enabled MCP."),
+      await screen.findByText("This agent can use every MCP."),
     ).toBeTruthy();
+    expect(screen.queryByRole("switch")).toBeNull();
+    const skills = screen.getByRole("list", { name: "Skills" });
+    expect(
+      within(skills)
+        .getAllByRole("checkbox")
+        .every((box) => box.getAttribute("aria-checked") === "true"),
+    ).toBe(true);
   });
 
   it("deletes an agent after confirming and returns to the list", async () => {
-    const { remove } = renderRoutes("/agents/Coder", [makeAgent(), coder]);
+    const { remove } = renderRoutes("/settings/agents/Coder", [
+      makeAgent(),
+      coder,
+    ]);
     expect(await screen.findByRole("heading", { name: "Coder" })).toBeTruthy();
     fireEvent.pointerDown(
       screen.getByRole("button", { name: "Coder actions" }),
@@ -273,11 +307,11 @@ describe("Agents page", () => {
     await waitFor(() =>
       expect(remove).toHaveBeenCalledWith({ agent: coder.id }),
     );
-    await waitFor(() => expect(location()).toBe("/agents"));
+    await waitFor(() => expect(location()).toBe("/settings/agents"));
   });
 
   it("shows a missing agent", async () => {
-    renderRoutes("/agents/missing", [makeAgent()]);
+    renderRoutes("/settings/agents/missing", [makeAgent()]);
     expect(await screen.findByText("That agent is gone.")).toBeTruthy();
   });
 });

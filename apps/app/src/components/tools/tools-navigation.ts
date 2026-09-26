@@ -16,7 +16,6 @@ import {
   isSkillsRoutePath,
 } from "@/lib/route-paths";
 import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
-import { resolveCustomizeBreadcrumbs } from "./customize-navigation";
 
 export type ToolsSectionId = "skills" | "plugins";
 
@@ -175,11 +174,6 @@ export function resolveToolsBreadcrumbs(
   search = "",
   resourceLabel?: string | null,
 ): ToolsBreadcrumbSegment[] | null {
-  const customizeBreadcrumbs = resolveCustomizeBreadcrumbs(
-    pathname,
-    resourceLabel,
-  );
-  if (customizeBreadcrumbs !== null) return customizeBreadcrumbs;
   const view = new URLSearchParams(search).get("view");
   const pluginCreateBreadcrumbs = resolvePluginCreateBreadcrumbs(
     pathname,
@@ -192,7 +186,10 @@ export function resolveToolsBreadcrumbs(
     return [sectionCrumb("skills"), { label: "Browse" }];
   }
 
-  for (const section of [TOOLS_SECTIONS.plugins, TOOLS_SECTIONS.skills]) {
+  const workspaceSections = FORK_CUSTOMIZE_PAGE
+    ? [TOOLS_SECTIONS.plugins]
+    : [TOOLS_SECTIONS.plugins, TOOLS_SECTIONS.skills];
+  for (const section of workspaceSections) {
     if (pathname === section.to) {
       return [
         sectionCrumb(section.id),

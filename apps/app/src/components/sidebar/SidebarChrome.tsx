@@ -26,9 +26,7 @@ export function SidebarTopReserveRow({ testId }: { testId: string }) {
     >
       <SidebarHistoryNavigationControls
         onNavigate={closeOnMobile}
-        className={
-          usesDesktopChrome ? MACOS_WINDOW_NO_DRAG_CLASS : undefined
-        }
+        className={usesDesktopChrome ? MACOS_WINDOW_NO_DRAG_CLASS : undefined}
       />
     </div>
   );

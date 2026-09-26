@@ -27,13 +27,28 @@ export const SETTINGS_NAV_SECTIONS = [
   label: string;
 }[];
 
-export type SettingsNavSection = (typeof SETTINGS_NAV_SECTIONS)[number];
+export const CUSTOMIZE_NAV_SECTIONS = [
+  { icon: "Zap", id: "skills", label: "Skills" },
+  { icon: "Connector", id: "mcps", label: "MCPs" },
+  { icon: "Robot", id: "agents", label: "Agents" },
+] as const satisfies readonly {
+  icon: IconName;
+  id: string;
+  label: string;
+}[];
+
+export type SettingsNavSection =
+  | (typeof SETTINGS_NAV_SECTIONS)[number]
+  | (typeof CUSTOMIZE_NAV_SECTIONS)[number];
 
 export type SettingsSectionId = SettingsNavSection["id"];
 
+export type CustomizeSectionId = (typeof CUSTOMIZE_NAV_SECTIONS)[number]["id"];
+
 export function isSettingsSectionId(value: string): value is SettingsSectionId {
   return (
-    SETTINGS_NAV_SECTIONS.some((section) => section.id === value) &&
+    (SETTINGS_NAV_SECTIONS.some((section) => section.id === value) ||
+      CUSTOMIZE_NAV_SECTIONS.some((section) => section.id === value)) &&
     !isForkHiddenSettingsSection(value)
   );
 }

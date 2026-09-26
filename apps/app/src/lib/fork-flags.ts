@@ -13,4 +13,5 @@ export const FORK_HIDDEN_SETTINGS_SECTIONS: readonly string[] = [
 ];
 
 export const FORK_HIDE_BROWSER: boolean = true;
+export const FORK_HIDE_WORKSPACE_CHANGES_BANNER: boolean = true;
 export const FORK_AGENT_COMPOSER = true as const;

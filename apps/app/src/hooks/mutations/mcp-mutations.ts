@@ -27,21 +27,6 @@ export function useSetMcpServerEnabled() {
   });
 }
 
-export function useSetMcpServerGuide() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    meta: { errorMessage: "Failed to save the agent guide." },
-    mutationFn: ({
-      serverId,
-      guide,
-    }: McpServerRequest & { guide: string | null }) =>
-      sdk.mcp.setGuide({ server: serverId, guide }),
-    onSuccess: (_result, { serverId }) => {
-      invalidateMcpServerMutationQueries({ queryClient, serverId });
-    },
-  });
-}
-
 export function useSetMcpServerHeaders() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -105,6 +90,29 @@ export function useSetMcpToolPolicy() {
       sdk.mcp.setPolicy({ server: serverId, tool, mode }),
     onSuccess: (policy, { serverId }) => {
       applyMcpToolPolicy({ queryClient, serverId, policy });
+    },
+  });
+}
+
+export function useSetMcpToolPolicies() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorMessage: "Failed to update tool policies." },
+    mutationFn: ({
+      serverId,
+      changes,
+    }: McpServerRequest & {
+      changes: readonly { tool: string; mode: McpToolPolicy["mode"] }[];
+    }) =>
+      Promise.all(
+        changes.map(({ tool, mode }) =>
+          sdk.mcp.setPolicy({ server: serverId, tool, mode }),
+        ),
+      ),
+    onSuccess: (policies, { serverId }) => {
+      for (const policy of policies) {
+        applyMcpToolPolicy({ queryClient, serverId, policy });
+      }
     },
   });
 }

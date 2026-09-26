@@ -490,7 +490,7 @@ describe("Plugin detail recipe", () => {
       ["GitHub threads", "/settings/appearance"],
       ["Markdown viewer", "/settings/files"],
       ["GitHub Dark", "/settings/appearance"],
-      ["review", `/skills/library/skill_${"a".repeat(64)}`],
+      ["review", `/settings/skills/skill_${"a".repeat(64)}`],
     ] as const;
     for (const [name, href] of destinations) {
       expect(screen.getByRole("link", { name }).getAttribute("href")).toBe(
@@ -529,7 +529,7 @@ describe("Plugin detail recipe", () => {
 
     expect(
       screen.getByRole("link", { name: "review" }).getAttribute("href"),
-    ).toBe("/customize");
+    ).toBe("/settings/skills");
     expect(listSkills).not.toHaveBeenCalled();
   });
 

@@ -10,7 +10,7 @@ import { Button } from "@bb/shared-ui/button";
 import { Input } from "@bb/shared-ui/input";
 import { Pill } from "@bb/shared-ui/pill";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { McpRiskPill } from "@/components/mcp/McpToolPolicy";
+import { McpRiskPill } from "@/components/mcp/McpRiskPill";
 import { getDetailScrollMaxHeightClass } from "@/components/ui/detail-scroll-size.js";
 import { useResolveThreadPendingInteraction } from "@/hooks/mutations/thread-interaction-mutations";
 import { getMutationErrorMessage } from "@/lib/mutation-errors";

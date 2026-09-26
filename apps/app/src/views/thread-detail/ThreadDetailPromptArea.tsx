@@ -140,7 +140,10 @@ import {
   type FollowUpPromptBoxProps,
   type FollowUpSubmitMode,
 } from "@/components/promptbox/FollowUpPromptBox";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
+import {
+  FORK_AGENT_COMPOSER,
+  FORK_HIDE_WORKSPACE_CHANGES_BANNER,
+} from "@/lib/fork-flags";
 import type { SendMessageMutationLike } from "./threadDetailMutationTypes";
 import {
   buildAutoFollowUpRequest,
@@ -2030,7 +2033,7 @@ export function ThreadDetailPromptArea({
           childThreadsSection={childThreadsSection}
           pullRequestSection={pullRequestSection}
           gitSection={
-            workspaceChangedFilesSection
+            workspaceChangedFilesSection && !FORK_HIDE_WORKSPACE_CHANGES_BANNER
               ? {
                   changedFiles: workspaceChangedFilesSection,
                   mergeBase: contextBannerMergeBase,
@@ -2041,7 +2044,9 @@ export function ThreadDetailPromptArea({
                 }
               : null
           }
-          gitSectionPending={workspaceStatusPending}
+          gitSectionPending={
+            !FORK_HIDE_WORKSPACE_CHANGES_BANNER && workspaceStatusPending
+          }
           expandedSection={expandedBannerSection}
           onToggleSection={handleToggleBannerSection}
         />

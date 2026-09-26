@@ -4,7 +4,9 @@ import { RiAtLine } from "react-icons/ri";
 import type { McpServer } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
 import { Icon } from "@bb/shared-ui/icon";
+import { cn } from "@bb/shared-ui/lib/utils";
 import {
+  ResourceIconFrame,
   ResourceListState,
   ResourceOverflowMenu,
   useResourceRouteLabel,
@@ -12,38 +14,35 @@ import {
 } from "@bb/shared-ui/resource-list";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { Switch } from "@bb/shared-ui/switch";
-import { Textarea } from "@bb/shared-ui/textarea";
+import { CUSTOMIZE_CARD_AVATAR_CLASS_NAME } from "@/components/customize/CustomizeCards";
 import {
   ConfirmDeleteDialog,
   ConfirmDeleteDialogContent,
 } from "@/components/dialogs/ConfirmDeleteDialog";
 import { appToast } from "@/components/ui/app-toast";
-import { getCustomizeRoutePath } from "@/components/tools/customize-navigation";
 import {
   useAuthenticateMcpServer,
   useReconnectMcpServer,
   useRemoveMcpServer,
   useSetMcpServerEnabled,
-  useSetMcpServerGuide,
   useSetMcpServerHeaders,
-  useSetMcpToolPolicy,
+  useSetMcpToolPolicies,
 } from "@/hooks/mutations/mcp-mutations";
 import {
   useMcpServer,
   useMcpServerTools,
   useMcpToolPolicies,
 } from "@/hooks/queries/mcp-queries";
-import { getRootComposeRoutePath } from "@/lib/route-paths";
+import { getMcpsRoutePath, getRootComposeRoutePath } from "@/lib/route-paths";
 import { BbHttpError } from "@/lib/sdk";
 import { reserveMcpAuthWindow } from "./mcp-auth-window";
 import { mcpNeedsSignIn, mcpTypeIcon, mcpTypeLabel } from "./mcp-display";
 import { buildMcpEditThreadPrompt } from "./mcp-prompts";
 import { McpHeadersEditor } from "./McpHeadersEditor";
-import { McpPageShell, McpPagination } from "./McpPageShell";
-import { McpRiskPill, McpToolPolicySelect } from "./McpToolPolicy";
+import { McpPageShell } from "./McpPageShell";
+import { groupToolsByRisk, McpToolGroup } from "./McpToolGroups";
 
-const GUIDE_MAX_CHARS = 4000;
-const TOOL_PAGE_SIZE = 50;
+const MCP_UPDATED_TOAST = "MCP updated";
 
 const AUTH_STATUS_TEXT: Record<McpServer["authStatus"], string> = {
   "not-applicable": "No sign-in needed.",
@@ -63,7 +62,7 @@ export function McpDetailView({ serverRef }: { serverRef: string }) {
   const server = serverQuery.data ?? null;
   useResourceRouteLabel(server?.name ?? null);
   const backToList = useCallback(
-    () => navigate(getCustomizeRoutePath("mcps")),
+    () => navigate(getMcpsRoutePath()),
     [navigate],
   );
 
@@ -195,6 +194,11 @@ function McpServerDetail({
   };
 
   const menuItems: ResourceOverflowMenuItem[] = [
+    {
+      label: "Edit in chat",
+      icon: "MessageCirclePlus",
+      onSelect: editInChat,
+    },
     ...(remote
       ? [
           {
@@ -227,61 +231,56 @@ function McpServerDetail({
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div className="flex min-w-0 items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="flex size-4 shrink-0 items-center justify-center">
-              <Icon
-                name={mcpTypeIcon(server.type)}
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </span>
-            <h1 className="min-w-0 truncate text-base font-semibold">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <ResourceIconFrame
+            className={cn(
+              CUSTOMIZE_CARD_AVATAR_CLASS_NAME,
+              "size-8 rounded-md",
+            )}
+          >
+            {() => <Icon name="Connector" className="size-5" aria-hidden />}
+          </ResourceIconFrame>
+          <div className="min-w-0 flex-1 space-y-1">
+            <h1 className="min-w-0 truncate text-base font-semibold leading-8">
               {server.name}
             </h1>
-          </div>
-          <div className="text-xs text-subtle-foreground">
-            <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="inline-flex h-4 min-w-0 items-center gap-1.5 whitespace-nowrap leading-4">
-                <RiAtLine className="size-3.5 shrink-0" aria-label="Handle" />
-                <span className="min-w-0 truncate" title={server.id}>
-                  {server.handle}
-                </span>
-              </span>
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <span aria-hidden="true">·</span>
+            <div className="text-xs text-subtle-foreground">
+              <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                 <span className="inline-flex h-4 min-w-0 items-center gap-1.5 whitespace-nowrap leading-4">
-                  <Icon
-                    name={mcpTypeIcon(server.type)}
-                    className="size-3.5 shrink-0"
-                    aria-label="Connection type"
-                  />
-                  <span>
-                    {server.type === "stdio"
-                      ? "stdio"
-                      : mcpTypeLabel(server.type)}
+                  <RiAtLine className="size-3.5 shrink-0" aria-label="Handle" />
+                  <span className="min-w-0 truncate" title={server.id}>
+                    {server.handle}
+                  </span>
+                </span>
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex h-4 min-w-0 items-center gap-1.5 whitespace-nowrap leading-4">
+                    <Icon
+                      name={mcpTypeIcon(server.type)}
+                      className="size-3.5 shrink-0"
+                      aria-label="Connection type"
+                    />
+                    <span>
+                      {server.type === "stdio"
+                        ? "stdio"
+                        : mcpTypeLabel(server.type)}
+                    </span>
                   </span>
                 </span>
               </span>
-            </span>
+            </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={editInChat}
-          >
-            <Icon name="MessageCirclePlus" className="size-4" aria-hidden />
-            Edit in chat
-          </Button>
+        <div className="flex shrink-0 items-center gap-2 pt-1.5">
           <Switch
             checked={server.enabled}
             disabled={busy}
             aria-label={`${server.enabled ? "Disable" : "Enable"} ${server.name}`}
             onCheckedChange={(enabled) =>
-              setEnabled.mutate({ serverId: server.id, enabled })
+              setEnabled.mutate(
+                { serverId: server.id, enabled },
+                { onSuccess: () => appToast.success(MCP_UPDATED_TOAST) },
+              )
             }
           />
           <ResourceOverflowMenu
@@ -303,7 +302,6 @@ function McpServerDetail({
         />
       ) : null}
       <McpSettingsSection server={server} />
-      <McpGuideSection key={server.guide ?? ""} server={server} />
       <McpToolsSection server={server} />
       <ConfirmDeleteDialog
         open={confirmingRemove}
@@ -421,7 +419,7 @@ function McpSettingsSection({ server }: { server: McpServer }) {
             pending={setHeaders.isPending}
             onSave={async (headers) => {
               await setHeaders.mutateAsync({ serverId: server.id, headers });
-              appToast.success("Headers saved");
+              appToast.success(MCP_UPDATED_TOAST);
             }}
           />
         </div>
@@ -430,55 +428,10 @@ function McpSettingsSection({ server }: { server: McpServer }) {
   );
 }
 
-function McpGuideSection({ server }: { server: McpServer }) {
-  const setGuide = useSetMcpServerGuide();
-  const savedGuide = server.guide ?? "";
-  const [draft, setDraft] = useState(savedGuide);
-  const save = () => {
-    const guide = draft.trim() || null;
-    setGuide.mutate(
-      { serverId: server.id, guide },
-      {
-        onSuccess: () =>
-          appToast.success(guide === null ? "Guide cleared" : "Guide saved"),
-      },
-    );
-  };
-  return (
-    <section className="space-y-3">
-      <div className="flex min-h-6 items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-foreground">Agent guide</h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={setGuide.isPending || draft.trim() === savedGuide.trim()}
-          onClick={save}
-        >
-          Save guide
-        </Button>
-      </div>
-      <Textarea
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder="How agents should use this server, e.g. which workspace or project to search first."
-        aria-label="Agent guide"
-        maxLength={GUIDE_MAX_CHARS}
-        rows={4}
-      />
-      <p className="text-xs text-muted-foreground">
-        Added to agent instructions under this server while it is enabled.
-        Agents see the first 600 characters.
-      </p>
-    </section>
-  );
-}
-
 function McpToolsSection({ server }: { server: McpServer }) {
   const toolsQuery = useMcpServerTools(server.id);
   const policiesQuery = useMcpToolPolicies(server.id);
-  const setPolicy = useSetMcpToolPolicy();
-  const [page, setPage] = useState(0);
+  const setPolicies = useSetMcpToolPolicies();
   const tools = toolsQuery.data?.tools ?? null;
   const catalogError =
     toolsQuery.data?.error ??
@@ -489,8 +442,12 @@ function McpToolsSection({ server }: { server: McpServer }) {
 
   return (
     <section data-resource-detail-section="definition" className="space-y-3">
-      <div className="flex min-h-6 items-center justify-between gap-3">
+      <div className="min-w-0 space-y-0.5">
         <h2 className="text-sm font-medium text-foreground">Tools</h2>
+        <p className="text-xs text-muted-foreground">
+          Choose which tools agents can use and whether they run automatically
+          or ask first.
+        </p>
       </div>
       {tools === null && !toolsQuery.isError ? (
         <div
@@ -519,52 +476,23 @@ function McpToolsSection({ server }: { server: McpServer }) {
               : "No tools reported yet.")}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5">
-          <ul className="divide-y divide-border">
-            {tools
-              .slice(page * TOOL_PAGE_SIZE, (page + 1) * TOOL_PAGE_SIZE)
-              .map((tool) => (
-                <li
-                  key={tool.id}
-                  className="flex min-w-0 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate text-sm font-medium">
-                        {tool.name}
-                      </p>
-                      <McpRiskPill risk={tool.risk} />
-                    </div>
-                    {tool.description ? (
-                      <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                        {tool.description}
-                      </p>
-                    ) : null}
-                  </div>
-                  <McpToolPolicySelect
-                    tool={tool.name}
-                    policy={policies.get(tool.name)}
-                    disabled={setPolicy.isPending}
-                    onChange={(mode) =>
-                      setPolicy.mutate({
-                        serverId: server.id,
-                        tool: tool.name,
-                        mode,
-                      })
-                    }
-                  />
-                </li>
-              ))}
-          </ul>
+        <div className="space-y-3">
+          {groupToolsByRisk(tools).map((group) => (
+            <McpToolGroup
+              key={group.id}
+              group={group}
+              policies={policies}
+              pending={setPolicies.isPending}
+              onChange={(changes) =>
+                setPolicies.mutate(
+                  { serverId: server.id, changes },
+                  { onSuccess: () => appToast.success(MCP_UPDATED_TOAST) },
+                )
+              }
+            />
+          ))}
         </div>
       )}
-      <McpPagination
-        page={page}
-        total={tools?.length ?? 0}
-        pageSize={TOOL_PAGE_SIZE}
-        label="tools"
-        onPage={setPage}
-      />
       {policiesQuery.isError ? (
         <p role="alert" className="text-sm text-destructive">
           Couldn't load tool policies.

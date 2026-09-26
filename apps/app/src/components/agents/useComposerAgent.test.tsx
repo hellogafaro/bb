@@ -3,7 +3,10 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Agent, ReasoningLevel } from "@bb/domain";
-import { resolveComposerAgent, useApplyComposerAgent } from "./useComposerAgent";
+import {
+  resolveComposerAgent,
+  useApplyComposerAgent,
+} from "./useComposerAgent";
 
 function makeAgent(overrides: Partial<Agent>): Agent {
   return {

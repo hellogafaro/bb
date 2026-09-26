@@ -22,7 +22,11 @@ interface SettingsSidebarProps {
 
 type SettingsSidebarNavigation = Pick<
   SettingsNavState,
-  "activePluginId" | "activeSection" | "pluginEntries" | "sections"
+  | "activePluginId"
+  | "activeSection"
+  | "customizeSections"
+  | "pluginEntries"
+  | "sections"
 >;
 
 interface SettingsSidebarContentProps extends SettingsSidebarProps {
@@ -38,7 +42,13 @@ export function SettingsSidebarContent({
   navigation,
   testIdPrefix = "settings",
 }: SettingsSidebarContentProps) {
-  const { activePluginId, activeSection, pluginEntries, sections } = navigation;
+  const {
+    activePluginId,
+    activeSection,
+    customizeSections,
+    pluginEntries,
+    sections,
+  } = navigation;
   const hasPlugins = pluginEntries.length > 0;
 
   return (
@@ -53,6 +63,21 @@ export function SettingsSidebarContent({
       <SectionSidebarLabel>Settings</SectionSidebarLabel>
       <div className="mt-1 space-y-0.5">
         {sections.map((section) => (
+          <SectionSidebarRow
+            key={section.id}
+            active={activeSection === section.id}
+            label={section.label}
+            to={getSettingsSectionRoutePath(section.id)}
+          >
+            <SectionSidebarIcon name={section.icon} />
+          </SectionSidebarRow>
+        ))}
+      </div>
+      <div className="mt-4">
+        <SectionSidebarLabel>Customize</SectionSidebarLabel>
+      </div>
+      <div className="mt-1 space-y-0.5">
+        {customizeSections.map((section) => (
           <SectionSidebarRow
             key={section.id}
             active={activeSection === section.id}

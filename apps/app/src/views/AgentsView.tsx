@@ -41,22 +41,23 @@ function AgentsCollection() {
         id="agents"
         description={AGENTS_PAGE_DESCRIPTION}
         bandClassName={TOOLS_PAGE_BAND_CLASSES}
-        actions={
-          <ResourceCreateButton
-            label="New agent"
-            onCreate={() =>
-              navigate(getRootComposeRoutePath(), {
-                state: {
-                  focusPrompt: true,
-                  replaceInitialPrompt: true,
-                  initialPrompt: CREATE_AGENT_PROMPT,
-                },
-              })
-            }
-          />
-        }
       >
-        <AgentsList />
+        <AgentsList
+          action={
+            <ResourceCreateButton
+              label="New agent"
+              onCreate={() =>
+                navigate(getRootComposeRoutePath(), {
+                  state: {
+                    focusPrompt: true,
+                    replaceInitialPrompt: true,
+                    initialPrompt: CREATE_AGENT_PROMPT,
+                  },
+                })
+              }
+            />
+          }
+        />
       </ResourceCollectionPage>
     </div>
   );

@@ -300,6 +300,7 @@ type ResourceBrowseCardProps = {
   title: ReactNode;
   description?: ReactNode;
   descriptionLines?: 2 | 3;
+  descriptionClassName?: string;
   byline?: ReactNode;
   headerAction?: ReactNode;
   footerMeta?: ReactNode;
@@ -317,6 +318,7 @@ export function ResourceBrowseCard({
   title,
   description,
   descriptionLines = 2,
+  descriptionClassName,
   byline,
   headerAction,
   footerMeta,
@@ -377,6 +379,7 @@ export function ResourceBrowseCard({
           className={cn(
             "pointer-events-none relative col-span-2 row-start-2 self-center text-left text-xs leading-snug text-muted-foreground",
             descriptionLines === 3 ? "line-clamp-3" : "line-clamp-2",
+            descriptionClassName,
           )}
         >
           {description}

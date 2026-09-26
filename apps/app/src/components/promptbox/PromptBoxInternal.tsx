@@ -343,7 +343,10 @@ function PromptSubmitButton({
       )}
     >
       {isBusy ? (
-        <Icon name="Loading" className="size-4 animate-spin motion-reduce:animate-none" />
+        <Icon
+          name="Loading"
+          className="size-4 animate-spin motion-reduce:animate-none"
+        />
       ) : (
         <>
           <Icon name={icon ?? "CornerDownLeft"} className="size-4" />
@@ -3411,7 +3414,7 @@ export function PromptBoxInternal({
                         data-promptbox-submit-action=""
                         type="button"
                         size="icon"
-                        variant="destructive"
+                        variant="destructiveSubtle"
                         aria-label="Stop run"
                         onPointerDown={handleStopPointerDown}
                         onClick={handleStopClick}
@@ -3421,10 +3424,7 @@ export function PromptBoxInternal({
                             : PROMPT_SQUARE_ACTION_CLASS
                         }
                       >
-                        <Icon
-                          name="Square"
-                          className="size-3.5 fill-current [&_*]:stroke-0"
-                        />
+                        <Icon name="StopFill" className="size-4" />
                       </Button>
                     ) : showVoiceAsPrimaryAction ? (
                       <Button

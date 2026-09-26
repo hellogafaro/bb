@@ -154,7 +154,11 @@ export function nextSnoozeWakeAt(
   let soonest: number | null = null;
   for (const thread of threads) {
     const until = thread.snoozedUntil;
-    if (until !== null && until > now && (soonest === null || until < soonest)) {
+    if (
+      until !== null &&
+      until > now &&
+      (soonest === null || until < soonest)
+    ) {
       soonest = until;
     }
   }

@@ -9,11 +9,7 @@ import {
   ProjectListSearchAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
-import {
-  getAgentsRoutePath,
-  getSkillsRoutePath,
-  getThreadsRoutePath,
-} from "@/lib/route-paths";
+import { getThreadsRoutePath } from "@/lib/route-paths";
 
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
@@ -31,7 +27,6 @@ export function BuiltInSidebarNavigation({
   onSearch,
   splitEnabled,
 }: BuiltInSidebarNavigationProps) {
-  const skillsRoutePath = getSkillsRoutePath();
   const builtInEntries: BuiltInSidebarNavEntry[] = [
     {
       kind: "built-in",
@@ -60,32 +55,6 @@ export function BuiltInSidebarNavigation({
           icon="ListUnordered"
           title="Threads"
           routePath={getThreadsRoutePath()}
-          onNavigate={onNavigate}
-        />
-      ),
-    },
-    {
-      kind: "built-in",
-      pluginId: "__bb__",
-      id: "skills",
-      content: (
-        <ResourceNavSidebarItem
-          icon="Puzzle"
-          title="Customize"
-          routePath={skillsRoutePath}
-          onNavigate={onNavigate}
-        />
-      ),
-    },
-    {
-      kind: "built-in",
-      pluginId: "__bb__",
-      id: "agents",
-      content: (
-        <ResourceNavSidebarItem
-          icon="UserSmile"
-          title="Agents"
-          routePath={getAgentsRoutePath()}
           onNavigate={onNavigate}
         />
       ),

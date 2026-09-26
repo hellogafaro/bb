@@ -66,8 +66,13 @@ function SkillPath({ path, href }: { path: string; href?: string }) {
               target="_blank"
               rel="noreferrer"
               aria-label={`Open ${path} in a new tab`}
-              className="group -ml-1.5 inline-flex max-w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-xs text-subtle-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="group -ml-1.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-subtle-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
+              <Icon
+                name="FolderOpen"
+                className="size-3.5 shrink-0"
+                aria-hidden
+              />
               <span className="truncate font-mono">{displayPath}</span>
               <Icon
                 name="ExternalLink"
@@ -80,8 +85,13 @@ function SkillPath({ path, href }: { path: string; href?: string }) {
               type="button"
               aria-label={`Copy skill path: ${path}`}
               onClick={() => void copy()}
-              className="group -ml-1.5 inline-flex max-w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-xs text-subtle-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="group -ml-1.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-subtle-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
+              <Icon
+                name="FolderOpen"
+                className="size-3.5 shrink-0"
+                aria-hidden
+              />
               <span className="truncate font-mono">{displayPath}</span>
               <Icon
                 name={copied ? "Check" : "Copy"}
@@ -242,7 +252,8 @@ export function SkillDetailView({
   return (
     <ResourceDetailPage
       leading={leading}
-      title={title}
+      leadingClassName="mr-1 h-8 w-8"
+      title={<span className="leading-8">{title}</span>}
       titleMeta={titleMeta}
       metadata={<SkillPath path={directoryPath} href={pathHref} />}
       overflowMenu={overflowMenu}

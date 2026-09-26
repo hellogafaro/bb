@@ -15,10 +15,6 @@ import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sdk } from "@/lib/sdk";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
-import {
-  FilesTransportContext,
-  type FilesTransport,
-} from "@/components/files/files-transport";
 import { AgentDetailView } from "./AgentDetailView";
 
 vi.mock("@/lib/sdk", () => ({
@@ -36,6 +32,9 @@ vi.mock("@/components/commands/AppCommandProvider", () => ({
   useAppCommandShortcut: () => null,
   useIsAppCommandModifierHeld: () => false,
 }));
+
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("@/components/ui/app-toast", () => ({ appToast: toast }));
 
 vi.mock("@/hooks/queries/mcp-queries", () => ({
   useMcpServers: () => ({ data: [] }),
@@ -98,58 +97,22 @@ const modelsByProvider: Record<string, AvailableModel[]> = {
   "claude-code": [availableModel("claude-opus-4-7", "Claude Opus 4.7", true)],
 };
 
-function renderDetail(agent: AgentResponse, files?: FilesTransport) {
-  vi.mocked(sdk.agents.list).mockResolvedValue([agent]);
+function renderDetail(agent: AgentResponse) {
+  let current = agent;
+  vi.mocked(sdk.agents.list).mockImplementation(async () => [current]);
   vi.mocked(sdk.agents.update).mockImplementation(
-    async ({ agent: _ref, ...update }) =>
-      ({
-        ...agent,
-        ...update,
-      }) as AgentResponse,
+    async ({ agent: _ref, ...update }) => {
+      current = { ...current, ...update } as AgentResponse;
+      return current;
+    },
   );
   const { wrapper } = createQueryClientTestHarness();
-  const view = (
+  render(
     <MemoryRouter>
       <AgentDetailView agentRef={agent.id} />
-    </MemoryRouter>
-  );
-  render(
-    files === undefined ? (
-      view
-    ) : (
-      <FilesTransportContext.Provider value={files}>
-        {view}
-      </FilesTransportContext.Provider>
-    ),
+    </MemoryRouter>,
     { wrapper },
   );
-}
-
-function homeTransport(): FilesTransport {
-  return {
-    read: vi.fn(),
-    readIfChanged: vi.fn(),
-    write: vi.fn(),
-    remove: vi.fn(),
-    listDirectory: vi.fn(async (_directory, path: string) =>
-      path === ""
-        ? [
-            {
-              name: "skills",
-              kind: "directory" as const,
-              relativePath: "skills",
-            },
-            {
-              name: "inventory.md",
-              kind: "file" as const,
-              relativePath: "inventory.md",
-            },
-          ]
-        : [],
-    ),
-    search: vi.fn(async () => []),
-    isMissing: () => false,
-  };
 }
 
 async function openPicker() {
@@ -185,7 +148,6 @@ describe("AgentDetailView model section", () => {
     await openPicker();
     expect(screen.getByTitle("Claude Code")).not.toBeNull();
     expect(screen.getByText(/5\.2/)).not.toBeNull();
-    expect(screen.getByText("Full")).not.toBeNull();
   });
 
   it("saves a chosen model with the provider and reasoning", async () => {
@@ -243,7 +205,7 @@ describe("AgentDetailView appearance", () => {
       heading.parentElement?.querySelector('[data-agent-mascot="cat"]'),
     ).not.toBeNull();
 
-    const mascots = screen.getByRole("radiogroup", { name: "Mascot" });
+    const mascots = screen.getByRole("radiogroup", { name: "Icon" });
     const options = Array.from(mascots.querySelectorAll('[role="radio"]'));
     expect(options).toHaveLength(10);
     expect(
@@ -269,37 +231,96 @@ describe("AgentDetailView appearance", () => {
   });
 });
 
-describe("AgentDetailView files section", () => {
-  it("renders the agent home as a file tree on the primary host", async () => {
-    vi.mocked(sdk.system.config).mockResolvedValue({
-      primaryHostId: "host-1",
-    } as Awaited<ReturnType<typeof sdk.system.config>>);
-    const files = homeTransport();
-    renderDetail(makeAgent(), files);
-
-    expect(await screen.findByRole("heading", { name: "Files" })).toBeTruthy();
-    expect(screen.getByText("/home/me/.bb/agents/coder")).toBeTruthy();
-    expect(await screen.findByText("inventory.md")).toBeTruthy();
-    expect(screen.getByText("skills")).toBeTruthy();
-    expect(files.listDirectory).toHaveBeenCalledWith(
-      { hostId: "host-1", rootPath: "/home/me/.bb/agents/coder" },
-      "",
-      expect.anything(),
-    );
+describe("AgentDetailView header and sections", () => {
+  it("shows a framed avatar without a subtitle, permissions, or files", async () => {
+    renderDetail(makeAgent({ color: 3 }));
+    const heading = await screen.findByRole("heading", { name: "Coder" });
+    const frame = heading.parentElement?.querySelector("span.size-8");
+    expect(frame?.querySelector('[data-agent-mascot="robot"]')).not.toBeNull();
+    expect(frame?.getAttribute("style")).toContain("--agent-color-3");
+    expect(screen.queryByText(/permissions/i)).toBeNull();
+    expect(screen.queryByText("Permissions")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Files" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "Icon" })).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: "Color" })).toBeTruthy();
   });
 
-  it("explains when the server's machine is not connected", async () => {
-    vi.mocked(sdk.system.config).mockResolvedValue({
-      primaryHostId: null,
-    } as Awaited<ReturnType<typeof sdk.system.config>>);
-    const files = homeTransport();
-    renderDetail(makeAgent(), files);
+  it("autosaves the profile after typing stops and toasts once", async () => {
+    vi.useFakeTimers();
+    try {
+      renderDetail(makeAgent());
+      await vi.waitFor(() => screen.getByRole("heading", { name: "Coder" }));
+      const name = screen.getByDisplayValue("Coder");
+      fireEvent.change(name, { target: { value: "Cod" } });
+      fireEvent.change(name, { target: { value: "Code" } });
+      fireEvent.change(name, { target: { value: "Code Reviewer" } });
+      await vi.advanceTimersByTimeAsync(400);
+      expect(sdk.agents.update).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(sdk.agents.update).toHaveBeenCalledTimes(1);
+      expect(sdk.agents.update).toHaveBeenCalledWith({
+        agent: "agent_coder0001",
+        name: "Code Reviewer",
+      });
+      await vi.waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith("Agent updated"),
+      );
+      expect(toast.success).toHaveBeenCalledTimes(1);
+      expect(screen.getByDisplayValue("Code Reviewer")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    expect(
-      await screen.findByText(
-        "This agent's home lives on the server's machine, which isn't connected.",
-      ),
-    ).toBeTruthy();
-    expect(files.listDirectory).not.toHaveBeenCalled();
+  it("does not save an empty name", async () => {
+    vi.useFakeTimers();
+    try {
+      renderDetail(makeAgent());
+      await vi.waitFor(() => screen.getByRole("heading", { name: "Coder" }));
+      fireEvent.change(screen.getByDisplayValue("Coder"), {
+        target: { value: "   " },
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(sdk.agents.update).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("offers no All switch and shows the empty state without skills", async () => {
+    renderDetail(makeAgent());
+    await screen.findByRole("heading", { name: "Coder" });
+    expect(screen.getByText("No skills yet.")).toBeTruthy();
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Select all" })).toBeNull();
+  });
+
+  it("coalesces edits across sections into one debounced save", async () => {
+    vi.useFakeTimers();
+    try {
+      renderDetail(makeAgent({ instructions: "Old" }));
+      await vi.waitFor(() => screen.getByRole("heading", { name: "Coder" }));
+      fireEvent.change(screen.getByDisplayValue("Coder"), {
+        target: { value: "Reviewer" },
+      });
+      fireEvent.click(screen.getByRole("radio", { name: "Color 4" }));
+      fireEvent.change(screen.getByRole("textbox", { name: "Instructions" }), {
+        target: { value: "New rules" },
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(sdk.agents.update).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(sdk.agents.update).toHaveBeenCalledTimes(1);
+      expect(sdk.agents.update).toHaveBeenCalledWith({
+        agent: "agent_coder0001",
+        name: "Reviewer",
+        color: 4,
+        instructions: "New rules",
+      });
+      await vi.waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

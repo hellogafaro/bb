@@ -30,10 +30,10 @@ function renderList({
   vi.spyOn(sdk.providers, "guardStatus").mockResolvedValue(status);
   const harness = createQueryClientTestHarness();
   render(
-    <MemoryRouter initialEntries={["/customize/mcps"]}>
+    <MemoryRouter initialEntries={["/settings/mcps"]}>
       <harness.wrapper>
         <Routes>
-          <Route path="/customize/mcps" element={<McpsView />} />
+          <Route path="/settings/mcps" element={<McpsView />} />
           <Route path="*" element={null} />
         </Routes>
         <LocationProbe />
@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe("McpsView", () => {
-  it("lists servers with type, status, and tool count", async () => {
+  it("lists servers as cards with the description or a status summary", async () => {
     renderList({
       servers: [
         makeMcpServer(),
@@ -57,6 +57,7 @@ describe("McpsView", () => {
           id: "mcp_fs",
           handle: "fs",
           name: "Files",
+          description: null,
           type: "stdio",
           enabled: false,
           authStatus: "not-applicable",
@@ -72,13 +73,30 @@ describe("McpsView", () => {
       ],
     });
     expect(await screen.findByText("GitHub")).toBeTruthy();
-    expect(screen.getByText("HTTP · authenticated · 2 tools")).toBeTruthy();
+    expect(screen.getByText("GitHub remote MCP")).toBeTruthy();
     expect(screen.getByText("Command · disabled")).toBeTruthy();
+    expect(screen.queryByRole("switch")).toBeNull();
     expect(
-      screen
-        .getByRole("switch", { name: "Enable Files" })
-        .getAttribute("aria-checked"),
-    ).toBe("false");
+      screen.getByTestId("mcp-card-mcp_fs").firstElementChild?.className,
+    ).toContain("opacity-60");
+  });
+
+  it("shows a card skeleton while servers load", () => {
+    vi.spyOn(sdk.mcp, "list").mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(sdk.providers, "guardStatus").mockResolvedValue(
+      makeProviderGuard(),
+    );
+    const harness = createQueryClientTestHarness();
+    render(
+      <MemoryRouter initialEntries={["/settings/mcps"]}>
+        <harness.wrapper>
+          <McpsView />
+        </harness.wrapper>
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByRole("status", { name: "Loading MCP servers" }),
+    ).toBeTruthy();
   });
 
   it("filters by search text", async () => {
@@ -100,21 +118,12 @@ describe("McpsView", () => {
     expect(screen.getByText("No MCPs match this search.")).toBeTruthy();
   });
 
-  it("toggles a server without opening it", async () => {
-    const setEnabled = vi
-      .spyOn(sdk.mcp, "setEnabled")
-      .mockResolvedValue({ enabled: false, status: "disabled" });
+  it("opens a server from its card", async () => {
     renderList();
-    fireEvent.click(
-      await screen.findByRole("switch", { name: "Disable GitHub" }),
+    fireEvent.click(await screen.findByRole("button", { name: "GitHub" }));
+    expect(screen.getByTestId("pathname").textContent).toBe(
+      "/settings/mcps/mcp_github",
     );
-    await waitFor(() =>
-      expect(setEnabled).toHaveBeenCalledWith({
-        server: "mcp_github",
-        enabled: false,
-      }),
-    );
-    expect(screen.getByTestId("pathname").textContent).toBe("/customize/mcps");
   });
 
   it("renders only a search box without filter, sort, or create controls", async () => {
