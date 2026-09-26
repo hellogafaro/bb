@@ -139,11 +139,7 @@ describe("ExecutionControls agent picker", () => {
       agent: { agentId: "agent_coder0001" },
     });
     const trigger = await screen.findByRole("button", { name: "Agent: Coder" });
-    await waitFor(() =>
-      expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
-        "Coder · Claude Code · Opus · High",
-      ),
-    );
+    expect(trigger.querySelector("[title]")).toBeNull();
     expect(trigger.textContent).toBe("Coder");
     expect(trigger.hasAttribute("disabled")).toBe(true);
     expect(trigger.className).toContain("disabled:opacity-100");

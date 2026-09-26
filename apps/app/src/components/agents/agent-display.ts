@@ -1,4 +1,5 @@
 import type { Agent, ProviderInfo } from "@bb/domain";
+import { reasoningLevelLabel } from "@/lib/reasoning-labels";
 
 export function providerDisplayName(
   providers: readonly ProviderInfo[] | undefined,
@@ -40,6 +41,14 @@ export function agentExecutionLabel(
   providers: readonly ProviderInfo[] | undefined,
 ): string {
   return `${providerDisplayName(providers, agent.providerId)} · ${agentModelLabel(agent)}`;
+}
+
+export function agentOptionDetail(
+  agent: Pick<Agent, "providerId" | "model" | "reasoningLevel">,
+  providers: readonly ProviderInfo[] | undefined,
+): string {
+  const provider = providers?.find((entry) => entry.id === agent.providerId);
+  return `${agentExecutionLabel(agent, providers)} · ${reasoningLevelLabel(agent.reasoningLevel, provider)}`;
 }
 
 export function agentScopeLabel(

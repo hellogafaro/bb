@@ -36,6 +36,7 @@ import { useRouteState } from "@/hooks/useRouteState";
 import { useSidebarThreadDraftIds } from "@/lib/plugin-sidebar-hooks";
 import { TopLevelSidebarSection } from "../TopLevelSidebarSection";
 import { ThreadRow, type ThreadRowOptions } from "../ThreadRow";
+import { SidebarThreadHoverCard } from "../SidebarThreadHoverCard";
 import { ThreadListPlaceholder } from "../ThreadListPlaceholder";
 import { getSidebarThreadGroupLineLeft } from "../sidebarRowClasses";
 import {
@@ -251,6 +252,11 @@ export function StatusThreadList({ onNavigate }: StatusThreadListProps) {
     [navigation.data],
   );
   const heldThreads = useReadHold(allThreads, selectedThreadId);
+  const threadsById = useMemo(
+    () => new Map(heldThreads.map((thread) => [thread.id, thread])),
+    [heldThreads],
+  );
+  const [listContainer, setListContainer] = useState<HTMLElement | null>(null);
   const pinned = useMemo(
     () => buildPinnedSidebarState({ draftThreadIds, threads: heldThreads }),
     [draftThreadIds, heldThreads],
@@ -419,11 +425,17 @@ export function StatusThreadList({ onNavigate }: StatusThreadListProps) {
   return (
     <ThreadSnoozeContext.Provider value={snoozeState}>
       <SidebarStickyStack
+        ref={setListContainer}
         data-thread-list="status"
         data-sidebar-sticky-density="compact-actions"
       >
         <SidebarGroupContent>{content}</SidebarGroupContent>
       </SidebarStickyStack>
+      <SidebarThreadHoverCard
+        container={listContainer}
+        threadsById={threadsById}
+        draftThreadIds={draftThreadIds}
+      />
       <CustomSnoozeDialog
         threadId={customFor}
         onClose={() => setCustomFor(null)}

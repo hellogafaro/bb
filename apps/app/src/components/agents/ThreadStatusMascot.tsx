@@ -63,7 +63,6 @@ export function ThreadStatusMascot({
     return <ThreadStatusGlyph {...glyphProps} />;
   }
   const tone = threadMascotTone(indicatorKind);
-  const unread = indicatorKind === "unread-success";
   const label =
     decorative || (hideIdleDraftLabel && indicatorKind === "draft")
       ? null
@@ -73,7 +72,6 @@ export function ThreadStatusMascot({
   return (
     <span
       data-thread-status-mascot={tone}
-      data-thread-status-unread={unread ? "" : undefined}
       className={cn(
         "pointer-events-none relative inline-flex shrink-0 items-center justify-center",
         size === "compact" ? "size-3.5" : "size-4",
@@ -89,12 +87,6 @@ export function ThreadStatusMascot({
         tint={TONE_TINT[tone]}
         className={size === "compact" ? "size-3" : "size-3.5"}
       />
-      {unread ? (
-        <span
-          aria-hidden="true"
-          className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-status-ready ring-1 ring-background"
-        />
-      ) : null}
     </span>
   );
 }

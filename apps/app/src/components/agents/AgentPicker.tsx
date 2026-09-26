@@ -6,9 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type FocusEvent,
   type KeyboardEvent,
+  type ReactElement,
 } from "react";
-import type { Agent, ProviderInfo } from "@bb/domain";
 import { Button } from "@bb/shared-ui/button";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { Icon } from "@bb/shared-ui/icon";
@@ -21,6 +22,11 @@ import {
   OPTION_MUTED_CLASS_NAME,
   OPTION_TRIGGER_CONTENT_CLASS_NAME,
 } from "@bb/shared-ui/option-display";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@bb/shared-ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import {
   MenuRowButton,
@@ -31,8 +37,11 @@ import { searchPickerOptions } from "@/components/pickers/picker-search";
 import { useResetPickerScroll } from "@/components/pickers/useResetPickerScroll";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
-import { reasoningLevelLabel } from "@/lib/reasoning-labels";
-import { agentExecutionLabel } from "./agent-display";
+import { agentOptionDetail } from "./agent-display";
+import {
+  AGENT_HOVER_CARD_CLASS_NAME,
+  AgentHoverCardContent,
+} from "./AgentHoverCard";
 import { AgentMascot } from "./mascots/AgentMascot";
 import { ProviderMark } from "./ProviderMark";
 
@@ -43,15 +52,12 @@ export interface ExecutionAgentConfig {
 }
 
 const AGENT_SEARCH_MIN_OPTIONS = 5;
-const AGENT_PICKER_MENU_WIDTH_CLASS_NAME = "w-max min-w-64 max-w-80";
+export const AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS = 150;
 
-export function agentOptionDetail(
-  agent: Pick<Agent, "providerId" | "model" | "reasoningLevel">,
-  providers: readonly ProviderInfo[] | undefined,
-): string {
-  const provider = providers?.find((entry) => entry.id === agent.providerId);
-  return `${agentExecutionLabel(agent, providers)} · ${reasoningLevelLabel(agent.reasoningLevel, provider)}`;
+function suppressHoverCardFocusOpen(event: FocusEvent<HTMLElement>) {
+  event.preventDefault();
 }
+const AGENT_PICKER_MENU_WIDTH_CLASS_NAME = "w-max min-w-64 max-w-80";
 
 export const AgentPicker = memo(function AgentPicker({
   agentId,
@@ -63,6 +69,7 @@ export const AgentPicker = memo(function AgentPicker({
   const providersQuery = useSystemProviders();
   const isCompactViewport = useIsCompactViewport();
   const [open, setOpen] = useState(false);
+  const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +102,7 @@ export const AgentPicker = memo(function AgentPicker({
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
+      if (nextOpen) setHoverCardOpen(false);
       if (!nextOpen && !isCompactViewport) resetBrowseState();
     },
     [isCompactViewport, resetBrowseState],
@@ -152,7 +160,6 @@ export const AgentPicker = memo(function AgentPicker({
   if (agent === null) return null;
   const readOnly = onChange === undefined;
   const triggerDisabled = disabled || readOnly;
-  const triggerTitle = `${agent.name} · ${agentOptionDetail(agent, providers)}`;
   const showSearchInput = agents.length > AGENT_SEARCH_MIN_OPTIONS;
 
   const trigger = (
@@ -162,6 +169,7 @@ export const AgentPicker = memo(function AgentPicker({
       size="sm"
       aria-label={`Agent: ${agent.name}`}
       disabled={triggerDisabled}
+      onFocus={suppressHoverCardFocusOpen}
       className={cn(
         OPTION_BASE_CLASS_NAME,
         OPTION_INTERACTIVE_CLASS_NAME,
@@ -171,7 +179,7 @@ export const AgentPicker = memo(function AgentPicker({
         triggerDisabled && "cursor-default disabled:opacity-100",
       )}
     >
-      <span className={OPTION_TRIGGER_CONTENT_CLASS_NAME} title={triggerTitle}>
+      <span className={OPTION_TRIGGER_CONTENT_CLASS_NAME}>
         <AgentMascot
           mascot={agent.mascot}
           color={agent.color}
@@ -189,11 +197,41 @@ export const AgentPicker = memo(function AgentPicker({
     </Button>
   );
 
-  if (triggerDisabled) return trigger;
+  const withHoverCard = (child: ReactElement) =>
+    isCompactViewport ? (
+      child
+    ) : (
+      <HoverCard
+        open={hoverCardOpen && !open}
+        onOpenChange={setHoverCardOpen}
+        openDelay={AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS}
+        closeDelay={0}
+      >
+        <HoverCardTrigger asChild>{child}</HoverCardTrigger>
+        <HoverCardContent
+          side="top"
+          align="start"
+          data-agent-picker-hover-card=""
+          className={cn(AGENT_HOVER_CARD_CLASS_NAME, "pointer-events-none")}
+        >
+          <AgentHoverCardContent
+            agent={agent}
+            providers={providers}
+            active={active}
+          />
+        </HoverCardContent>
+      </HoverCard>
+    );
+
+  if (triggerDisabled) {
+    return withHoverCard(
+      <span className="inline-flex min-w-0">{trigger}</span>,
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      {withHoverCard(<PopoverTrigger asChild>{trigger}</PopoverTrigger>)}
       <PopoverContent
         align="start"
         mobileTitle="Agent"

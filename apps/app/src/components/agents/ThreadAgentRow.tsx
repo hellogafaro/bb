@@ -1,45 +1,67 @@
+import { useCallback } from "react";
 import { Link } from "react-router-dom";
-import { getAgentDetailRoutePath } from "@bb/client-core";
-import type { Thread } from "@bb/domain";
+import {
+  getAgentDetailRoutePath,
+  threadListIndicatorStateForThread,
+} from "@bb/client-core";
+import type { Thread, ThreadListEntry } from "@bb/domain";
 import { DetailRow, DetailRowIconLabel } from "@/components/ui/detail-card.js";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
+import { useSidebarNavigationThreadSelection } from "@/hooks/queries/sidebar-navigation-query";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
-import { agentExecutionLabel } from "./agent-display";
+import { agentOptionDetail } from "./agent-display";
 import { AgentMascot } from "./mascots/AgentMascot";
 import { ProviderMark } from "./ProviderMark";
+import { ThreadStatusMascot } from "./ThreadStatusMascot";
 
 export function ThreadAgentRow({
   thread,
 }: {
-  thread: Pick<Thread, "agentId">;
+  thread: Pick<Thread, "id" | "agentId">;
 }) {
   const agentsQuery = useAgents();
   const providersQuery = useSystemProviders();
+  const selectEntry = useCallback(
+    (threads: ThreadListEntry[]) =>
+      threads.find((entry) => entry.id === thread.id) ?? null,
+    [thread.id],
+  );
+  const entry = useSidebarNavigationThreadSelection(selectEntry).data ?? null;
   const agent = resolveThreadAgent(agentsQuery.data ?? [], thread.agentId);
   if (agent === null) return null;
   return (
     <DetailRow
       label={<DetailRowIconLabel icon="UserSmile">Agent</DetailRowIconLabel>}
+      align="start"
       valueClassName="min-w-0"
     >
-      <span className="flex min-w-0 items-start gap-2">
-        <AgentMascot
-          mascot={agent.mascot}
-          color={agent.color}
-          className="mt-0.5 size-4"
-        />
-        <span className="flex min-w-0 flex-col">
+      <span data-thread-agent-row="" className="flex min-w-0 flex-col">
+        <span className="flex h-5 min-w-0 items-center gap-1.5">
+          {entry === null ? (
+            <AgentMascot
+              mascot={agent.mascot}
+              color={agent.color}
+              className="size-4"
+            />
+          ) : (
+            <ThreadStatusMascot
+              {...threadListIndicatorStateForThread(entry, false)}
+              agent={agent}
+              archived={entry.archivedAt !== null}
+              decorative
+            />
+          )}
           <Link
             to={getAgentDetailRoutePath(agent.id)}
-            className="truncate hover:underline"
+            className="min-w-0 truncate hover:underline"
           >
             {agent.name}
           </Link>
-          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <ProviderMark providerId={agent.providerId} className="size-3" />
-            <span className="truncate">
-              {agentExecutionLabel(agent, providersQuery.data)}
-            </span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1 text-meta text-muted-foreground">
+          <ProviderMark providerId={agent.providerId} className="size-3" />
+          <span className="min-w-0 truncate">
+            {agentOptionDetail(agent, providersQuery.data)}
           </span>
         </span>
       </span>

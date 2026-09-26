@@ -1049,7 +1049,7 @@ describe("ThreadRow", () => {
     expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
   });
 
-  it("keeps the unread marker next to the static mascot", () => {
+  it("shows a quiet mascot without a status dot for unread done threads", () => {
     const { container } = render(
       <ThreadRowTestHarness
         queryClient={createTestQueryClient([createAgent()])}
@@ -1062,8 +1062,9 @@ describe("ThreadRow", () => {
     );
     const status = screen.getByLabelText("Unread thread succeeded");
     expect(status).toBe(trailingMascot(container));
-    expect(status.hasAttribute("data-thread-status-unread")).toBe(true);
-    expect(status.querySelector(".bg-status-ready")).not.toBeNull();
+    expect(status.getAttribute("data-thread-status-mascot")).toBe("idle");
+    expect(status.querySelector(".bg-status-ready")).toBeNull();
+    expect(status.querySelector("[data-agent-mascot-active]")).toBeNull();
     expect(
       status.querySelector<SVGElement>("[data-agent-mascot]")?.style.color,
     ).toBe("var(--agent-color-1)");
