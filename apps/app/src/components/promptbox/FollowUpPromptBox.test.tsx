@@ -114,7 +114,6 @@ vi.mock("@/components/promptbox/PromptBoxInternal", () => ({
     submission?: {
       onModifierSubmit?: () => void;
       swapSubmitActions?: boolean;
-      showModifierSubmitAction?: boolean;
       title?: string;
     };
     suppressPluginComposerCustomizations?: boolean;
@@ -173,7 +172,6 @@ vi.mock("@/components/promptbox/PromptBoxInternal", () => ({
       <button
         type="button"
         title={submission?.title}
-        data-show-modifier-action={submission?.showModifierSubmitAction}
         onClick={
           submission?.swapSubmitActions
             ? onSubmit
@@ -819,19 +817,13 @@ describe("FollowUpPromptBox", () => {
       fireEvent.click(screen.getByText("Modifier submit"));
       expect(expectedModifier).toHaveBeenCalledOnce();
       expect(mocks.scrollToBottom).toHaveBeenCalledOnce();
-      expect(
-        screen
-          .getByText("Modifier submit")
-          .getAttribute("data-show-modifier-action"),
-      ).toBe("true");
     },
   );
 
-  it("keeps save shortcuts without offering an alternate send action in a ready editor", () => {
+  it("keeps the modifier submit shortcut in a ready editor", () => {
     const props = createFollowUpPromptBoxProps({ kind: "ready" });
     render(<FollowUpPromptBox {...props} />);
     const modifier = screen.getByText("Modifier submit");
-    expect(modifier.getAttribute("data-show-modifier-action")).toBe("false");
     fireEvent.click(modifier);
     expect(props.composer?.onModifierSubmit).toHaveBeenCalledOnce();
   });
