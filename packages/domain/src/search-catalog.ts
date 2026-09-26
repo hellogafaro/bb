@@ -10,8 +10,7 @@ export type CoreSettingSectionId =
   | "environment-variables"
   | "updates"
   | "experiments"
-  | "community"
-  | "archived";
+  | "community";
 
 export type CoreSettingAvailability =
   | "always"
@@ -110,12 +109,6 @@ const pageDefinitions = [
     label: "Community",
     description: "BB community destinations.",
     aliases: ["community settings"],
-  },
-  {
-    id: "archived",
-    label: "Archived threads",
-    description: "Browse and restore archived threads.",
-    aliases: ["archive settings", "thread archive"],
   },
 ] as const satisfies readonly Omit<CoreSettingsPageCatalogEntry, "path">[];
 
@@ -416,13 +409,6 @@ const definitions = [
     sectionId: "community",
     description: "Open BB community destinations.",
     aliases: ["Discord", "GitHub"],
-  },
-  {
-    id: "archived-threads",
-    label: "Archived threads",
-    sectionId: "archived",
-    description: "Browse and restore archived threads.",
-    aliases: ["archive"],
   },
 ] as const satisfies readonly SettingDefinition[];
 

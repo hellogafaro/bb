@@ -72,7 +72,6 @@ import { KeyboardSettingsSection } from "@/components/settings/KeyboardSettingsS
 import { BrowserSettingsSection } from "@/components/settings/BrowserSettingsSection";
 import { MachinesSettingsSection } from "@/components/settings/MachinesSettingsSection";
 import { ProjectsSettingsSection } from "@/components/settings/ProjectsSettingsSection";
-import { ArchivedThreadsSettingsSection } from "@/components/settings/ArchivedThreadsSettingsSection";
 import { CliSkillsSettingsSection } from "@/components/settings/CliSkillsSettingsSection";
 import { MarketplacesSettingsSection } from "@/components/settings/MarketplacesSettingsSection";
 import { WallpaperSetting } from "@/components/wallpaper/WallpaperSetting";
@@ -1384,8 +1383,6 @@ export function SettingsView() {
     content = <MarketplacesSettingsSection />;
   } else if (activeSection === "community") {
     content = <CommunitySettingsSection />;
-  } else if (activeSection === "archived") {
-    content = <ArchivedThreadsSettingsSection />;
   } else {
     content = (
       <>

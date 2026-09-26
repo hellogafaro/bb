@@ -52,18 +52,16 @@ export function SettingsSidebarContent({
     >
       <SectionSidebarLabel>Settings</SectionSidebarLabel>
       <div className="mt-1 space-y-0.5">
-        {sections
-          .filter((section) => section.id !== "archived")
-          .map((section) => (
-            <SectionSidebarRow
-              key={section.id}
-              active={activeSection === section.id}
-              label={section.label}
-              to={getSettingsSectionRoutePath(section.id)}
-            >
-              <SectionSidebarIcon name={section.icon} />
-            </SectionSidebarRow>
-          ))}
+        {sections.map((section) => (
+          <SectionSidebarRow
+            key={section.id}
+            active={activeSection === section.id}
+            label={section.label}
+            to={getSettingsSectionRoutePath(section.id)}
+          >
+            <SectionSidebarIcon name={section.icon} />
+          </SectionSidebarRow>
+        ))}
       </div>
       {hasPlugins ? (
         <>
@@ -101,27 +99,6 @@ export function SettingsSidebarContent({
             >
               <SectionSidebarIcon name="Smartphone" />
             </SectionSidebarActionRow>
-          </div>
-        </>
-      ) : null}
-      {sections.some((section) => section.id === "archived") ? (
-        <>
-          <div className="mt-4">
-            <SectionSidebarLabel>Archived</SectionSidebarLabel>
-          </div>
-          <div className="mt-1 space-y-0.5">
-            {sections
-              .filter((section) => section.id === "archived")
-              .map((section) => (
-                <SectionSidebarRow
-                  key={section.id}
-                  active={activeSection === section.id}
-                  label={section.label}
-                  to={getSettingsSectionRoutePath(section.id)}
-                >
-                  <SectionSidebarIcon name={section.icon} />
-                </SectionSidebarRow>
-              ))}
           </div>
         </>
       ) : null}

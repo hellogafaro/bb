@@ -14,7 +14,6 @@ import type {
   WorkspaceOpenTargetId,
 } from "@bb/host-daemon-contract";
 import { VoiceInputSettingsSectionContent } from "@/components/settings/VoiceInputSettingsSection";
-import { ArchivedThreadsSettingsSection } from "@/components/settings/ArchivedThreadsSettingsSection";
 import { CommunitySettingsSection } from "@/components/settings/CommunitySettingsSection";
 import { KeyboardSettingsSection } from "@/components/settings/KeyboardSettingsSection";
 import { MarketplacesSettingsSection } from "@/components/settings/MarketplacesSettingsSection";
@@ -354,8 +353,6 @@ function SettingsStoryContent({ route }: { route: SettingsStoryRoute }) {
       return <MarketplacesSettingsSection />;
     case "community":
       return <CommunitySettingsSection />;
-    case "archived":
-      return <ArchivedThreadsSettingsSection />;
     case "general":
       return (
         <>

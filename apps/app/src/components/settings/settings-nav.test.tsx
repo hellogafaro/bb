@@ -133,13 +133,14 @@ describe("useSettingsNavState", () => {
     );
   });
 
-  it("resolves archived threads as a settings section", () => {
+  it("does not treat archived threads as a settings section", () => {
     const { result } = renderHook(() => useSettingsNavState(), {
       wrapper: wrapperFor("/settings/archived"),
     });
 
-    expect(result.current.activeSection).toBe("archived");
-    expect(result.current.sections.map((section) => section.id)).toContain(
+    expect(result.current.activeSection).toBe("general");
+    expect(result.current.hasUnknownSection).toBe(true);
+    expect(result.current.sections.map((section) => section.id)).not.toContain(
       "archived",
     );
   });
