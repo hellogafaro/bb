@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { PromptInput } from "@bb/domain";
 import {
+  clampTitleInferenceText,
   collectInvokedPromptCommands,
+  collectPromptAttachmentNames,
   deriveTitleFallback,
   sanitizeGeneratedTitle,
   shouldGenerateThreadTitle,
@@ -89,12 +91,17 @@ describe("thread title generation", () => {
     expect(shouldGenerateThreadTitle([textInput("バグを直して")])).toBe(false);
   });
 
-  it("limits generated titles to five words", () => {
+  it("keeps descriptive titles up to sixty columns and cuts longer ones at a word boundary", () => {
     expect(
       sanitizeGeneratedTitle(
-        "Investigate Extremely Long Generated Thread Title Output",
+        "Login button flickers after OAuth redirect on Safari",
       ),
-    ).toBe("Investigate Extremely Long Generated Thread");
+    ).toBe("Login button flickers after OAuth redirect on Safari");
+    expect(
+      sanitizeGeneratedTitle(
+        "Investigate extremely long generated thread title output that keeps going",
+      ),
+    ).toBe("Investigate extremely long generated thread title output");
   });
 
   it("keeps generated titles that already fit", () => {
@@ -112,7 +119,7 @@ describe("thread title generation", () => {
     );
 
     expect(title).not.toBeNull();
-    expect(title?.length).toBeLessThanOrEqual(24);
+    expect(title?.length).toBeLessThanOrEqual(30);
     expect(
       "调查侧边栏线程行分叉后显示错误环境标记的问题并提出修复方案以及根本原因".startsWith(
         title ?? "",
@@ -121,7 +128,7 @@ describe("thread title generation", () => {
   });
 
   it("falls back to a hard cut when the first word exceeds the budget", () => {
-    expect(sanitizeGeneratedTitle("A".repeat(120))).toBe("A".repeat(48));
+    expect(sanitizeGeneratedTitle("A".repeat(120))).toBe("A".repeat(60));
   });
 
   it("returns null for empty generated titles", () => {
@@ -160,6 +167,25 @@ describe("thread title generation", () => {
 
     expect(deriveTitleFallback(input)).toBe("fix bug");
     expect(shouldGenerateThreadTitle(input)).toBe(false);
+  });
+
+  it("gives the model far more of the task than the eighty-column fallback", () => {
+    const text = "word ".repeat(500).trim();
+
+    expect(clampTitleInferenceText(text)).toBe(`${text.slice(0, 1997)}...`);
+    expect(clampTitleInferenceText("short task")).toBe("short task");
+  });
+
+  it("collects attached file names once, without directories", () => {
+    expect(
+      collectPromptAttachmentNames([
+        textInput("compare these"),
+        { type: "localFile", path: "/tmp/reports/march-invoice.pdf" },
+        { type: "localFile", path: "/var/other/march-invoice.pdf" },
+        { type: "image", url: "data:image/png;base64,AAAA" },
+        { type: "localFile", path: "/tmp/error.log" },
+      ]),
+    ).toEqual(["march-invoice.pdf", "error.log"]);
   });
 
   it("elides long latin fallbacks at eighty characters", () => {

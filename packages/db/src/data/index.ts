@@ -318,6 +318,7 @@ export {
   type StoredProviderThreadClaimClass,
   getLastStoredTurnRequestEvent,
   getInitialStoredTurnRequestEvent,
+  listStoredFollowUpTurnRequestEvents,
   getStoredTurnRequestEventForTurn,
   getLatestThreadOutputEventRow,
   getLatestStoredConversationOutlineSequence,
@@ -428,6 +429,7 @@ export {
   interruptPendingInteractionsForThreads,
   interruptPendingInteractionsForPlugin,
   listActivePluginPendingInteractions,
+  listPendingInteractionsAcrossThreads,
   listPendingInteractionsByThread,
   setPendingInteractionInterrupted,
   setPendingInteractionResolving,
@@ -541,3 +543,10 @@ export {
 export * from "./project-attachments.js";
 
 export * from "./project-attachment-backfill.js";
+export {
+  listInboxSummaries,
+  listInboxSummaryTargets,
+  upsertInboxSummary,
+  type InboxSummaryTarget,
+  type UpsertInboxSummaryArgs,
+} from "./inbox-summaries.js";

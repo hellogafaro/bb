@@ -1,5 +1,6 @@
 import { renderTemplate } from "@bb/templates";
 import { getThread, updateThread } from "@bb/db";
+import { basename } from "node:path";
 import {
   removeCommandMentionsFromPromptInput,
   type PromptInput,
@@ -20,17 +21,28 @@ import {
 } from "../ai/inference.js";
 
 const MIN_TITLE_GENERATION_WORDS = 5;
-const MAX_GENERATED_TITLE_WIDTH = 48;
+const MAX_GENERATED_TITLE_WIDTH = 60;
 const MAX_TITLE_FALLBACK_WIDTH = 80;
 const TITLE_FALLBACK_ELLIPSIS = "...";
 const MAX_BRANCH_SLUG_LENGTH = 48;
+const MAX_TITLE_PROMPT_INFERENCE_WIDTH = 2_000;
+const MAX_TITLE_FOLLOW_UP_INFERENCE_WIDTH = 400;
+const MAX_TITLE_OUTPUT_INFERENCE_WIDTH = 1_500;
+const MAX_TITLE_ATTACHMENT_NAMES = 6;
 
 interface ApplyGeneratedThreadTitleArgs {
   threadId: string;
   title: string;
 }
 
+export interface ThreadTitleConversationContext {
+  currentTitle: string | null;
+  followUps: string[];
+  latestOutput: string | null;
+}
+
 interface ThreadMetadataGenerationArgs {
+  conversation?: ThreadTitleConversationContext;
   input: PromptInput[];
   threadId: string;
   timeoutMaxAttempts?: number;
@@ -67,15 +79,28 @@ function cleanPromptText(input: PromptInput[]): string {
     .trim();
 }
 
-function clampPromptText(text: string): string {
-  if (displayWidth(text) <= MAX_TITLE_FALLBACK_WIDTH) {
+function clampTextToWidth(text: string, maxWidth: number): string {
+  if (displayWidth(text) <= maxWidth) {
     return text;
   }
-  const body = truncateToWidth(
-    text,
-    MAX_TITLE_FALLBACK_WIDTH - TITLE_FALLBACK_ELLIPSIS.length,
-  );
+  const body = truncateToWidth(text, maxWidth - TITLE_FALLBACK_ELLIPSIS.length);
   return `${body}${TITLE_FALLBACK_ELLIPSIS}`;
+}
+
+function clampPromptText(text: string): string {
+  return clampTextToWidth(text, MAX_TITLE_FALLBACK_WIDTH);
+}
+
+export function clampTitleInferenceText(text: string): string {
+  return clampTextToWidth(text, MAX_TITLE_PROMPT_INFERENCE_WIDTH);
+}
+
+export function clampTitleFollowUpText(text: string): string {
+  return clampTextToWidth(text, MAX_TITLE_FOLLOW_UP_INFERENCE_WIDTH);
+}
+
+export function clampTitleOutputText(text: string): string {
+  return clampTextToWidth(text, MAX_TITLE_OUTPUT_INFERENCE_WIDTH);
 }
 
 export function deriveTitleFallback(input: PromptInput[]): string | null {
@@ -84,6 +109,24 @@ export function deriveTitleFallback(input: PromptInput[]): string | null {
     return null;
   }
   return clampPromptText(text);
+}
+
+export function collectPromptAttachmentNames(input: PromptInput[]): string[] {
+  const names: string[] = [];
+  for (const part of input) {
+    if (part.type !== "localFile") {
+      continue;
+    }
+    const name = basename(part.path);
+    if (name.length === 0 || names.includes(name)) {
+      continue;
+    }
+    names.push(name);
+    if (names.length === MAX_TITLE_ATTACHMENT_NAMES) {
+      break;
+    }
+  }
+  return names;
 }
 
 interface InvokedPromptCommand {
@@ -204,16 +247,36 @@ export async function generateThreadMetadataWithOutcome(
   if (!fallback) {
     return complete(null, "empty-input");
   }
-  if (!shouldGenerateThreadTitle(args.input)) {
+  const conversation = args.conversation;
+  const hasConversation =
+    conversation !== undefined &&
+    (conversation.followUps.length > 0 || conversation.latestOutput !== null);
+  if (!hasConversation && !shouldGenerateThreadTitle(args.input)) {
     return complete(null, "too-short");
   }
 
   const commands = collectInvokedPromptCommands(args.input);
   const body = promptTextWithoutCommands(args.input, commands);
+  const attachments = collectPromptAttachmentNames(args.input);
   const prompt = renderTemplate("generateThreadMetadata", {
-    cleanedPrompt: body.length > 0 ? clampPromptText(body) : fallback,
+    cleanedPrompt:
+      body.length > 0 ? clampTitleInferenceText(body) : fallback,
     ...(commands.length > 0
       ? { invokedCommands: formatInvokedCommands(commands) }
+      : {}),
+    ...(attachments.length > 0 ? { attachments: attachments.join(", ") } : {}),
+    ...(conversation?.followUps.length
+      ? {
+          followUps: conversation.followUps
+            .map((text) => `- ${clampTitleFollowUpText(text)}`)
+            .join("\n"),
+        }
+      : {}),
+    ...(conversation?.latestOutput
+      ? { latestOutput: clampTitleOutputText(conversation.latestOutput) }
+      : {}),
+    ...(conversation?.currentTitle
+      ? { currentTitle: conversation.currentTitle }
       : {}),
   });
   const maxAttempts = Math.max(1, args.timeoutMaxAttempts ?? 1);

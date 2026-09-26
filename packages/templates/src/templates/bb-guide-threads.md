@@ -307,13 +307,15 @@ Messaging:
 
 Ownership:
 
-  bb thread generate-title [id]            Generate and save a title from the original task
+  bb thread generate-title [id]            Generate and save a title from the task and conversation
     --self                                 Target current thread
     --json                                 Print the updated thread as JSON
 
-  Title generation replaces an existing title, preserving it on generation
-  failure or a concurrent manual rename. The SDK equivalent is
-  sdk.threads.generateTitle({ threadId }).
+  Title generation reads the opening task, later user messages, and the
+  latest agent reply, so regenerating after some work yields a more specific
+  title than the one chosen at thread start. It replaces an existing title,
+  preserving it on generation failure or a concurrent manual rename. The SDK
+  equivalent is sdk.threads.generateTitle({ threadId }).
 
   bb thread update [id]                    Update thread metadata
     --self                                 Target current thread
@@ -354,6 +356,7 @@ Ownership:
 
 Interactions:
 
+  bb inbox                                 List every pending approval and question across threads, newest first, with each thread's summarized goal
   bb thread interactions list [id]         List a thread's pending and past interactions
   bb thread interactions show <interaction-id> [id]
                                            Show one interaction (approval details, questions, or a plugin form's data)

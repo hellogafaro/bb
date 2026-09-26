@@ -144,7 +144,7 @@ export function registerActionsCommands(
 ): void {
   parent
     .command("generate-title [id]")
-    .description("Generate and save a title from the thread's original task")
+    .description("Generate and save a title from the thread's task and conversation")
     .option("--self", "Target the current thread (from BB_THREAD_ID)")
     .option("--json", "Print machine-readable JSON output")
     .action(

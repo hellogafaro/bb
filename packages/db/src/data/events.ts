@@ -1339,6 +1339,13 @@ export interface GetLatestCompletedThreadContextClearSequenceArgs {
 }
 
 export interface GetLatestThreadOutputEventRowArgs {
+  afterSequence?: number;
+  threadId: string;
+}
+
+export interface ListStoredFollowUpTurnRequestEventsArgs {
+  afterSequence: number;
+  limit: number;
   threadId: string;
 }
 
@@ -3317,7 +3324,8 @@ export function getLatestThreadOutputEventRow(
       .select(storedEventRowFields)
       .from(events)
       .where(
-        sql`${events.threadId} = ${args.threadId} AND (
+        and(
+          sql`${events.threadId} = ${args.threadId} AND (
         (
           ${events.type} = 'system/manager/user_message'
           AND COALESCE(json_extract(${events.data}, '$.text'), '') <> ''
@@ -3328,6 +3336,10 @@ export function getLatestThreadOutputEventRow(
           AND COALESCE(json_extract(${events.data}, '$.item.text'), '') <> ''
         )
       )`,
+          args.afterSequence === undefined
+            ? undefined
+            : gt(events.sequence, args.afterSequence),
+        ),
       )
       .orderBy(desc(events.sequence))
       .limit(1)
@@ -3946,6 +3958,32 @@ export function getInitialStoredTurnRequestEvent(
     .orderBy(desc(events.sequence))
     .limit(1)
     .get() ?? null;
+}
+
+export function listStoredFollowUpTurnRequestEvents(
+  db: DbQueryConnection,
+  args: ListStoredFollowUpTurnRequestEventsArgs,
+): StoredTurnRequestEventRow[] {
+  return db
+    .select({
+      data: events.data,
+      sequence: events.sequence,
+      threadId: events.threadId,
+      type: events.type,
+    })
+    .from(events)
+    .where(
+      and(
+        eq(events.threadId, args.threadId),
+        eq(events.type, "client/turn/requested"),
+        gt(events.sequence, args.afterSequence),
+        sql`json_type(${events.data}, '$.retryOfRequestId') IS NULL`,
+      ),
+    )
+    .orderBy(desc(events.sequence))
+    .limit(args.limit)
+    .all()
+    .reverse();
 }
 
 export function getLastStoredTurnRequestEvent(

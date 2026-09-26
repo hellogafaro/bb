@@ -1,9 +1,10 @@
 import {
   getInitialStoredTurnRequestEvent,
+  listStoredFollowUpTurnRequestEvents,
   updateThread,
   type UpdateThreadInput,
 } from "@bb/db";
-import type { Thread } from "@bb/domain";
+import type { PromptInput, Thread } from "@bb/domain";
 import type { AppDeps } from "../../types.js";
 import { ApiError } from "../../errors.js";
 import {
@@ -12,10 +13,44 @@ import {
 } from "../lib/entity-lookup.js";
 import { INFERENCE_POLICY } from "../ai/inference.js";
 import { dispatchThreadRenameCommand } from "./thread-commands.js";
+import { getLastThreadOutput } from "./thread-data.js";
 import { parseStoredTurnRequestEvent } from "./thread-events.js";
-import { generateThreadMetadataWithOutcome } from "./title-generation.js";
+import {
+  generateThreadMetadataWithOutcome,
+  type ThreadTitleConversationContext,
+} from "./title-generation.js";
+
+const MAX_TITLE_FOLLOW_UPS = 8;
 
 const pendingGenerations = new WeakMap<AppDeps["db"], Set<string>>();
+
+function promptInputText(input: PromptInput[]): string {
+  return input
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function collectTitleConversationContext(
+  deps: AppDeps,
+  thread: Thread,
+  startSequence: number,
+): ThreadTitleConversationContext {
+  const followUps = listStoredFollowUpTurnRequestEvents(deps.db, {
+    afterSequence: startSequence,
+    limit: MAX_TITLE_FOLLOW_UPS,
+    threadId: thread.id,
+  })
+    .map((row) => promptInputText(parseStoredTurnRequestEvent(row).input))
+    .filter((text) => text.length > 0);
+  return {
+    currentTitle: thread.title,
+    followUps,
+    latestOutput: getLastThreadOutput(deps.db, thread.id, startSequence),
+  };
+}
 
 export function updateThreadMetadata(
   deps: AppDeps,
@@ -64,10 +99,15 @@ export async function generateThreadTitle(
       throw new ApiError(
         422,
         "title_generation_input_missing",
-        "This thread has no original task input to generate a title from",
+        "This thread has no task input to generate a title from",
       );
     }
     const outcome = await generateThreadMetadataWithOutcome(deps, {
+      conversation: collectTitleConversationContext(
+        deps,
+        thread,
+        request.sequence,
+      ),
       threadId,
       input: parseStoredTurnRequestEvent(request).input,
       timeoutMaxAttempts: INFERENCE_POLICY.threadMetadata.maxAttempts,
@@ -79,7 +119,7 @@ export async function generateThreadTitle(
         throw new ApiError(
           422,
           "title_generation_input_missing",
-          "The original task input is too short to generate a title",
+          "The thread has too little text to generate a title from",
         );
       }
       throw new ApiError(

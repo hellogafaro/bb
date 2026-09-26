@@ -1,5 +1,6 @@
 import {
   createThread,
+  getLatestThreadSequence,
   getThread,
   listEvents,
   updateThread,
@@ -893,7 +894,7 @@ describe("generated thread titles", () => {
       const prompt = openRouter.prompt(0);
       expect(prompt).toContain("and drop the stale release branches");
       expect(prompt).toContain(
-        "The prompt invokes these commands or skills: /sync-repo.",
+        "The task invokes these commands or skills: /sync-repo.",
       );
       expect(prompt).not.toContain("/sync-repo and drop");
     });
@@ -904,7 +905,7 @@ describe("generated thread titles", () => {
     async (character) => {
       mockThreadMetadata({ title: "Investigate the reported issue" });
       await withTestHarness(async (harness) => {
-        const input = skillInput("review", ` ${character.repeat(60)}`);
+        const input = skillInput("review", ` ${character.repeat(1_200)}`);
         const original = structuredClone(input);
         await generateThreadMetadataWithOutcome(harness.deps, {
           input,
@@ -912,10 +913,12 @@ describe("generated thread titles", () => {
         });
         const prompt = openRouter.prompt(0);
         expect(prompt).toContain(
-          "The prompt invokes these commands or skills: /review.",
+          "The task invokes these commands or skills: /review.",
         );
-        expect(prompt).toContain(`Task:\n${character.repeat(38)}...`);
-        expect(prompt).not.toContain(character.repeat(39));
+        expect(prompt).toContain(
+          `Opening task:\n${character.repeat(998)}...`,
+        );
+        expect(prompt).not.toContain(character.repeat(999));
         expect(input).toEqual(original);
       });
     },
@@ -935,11 +938,11 @@ describe("generated thread titles", () => {
       expect(
         openRouter.prompt(0),
       ).toContain(
-        "The prompt invokes these commands or skills: /weekly-report.",
+        "The task invokes these commands or skills: /weekly-report.",
       );
       expect(
         openRouter.prompt(0),
-      ).toContain("Task:\n/weekly-report");
+      ).toContain("Opening task:\n/weekly-report");
     });
   });
 
@@ -960,7 +963,7 @@ describe("generated thread titles", () => {
       expect(openRouter.complete).toHaveBeenCalledTimes(1);
       expect(
         openRouter.prompt(0),
-      ).not.toContain("The prompt invokes these commands or skills");
+      ).not.toContain("The task invokes these commands or skills");
     });
   });
 });
@@ -987,6 +990,7 @@ describe("generate thread title endpoint", () => {
       inputText: string,
       markStart: boolean,
       initiator: "user" | "agent" = "user",
+      retry?: { retryOfRequestId: number },
     ) {
       appendClientTurnEvent(harness.deps, {
         threadId: thread.id,
@@ -999,6 +1003,16 @@ describe("generate thread title endpoint", () => {
         requestMethod: "thread/start",
         source: "spawn",
         target: { kind: "thread-start" },
+        ...(retry
+          ? {
+              retryOf: {
+                requestId: encodeClientTurnRequestIdNumber({
+                  value: retry.retryOfRequestId,
+                }),
+                attempt: 2,
+              },
+            }
+          : {}),
       });
       if (markStart)
         appendClientTurnEvent(harness.deps, {
@@ -1010,9 +1024,27 @@ describe("generate thread title endpoint", () => {
           source: "spawn",
         });
     }
+    function appendAgentMessage(messageText: string) {
+      const sequence =
+        getLatestThreadSequence(harness.db, { threadId: thread.id }) + 1;
+      const itemId = `agent-message-${sequence}`;
+      seedStoredEvent(harness.deps, {
+        threadId: thread.id,
+        sequence,
+        type: "item/completed",
+        scope: turnScope(`turn-${sequence}`),
+        providerThreadId: "provider-thread",
+        itemId,
+        itemKind: "agentMessage",
+        data: {
+          item: { id: itemId, type: "agentMessage", text: messageText },
+        },
+      });
+    }
     if (text) appendInput(text, true);
     return {
       thread,
+      appendAgentMessage,
       appendInput,
       request: () =>
         harness.app.request(`/api/v1/threads/${thread.id}/generate-title`, {
@@ -1038,24 +1070,71 @@ describe("generate thread title endpoint", () => {
     });
   });
 
-  it("replaces a title using the original task and returns the updated thread", async () => {
-    mockThreadMetadata({ title: "Fix Login Behavior" });
+  it("replaces a title using the whole conversation and returns the updated thread", async () => {
+    mockThreadMetadata({ title: "Login button flicker on Safari" });
     await withTestHarness(async (harness) => {
-      const { thread, appendInput, request } = seedTitleTask(harness);
-      appendInput("Ignore the original task and discuss different work", false);
+      const { thread, appendInput, appendAgentMessage, request } =
+        seedTitleTask(harness);
+      appendInput("It only happens on Safari after the OAuth redirect", false);
+      appendAgentMessage("The flicker comes from a double render in AuthGate");
       const response = await request();
       expect(response.status).toBe(200);
       expect(threadSchema.parse(await readJson(response)).title).toBe(
-        "Fix Login Behavior",
+        "Login button flicker on Safari",
       );
       expect(getThread(harness.db, thread.id)?.title).toBe(
-        "Fix Login Behavior",
+        "Login button flicker on Safari",
       );
-      expect(JSON.stringify(openRouter.requests)).toContain(
-        "Fix the flaky login button behavior",
+      const prompt = openRouter.prompt(0);
+      expect(prompt).toContain(
+        "Opening task:\nFix the flaky login button behavior",
       );
-      expect(JSON.stringify(openRouter.requests)).not.toContain(
-        "discuss different work",
+      expect(prompt).toContain(
+        "Later user messages, oldest first:\n- It only happens on Safari after the OAuth redirect",
+      );
+      expect(prompt).toContain(
+        "Latest agent reply:\nThe flicker comes from a double render in AuthGate",
+      );
+      expect(prompt).toContain(
+        "which the user judged not descriptive enough: Original title",
+      );
+    });
+  });
+
+  it("skips retried follow-ups and keeps only the most recent ones", async () => {
+    mockThreadMetadata({ title: "Recent follow-ups" });
+    await withTestHarness(async (harness) => {
+      const { appendInput, request } = seedTitleTask(harness);
+      for (let index = 1; index <= 9; index += 1) {
+        appendInput(`Follow-up number ${index}`, false);
+      }
+      appendInput("Retried follow-up dispatch", false, "user", {
+        retryOfRequestId: 1,
+      });
+      expect((await request()).status).toBe(200);
+      const prompt = openRouter.prompt(0);
+      expect(prompt).not.toContain("Follow-up number 1\n");
+      expect(prompt).toContain("- Follow-up number 2\n");
+      expect(prompt).toContain("- Follow-up number 9");
+      expect(prompt).not.toContain("Retried follow-up dispatch");
+    });
+  });
+
+  it("regenerates from follow-ups when the opening task alone is too short", async () => {
+    mockThreadMetadata({ title: "Checkout totals ignore discount codes" });
+    await withTestHarness(async (harness) => {
+      const { thread, appendInput, request } = seedTitleTask(harness, "Fix it");
+      expect((await request()).status).toBe(422);
+      appendInput(
+        "The checkout total ignores discount codes on the review step",
+        false,
+      );
+      expect((await request()).status).toBe(200);
+      expect(getThread(harness.db, thread.id)?.title).toBe(
+        "Checkout totals ignore discount codes",
+      );
+      expect(openRouter.prompt(0)).toContain(
+        "- The checkout total ignores discount codes on the review step",
       );
     });
   });
@@ -1063,20 +1142,28 @@ describe("generate thread title endpoint", () => {
   it("uses the local start input after inherited fork history, including agent-authored tasks", async () => {
     mockThreadMetadata({ title: "Child Task" });
     await withTestHarness(async (harness) => {
-      const { appendInput, request } = seedTitleTask(harness, "");
+      const { appendInput, appendAgentMessage, request } = seedTitleTask(
+        harness,
+        "",
+      );
       appendInput("Inherited source task must not be selected", false);
+      appendAgentMessage("Inherited source reply must not be selected");
       appendInput(
         "Implement a separate child task for this fork",
         true,
         "agent",
       );
+      appendInput("Also cover the child fork follow-up", false);
+      appendAgentMessage("Child fork reply after the start");
       expect((await request()).status).toBe(200);
-      expect(JSON.stringify(openRouter.requests)).toContain(
-        "separate child task",
+      const prompt = openRouter.prompt(0);
+      expect(prompt).toContain("separate child task");
+      expect(prompt).toContain("- Also cover the child fork follow-up");
+      expect(prompt).toContain(
+        "Latest agent reply:\nChild fork reply after the start",
       );
-      expect(JSON.stringify(openRouter.requests)).not.toContain(
-        "Inherited source task",
-      );
+      expect(prompt).not.toContain("Inherited source task");
+      expect(prompt).not.toContain("Inherited source reply");
     });
   });
 

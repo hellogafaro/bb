@@ -3,10 +3,11 @@
 ## Coordinating Work
 
 - Use `bb thread generate-title <thread-id>` (or `--self`) to generate and save
-  a title from the thread's original task. It replaces the current title but
-  preserves it on generation failure or a concurrent manual rename. Add `--json`
-  for the updated thread. The SDK equivalent is
-  `sdk.threads.generateTitle({ threadId })`.
+  a title from the thread's opening task, later user messages, and latest agent
+  reply, so regenerating after some work yields a more specific title. It
+  replaces the current title but preserves it on generation failure or a
+  concurrent manual rename. Add `--json` for the updated thread. The SDK
+  equivalent is `sdk.threads.generateTitle({ threadId })`.
 - Use one clear owner per task.
 - Spawn independent tasks separately when parallel work is useful.
 - Let threads work after spawning. Do not poll with shell sleeps, repeated log
@@ -26,7 +27,7 @@
   the provider's structured `/plan` action: the agent proposes a plan for
   approval before executing when supported by the provider. Plain `/plan ...` text is
   not recognized and reaches the provider as literal text. Review the proposed
-  plan with `bb thread interactions`; `bb thread cancel-plan` leaves Plan mode
+  plan with `bb thread interactions`; `bb inbox` lists pending interactions across every thread with each thread's summarized goal; `bb thread cancel-plan` leaves Plan mode
   early. The SDK equivalent is `input: [createBuiltinPlanCommandTextInput(text)]`
   (exported by `@bb/sdk`) on `threads.spawn` / `threads.send`.
 - Use `bb thread edit-message <thread-id> --message "..."` to replace and rerun
