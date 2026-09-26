@@ -44,7 +44,12 @@ vi.mock("@/components/thread/ThreadActionsProvider", () => ({
 
 function LocationPath() {
   const location = useLocation();
-  return <span data-testid="location">{location.pathname}</span>;
+  return (
+    <span data-testid="location">
+      {location.pathname}
+      {location.search}
+    </span>
+  );
 }
 
 const waiting = makeThreadListEntry({
@@ -174,7 +179,7 @@ describe("Threads page", () => {
   it("switches to the archived tab and lists archived threads", async () => {
     const { threadList } = renderRoutes("/threads");
     fireEvent.click(await screen.findByRole("tab", { name: "Archived" }));
-    expect(location()).toBe("/archived");
+    expect(location()).toBe("/threads?status=archived");
     expect(await screen.findByText("Old experiment")).toBeTruthy();
     expect(threadList).toHaveBeenCalledWith(
       expect.objectContaining({ archived: true, offset: 0 }),
@@ -215,10 +220,14 @@ describe("Threads page", () => {
   });
 
   it("redirects the legacy settings and project archive URLs", async () => {
-    renderRoutes("/settings/archived");
-    await waitFor(() => expect(location()).toBe("/archived"));
-    cleanup();
-    renderRoutes("/projects/proj_test/archived");
-    await waitFor(() => expect(location()).toBe("/archived"));
+    for (const legacy of [
+      "/settings/archived",
+      "/projects/proj_test/archived",
+      "/archived",
+    ]) {
+      renderRoutes(legacy);
+      await waitFor(() => expect(location()).toBe("/threads?status=archived"));
+      cleanup();
+    }
   });
 });

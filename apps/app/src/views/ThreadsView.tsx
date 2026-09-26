@@ -37,7 +37,7 @@ function toggleSet<T>(current: ReadonlySet<T>, value: T): Set<T> {
 
 export function ThreadsView() {
   const location = useLocation();
-  const route = resolveThreadsListRoute(location.pathname);
+  const route = resolveThreadsListRoute(location.pathname, location.search);
   if (route === null) {
     return <Navigate to={getThreadsRoutePath()} replace />;
   }

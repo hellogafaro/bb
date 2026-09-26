@@ -61,22 +61,35 @@ describe("bb thread list command output", () => {
     expect(list).toHaveBeenCalledWith({ query: {} });
   });
 
-  it("bb thread list --archived asks the server for archived threads only", async () => {
+  it("bb thread list --status archived asks the server for archived threads only", async () => {
     const list = vi.fn(async () => []);
     stubServerApi({ "v1.threads.$get": list });
 
-    await runCommand(["thread", "list", "--archived"], register);
+    await runCommand(["thread", "list", "--status", "archived"], register);
 
     expect(list).toHaveBeenCalledWith({ query: { archived: "true" } });
   });
 
-  it("bb thread list --no-archived excludes archived threads", async () => {
+  it("bb thread list --status active excludes archived threads", async () => {
     const list = vi.fn(async () => []);
     stubServerApi({ "v1.threads.$get": list });
 
-    await runCommand(["thread", "list", "--no-archived"], register);
+    await runCommand(["thread", "list", "--status", "active"], register);
 
     expect(list).toHaveBeenCalledWith({ query: { archived: "false" } });
+  });
+
+  it("bb thread list rejects an unknown --status", async () => {
+    const list = vi.fn(async () => []);
+    stubServerApi({ "v1.threads.$get": list });
+
+    await expect(
+      runCommand(["thread", "list", "--status", "idle"], register),
+    ).rejects.toThrow("process.exit:1");
+    expect(console.error).toHaveBeenCalledWith(
+      'Error: Unknown --status "idle". Use "archived" or "active".',
+    );
+    expect(list).not.toHaveBeenCalled();
   });
 
   it("bb thread list --snoozed asks the server for snoozed threads", async () => {
@@ -88,7 +101,10 @@ describe("bb thread list command output", () => {
         snoozedUntil: Date.now() + 60_000,
       }),
     ]);
-    stubServerApi({ "v1.threads.$get": list, "v1.projects.$get": async () => [] });
+    stubServerApi({
+      "v1.threads.$get": list,
+      "v1.projects.$get": async () => [],
+    });
 
     await runCommand(["thread", "list", "--snoozed"], register);
 

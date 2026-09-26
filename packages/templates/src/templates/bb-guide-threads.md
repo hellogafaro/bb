@@ -153,15 +153,15 @@ Listing:
     --project <id>                         Filter by project
     --environment <id>                     Filter by environment
     --parent-thread <id>                   Filter by parent thread
-    --archived                             Show only archived threads
-    --no-archived                          Exclude archived threads
+    --status <archived|active>             Filter by lifecycle (defaults to both)
     --snoozed                              Show only threads snoozed into the future
     --section <id>                         Filter by section
     --unsectioned                          Show only threads outside sections
     --include-hidden                       Include hidden threads
 
-  Without --archived or --no-archived the list mixes active and archived
-  threads. The table prints ID, Title, Project, and Status. Title uses the thread
+  Without --status the list mixes active and archived threads; the table's
+  Status column is the runtime state, not this filter. The table prints ID,
+  Title, Project, and Status. Title uses the thread
   title, then the fallback title from the first prompt, then "-". Long
   titles are cut at 60 characters. Project shows the project name; the
   personal project shows "-". Use --json for the full thread records.

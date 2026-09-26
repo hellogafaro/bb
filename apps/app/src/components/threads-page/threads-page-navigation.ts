@@ -1,7 +1,7 @@
 import { matchPath } from "react-router-dom";
 import {
-  THREADS_ARCHIVED_ROUTE_PATH,
   THREADS_ROUTE_PATH,
+  THREADS_STATUS_SEARCH_PARAM,
   type ThreadsListTab,
 } from "@/lib/route-paths";
 
@@ -11,12 +11,11 @@ export interface ThreadsListRoute {
 
 export function resolveThreadsListRoute(
   pathname: string,
+  search = "",
 ): ThreadsListRoute | null {
-  if (matchPath(THREADS_ROUTE_PATH, pathname) !== null) return { tab: "all" };
-  if (matchPath(THREADS_ARCHIVED_ROUTE_PATH, pathname) !== null) {
-    return { tab: "archived" };
-  }
-  return null;
+  if (matchPath(THREADS_ROUTE_PATH, pathname) === null) return null;
+  const status = new URLSearchParams(search).get(THREADS_STATUS_SEARCH_PARAM);
+  return { tab: status === "archived" ? "archived" : "all" };
 }
 
 export function isThreadsListRoutePath(pathname: string): boolean {

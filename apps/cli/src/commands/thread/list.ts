@@ -14,12 +14,19 @@ interface ThreadListCommandOptions {
   environment?: string;
   project?: string;
   parentThread?: string;
-  archived?: boolean;
+  status?: string;
   section?: string;
   unsectioned?: boolean;
   snoozed?: boolean;
   json?: boolean;
   includeHidden?: boolean;
+}
+
+function resolveStatusFilter(status: string | undefined): boolean | undefined {
+  if (status === undefined) return undefined;
+  if (status === "archived") return true;
+  if (status === "active") return false;
+  throw new Error(`Unknown --status "${status}". Use "archived" or "active".`);
 }
 
 export function registerListCommand(
@@ -34,8 +41,10 @@ export function registerListCommand(
     .option("--parent-thread <id>", "Filter by parent thread ID")
     .option("--section <id>", "Filter by thread section ID")
     .option("--unsectioned", "Show only threads outside sections")
-    .option("--archived", "Show only archived threads")
-    .option("--no-archived", "Exclude archived threads")
+    .option(
+      "--status <status>",
+      "Filter by lifecycle: archived or active (defaults to both)",
+    )
     .option("--snoozed", "Show only threads snoozed into the future")
     .option("--include-hidden", "Include hidden threads")
     .option("--json", "Print machine-readable JSON output")
@@ -61,11 +70,12 @@ export function registerListCommand(
           flagName: "--section",
           value: opts.section,
         });
+        const archived = resolveStatusFilter(opts.status);
         const threads = await sdk.threads.list({
           ...(projectId ? { projectId } : {}),
           ...(environmentId ? { environmentId } : {}),
           ...(parentThreadId ? { parentThreadId } : {}),
-          ...(opts.archived === undefined ? {} : { archived: opts.archived }),
+          ...(archived === undefined ? {} : { archived }),
           ...(sectionId ? { sectionId } : {}),
           ...(opts.unsectioned ? { unsectioned: true } : {}),
           ...(opts.snoozed ? { snoozed: true } : {}),

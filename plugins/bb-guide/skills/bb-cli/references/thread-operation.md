@@ -107,8 +107,8 @@ hostId, providerId, projectId, parentThreadId, groupBy })`.
   `bb thread unarchive` inside that window leaves everything in place; bb stops
   the thread and closes its terminals once the grace elapses. Use
   `bb thread stop <thread-id>` when the run must end now. `bb thread list`
-  mixes active and archived threads by default; `--archived` lists only
-  archived threads and `--no-archived` excludes them.
+  mixes active and archived threads by default; `--status archived` lists
+  only archived threads and `--status active` excludes them.
 - `bb thread snooze <thread-id> <until>` moves a thread and its child threads
   to the sidebar's Snoozed section until an ISO time or a duration (`2h`,
   `1d`); `bb thread unsnooze <thread-id>` wakes it now and

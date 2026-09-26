@@ -38,7 +38,7 @@ import {
   LEGACY_TOOLS_SKILL_DETAIL_ROUTE_PATH,
   LEGACY_TOOLS_SPLAT_ROUTE_PATH,
   PROJECT_ARCHIVED_ROUTE_PATH,
-  THREADS_ARCHIVED_ROUTE_PATH,
+  PROJECTLESS_ARCHIVED_ROUTE_PATH,
   THREADS_ROUTE_PATH,
   LEGACY_PROJECT_SETTINGS_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
@@ -335,8 +335,11 @@ export function AppRoutes() {
             path={getSettingsRoutePath("archived")}
             element={<Navigate to={getThreadsRoutePath("archived")} replace />}
           />
+          <Route
+            path={PROJECTLESS_ARCHIVED_ROUTE_PATH}
+            element={<Navigate to={getThreadsRoutePath("archived")} replace />}
+          />
           <Route path={THREADS_ROUTE_PATH} element={<ThreadsView />} />
-          <Route path={THREADS_ARCHIVED_ROUTE_PATH} element={<ThreadsView />} />
           <Route
             path={LEGACY_TOOLS_AUTOMATIONS_ROUTE_PATH}
             element={<LegacyAutomationCollectionRedirect />}

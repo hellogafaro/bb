@@ -174,7 +174,7 @@ describe.skipIf(process.platform === "win32")("bb entrypoint errors", () => {
     const result = await runCli([
       "thread",
       "list",
-      "--status",
+      "--lifecycle",
       "active",
       "--json",
     ]);
@@ -184,11 +184,11 @@ describe.skipIf(process.platform === "win32")("bb entrypoint errors", () => {
       ok: false,
       error: {
         code: "unknown_option",
-        message: "unknown option '--status'",
+        message: "unknown option '--lifecycle'",
         hint: expect.stringContaining("Options: --project <id>"),
       },
     });
-    expect(result.stderr).toContain("error: unknown option '--status'");
+    expect(result.stderr).toContain("error: unknown option '--lifecycle'");
   }, 30_000);
 
   it("fails --help on a subcommand that does not exist instead of printing the group's help", async () => {

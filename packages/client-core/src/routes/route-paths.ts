@@ -55,7 +55,7 @@ const ROOT_COMPOSE_ROUTE_PATH = APP_ROOT_ROUTE_PATH;
 export const LEGACY_PROJECT_COMPOSE_ROUTE_PATH = "/projects/:projectId";
 export const THREADS_ROUTE_PATH = "/threads";
 export const PROJECTLESS_ARCHIVED_ROUTE_PATH = "/archived";
-export const THREADS_ARCHIVED_ROUTE_PATH = PROJECTLESS_ARCHIVED_ROUTE_PATH;
+export const THREADS_STATUS_SEARCH_PARAM = "status";
 export type ThreadsListTab = "all" | "archived";
 const PROJECTLESS_THREAD_DETAIL_ROUTE_PATH = "/threads/:threadId";
 export const LEGACY_PROJECT_SETTINGS_ROUTE_PATH =
@@ -161,7 +161,9 @@ export function getAgentsRoutePath(): string {
 }
 
 export function getThreadsRoutePath(tab: ThreadsListTab = "all"): string {
-  return tab === "archived" ? THREADS_ARCHIVED_ROUTE_PATH : THREADS_ROUTE_PATH;
+  return tab === "archived"
+    ? `${THREADS_ROUTE_PATH}?${THREADS_STATUS_SEARCH_PARAM}=archived`
+    : THREADS_ROUTE_PATH;
 }
 
 export function getAgentDetailRoutePath(agentRef: string): string {

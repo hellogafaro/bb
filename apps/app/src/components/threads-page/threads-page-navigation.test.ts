@@ -8,18 +8,24 @@ import {
 describe("resolveThreadsListRoute", () => {
   it("maps the list and archived paths to tabs", () => {
     expect(resolveThreadsListRoute("/threads")).toEqual({ tab: "all" });
-    expect(resolveThreadsListRoute("/archived")).toEqual({ tab: "archived" });
+    expect(resolveThreadsListRoute("/threads", "?status=archived")).toEqual({
+      tab: "archived",
+    });
+    expect(resolveThreadsListRoute("/threads", "?status=other")).toEqual({
+      tab: "all",
+    });
   });
 
   it("leaves thread detail and other pages alone", () => {
     expect(resolveThreadsListRoute("/threads/thr_1")).toBeNull();
+    expect(resolveThreadsListRoute("/archived")).toBeNull();
     expect(resolveThreadsListRoute("/projects/p/threads/thr_1")).toBeNull();
     expect(resolveThreadsListRoute("/agents")).toBeNull();
     expect(isThreadsListRoutePath("/settings/archived")).toBe(false);
   });
 
   it("titles both tabs as Threads", () => {
-    expect(resolveThreadsListHeaderMeta("/archived")).toEqual({
+    expect(resolveThreadsListHeaderMeta("/threads")).toEqual({
       kind: "breadcrumbs",
       breadcrumbs: [{ label: "Threads" }],
     });
