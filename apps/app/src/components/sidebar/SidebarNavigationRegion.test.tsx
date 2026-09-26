@@ -169,30 +169,6 @@ afterEach(() => {
 });
 
 describe("SidebarNavigationRegion", () => {
-  it("preserves modifier-click for New thread in BB navigation", () => {
-    renderHarness();
-
-    fireEvent.click(screen.getByRole("button", { name: "New thread" }), {
-      metaKey: true,
-    });
-
-    expect(mocks.openNewThreadInSplit).toHaveBeenCalledOnce();
-  });
-
-  it("routes Search through the quick palette without inline search UI", () => {
-    registerFixture();
-    renderHarness();
-
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
-
-    expect(mocks.onSearch).toHaveBeenCalledOnce();
-    expect(mocks.dispatch).toHaveBeenCalledWith("palette.open", null);
-    expect(
-      screen.queryByRole("combobox", { name: "Search threads" }),
-    ).toBeNull();
-    expect(screen.getByTestId("replacement-navigation")).toBeDefined();
-  });
-
   it("navigates to a current plugin destination through the host", () => {
     registerFixture();
     renderHarness();

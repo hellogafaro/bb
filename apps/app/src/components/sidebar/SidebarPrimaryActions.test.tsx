@@ -6,6 +6,7 @@ import { ProjectListSearchAction } from "./SidebarPrimaryActions";
 
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
+  modifierHeld: false,
 }));
 
 vi.mock("@/components/commands/AppCommandProvider", () => ({
@@ -17,10 +18,11 @@ vi.mock("@/components/commands/AppCommandProvider", () => ({
     command === "palette.open"
       ? { ariaKeyshortcuts: "Meta+K", label: "⌘K" }
       : null,
-  useIsAppCommandModifierHeld: () => false,
+  useIsAppCommandModifierHeld: () => mocks.modifierHeld,
 }));
 
 afterEach(() => {
+  mocks.modifierHeld = false;
   cleanup();
   mocks.dispatch.mockReset();
 });
@@ -55,11 +57,19 @@ describe("ProjectListSearchAction", () => {
     expect(
       shortcutSlot?.classList.contains("max-md:pointer-coarse:hidden"),
     ).toBe(true);
-    expect(button.classList.contains("pr-1")).toBe(true);
+    expect(button.classList.contains("pr-1")).toBe(false);
 
     fireEvent.click(button);
 
     expect(onSearch).toHaveBeenCalledOnce();
     expect(mocks.dispatch).toHaveBeenCalledWith("palette.open", button);
+  });
+
+  it("shows the search shortcut while the command modifier is held", () => {
+    mocks.modifierHeld = true;
+    render(<ProjectListSearchAction />);
+    const shortcutSlot = screen.getByText("⌘K").parentElement;
+    expect(shortcutSlot?.classList.contains("opacity-100")).toBe(true);
+    expect(shortcutSlot?.classList.contains("opacity-0")).toBe(false);
   });
 });

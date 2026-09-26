@@ -82,6 +82,9 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb thread queue list <id> --json, bb thread interactions list <id> --json, bb thread history <id> --json
     bare arrays
 
+  bb inbox --json
+    {interactions: [{id, threadId, status, payload, ...}], summaries: [{threadId, goal, state, needs, sourceVersion, updatedAt}], pendingSummaries: [threadId]}    (interactions are the pending rows across threads, newest first; summaries are the model-written goal/state/needs per thread; pendingSummaries lists threads still being summarized)
+
   bb project list --json
     [{id, kind, name, gitRemoteUrl, color, sources: [{id, hostId, path, isDefault}]}]    (bare array; color is the label palette index 1-24)
 
@@ -119,7 +122,7 @@ Fields beyond those shown exist; these are the ones scripts use.
     {skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)
 
   bb agent list --json
-    [{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)
+    [{id, name, description, providerId, model, reasoningLevel, secondaryModel, secondaryReasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)
 
   bb agent show <agent> --json
     {id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}

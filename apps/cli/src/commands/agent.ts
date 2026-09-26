@@ -25,6 +25,8 @@ const AGENT_FIELDS = [
   "provider",
   "model",
   "reasoning",
+  "secondary-model",
+  "secondary-reasoning",
   "skills",
   "mcp",
   "instructions",
@@ -37,6 +39,8 @@ interface AgentCreateOptions extends JsonOutputOptions {
   provider?: string;
   model?: string;
   reasoning?: string;
+  secondaryModel?: string;
+  secondaryReasoning?: string;
   skill: string[];
   mcp: string[];
   description?: string;
@@ -125,6 +129,10 @@ function formatAgent(agent: AgentResult, isDefault: boolean): string {
     `  Provider: ${agent.providerId}`,
     `  Model: ${agent.model ?? "provider default"}`,
     `  Reasoning: ${agent.reasoningLevel}`,
+    `  Secondary model: ${agent.secondaryModel ?? "same as primary"}`,
+    ...(agent.secondaryReasoningLevel === null
+      ? []
+      : [`  Secondary reasoning: ${agent.secondaryReasoningLevel}`]),
     `  Mascot: ${agent.mascot}`,
     `  Color: ${agent.color === 0 ? "neutral" : agent.color}`,
     "  Permissions: full",
@@ -178,6 +186,10 @@ async function buildSetPatch(
     switch (field) {
       case "model":
         return { model: null };
+      case "secondary-model":
+        return { secondaryModel: null, secondaryReasoningLevel: null };
+      case "secondary-reasoning":
+        return { secondaryReasoningLevel: null };
       case "skills":
         return { skills: [] };
       case "mcp":
@@ -225,6 +237,14 @@ async function buildSetPatch(
     case "reasoning": {
       const reasoningLevel = parseReasoningLevel(value);
       return reasoningLevel === undefined ? {} : { reasoningLevel };
+    }
+    case "secondary-model":
+      return { secondaryModel: value };
+    case "secondary-reasoning": {
+      const secondaryReasoningLevel = parseReasoningLevel(value);
+      return secondaryReasoningLevel === undefined
+        ? {}
+        : { secondaryReasoningLevel };
     }
     case "skills":
       return { skills: parseNameList(value) };
@@ -308,10 +328,21 @@ export function registerAgentCommands(
       "Create an agent; omitted fields use the default agent's provider and model, medium reasoning, all skills, and all MCPs",
     )
     .option("--provider <id>", "Provider ID (see `bb provider list`)")
-    .option("--model <model>", "Model ID; omit for the provider's default")
+    .option(
+      "--model <model>",
+      "Primary model ID; omit for the provider's default",
+    )
     .option(
       "--reasoning <level>",
-      "Reasoning level: low, medium, high, xhigh, max (provider-dependent)",
+      "Primary reasoning level: low, medium, high, xhigh, max (provider-dependent)",
+    )
+    .option(
+      "--secondary-model <model>",
+      "Model for sub-agent threads this agent spawns; omit to use the primary model",
+    )
+    .option(
+      "--secondary-reasoning <level>",
+      "Reasoning level for sub-agent threads; omit to use the primary level",
     )
     .option(
       "--skill <name>",
@@ -347,6 +378,9 @@ export function registerAgentCommands(
           opts.instructionsFile,
         );
         const reasoningLevel = parseReasoningLevel(opts.reasoning);
+        const secondaryReasoningLevel = parseReasoningLevel(
+          opts.secondaryReasoning,
+        );
         const mascot =
           opts.mascot === undefined ? undefined : parseMascot(opts.mascot);
         const color =
@@ -356,6 +390,10 @@ export function registerAgentCommands(
           ...(opts.provider ? { providerId: opts.provider } : {}),
           ...(opts.model ? { model: opts.model } : {}),
           ...(reasoningLevel ? { reasoningLevel } : {}),
+          ...(opts.secondaryModel
+            ? { secondaryModel: opts.secondaryModel }
+            : {}),
+          ...(secondaryReasoningLevel ? { secondaryReasoningLevel } : {}),
           ...(opts.skill.length > 0 ? { skills: opts.skill } : {}),
           ...(opts.mcp.length > 0 ? { mcpServers: opts.mcp } : {}),
           ...(opts.description !== undefined

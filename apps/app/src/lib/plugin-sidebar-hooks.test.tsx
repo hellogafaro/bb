@@ -299,7 +299,7 @@ describe("useSidebarThreads sections", () => {
         id: PERSONAL_PROJECT_ID,
         name: "Personal",
         isPersonal: true,
-        href: "/",
+        href: "/new",
         settingsHref: `/settings/projects/${PERSONAL_PROJECT_ID}`,
       },
     ]);
@@ -349,7 +349,7 @@ describe("useSidebarThreadActions", () => {
     });
 
     expect(actions.setRootComposeProjectId).toHaveBeenCalledWith("proj_target");
-    expect(actions.navigate).toHaveBeenCalledWith("/", {
+    expect(actions.navigate).toHaveBeenCalledWith("/new", {
       state: { focusPrompt: true },
     });
   });
@@ -366,7 +366,7 @@ describe("useSidebarThreadActions", () => {
       });
     });
 
-    expect(actions.navigate).toHaveBeenCalledWith("/", {
+    expect(actions.navigate).toHaveBeenCalledWith("/new", {
       state: { focusPrompt: true, sectionId: "sec_later" },
     });
   });
@@ -382,7 +382,7 @@ describe("useSidebarThreadActions", () => {
       });
     });
 
-    expect(actions.navigate).toHaveBeenCalledWith("/", {
+    expect(actions.navigate).toHaveBeenCalledWith("/new", {
       state: { reuseEnvironmentId: "env_1" },
     });
   });
@@ -393,7 +393,7 @@ describe("useSidebarThreadActions", () => {
     act(() => {
       result.current.openNewThread();
     });
-    expect(actions.navigate).toHaveBeenCalledWith("/", undefined);
+    expect(actions.navigate).toHaveBeenCalledWith("/new", undefined);
   });
 
   it("re-expands a collapsed conversation when opening its thread", () => {

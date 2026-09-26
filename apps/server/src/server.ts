@@ -31,6 +31,9 @@ import { registerPluginCatalogRoutes } from "./routes/plugin-catalog.js";
 import { registerSkillsRegistryRoutes } from "./routes/skills-registry.js";
 import { registerMcpRoutes } from "./routes/mcp.js";
 import { registerAgentRoutes } from "./routes/agents.js";
+import { registerInboxRoutes } from "./routes/inbox.js";
+import { registerInteractionRoutes } from "./routes/interactions.js";
+import { InboxSummaryService } from "./services/inbox/inbox-summaries.js";
 import { registerProviderGuardRoutes } from "./routes/provider-guard.js";
 import { createMcpService } from "./services/mcp/create-mcp-service.js";
 import {
@@ -790,6 +793,8 @@ export function createApp(
   registerSkillsRegistryRoutes(publicApi, deps);
   registerMcpRoutes(publicApi, deps, mcpService);
   registerAgentRoutes(publicApi, deps);
+  registerInteractionRoutes(publicApi, deps);
+  registerInboxRoutes(publicApi, new InboxSummaryService(deps));
   registerProviderGuardRoutes(publicApi, providerGuard);
   registerServerMoveRoutes(publicApi, deps, serverMove);
   app.route("/api/v1", publicApi);

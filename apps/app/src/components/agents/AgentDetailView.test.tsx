@@ -52,6 +52,8 @@ function makeAgent(overrides: Partial<AgentResponse> = {}): AgentResponse {
     providerId: "codex",
     model: null,
     reasoningLevel: "medium",
+    secondaryModel: null,
+    secondaryReasoningLevel: null,
     skills: [],
     mcpServers: [],
     instructions: "",
@@ -116,9 +118,10 @@ function renderDetail(agent: AgentResponse) {
 }
 
 async function openPicker() {
-  const trigger = await screen.findByRole("button", {
+  const [trigger] = await screen.findAllByRole("button", {
     name: "Provider, model and reasoning",
   });
+  if (trigger === undefined) throw new Error("primary picker missing");
   await waitFor(() => expect(trigger.textContent).toContain("5.5"));
   fireEvent.click(trigger);
 }
@@ -180,9 +183,10 @@ describe("AgentDetailView model section", () => {
 
   it("switches provider to its default model", async () => {
     renderDetail(makeAgent({ model: "gpt-5.2" }));
-    const trigger = await screen.findByRole("button", {
+    const [trigger] = await screen.findAllByRole("button", {
       name: "Provider, model and reasoning",
     });
+    if (trigger === undefined) throw new Error("primary picker missing");
     await waitFor(() => expect(trigger.textContent).toContain("5.2"));
     fireEvent.click(trigger);
     fireEvent.click(screen.getByTitle("Claude Code"));

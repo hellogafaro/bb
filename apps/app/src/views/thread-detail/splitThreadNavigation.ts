@@ -14,7 +14,6 @@ import { decideThreadDrop, type SplitZone } from "@/lib/split-drag";
 import type { PaneContent, SplitLayout } from "@/lib/split-layout";
 import { matchPath } from "react-router-dom";
 import {
-  APP_ROOT_ROUTE_PATH,
   getPluginDetailRoutePath,
   getPluginPanelRoutePath,
   getRootComposeRoutePath,
@@ -72,7 +71,7 @@ export function paneContentRoute(content: PaneContent): string {
 }
 
 export function paneContentForPathname(pathname: string): PaneContent | null {
-  if (pathname === APP_ROOT_ROUTE_PATH) {
+  if (pathname === getRootComposeRoutePath()) {
     return { kind: "new-thread" };
   }
   const thread = matchPath(

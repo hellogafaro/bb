@@ -331,7 +331,7 @@ describe("SecondaryPanelLayout", () => {
     const panelGroup = screen.getByTestId("panel-group");
     const mainContent = screen.getByTestId("main-content");
     expect(panelGroup.style.getPropertyValue("--panel-collapse-duration")).toBe(
-      "220ms",
+      "200ms",
     );
     expect(mainContent.parentElement?.className).toContain(
       "motion-reduce:transition-none",
@@ -368,7 +368,7 @@ describe("SecondaryPanelLayout", () => {
 
     act(() => frames.flushAll());
     expect(panelGroup.style.getPropertyValue("--panel-collapse-duration")).toBe(
-      "220ms",
+      "200ms",
     );
   });
 

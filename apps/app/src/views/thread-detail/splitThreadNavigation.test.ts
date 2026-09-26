@@ -54,7 +54,7 @@ describe("mixed page navigation", () => {
     expect(after.focusedPaneId).toBe(
       findPaneByContent(after.root, { kind: "new-thread" })?.paneId,
     );
-    expect(focusedPaneRoute(after)).toBe("/");
+    expect(focusedPaneRoute(after)).toBe("/new");
   });
 
   it("updates a plugin pane's subpath without duplicating the panel", () => {

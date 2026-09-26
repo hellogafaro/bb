@@ -522,7 +522,7 @@ describe("SkillsLibrary registry detail lifecycle", () => {
           <QueryClientWrapper>
             <Routes>
               <Route path="/skills" element={<SkillsLibrary />} />
-              <Route path="/" element={<LocationStateProbe />} />
+              <Route path="/new" element={<LocationStateProbe />} />
             </Routes>
             <NavigateButton to={`${path}?view=library`} label="go-library" />
             <NavigateButton to={path} label="go-browse" />

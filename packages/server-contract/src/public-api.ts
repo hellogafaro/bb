@@ -1,4 +1,9 @@
 import {
+  inboxSummariesRequestSchema,
+  type InboxSummariesRequest,
+  type InboxSummariesResponse,
+} from "./api/inbox.js";
+import {
   machineEnvironmentSetSchema,
   machineEnvironmentDeleteSchema,
   type MachineEnvironmentSet,
@@ -1227,6 +1232,24 @@ export const publicApiRoutes = {
     }),
   },
 
+  interactions: {
+    list: defineRoute({
+      path: "/interactions",
+      method: "get",
+      request: noRequest(),
+      response: jsonResponse<ThreadPendingInteractionsResponse>(),
+    }),
+  },
+  inbox: {
+    summaries: defineRoute({
+      path: "/inbox/summaries",
+      method: "post",
+      request: jsonRequest<EmptyInput, InboxSummariesRequest>(
+        inboxSummariesRequestSchema,
+      ),
+      response: jsonResponse<InboxSummariesResponse>(),
+    }),
+  },
   threads: {
     list: defineRoute({
       path: "/threads",

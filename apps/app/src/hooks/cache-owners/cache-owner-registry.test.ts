@@ -52,6 +52,8 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
     "allThreadConversationOutlineQueryKeyPrefix",
     "allThreadPendingInteractionsQueryKeyPrefix",
     "allThreadQueryKeyPrefix",
+    "inboxInteractionsQueryKey",
+    "inboxSummariesQueryKeyPrefix",
     "allThreadQueuedMessagesQueryKeyPrefix",
     "allThreadTimelineQueryKeyPrefix",
     "allThreadTimelineTurnSummaryDetailsQueryKeyPrefix",
@@ -92,6 +94,10 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
     "threadsQueryKey",
   ],
   "hooks/cache-owners/host-directory-cache-owner.ts": ["hostDirectoryQueryKey"],
+  "hooks/cache-owners/inbox-cache-owner.ts": [
+    "inboxInteractionsQueryKey",
+    "inboxSummariesQueryKeyPrefix",
+  ],
   "hooks/cache-owners/agent-cache-owner.ts": ["agentsQueryKey"],
   "hooks/cache-owners/mcp-cache-owner.ts": [
     "allMcpServerQueryKeyPrefix",

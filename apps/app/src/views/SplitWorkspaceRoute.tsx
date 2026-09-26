@@ -7,6 +7,7 @@ import { holdsPluginDetailPane } from "@/lib/split-layout/openPaneContentInSplit
 import "@bb/shared-ui/icon-extended";
 import {
   APP_ROOT_ROUTE_PATH,
+  getRootComposeRoutePath,
   LEGACY_PROJECT_COMPOSE_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
   PLUGIN_PANEL_ROUTE_PATH,
@@ -42,7 +43,7 @@ export default function SplitWorkspaceRoute() {
   const detailPluginId = pluginDetailMatch?.params.pluginId;
 
   const routeContent = useMemo<PaneContent | null>(() => {
-    if (location.pathname === APP_ROOT_ROUTE_PATH) {
+    if (location.pathname === getRootComposeRoutePath()) {
       return ROOT_COMPOSE_CONTENT;
     }
     if (isThreadView && projectId && threadId) {

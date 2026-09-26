@@ -45,6 +45,7 @@ export const EXTENDED_ICON_NAMES = [
   "GithubLogo",
   "DragDropHorizontal",
   "DragDropVertical",
+  "EditBox",
   "EditFile",
   "ElectricPlugs",
   "Eye",

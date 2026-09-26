@@ -15,6 +15,8 @@ const agent: Agent = {
   providerId: "codex",
   model: null,
   reasoningLevel: "medium",
+  secondaryModel: null,
+  secondaryReasoningLevel: null,
   skills: [],
   mcpServers: [],
   instructions: "",

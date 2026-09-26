@@ -1,6 +1,7 @@
 export * from "./context-snapshot.js";
 export * from "./active-thinking.js";
 export * from "./agents.js";
+export * from "./inbox.js";
 export * from "./label-colors.js";
 export * from "./acp-cli.js";
 export * from "./native-roots.js";

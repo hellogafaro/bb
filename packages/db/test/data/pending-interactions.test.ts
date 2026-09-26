@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { noopNotifier } from "../../src/notifier.js";
 import { createEnvironment } from "../../src/data/environments.js";
 import { upsertHost } from "../../src/data/hosts.js";
@@ -9,6 +9,7 @@ import {
   getPendingInteractionByProviderRequest,
   interruptPendingInteractionsForThreadIds,
   interruptPendingInteractionsForThreads,
+  listPendingInteractionsAcrossThreads,
   listPendingInteractionsByThread,
   setPendingInteractionResolved,
 } from "../../src/data/pending-interactions.js";
@@ -166,6 +167,65 @@ describe("pending interactions", () => {
       id: older.id,
       status: "resolved",
     });
+  });
+
+  it("lists pending interactions across threads newest first with status and limit filters", () => {
+    const { db, thread, siblingThread } = setup();
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+
+    const first = createPendingInteraction(db, {
+      threadId: thread.id,
+      turnId: "turn-1",
+      providerId: "codex",
+      providerThreadId: "provider-thread-1",
+      providerRequestId: "request-1",
+      payload: commandApprovalPayload("git push", "item-1"),
+    });
+    vi.setSystemTime(2_000);
+    const second = createPendingInteraction(db, {
+      threadId: siblingThread.id,
+      turnId: "turn-2",
+      providerId: "codex",
+      providerThreadId: "provider-thread-2",
+      providerRequestId: "request-2",
+      payload: fileChangeApprovalPayload("item-2"),
+    });
+    vi.setSystemTime(3_000);
+    const third = createPendingInteraction(db, {
+      threadId: thread.id,
+      turnId: "turn-3",
+      providerId: "codex",
+      providerThreadId: "provider-thread-1",
+      providerRequestId: "request-3",
+      payload: commandApprovalPayload("rm -rf build", "item-3"),
+    });
+    vi.useRealTimers();
+    setPendingInteractionResolved(db, {
+      id: second.id,
+      resolution: JSON.stringify({ decision: "deny", grantedPermissions: null }),
+    });
+
+    expect(
+      listPendingInteractionsAcrossThreads(db, { statuses: ["pending"] }).map(
+        (row) => row.id,
+      ),
+    ).toEqual([third.id, first.id]);
+    expect(
+      listPendingInteractionsAcrossThreads(db, {
+        statuses: ["pending", "resolved"],
+      }).map((row) => [row.id, row.threadId]),
+    ).toEqual([
+      [third.id, thread.id],
+      [second.id, siblingThread.id],
+      [first.id, thread.id],
+    ]);
+    expect(
+      listPendingInteractionsAcrossThreads(db, {
+        statuses: ["pending"],
+        limit: 1,
+      }).map((row) => row.id),
+    ).toEqual([third.id]);
   });
 
   it("interrupts pending interactions for matching provider threads only", () => {

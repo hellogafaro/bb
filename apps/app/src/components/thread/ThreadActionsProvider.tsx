@@ -42,7 +42,7 @@ import {
 } from "@/components/dialogs/ThreadDeleteDialog";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
-import { getRootComposeRoutePath, getThreadRoutePath } from "@/lib/route-paths";
+import { getInboxRoutePath, getThreadRoutePath } from "@/lib/route-paths";
 import { getDesktopBrowserApi } from "@/lib/bb-desktop";
 import { useRouteNavigate } from "@/components/ui/app-route-anchor";
 
@@ -143,7 +143,7 @@ export function ThreadActionsProvider({
   const navigateAwayIfViewing = useCallback(
     (thread: Thread) => {
       if (viewedThreadIdRef.current === thread.id) {
-        navigate(getRootComposeRoutePath());
+        navigate(getInboxRoutePath());
       }
     },
     [navigate],
@@ -325,12 +325,12 @@ export function ThreadActionsProvider({
             closeResult.focusedRoute !== null
               ? getThreadRoutePath(closeResult.focusedRoute)
               : archiveDisplacedThread
-                ? getRootComposeRoutePath()
+                ? getInboxRoutePath()
                 : null;
           const navigateAwayIfArchived = () => {
             const viewed = viewedThreadIdRef.current;
             if (viewed && response.archivedThreadIds.includes(viewed)) {
-              navigate(getRootComposeRoutePath());
+              navigate(getInboxRoutePath());
             }
           };
           syncNavigationAfterClose(closeResult, navigateAwayIfArchived);

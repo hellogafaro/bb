@@ -24,6 +24,11 @@ import { createSearchArea, type SearchArea } from "./areas/search.js";
 import { createSkillsArea, type SkillsArea } from "./areas/skills.js";
 import { createMcpArea, type McpArea } from "./areas/mcp.js";
 import { createAgentsArea, type AgentsArea } from "./areas/agents.js";
+import { createInboxArea, type InboxArea } from "./areas/inbox.js";
+import {
+  createInteractionsArea,
+  type InteractionsArea,
+} from "./areas/interactions.js";
 import { createThemeArea, type ThemeArea } from "./areas/theme.js";
 import { createSystemArea, type SystemArea } from "./areas/system.js";
 import { createTerminalsArea, type TerminalsArea } from "./areas/terminals.js";
@@ -52,6 +57,8 @@ export interface BbSdkAreas extends BbRealtime {
   environments: EnvironmentsArea;
   files: FilesArea;
   hosts: HostsArea;
+  inbox: InboxArea;
+  interactions: InteractionsArea;
   mcp: McpArea;
   projects: ProjectsArea;
   plugins: PluginsArea;
@@ -85,6 +92,8 @@ export function createBbSdk(
     environments: createEnvironmentsArea(sdkContext),
     files: createFilesArea(sdkContext),
     hosts: createHostsArea(sdkContext),
+    inbox: createInboxArea(sdkContext),
+    interactions: createInteractionsArea(sdkContext),
     mcp: createMcpArea(sdkContext),
     agents: createAgentsArea(sdkContext),
     subscribe(args) {

@@ -22,6 +22,8 @@ export type {
 
 export type * from "./realtime.js";
 export type * from "./areas/agents.js";
+export type * from "./areas/inbox.js";
+export type * from "./areas/interactions.js";
 export type * from "./areas/environments.js";
 export type * from "./areas/files.js";
 export type * from "./areas/guide.js";

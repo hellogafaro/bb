@@ -1,11 +1,6 @@
-import {
-  PERSONAL_PROJECT_ID,
-  type ProjectSource,
-  type ThreadListEntry,
-} from "@bb/domain";
+import type { ProjectSource } from "@bb/domain";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import type {
-  ProjectWithThreadsResponse,
-  SidebarBootstrapResponse,
   SystemEnvironmentProvider,
   TerminalSession,
 } from "@bb/server-contract";
@@ -21,7 +16,6 @@ import {
 import { getProjectStoredPromptAttachmentPaths } from "@bb/client-core";
 import {
   buildRootComposeTerminalSessions,
-  buildMobileRecentThreads,
   canCreateRootComposeTerminal,
   hasSingleUseRootComposeTargetState,
   readSectionIdFromLocationState,
@@ -32,11 +26,6 @@ import {
   shouldNavigateAfterThreadCreate,
 } from "./RootComposeView";
 import { resolveRootComposeProjectFileRouting } from "./RootComposePanelTabContent";
-import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
-import {
-  makeProjectWithThreadsResponse,
-  makeSidebarBootstrapResponse,
-} from "@/test/fixtures/projects";
 import { makeTerminalSession as makeTerminalSessionFixture } from "@/test/fixtures/terminal-sessions";
 import {
   buildReuseThreadOptions,
@@ -306,18 +295,6 @@ describe("resolveNewThreadSubmitDisabledReason", () => {
   });
 });
 
-interface MakeThreadArgs {
-  id: string;
-  projectId: string;
-}
-
-interface MakeProjectArgs {
-  id: string;
-  kind: ProjectWithThreadsResponse["kind"];
-  name: string;
-  threads: readonly ThreadListEntry[];
-}
-
 function makeProjectSource(hostId = "host_1"): ProjectSource {
   return {
     id: "src_1",
@@ -389,27 +366,6 @@ function makeReuseThreadOption(environmentId: string): ReuseThreadOption {
   };
 }
 
-function makeThread(args: MakeThreadArgs): ThreadListEntry {
-  return makeThreadListEntry({
-    id: args.id,
-    projectId: args.projectId,
-    title: args.id,
-    titleFallback: args.id,
-    createdAt: 100,
-  });
-}
-
-function makeProject(args: MakeProjectArgs): ProjectWithThreadsResponse {
-  return makeProjectWithThreadsResponse({
-    id: args.id,
-    kind: args.kind,
-    name: args.name,
-    threads: [...args.threads],
-    createdAt: 1,
-    updatedAt: 1,
-  });
-}
-
 function makeTerminalSession(
   overrides: Partial<TerminalSession>,
 ): TerminalSession {
@@ -424,55 +380,6 @@ function makeTerminalSession(
     ...overrides,
   });
 }
-
-describe("buildMobileRecentThreads", () => {
-  it("includes projectless and every project thread", () => {
-    const sidebarNavigation: SidebarBootstrapResponse =
-      makeSidebarBootstrapResponse({
-        personalProject: makeProject({
-          id: PERSONAL_PROJECT_ID,
-          kind: "personal",
-          name: "Personal",
-          threads: [
-            makeThread({
-              id: "thr_personal",
-              projectId: PERSONAL_PROJECT_ID,
-            }),
-          ],
-        }),
-        projects: [
-          makeProject({
-            id: "proj_app",
-            kind: "standard",
-            name: "App",
-            threads: [
-              makeThread({
-                id: "thr_app",
-                projectId: "proj_app",
-              }),
-            ],
-          }),
-          makeProject({
-            id: "proj_docs",
-            kind: "standard",
-            name: "Docs",
-            threads: [
-              makeThread({
-                id: "thr_docs",
-                projectId: "proj_docs",
-              }),
-            ],
-          }),
-        ],
-      });
-
-    const threadIds = buildMobileRecentThreads({ sidebarNavigation }).map(
-      (thread) => thread.id,
-    );
-
-    expect(threadIds).toEqual(["thr_personal", "thr_app", "thr_docs"]);
-  });
-});
 
 describe("readInitialPromptFromLocationState", () => {
   it("returns the initialPrompt string seeded by navigation state", () => {

@@ -27,6 +27,8 @@ const coder: Agent = {
   providerId: "claude-code",
   model: "opus",
   reasoningLevel: "high",
+  secondaryModel: null,
+  secondaryReasoningLevel: null,
   skills: [],
   mcpServers: [],
   instructions: "",

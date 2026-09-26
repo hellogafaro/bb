@@ -228,6 +228,8 @@ type ExpectedBbSdkKey =
   | "files"
   | "guide"
   | "hosts"
+  | "inbox"
+  | "interactions"
   | "mcp"
   | "search"
   | "plugins"

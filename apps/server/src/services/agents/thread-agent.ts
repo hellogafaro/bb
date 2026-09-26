@@ -44,16 +44,36 @@ function withoutAgentExecution(
   return rest;
 }
 
+export function agentModelForThread(
+  agent: Pick<
+    Agent,
+    "model" | "reasoningLevel" | "secondaryModel" | "secondaryReasoningLevel"
+  >,
+  isChildThread: boolean,
+): { model: string | null; reasoningLevel: ReasoningLevel } {
+  if (!isChildThread || agent.secondaryModel === null) {
+    return { model: agent.model, reasoningLevel: agent.reasoningLevel };
+  }
+  return {
+    model: agent.secondaryModel,
+    reasoningLevel: agent.secondaryReasoningLevel ?? agent.reasoningLevel,
+  };
+}
+
 function agentExecutionInput(
   deps: Pick<AppDeps, "providerRegistry">,
   agent: Agent,
   input: ThreadCreateServiceRequestInput,
 ): ThreadCreateServiceRequestInput {
+  const execution = agentModelForThread(
+    agent,
+    input.parentThreadId !== undefined,
+  );
   return {
     ...withoutAgentExecution(input),
     providerId: agent.providerId,
-    ...(agent.model !== null ? { model: agent.model } : {}),
-    reasoningLevel: agent.reasoningLevel,
+    ...(execution.model !== null ? { model: execution.model } : {}),
+    reasoningLevel: execution.reasoningLevel,
     permissionMode: agentPermissionMode(
       deps.providerRegistry,
       agent.providerId,
@@ -146,9 +166,7 @@ export function pinThreadExecution(
   }
   setThreadExecutionOverride(deps.db, {
     threadId: args.threadId,
-    ...(args.pinned.model !== null
-      ? { modelOverride: args.pinned.model }
-      : {}),
+    ...(args.pinned.model !== null ? { modelOverride: args.pinned.model } : {}),
     ...(args.pinned.reasoningLevel !== null
       ? { reasoningLevelOverride: args.pinned.reasoningLevel }
       : {}),
@@ -163,7 +181,7 @@ export interface ThreadAgentExecution {
 
 export function resolveThreadAgentExecution(
   deps: Pick<AppDeps, "db" | "providerRegistry">,
-  thread: Pick<Thread, "agentId" | "providerId">,
+  thread: Pick<Thread, "agentId" | "providerId" | "parentThreadId">,
 ): ThreadAgentExecution {
   const agent = resolveThreadAgent(deps, thread);
   if (agent === null) {
@@ -174,12 +192,13 @@ export function resolveThreadAgentExecution(
     };
   }
   const sameProvider = agent.providerId === thread.providerId;
+  const execution = agentModelForThread(agent, thread.parentThreadId !== null);
   return {
-    model: sameProvider ? (agent.model ?? undefined) : undefined,
+    model: sameProvider ? (execution.model ?? undefined) : undefined,
     permissionMode: agentPermissionMode(
       deps.providerRegistry,
       thread.providerId,
     ),
-    reasoningLevel: sameProvider ? agent.reasoningLevel : undefined,
+    reasoningLevel: sameProvider ? execution.reasoningLevel : undefined,
   };
 }

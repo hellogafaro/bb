@@ -9,6 +9,7 @@ import {
   interruptPendingInteractionsForThreads,
   interruptPendingInteractionsForPlugin,
   listActivePluginPendingInteractions,
+  listPendingInteractionsAcrossThreads,
   listPendingInteractionsByThread,
   notifyThreadSnoozeChanged,
   setPendingInteractionInterrupted,
@@ -409,6 +410,14 @@ export class PendingInteractionLifecycle {
     listener: ThreadInteractionSettledListener,
   ): void {
     this.interactionSettledListener = listener;
+  }
+
+  listPendingInteractions(): PendingInteraction[] {
+    return this.parseListRows(
+      listPendingInteractionsAcrossThreads(this.deps.db, {
+        statuses: ["pending", "resolving"],
+      }),
+    );
   }
 
   listPendingThreadInteractions(threadId: string): PendingInteraction[] {

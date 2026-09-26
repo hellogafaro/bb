@@ -11,7 +11,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { PluginContext } from "@/components/plugin/plugin-context";
-import { SidebarHistoryNavigationControls } from "@/components/sidebar/SidebarHistoryNavigationControls";
+import { RouteHistoryControls } from "@/test/RouteHistoryControls";
 import { useBbNavigate } from "./plugin-sdk-hooks";
 import {
   AUTOMATIONS_PLUGIN_ID,
@@ -88,7 +88,7 @@ function SidebarControlsHarness() {
   return (
     <div>
       <div data-testid="path">{location.pathname}</div>
-      <SidebarHistoryNavigationControls />
+      <RouteHistoryControls />
       {TOOL_ROUTE_SEQUENCE.map((path) => (
         <button key={path} type="button" onClick={() => navigate(path)}>
           {path}
@@ -295,13 +295,13 @@ describe("useRouteStateHistoryNavigation", () => {
     await clickAndExpectPath("Open detail", detailPath);
     await clickAndExpectPath("Edit from detail", editPath);
     await clickAndExpectPath("Remount plugin", editPath);
-    await clickAndExpectPath("Redirect edit to compose", "/");
+    await clickAndExpectPath("Redirect edit to compose", "/new");
     await clickAndExpectPath("Native back", detailPath);
     await clickAndExpectPath("Native back", getAutomationsRoutePath());
 
     await clickAndExpectPath("Open direct edit", editPath);
     await clickAndExpectPath("Remount plugin", editPath);
-    await clickAndExpectPath("Redirect edit to compose", "/");
+    await clickAndExpectPath("Redirect edit to compose", "/new");
     await clickAndExpectPath("Native back", getAutomationsRoutePath());
   });
 

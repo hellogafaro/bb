@@ -38,6 +38,8 @@ function makeAgent(overrides: Partial<AgentResponse> = {}): AgentResponse {
     providerId: "codex",
     model: null,
     reasoningLevel: "medium",
+    secondaryModel: null,
+    secondaryReasoningLevel: null,
     skills: [],
     mcpServers: [],
     instructions: "",
@@ -56,6 +58,8 @@ const coder = makeAgent({
   description: "Writes code",
   model: "gpt-5",
   reasoningLevel: "high",
+  secondaryModel: null,
+  secondaryReasoningLevel: null,
   skills: ["bb-review"],
   mcpServers: ["notion"],
   instructions: "Keep diffs small.",
@@ -216,7 +220,7 @@ describe("Agents page", () => {
   it("prefills chat from New agent", async () => {
     renderRoutes("/settings/agents", [makeAgent()]);
     fireEvent.click(await screen.findByRole("button", { name: "New agent" }));
-    expect(location()).toBe("/");
+    expect(location()).toBe("/new");
     expect(
       JSON.parse(screen.getByTestId("location-state").textContent ?? "null"),
     ).toEqual({

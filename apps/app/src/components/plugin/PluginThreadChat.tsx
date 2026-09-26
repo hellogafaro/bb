@@ -39,6 +39,13 @@ import {
   getThreadRoutePath,
 } from "@/lib/route-paths";
 
+interface AppThreadChatProps extends ThreadChatProps {
+  readTracking?: boolean;
+  environmentSummary?: "auto" | "none";
+  composerAutoFocus?: boolean;
+  executionControls?: "visible" | "hidden";
+}
+
 export function PluginThreadChat({
   threadId,
   variant = "full",
@@ -48,7 +55,11 @@ export function PluginThreadChat({
   className,
   leadingContent,
   messageActions,
-}: ThreadChatProps) {
+  readTracking = true,
+  environmentSummary = "auto",
+  composerAutoFocus = true,
+  executionControls = "visible",
+}: AppThreadChatProps) {
   const containerClassName = cn(
     layout === "contained" ? "flex h-full min-h-0 flex-col" : "flex flex-col",
     className,
@@ -63,6 +74,10 @@ export function PluginThreadChat({
         permissionPolicy={permissionPolicy}
         leadingContent={leadingContent}
         messageActions={messageActions}
+        readTracking={readTracking}
+        environmentSummaryMode={environmentSummary}
+        composerAutoFocus={composerAutoFocus}
+        executionControls={executionControls}
       />
     </div>
   );
@@ -76,6 +91,10 @@ interface PluginThreadChatBodyProps {
   permissionPolicy: "inherit" | "editable";
   leadingContent: ReactNode;
   messageActions: readonly ThreadChatMessageAction[] | undefined;
+  readTracking: boolean;
+  environmentSummaryMode: "auto" | "none";
+  composerAutoFocus: boolean;
+  executionControls: "visible" | "hidden";
 }
 
 function PluginThreadChatBody({
@@ -86,6 +105,10 @@ function PluginThreadChatBody({
   permissionPolicy,
   leadingContent,
   messageActions,
+  readTracking,
+  environmentSummaryMode,
+  composerAutoFocus,
+  executionControls,
 }: PluginThreadChatBodyProps) {
   const threadQuery = useThread(threadId, { enabled: threadId.length > 0 });
   const thread = threadQuery.data;
@@ -303,6 +326,7 @@ function PluginThreadChatBody({
         onOpenLink={onOpenLink}
         onOpenLocalFileLink={onOpenLocalFileLink}
         workspaceRootPath={workspaceRootPath}
+        readTracking={readTracking}
         composer={{
           draftScope: {
             kind: "thread",
@@ -315,10 +339,13 @@ function PluginThreadChatBody({
           executionEnvironmentHostId: environment?.hostId,
           permissionPolicy:
             permissionPolicy === "editable" ? "editable" : "snapshot",
-          environmentSummary,
+          environmentSummary:
+            environmentSummaryMode === "none" ? null : environmentSummary,
           pluginComposerBottomScope: { kind: "thread", threadId },
           composerIdentity: `plugin-thread-chat:${threadId}`,
           focusRequestKey: focusRequest,
+          autoFocus: composerAutoFocus,
+          executionControls,
         }}
       />
     </ThreadProviderContext.Provider>

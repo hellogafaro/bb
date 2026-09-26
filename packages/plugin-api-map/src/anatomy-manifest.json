@@ -119,7 +119,6 @@
         {
           "path": "apps/app/src/components/sidebar/SidebarNavigationRegion.test.tsx",
           "anchors": [
-            "routes Search through the quick palette without inline search UI",
             "delegates and falls back after a crash without owner remounts"
           ]
         }

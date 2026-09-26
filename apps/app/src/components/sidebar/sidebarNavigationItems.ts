@@ -7,6 +7,7 @@ import type { PluginNavPanelSlot } from "@/lib/plugin-slots";
 import {
   getPluginPanelRoutePath,
   getPluginsRoutePath,
+  getRootComposeRoutePath,
   isToolsRoutePath,
 } from "@/lib/route-paths";
 
@@ -102,7 +103,9 @@ export function resolveActiveSidebarNavigationItemId({
   pathname: string;
   navPanels: readonly PluginNavPanelSlot[];
 }): string | null {
-  if (pathname === "/") return NEW_THREAD_NAVIGATION_ITEM_ID;
+  if (pathname === getRootComposeRoutePath()) {
+    return NEW_THREAD_NAVIGATION_ITEM_ID;
+  }
   if (isToolsRoutePath(pathname)) {
     return items.some((item) => item.id === PLUGINS_NAVIGATION_ITEM_ID)
       ? PLUGINS_NAVIGATION_ITEM_ID

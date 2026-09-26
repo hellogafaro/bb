@@ -67,6 +67,8 @@ function makeAgent(overrides: Partial<AgentResponse>): AgentResponse {
     providerId: "codex",
     model: null,
     reasoningLevel: "medium",
+    secondaryModel: null,
+    secondaryReasoningLevel: null,
     skills: [],
     mcpServers: [],
     instructions: "",
@@ -117,11 +119,15 @@ describe("ExecutionControls agent picker", () => {
     fireEvent.click(trigger);
 
     const coder = await screen.findByRole("option", { name: /Coder/ });
-    expect(coder.textContent).toContain("Claude Code · Opus · High");
+    const coderLabel = coder.querySelector("[data-agent-model-label]");
+    expect(coderLabel?.textContent).toContain("Opus");
+    expect(coderLabel?.textContent).toContain("High");
     expect(coder.querySelector('[data-agent-mascot="frog"]')).not.toBeNull();
-    expect(coder.querySelector("img")).not.toBeNull();
+    expect(coderLabel?.firstElementChild).not.toBeNull();
     const current = screen.getByRole("option", { name: /BB/ });
-    expect(current.textContent).toContain("Codex · Default model · Medium");
+    const currentLabel = current.querySelector("[data-agent-model-label]");
+    expect(currentLabel?.textContent).toContain("Default model");
+    expect(currentLabel?.textContent).toContain("Medium");
     expect(
       screen.queryByRole("combobox", { name: "Search agents" }),
     ).toBeNull();

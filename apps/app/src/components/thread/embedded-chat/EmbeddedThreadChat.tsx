@@ -104,6 +104,8 @@ interface EmbeddedThreadChatComposerProps {
   pluginComposerBottomScope?: PluginComposerHost["scope"] | null;
   composerIdentity?: string;
   focusRequestKey?: number;
+  autoFocus?: boolean;
+  executionControls?: "visible" | "hidden";
 }
 
 interface EmbeddedThreadChatSharedProps {
@@ -120,6 +122,7 @@ interface EmbeddedThreadChatSharedProps {
   workspaceRootPath?: string;
   layout?: "contained" | "document";
   measure?: "panel" | "page";
+  readTracking?: boolean;
 }
 
 interface EmbeddedThreadChatComposerModeProps extends EmbeddedThreadChatSharedProps {
@@ -190,6 +193,7 @@ function EmbeddedThreadChatWithComposer({
   measure = "panel",
   surfaceTone = "background",
   composer,
+  readTracking = true,
 }: EmbeddedThreadChatComposerModeProps) {
   const systemConfigQuery = useSystemConfig();
   const steerActiveThreadOnEnter =
@@ -214,7 +218,7 @@ function EmbeddedThreadChatWithComposer({
   );
   useThreadReadTracking({
     markThreadRead,
-    thread: threadQuery.data,
+    thread: readTracking ? threadQuery.data : undefined,
   });
   const { data: queuedMessages = [] } = useThreadQueuedMessages(threadId);
 
@@ -1094,6 +1098,8 @@ function EmbeddedThreadChatWithComposer({
           textEffects={bottomComposerTextEffects}
           environmentSummary={composer.environmentSummary}
           contextWindowUsage={null}
+          autoFocus={composer.autoFocus ?? true}
+          hideExecutionControls={composer.executionControls === "hidden"}
           execution={bottomExecutionConfig}
           permission={bottomPermissionConfig}
           permissionReadOnly={composer.permissionPolicy === "snapshot"}
@@ -1133,7 +1139,7 @@ function EmbeddedThreadChatWithComposer({
     return (
       <div
         key={surfaceKey}
-        data-thread-window=""
+        data-thread-window="document"
         data-surface-tone={surfaceTone}
         className={cn("flex min-w-0 flex-col", surfaceClassName)}
       >

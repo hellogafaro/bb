@@ -27,6 +27,8 @@ function agentRecord(overrides: Partial<AgentResult> = {}): AgentResult {
     providerId: "codex",
     model: "gpt-5",
     reasoningLevel: "high",
+    secondaryModel: null,
+    secondaryReasoningLevel: null,
     skills: [],
     mcpServers: [],
     instructions: "",
@@ -45,6 +47,8 @@ const defaultAgent = agentRecord({
   description: "",
   model: null,
   reasoningLevel: "medium",
+  secondaryModel: null,
+  secondaryReasoningLevel: null,
 });
 
 describe("bb agent commands", () => {
@@ -125,6 +129,7 @@ describe("bb agent commands", () => {
         "  Provider: codex",
         "  Model: gpt-5",
         "  Reasoning: high",
+        "  Secondary model: same as primary",
         "  Mascot: cat",
         "  Color: 4",
         "  Permissions: full",

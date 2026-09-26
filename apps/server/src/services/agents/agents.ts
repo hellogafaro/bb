@@ -251,12 +251,22 @@ export function createAgent(
       : seed?.providerId === providerId
         ? seed.model
         : null;
+  const secondaryReasoningLevel = request.secondaryReasoningLevel ?? null;
+  if (secondaryReasoningLevel !== null) {
+    assertReasoningLevel(
+      deps.providerRegistry,
+      providerId,
+      secondaryReasoningLevel,
+    );
+  }
   const agent = insertAgent(deps.db, {
     name,
     description: request.description ?? "",
     providerId,
     model,
     reasoningLevel,
+    secondaryModel: request.secondaryModel ?? null,
+    secondaryReasoningLevel,
     skills: request.skills ?? [],
     mcpServers: normalizeMcpServers(request.mcpServers ?? []),
     instructions: request.instructions ?? "",
@@ -289,6 +299,28 @@ export function updateAgentByRef(
       : providerChanged
         ? null
         : undefined;
+  const secondaryModel =
+    request.secondaryModel !== undefined
+      ? request.secondaryModel
+      : providerChanged
+        ? null
+        : undefined;
+  const secondaryReasoningLevel =
+    request.secondaryReasoningLevel !== undefined
+      ? request.secondaryReasoningLevel
+      : providerChanged
+        ? null
+        : undefined;
+  if (
+    secondaryReasoningLevel !== undefined &&
+    secondaryReasoningLevel !== null
+  ) {
+    assertReasoningLevel(
+      deps.providerRegistry,
+      providerId,
+      secondaryReasoningLevel,
+    );
+  }
   const updated = updateAgent(deps.db, {
     id: existing.id,
     ...(name !== undefined ? { name } : {}),
@@ -298,6 +330,10 @@ export function updateAgentByRef(
     ...(request.providerId !== undefined ? { providerId } : {}),
     ...(model !== undefined ? { model } : {}),
     ...(request.reasoningLevel !== undefined ? { reasoningLevel } : {}),
+    ...(secondaryModel !== undefined ? { secondaryModel } : {}),
+    ...(secondaryReasoningLevel !== undefined
+      ? { secondaryReasoningLevel }
+      : {}),
     ...(request.skills !== undefined ? { skills: request.skills } : {}),
     ...(request.mcpServers !== undefined
       ? { mcpServers: normalizeMcpServers(request.mcpServers) }

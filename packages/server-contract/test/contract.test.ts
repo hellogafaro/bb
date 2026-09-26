@@ -365,6 +365,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
     reason:
       "Thread creation may omit root-thread presentation and execution fields so the server can resolve project/provider defaults.",
     fields: [
+      "createThreadRequestSchema.agentId",
       "createThreadRequestSchema.sectionId",
       "createThreadRequestSchema.model",
       "createThreadRequestSchema.parentThreadId",
@@ -433,6 +434,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
     reason:
       "Project and project-source PATCH requests omit fields that should be left unchanged.",
     fields: [
+      "updateProjectRequestSchema.color",
       "updateProjectRequestSchema.name",
       "updateProjectSourceRequestSchema.isDefault",
       "updateProjectSourceRequestSchema.path",
@@ -511,6 +513,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
       "threadListQuerySchema.originPluginId",
       "threadListQuerySchema.parentThreadId",
       "threadListQuerySchema.projectId",
+      "threadListQuerySchema.snoozed",
       "threadListQuerySchema.sourceThreadId",
       "threadListQuerySchema.unsectioned",
     ],
@@ -1199,6 +1202,8 @@ describe("server-contract canonical schemas", () => {
           archivedAt: null,
           pinnedAt: null,
           pinSortKey: null,
+          snoozedUntil: null,
+          agentId: null,
           deletedAt: null,
           lastReadAt: null,
           latestAttentionAt: 2,

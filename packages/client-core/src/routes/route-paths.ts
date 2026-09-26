@@ -1,6 +1,7 @@
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
 
 export const APP_ROOT_ROUTE_PATH = "/";
+export const NEW_THREAD_ROUTE_PATH = "/new";
 export const AUTH_CALLBACK_ROUTE_PATH = "/auth/callback";
 export const SETTINGS_ROUTE_PATH = "/settings";
 export const SETTINGS_SECTION_ROUTE_PATH = "/settings/:section";
@@ -58,9 +59,11 @@ export const AUTOMATION_DETAIL_ROUTE_PATH =
   "/plugins/automations/automations/:projectId/:automationId";
 export const AUTOMATION_EDIT_ROUTE_PATH =
   "/plugins/automations/automations/:projectId/:automationId/edit";
-const ROOT_COMPOSE_ROUTE_PATH = APP_ROOT_ROUTE_PATH;
+const ROOT_COMPOSE_ROUTE_PATH = NEW_THREAD_ROUTE_PATH;
 export const LEGACY_PROJECT_COMPOSE_ROUTE_PATH = "/projects/:projectId";
 export const THREADS_ROUTE_PATH = "/threads";
+export const INBOX_ROUTE_PATH = APP_ROOT_ROUTE_PATH;
+export const LEGACY_INBOX_ROUTE_PATH = "/inbox";
 export const PROJECTLESS_ARCHIVED_ROUTE_PATH = "/archived";
 export const THREADS_STATUS_SEARCH_PARAM = "status";
 export type ThreadsListTab = "all" | "archived";
@@ -175,6 +178,10 @@ export function getMcpDetailRoutePath(mcpRef: string): string {
   return `${MCPS_ROUTE_PATH}/${encodeURIComponent(mcpRef)}`;
 }
 
+export function getInboxRoutePath(): string {
+  return INBOX_ROUTE_PATH;
+}
+
 export function getThreadsRoutePath(tab: ThreadsListTab = "all"): string {
   return tab === "archived"
     ? `${THREADS_ROUTE_PATH}?${THREADS_STATUS_SEARCH_PARAM}=archived`
@@ -285,6 +292,8 @@ export const ROUTE_PATTERNS: readonly string[] = [
   AUTOMATION_EDIT_ROUTE_PATH,
   LEGACY_PROJECT_COMPOSE_ROUTE_PATH,
   THREADS_ROUTE_PATH,
+  NEW_THREAD_ROUTE_PATH,
+  LEGACY_INBOX_ROUTE_PATH,
   PROJECTLESS_ARCHIVED_ROUTE_PATH,
   LEGACY_PROJECT_SETTINGS_ROUTE_PATH,
   PROJECT_ARCHIVED_ROUTE_PATH,

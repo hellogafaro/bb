@@ -758,6 +758,24 @@ export function allThreadPendingInteractionsQueryKeyPrefix(): ThreadPendingInter
   return [THREAD_PENDING_INTERACTIONS_QUERY_KEY];
 }
 
+export const INBOX_INTERACTIONS_QUERY_KEY = "inboxInteractions";
+
+export function inboxInteractionsQueryKey(): readonly [string] {
+  return [INBOX_INTERACTIONS_QUERY_KEY];
+}
+
+export const INBOX_SUMMARIES_QUERY_KEY = "inboxSummaries";
+
+export function inboxSummariesQueryKeyPrefix(): readonly [string] {
+  return [INBOX_SUMMARIES_QUERY_KEY];
+}
+
+export function inboxSummariesQueryKey(
+  threadIds: readonly string[],
+): readonly [string, string] {
+  return [INBOX_SUMMARIES_QUERY_KEY, threadIds.join(",")];
+}
+
 export function terminalsQueryKey(
   scope: TerminalQueryScope,
 ): TerminalsQueryKey {

@@ -2168,7 +2168,7 @@ describe("detail disable workspace cleanup", () => {
           content: { kind: "new-thread" },
         });
         expect(store.get(maximizedPaneIdAtom)).toBeNull();
-        expect(screen.getByTestId("route-path").textContent).toBe("/");
+        expect(screen.getByTestId("route-path").textContent).toBe("/new");
         fireEvent.click(screen.getByRole("button", { name: "Browser back" }));
         expect(screen.getByTestId("route-path").textContent).toBe("/skills");
       }

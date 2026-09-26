@@ -65,6 +65,8 @@ export const agentSchema = z
     providerId: z.string(),
     model: z.string().nullable(),
     reasoningLevel: reasoningLevelSchema,
+    secondaryModel: z.string().nullable(),
+    secondaryReasoningLevel: reasoningLevelSchema.nullable(),
     skills: z.array(z.string()),
     mcpServers: z.array(z.string()),
     instructions: z.string(),

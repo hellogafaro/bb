@@ -47,6 +47,8 @@ import {
   PROJECT_ARCHIVED_ROUTE_PATH,
   PROJECTLESS_ARCHIVED_ROUTE_PATH,
   THREADS_ROUTE_PATH,
+  INBOX_ROUTE_PATH,
+  LEGACY_INBOX_ROUTE_PATH,
   LEGACY_PROJECT_SETTINGS_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
   PLUGINS_ROUTE_PATH,
@@ -111,6 +113,11 @@ const AgentsView = lazy(() =>
 const ThreadsView = lazy(() =>
   import("./views/ThreadsView").then((m) => ({
     default: m.ThreadsView,
+  })),
+);
+const InboxView = lazy(() =>
+  import("./views/InboxView").then((m) => ({
+    default: m.InboxView,
   })),
 );
 const CustomizeSkillsView = lazy(() =>
@@ -400,6 +407,11 @@ export function AppRoutes() {
             element={<Navigate to={getThreadsRoutePath("archived")} replace />}
           />
           <Route path={THREADS_ROUTE_PATH} element={<ThreadsView />} />
+          <Route path={INBOX_ROUTE_PATH} element={<InboxView />} />
+          <Route
+            path={LEGACY_INBOX_ROUTE_PATH}
+            element={<Navigate to={INBOX_ROUTE_PATH} replace />}
+          />
           <Route
             path={LEGACY_TOOLS_AUTOMATIONS_ROUTE_PATH}
             element={<LegacyAutomationCollectionRedirect />}

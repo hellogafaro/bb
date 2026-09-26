@@ -169,6 +169,8 @@ export interface FollowUpPromptBoxProps {
   textEffects?: readonly ComposerTextEffectSource[];
   collapseResetKey: string | number;
   focusEndKey?: string | number;
+  autoFocus?: boolean;
+  hideExecutionControls?: boolean;
   isPrimaryComposer?: boolean;
   showScrollToBottomButton?: boolean;
   pendingInteraction?: ReactNode;
@@ -240,6 +242,8 @@ function FollowUpPromptBoxWithComposer({
   textEffects,
   collapseResetKey,
   focusEndKey,
+  autoFocus = true,
+  hideExecutionControls = false,
   isPrimaryComposer = true,
   showScrollToBottomButton = true,
   pendingInteraction = null,
@@ -604,10 +608,14 @@ function FollowUpPromptBoxWithComposer({
   const executionControlsDisabled =
     (executionReadOnly ?? false) || hasPendingInteraction;
   const footerStart = useMemo(
-    () => (
-      <ExecutionControls {...execution} disabled={executionControlsDisabled} />
-    ),
-    [execution, executionControlsDisabled],
+    () =>
+      hideExecutionControls ? null : (
+        <ExecutionControls
+          {...execution}
+          disabled={executionControlsDisabled}
+        />
+      ),
+    [execution, executionControlsDisabled, hideExecutionControls],
   );
   const { permissionDisplayOverride, permissionPickerDisabledByPlanMode } =
     usePromptModePermissionDisplay({
@@ -616,6 +624,10 @@ function FollowUpPromptBoxWithComposer({
       mentionRanges: composer.mentionRanges,
       activePromptMode,
     });
+  const showComposerFooterRow =
+    environmentSummary !== null ||
+    contextWindowUsage !== null ||
+    !FORK_AGENT_COMPOSER;
   const permissionReadOnlyResolved =
     (permissionReadOnly ?? false) || hasPendingInteraction;
   const permissionPickerDisabled =
@@ -708,6 +720,7 @@ function FollowUpPromptBoxWithComposer({
         scrollToBottomOnSubmit={submitMode.kind !== "queue"}
         history={composer.history}
         focusEndKey={focusEndKey}
+        autoFocus={autoFocus}
         placeholder={composer.promptPlaceholder}
         containerCompactPlaceholder={composer.compactPromptPlaceholder}
         heightAnimationKey={isInteractionExpanded ? "expanded" : "compact"}
@@ -778,7 +791,7 @@ function FollowUpPromptBoxWithComposer({
         }
         footerStart={footerStart}
       />
-      {!isPromptBoxCompact ? (
+      {!isPromptBoxCompact && showComposerFooterRow ? (
         <div
           data-follow-up-composer-footer=""
           className="mt-1 flex min-h-6 max-h-6 select-none items-center justify-between gap-2 overflow-hidden pl-[13px] pr-[9px] opacity-100 transition-[max-height,min-height,margin-top,opacity] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"

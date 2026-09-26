@@ -4,12 +4,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getCompactHomeScrollViewportTop,
-  RootComposeCompactHome,
-} from "./RootComposeCompactHome";
-import {
   MOBILE_RECENT_LABEL_HEIGHT_PX,
   MOBILE_RECENT_ROW_HEIGHT_PX,
-} from "./RootComposeMobileRecents";
+  RootComposeCompactHome,
+} from "./RootComposeCompactHome";
 
 afterEach(() => {
   cleanup();

@@ -336,6 +336,10 @@ server.
 
 `bb mcp` manages MCP servers for every provider. Read references/mcp.md before you add servers, change policies, or answer MCP approvals.
 
+## inbox
+
+- `bb inbox`
+
 ## agent
 
 - `bb agent`

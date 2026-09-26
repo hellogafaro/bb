@@ -1362,8 +1362,8 @@ describe("PluginNewThreadComposer seeding", () => {
     });
     window.localStorage.setItem("bb.root-compose.project-id", "proj_1");
     const router = createMemoryRouter(
-      [{ path: "/", element: <RootComposeView /> }],
-      { initialEntries: ["/"] },
+      [{ path: "/new", element: <RootComposeView /> }],
+      { initialEntries: ["/new"] },
     );
     render(
       <Provider>
@@ -1408,9 +1408,10 @@ describe("PluginNewThreadComposer seeding", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const router = createMemoryRouter([
-      { path: "/", element: <RootComposeView /> },
-    ]);
+    const router = createMemoryRouter(
+      [{ path: "/new", element: <RootComposeView /> }],
+      { initialEntries: ["/new"] },
+    );
     render(
       <Provider>
         <QueryClientProvider client={queryClient}>
@@ -1505,8 +1506,8 @@ describe("PluginNewThreadComposer seeding", () => {
     });
     window.localStorage.setItem("bb.root-compose.project-id", "proj_1");
     const router = createMemoryRouter(
-      [{ path: "/", element: <RootComposeView /> }],
-      { initialEntries: ["/"] },
+      [{ path: "/new", element: <RootComposeView /> }],
+      { initialEntries: ["/new"] },
     );
     render(
       <Provider>
@@ -1528,8 +1529,8 @@ describe("PluginNewThreadComposer seeding", () => {
       });
       window.localStorage.setItem("bb.root-compose.project-id", "proj_1");
       const router = createMemoryRouter(
-        [{ path: "/", element: <RootComposeView /> }],
-        { initialEntries: ["/"] },
+        [{ path: "/new", element: <RootComposeView /> }],
+        { initialEntries: ["/new"] },
       );
       render(
         <Provider>
@@ -1573,8 +1574,8 @@ describe("PluginNewThreadComposer seeding", () => {
           defaultOptions: { queries: { retry: false } },
         });
         const router = createMemoryRouter(
-          [{ path: "/", element: <RootComposeView /> }],
-          { initialEntries: ["/"] },
+          [{ path: "/new", element: <RootComposeView /> }],
+          { initialEntries: ["/new"] },
         );
         return render(
           <Provider>
@@ -1635,11 +1636,11 @@ describe("PluginNewThreadComposer seeding", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
     const router = createMemoryRouter(
-      [{ path: "/", element: <RootComposeView /> }],
+      [{ path: "/new", element: <RootComposeView /> }],
       {
         initialEntries: [
           {
-            pathname: "/",
+            pathname: "/new",
             state: {
               focusPrompt: true,
               initialPrompt: "Create a kanban plugin",

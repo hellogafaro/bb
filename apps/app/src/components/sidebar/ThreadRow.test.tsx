@@ -119,6 +119,8 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
     providerId: "codex",
     model: null,
     reasoningLevel: "medium",
+    secondaryModel: null,
+    secondaryReasoningLevel: null,
     skills: [],
     mcpServers: [],
     instructions: "",

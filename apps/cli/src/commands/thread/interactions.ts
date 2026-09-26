@@ -129,7 +129,7 @@ function parsePermissionGrantScope(
   throw new Error("Invalid --scope. Expected 'turn' or 'session'.");
 }
 
-function formatInteractionKind(interaction: PendingInteraction): string {
+export function formatInteractionKind(interaction: PendingInteraction): string {
   if (isUserQuestionPendingInteractionPayload(interaction.payload)) {
     return "question";
   }
@@ -1002,7 +1002,10 @@ export function registerInteractionCommands(
           console.log(
             isCorePendingInteraction(updated) && updated.resolution
               ? `Interaction ${interactionId} ${formatCoreResolutionOutcome(updated.resolution)}`
-              : formatAnswerResolutionSuccessMessage({ interactionId, updated }),
+              : formatAnswerResolutionSuccessMessage({
+                  interactionId,
+                  updated,
+                }),
           );
         },
       ),

@@ -47,6 +47,11 @@ export interface ListPendingInteractionsArgs {
   threadId: string;
 }
 
+export interface ListAllPendingInteractionsArgs {
+  limit?: number;
+  statuses: readonly PendingInteractionStatus[];
+}
+
 export interface SetPendingInteractionTerminalStateArgs {
   allowedCurrentStatuses?: readonly PendingInteractionStatus[];
   id: string;
@@ -252,6 +257,18 @@ export function listPendingInteractionsByThread(
     )
     .orderBy(desc(pendingInteractions.createdAt));
 
+  return args.limit ? query.limit(args.limit).all() : query.all();
+}
+
+export function listPendingInteractionsAcrossThreads(
+  db: PendingInteractionReadConnection,
+  args: ListAllPendingInteractionsArgs,
+): PendingInteractionRow[] {
+  const query = db
+    .select()
+    .from(pendingInteractions)
+    .where(inArray(pendingInteractions.status, [...args.statuses]))
+    .orderBy(desc(pendingInteractions.createdAt));
   return args.limit ? query.limit(args.limit).all() : query.all();
 }
 

@@ -226,6 +226,13 @@ function requireThread(db: DbConnection, threadId: string): ThreadRow {
   return thread;
 }
 
+export function isPublicThread(db: DbConnection, threadId: string): boolean {
+  const thread = getThread(db, threadId);
+  if (thread == null || thread.deletedAt !== null) return false;
+  const project = getProject(db, thread.projectId);
+  return project?.deletedAt === null;
+}
+
 export function requirePublicThread(
   db: DbConnection,
   threadId: string,

@@ -35,7 +35,7 @@ function NavigationControls() {
   const navigate = useNavigate();
   return (
     <>
-      <button onClick={() => navigate("/")}>compose</button>
+      <button onClick={() => navigate("/new")}>compose</button>
       <button onClick={() => navigate("/plugins/docs/docs/work/today.md")}>
         plugin
       </button>
@@ -52,7 +52,7 @@ describe("SplitWorkspaceRoute", () => {
 
   it("preserves the workspace mount across focus-driven page URL changes", () => {
     render(
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={["/new"]}>
         <NavigationControls />
         <Routes>
           <Route path="*" element={<SplitWorkspaceRoute />} />

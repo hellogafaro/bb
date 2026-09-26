@@ -61,17 +61,15 @@ afterEach(() => {
 });
 
 describe("BuiltInSidebarNavigation", () => {
-  it("lists New thread, Search, and Threads without Customize or Agents", () => {
+  it("lists Inbox and Threads without New thread, Search, Customize, or Agents", () => {
     renderNavigation("/");
 
     const entries = screen
       .getAllByTestId(/^entry-/)
       .map((element) => element.getAttribute("data-testid"));
-    expect(entries).toEqual([
-      "entry-new-thread",
-      "entry-search-threads",
-      "entry-threads",
-    ]);
+    expect(entries).toEqual(["entry-inbox", "entry-threads"]);
+    expect(screen.queryByRole("button", { name: "New thread" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Customize" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Agents" })).toBeNull();
   });
@@ -104,10 +102,20 @@ describe("BuiltInSidebarNavigation", () => {
     ).toBeNull();
   });
 
-  it("orders Threads right after Search by default", () => {
-    expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER.slice(0, 3)).toEqual([
-      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
-      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.searchThreads,
+  it("marks the Inbox entry active on the home route", () => {
+    renderNavigation("/");
+    const inbox = screen.getByRole("button", { name: "Inbox" });
+    expect(inbox.getAttribute("aria-current")).toBe("page");
+    expect(
+      screen
+        .getByRole("button", { name: "Threads" })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("orders Threads right after Inbox by default", () => {
+    expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER.slice(0, 2)).toEqual([
+      BUILT_IN_SIDEBAR_NAVIGATION_KEYS.inbox,
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS.threads,
     ]);
     expect(DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER).not.toContain(

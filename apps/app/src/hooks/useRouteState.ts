@@ -1,6 +1,10 @@
 import { useLocation, useMatch } from "react-router-dom";
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
-import { isSkillsRoutePath, isToolsRoutePath } from "@/lib/route-paths";
+import {
+  getRootComposeRoutePath,
+  isSkillsRoutePath,
+  isToolsRoutePath,
+} from "@/lib/route-paths";
 
 interface RouteState {
   projectId: string | undefined;
@@ -23,7 +27,7 @@ export function useRouteState(): RouteState {
     isToolsRoutePath(location.pathname) ||
     location.pathname === "/tools" ||
     location.pathname.startsWith("/tools/");
-  const isRootView = location.pathname === "/";
+  const isRootView = location.pathname === getRootComposeRoutePath();
   const isUnsupportedPersonalProjectThread =
     projectThreadMatch?.params.projectId === PERSONAL_PROJECT_ID;
   const projectlessThreadId = projectlessThreadMatch?.params.threadId;

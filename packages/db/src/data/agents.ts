@@ -18,6 +18,8 @@ export interface InsertAgentArgs {
   providerId: string;
   model: string | null;
   reasoningLevel: ReasoningLevel;
+  secondaryModel?: string | null;
+  secondaryReasoningLevel?: ReasoningLevel | null;
   skills: readonly string[];
   mcpServers: readonly string[];
   instructions: string;
@@ -33,6 +35,8 @@ export interface UpdateAgentArgs {
   providerId?: string;
   model?: string | null;
   reasoningLevel?: ReasoningLevel;
+  secondaryModel?: string | null;
+  secondaryReasoningLevel?: ReasoningLevel | null;
   skills?: readonly string[];
   mcpServers?: readonly string[];
   instructions?: string;
@@ -60,6 +64,8 @@ function toAgent(row: AgentRow): Agent {
     providerId: row.providerId,
     model: row.model,
     reasoningLevel: row.reasoningLevel,
+    secondaryModel: row.secondaryModel,
+    secondaryReasoningLevel: row.secondaryReasoningLevel,
     skills: parseNameList(row.skillsJson),
     mcpServers: parseNameList(row.mcpServersJson),
     instructions: row.instructions,
@@ -140,6 +146,8 @@ export function insertAgent(db: AgentConnection, args: InsertAgentArgs): Agent {
       providerId: args.providerId,
       model: args.model,
       reasoningLevel: args.reasoningLevel,
+      secondaryModel: args.secondaryModel ?? null,
+      secondaryReasoningLevel: args.secondaryReasoningLevel ?? null,
       skillsJson: JSON.stringify(args.skills),
       mcpServersJson: JSON.stringify(args.mcpServers),
       instructions: args.instructions,
@@ -166,6 +174,10 @@ export function updateAgent(
   if (args.model !== undefined) set.model = args.model;
   if (args.reasoningLevel !== undefined)
     set.reasoningLevel = args.reasoningLevel;
+  if (args.secondaryModel !== undefined)
+    set.secondaryModel = args.secondaryModel;
+  if (args.secondaryReasoningLevel !== undefined)
+    set.secondaryReasoningLevel = args.secondaryReasoningLevel;
   if (args.skills !== undefined) set.skillsJson = JSON.stringify(args.skills);
   if (args.mcpServers !== undefined)
     set.mcpServersJson = JSON.stringify(args.mcpServers);

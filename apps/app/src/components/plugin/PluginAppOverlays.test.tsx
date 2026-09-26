@@ -216,7 +216,7 @@ describe("PluginAppOverlays", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Go home" }));
-    expect(screen.getByTestId("location").textContent).toBe("/");
+    expect(screen.getByTestId("location").textContent).toBe("/new");
     expect(screen.getByTestId("overlay-rpc").textContent).toBe("pong");
     expect(screen.getByTestId("overlay-sidebar-actions").textContent).toBe(
       "function",

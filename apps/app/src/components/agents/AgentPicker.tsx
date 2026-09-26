@@ -40,7 +40,6 @@ import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentOptionDetail } from "./agent-display";
 import { AgentModelLabel } from "./AgentModelLabel";
 import { AgentMascot } from "./mascots/AgentMascot";
-import { ProviderMark } from "./ProviderMark";
 
 export interface ExecutionAgentConfig {
   agentId: string | null;
@@ -271,15 +270,11 @@ export const AgentPicker = memo(function AgentPicker({
                   />
                 }
                 description={
-                  <span className="flex min-w-0 max-w-full items-center gap-1 text-subtle-foreground">
-                    <ProviderMark
-                      providerId={entry.providerId}
-                      className="size-3"
-                    />
-                    <span className="truncate">
-                      {agentOptionDetail(entry, providers)}
-                    </span>
-                  </span>
+                  <AgentModelLabel
+                    agent={entry}
+                    providers={providers}
+                    className="max-w-full text-subtle-foreground"
+                  />
                 }
                 selected={entry.id === agent.id}
                 onClick={() => handleSelect(entry.id)}

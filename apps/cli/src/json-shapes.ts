@@ -40,7 +40,7 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "skill list":
     "{skills: [{id, name, description, scope, provider, filePath}]}    (wrapped in .skills)",
   "agent list":
-    "[{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)",
+    "[{id, name, description, providerId, model, reasoningLevel, secondaryModel, secondaryReasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}]    (bare array; the first agent is the default; model null = provider default; empty skills/mcpServers = all; mascot is a pixel sprite name; color is 0 (neutral) or palette 1-8; homePath is the absolute home folder on the server's machine)",
   "agent show":
     "{id, name, description, providerId, model, reasoningLevel, skills, mcpServers, instructions, mascot, color, createdAt, updatedAt, homePath}",
   "agent create":

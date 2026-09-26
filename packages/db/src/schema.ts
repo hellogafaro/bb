@@ -695,6 +695,18 @@ export const threadTabs = sqliteTable("thread_tabs", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const threadInboxSummaries = sqliteTable("thread_inbox_summaries", {
+  threadId: text("thread_id")
+    .primaryKey()
+    .references(() => threads.id, { onDelete: "cascade" }),
+  goal: text("goal").notNull(),
+  state: text("state").notNull(),
+  needs: text("needs"),
+  sourceVersion: integer("source_version").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const threadSections = sqliteTable(
   "thread_sections",
   {
@@ -1399,6 +1411,10 @@ export const agents = sqliteTable(
     providerId: text("provider_id").notNull(),
     model: text("model"),
     reasoningLevel: text("reasoning_level").$type<ReasoningLevel>().notNull(),
+    secondaryModel: text("secondary_model"),
+    secondaryReasoningLevel: text(
+      "secondary_reasoning_level",
+    ).$type<ReasoningLevel>(),
     skillsJson: text("skills_json").notNull().default("[]"),
     mcpServersJson: text("mcp_servers_json").notNull().default("[]"),
     instructions: text("instructions").notNull().default(""),

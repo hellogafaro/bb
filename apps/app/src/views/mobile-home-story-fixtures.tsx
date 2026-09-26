@@ -14,7 +14,6 @@ import {
   PROJECT_NAMES,
   STORY_CLAUDE_CODE_PROVIDER_ID,
   STORY_CURSOR_PROVIDER_ID,
-  STORY_PROVIDERS_BY_ID,
   STORY_PROJECTS,
   STORY_PROJECT_SOURCES,
   STORY_WORKTREE_OPTIONS,
@@ -25,7 +24,6 @@ import {
   makeTypeaheadConfig,
 } from "../../.ladle/story-fixtures";
 import { RootComposeCompactHome } from "./RootComposeCompactHome";
-import { RootComposeMobileRecents } from "./RootComposeMobileRecents";
 
 export const projectNamesById = new Map<string, string>([
   [PROJECT_IDS.bb, PROJECT_NAMES.bb],
@@ -190,26 +188,10 @@ export function StoryComposer() {
   );
 }
 
-export function HomeRecents({ threads }: { threads: ThreadListEntry[] }) {
-  return (
-    <RootComposeMobileRecents
-      highlightedThreadId={null}
-      projectNamesById={projectNamesById}
-      providersById={STORY_PROVIDERS_BY_ID}
-      showCreatingRow={false}
-      threads={threads}
-    />
-  );
-}
-
-export function CompactHomePage({
-  threads = HOME_THREADS,
-}: {
-  threads?: ThreadListEntry[];
-}) {
+export function CompactHomePage() {
   return (
     <RootComposeCompactHome composer={<StoryComposer />}>
-      <HomeRecents threads={threads} />
+      {null}
     </RootComposeCompactHome>
   );
 }

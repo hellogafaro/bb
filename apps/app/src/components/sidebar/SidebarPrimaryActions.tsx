@@ -9,6 +9,7 @@ import {
 import {
   useAppCommandRunner,
   useAppCommandShortcut,
+  useIsAppCommandModifierHeld,
 } from "@/components/commands/AppCommandProvider";
 import { PROJECT_LIST_ACTION_BUTTON_CLASS } from "./sidebarRowClasses";
 import { usePaneContentSplitIndicator } from "./paneContentSplitIndicator";
@@ -81,16 +82,14 @@ export function ProjectListSearchAction({
 }: ProjectListSearchActionProps) {
   const commandRunner = useAppCommandRunner();
   const searchShortcut = useAppCommandShortcut("palette.open");
+  const isModifierHeld = useIsAppCommandModifierHeld();
 
   return (
     <Button
       type="button"
       size="sm"
       variant="ghost"
-      className={cn(
-        PROJECT_LIST_ACTION_BUTTON_CLASS,
-        "group/search w-full pr-1",
-      )}
+      className={cn(PROJECT_LIST_ACTION_BUTTON_CLASS, "group/search w-full")}
       onClick={(event) => {
         onSearch?.();
         commandRunner.dispatch("palette.open", event.currentTarget);
@@ -104,7 +103,12 @@ export function ProjectListSearchAction({
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate text-left">Search</span>
         {searchShortcut ? (
-          <span className="inline-flex shrink-0 opacity-0 transition-opacity group-hover/search:opacity-100 group-focus-visible/search:opacity-100 max-md:pointer-coarse:hidden">
+          <span
+            className={cn(
+              "inline-flex shrink-0 transition-opacity group-hover/search:opacity-100 group-focus-visible/search:opacity-100 max-md:pointer-coarse:hidden",
+              isModifierHeld ? "opacity-100" : "opacity-0",
+            )}
+          >
             <AppCommandShortcutPill shortcut={searchShortcut} />
           </span>
         ) : null}

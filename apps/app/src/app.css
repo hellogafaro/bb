@@ -337,8 +337,12 @@
    * short stacked split can compact the follow-up composer. Its dimensions
    * are determined by the split track, making size containment safe here.
    */
-  [data-thread-window] {
+  [data-thread-window]:not([data-thread-window="document"]) {
     container: thread-pane / size;
+  }
+
+  [data-thread-window="document"] {
+    container: thread-pane / inline-size;
   }
 
   [data-follow-up-composer] {

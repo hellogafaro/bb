@@ -178,7 +178,7 @@ describe("Skills settings page", () => {
   it("prefills chat with the skill prompt from New skill", async () => {
     renderRoutes("/settings/skills");
     fireEvent.click(await screen.findByRole("button", { name: "New skill" }));
-    expect(screen.getByTestId("location").textContent).toBe("/");
+    expect(screen.getByTestId("location").textContent).toBe("/new");
     expect(locationState()).toEqual({
       focusPrompt: true,
       replaceInitialPrompt: true,
@@ -224,7 +224,7 @@ describe("MCPs settings page", () => {
   it("prefills chat with the MCP prompt from New MCP", async () => {
     renderRoutes("/settings/mcps");
     fireEvent.click(await screen.findByRole("button", { name: "New MCP" }));
-    expect(screen.getByTestId("location").textContent).toBe("/");
+    expect(screen.getByTestId("location").textContent).toBe("/new");
     expect(locationState()).toEqual({
       focusPrompt: true,
       replaceInitialPrompt: true,

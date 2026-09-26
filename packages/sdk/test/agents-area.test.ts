@@ -17,6 +17,8 @@ const agent = {
   providerId: "codex",
   model: null,
   reasoningLevel: "high",
+  secondaryModel: null,
+  secondaryReasoningLevel: null,
   skills: ["bb-cli"],
   mcpServers: [],
   instructions: "",

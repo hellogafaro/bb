@@ -7,7 +7,7 @@ import {
   getPluginNavPanelKey,
   placeAgentsAfterCustomize,
   placeBuiltInNavigationKeys,
-  placeThreadsAfterSearch,
+  placeThreadsAfterInbox,
   seedSkillsNavigationPreference,
   togglePluginNavPanelVisibility,
 } from "./pluginNavSidebarOrder";
@@ -22,72 +22,54 @@ const tasks = panel("tasks", "board");
 
 describe("placeAgentsAfterCustomize", () => {
   it("moves a newly prepended Agents key to right after Customize", () => {
-    const { agents, automations, newThread, searchThreads, skills } =
+    const { agents, automations, inbox, skills } =
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
     expect(
-      placeAgentsAfterCustomize([
-        agents,
-        newThread,
-        searchThreads,
-        skills,
-        automations,
-      ]),
-    ).toEqual([newThread, searchThreads, skills, agents, automations]);
+      placeAgentsAfterCustomize([agents, inbox, skills, automations]),
+    ).toEqual([inbox, skills, agents, automations]);
   });
 });
 
-describe("placeThreadsAfterSearch", () => {
-  it("moves a newly prepended Threads key to right after Search", () => {
-    const { agents, newThread, searchThreads, skills, threads } =
-      BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
-    expect(
-      placeThreadsAfterSearch([
-        threads,
-        newThread,
-        searchThreads,
-        skills,
-        agents,
-      ]),
-    ).toEqual([newThread, searchThreads, threads, skills, agents]);
+describe("placeThreadsAfterInbox", () => {
+  it("moves a newly prepended Threads key to right after Inbox", () => {
+    const { agents, inbox, skills, threads } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(placeThreadsAfterInbox([threads, inbox, skills, agents])).toEqual([
+      inbox,
+      threads,
+      skills,
+      agents,
+    ]);
   });
 
-  it("falls back to New thread when Search is absent", () => {
-    const { newThread, skills, threads } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
-    expect(placeThreadsAfterSearch([threads, newThread, skills])).toEqual([
-      newThread,
+  it("leaves Threads alone when Inbox is absent", () => {
+    const { skills, threads } = BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
+    expect(placeThreadsAfterInbox([threads, skills])).toEqual([
       threads,
       skills,
     ]);
   });
 
   it("places Threads and Agents together for stored orders", () => {
-    const { agents, automations, newThread, searchThreads, skills, threads } =
+    const { agents, automations, inbox, skills, threads } =
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
     expect(
-      placeBuiltInNavigationKeys([
-        threads,
-        agents,
-        newThread,
-        searchThreads,
-        skills,
-        automations,
-      ]),
-    ).toEqual([newThread, searchThreads, threads, skills, agents, automations]);
+      placeBuiltInNavigationKeys([threads, agents, inbox, skills, automations]),
+    ).toEqual([inbox, threads, skills, agents, automations]);
   });
 });
 
 describe("seedSkillsNavigationPreference", () => {
   it("keeps Agents directly below Customize even when stored after Automations", () => {
-    const { skills, agents, automations, newThread } =
+    const { skills, agents, automations, inbox } =
       BUILT_IN_SIDEBAR_NAVIGATION_KEYS;
     expect(
       seedSkillsNavigationPreference(
-        [newThread, skills, automations, agents],
-        [newThread, skills, automations, agents],
+        [inbox, skills, automations, agents],
+        [inbox, skills, automations, agents],
       ),
     ).toEqual({
-      order: [newThread, skills, agents, automations],
-      visibleKeys: [newThread, skills, agents, automations],
+      order: [inbox, skills, agents, automations],
+      visibleKeys: [inbox, skills, agents, automations],
     });
   });
 
@@ -95,25 +77,25 @@ describe("seedSkillsNavigationPreference", () => {
     expect(
       seedSkillsNavigationPreference(
         [
-          BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
+          BUILT_IN_SIDEBAR_NAVIGATION_KEYS.inbox,
           BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
           BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
         ],
         [
-          BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
+          BUILT_IN_SIDEBAR_NAVIGATION_KEYS.inbox,
           BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
           BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
         ],
       ),
     ).toEqual({
       order: [
-        BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
+        BUILT_IN_SIDEBAR_NAVIGATION_KEYS.inbox,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.skills,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,
       ],
       visibleKeys: [
-        BUILT_IN_SIDEBAR_NAVIGATION_KEYS.newThread,
+        BUILT_IN_SIDEBAR_NAVIGATION_KEYS.inbox,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.extensions,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.skills,
         BUILT_IN_SIDEBAR_NAVIGATION_KEYS.automations,

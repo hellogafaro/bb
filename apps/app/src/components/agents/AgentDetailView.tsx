@@ -1,10 +1,11 @@
 import {
+  type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAgentsRoutePath } from "@bb/client-core";
@@ -127,6 +128,8 @@ type AgentDraft = Pick<
   | "providerId"
   | "model"
   | "reasoningLevel"
+  | "secondaryModel"
+  | "secondaryReasoningLevel"
   | "skills"
   | "mcpServers"
   | "instructions"
@@ -142,6 +145,8 @@ const DRAFT_KEYS: readonly (keyof AgentDraft)[] = [
   "providerId",
   "model",
   "reasoningLevel",
+  "secondaryModel",
+  "secondaryReasoningLevel",
   "skills",
   "mcpServers",
   "instructions",
@@ -156,6 +161,8 @@ function toDraft(agent: Agent): AgentDraft {
     providerId: agent.providerId,
     model: agent.model,
     reasoningLevel: agent.reasoningLevel,
+    secondaryModel: agent.secondaryModel,
+    secondaryReasoningLevel: agent.secondaryReasoningLevel,
     skills: agent.skills,
     mcpServers: agent.mcpServers,
     instructions: agent.instructions,
@@ -215,6 +222,13 @@ function draftPatch(
     patch.model = draft.model;
     patch.reasoningLevel = draft.reasoningLevel;
   }
+  if (
+    draft.secondaryModel !== agent.secondaryModel ||
+    draft.secondaryReasoningLevel !== agent.secondaryReasoningLevel
+  ) {
+    patch.secondaryModel = draft.secondaryModel;
+    patch.secondaryReasoningLevel = draft.secondaryReasoningLevel;
+  }
   if (!sameValue(draft.skills, agent.skills)) patch.skills = [...draft.skills];
   if (!sameValue(draft.mcpServers, agent.mcpServers)) {
     patch.mcpServers = [...draft.mcpServers];
@@ -234,7 +248,9 @@ function useAutosave(
   const serialized = patch === null ? null : JSON.stringify(patch);
   const lastSentRef = useRef<string | null>(null);
   const onSaveRef = useRef(onSave);
-  onSaveRef.current = onSave;
+  useLayoutEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
   useEffect(() => {
     if (serialized === null || serialized === lastSentRef.current) return;
     const timeout = window.setTimeout(() => {
@@ -551,44 +567,139 @@ function AgentModelSection({
       ...(executionOptions.data?.models ?? []),
       ...(executionOptions.data?.selectedOnlyModels ?? []),
     ].find((entry) => entry.model === value);
+  const secondaryModel = draft.secondaryModel ?? model;
+  const secondaryReasoningLevel =
+    draft.secondaryReasoningLevel ?? preferredReasoningLevel;
+  const secondarySelection = useMemo(
+    () =>
+      resolveModelCatalogSelection({
+        models: executionOptions.data?.models ?? [],
+        selectedOnlyModels: executionOptions.data?.selectedOnlyModels ?? [],
+        selectedModel: secondaryModel ?? "",
+        preferredReasoningLevel: secondaryReasoningLevel,
+        provider: providerInfo,
+        catalogIsVerified,
+        formatModelLabel,
+      }),
+    [
+      catalogIsVerified,
+      executionOptions.data?.models,
+      executionOptions.data?.selectedOnlyModels,
+      providerInfo,
+      secondaryModel,
+      secondaryReasoningLevel,
+    ],
+  );
+  const hasSecondary = draft.secondaryModel !== null;
   return (
-    <SectionCard title="Model">
-      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3.5">
-        <span className="shrink-0 text-sm">Model</span>
-        <ModelReasoningPicker
-          modal={false}
-          align="end"
-          commandShortcutsEnabled={false}
-          providerOptions={providerOptions}
-          selectedProviderId={providerId}
-          onSelectedProviderChange={(nextProviderId) => {
-            if (nextProviderId === providerId) return;
-            onChange({ providerId: nextProviderId, model: null });
-          }}
-          hasMultipleProviders={providerOptions.length > 1}
-          modelValue={selection.selectedModel}
-          modelOptions={selection.modelOptions}
-          moreModelOptions={selection.moreModelOptions}
-          modelIsLoading={modelsLoading}
-          modelLoadFailed={executionOptions.isError || modelLoadError !== null}
-          modelLoadError={modelLoadError}
-          onModelChange={(nextModel) =>
-            onChange({
-              model: nextModel,
-              reasoningLevel: resolveModelReasoningLevel(
-                findModel(nextModel),
-                preferredReasoningLevel,
-              ),
-            })
-          }
-          formatModelLabel={formatModelLabel}
-          reasoningValue={selection.reasoningLevel}
-          reasoningOptions={selection.reasoningOptions}
-          onReasoningChange={(reasoningLevel) => onChange({ reasoningLevel })}
-          fastModeEnabled={false}
-          onFastModeChange={() => {}}
-          showFastModeToggle={false}
-        />
+    <SectionCard
+      title="Model"
+      description="Primary runs the conversation, planning, and supervision. Secondary runs sub-agent threads this agent spawns."
+    >
+      <div className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-3.5">
+        <div className="flex items-center justify-between gap-4 pb-3">
+          <span className="shrink-0 text-sm">Primary model</span>
+          <ModelReasoningPicker
+            modal={false}
+            align="end"
+            commandShortcutsEnabled={false}
+            providerOptions={providerOptions}
+            selectedProviderId={providerId}
+            onSelectedProviderChange={(nextProviderId) => {
+              if (nextProviderId === providerId) return;
+              onChange({
+                providerId: nextProviderId,
+                model: null,
+                secondaryModel: null,
+                secondaryReasoningLevel: null,
+              });
+            }}
+            hasMultipleProviders={providerOptions.length > 1}
+            modelValue={selection.selectedModel}
+            modelOptions={selection.modelOptions}
+            moreModelOptions={selection.moreModelOptions}
+            modelIsLoading={modelsLoading}
+            modelLoadFailed={
+              executionOptions.isError || modelLoadError !== null
+            }
+            modelLoadError={modelLoadError}
+            onModelChange={(nextModel) =>
+              onChange({
+                model: nextModel,
+                reasoningLevel: resolveModelReasoningLevel(
+                  findModel(nextModel),
+                  preferredReasoningLevel,
+                ),
+              })
+            }
+            formatModelLabel={formatModelLabel}
+            reasoningValue={selection.reasoningLevel}
+            reasoningOptions={selection.reasoningOptions}
+            onReasoningChange={(reasoningLevel) => onChange({ reasoningLevel })}
+            fastModeEnabled={false}
+            onFastModeChange={() => {}}
+            showFastModeToggle={false}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4 pt-3">
+          <span className="flex min-w-0 items-center gap-2 text-sm">
+            Secondary model
+            {hasSecondary ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() =>
+                  onChange({
+                    secondaryModel: null,
+                    secondaryReasoningLevel: null,
+                  })
+                }
+              >
+                Use primary
+              </Button>
+            ) : null}
+          </span>
+          <ModelReasoningPicker
+            modal={false}
+            align="end"
+            commandShortcutsEnabled={false}
+            providerOptions={providerOptions}
+            selectedProviderId={providerId}
+            onSelectedProviderChange={() => {}}
+            hasMultipleProviders={false}
+            modelValue={secondarySelection.selectedModel}
+            modelOptions={secondarySelection.modelOptions}
+            moreModelOptions={secondarySelection.moreModelOptions}
+            modelIsLoading={modelsLoading}
+            modelLoadFailed={
+              executionOptions.isError || modelLoadError !== null
+            }
+            modelLoadError={modelLoadError}
+            onModelChange={(nextModel) =>
+              onChange({
+                secondaryModel: nextModel,
+                secondaryReasoningLevel: resolveModelReasoningLevel(
+                  findModel(nextModel),
+                  secondaryReasoningLevel,
+                ),
+              })
+            }
+            formatModelLabel={formatModelLabel}
+            reasoningValue={secondarySelection.reasoningLevel}
+            reasoningOptions={secondarySelection.reasoningOptions}
+            onReasoningChange={(reasoningLevel) =>
+              onChange({
+                secondaryModel: secondaryModel,
+                secondaryReasoningLevel: reasoningLevel,
+              })
+            }
+            fastModeEnabled={false}
+            onFastModeChange={() => {}}
+            showFastModeToggle={false}
+          />
+        </div>
       </div>
     </SectionCard>
   );

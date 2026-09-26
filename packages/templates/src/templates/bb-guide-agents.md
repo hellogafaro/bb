@@ -21,6 +21,11 @@ Fields:
   provider's default model (remembered project default, then the provider
   catalog default).
 - reasoning — low, medium, high, xhigh, or max (provider-dependent).
+- secondary-model, secondary-reasoning — the model and reasoning for
+  sub-agent threads the agent spawns (child threads with a parent, such as
+  `bb thread spawn --parent-self`). Empty means the primary model and
+  reasoning. The primary model runs the conversation, planning, and
+  supervision; the secondary runs delegated work.
 - skills — BB skill names the agent may use. Empty means every skill.
 - mcp — MCP server handles listed to the agent. Empty means every enabled
   server.
@@ -69,7 +74,8 @@ Manage agents:
   bb agent show <handle> [--json]
   bb agent home <handle> [--json]
   bb agent create <name> [--provider <id>] [--model <model>]
-      [--reasoning <level>] [--skill <name>]... [--mcp <handle>]...
+      [--reasoning <level>] [--secondary-model <model>]
+      [--secondary-reasoning <level>] [--skill <name>]... [--mcp <handle>]...
       [--description <text>] [--instructions <text> | --instructions-file <path>]
       [--mascot <name>] [--color <1-8>] [--json]
   bb agent set <handle> <field> <value> [--json]
@@ -79,12 +85,15 @@ Manage agents:
 
   create fills omitted fields from the default agent's provider and model,
   medium reasoning, all skills, and all MCPs. set fields are name,
-  description, provider, model, reasoning, skills, mcp, instructions, mascot,
-  and color; skills and mcp take comma lists
+  description, provider, model, reasoning, secondary-model,
+  secondary-reasoning, skills, mcp, instructions, mascot, and color; skills
+  and mcp take comma lists
   (`bb agent set Coder skills bb-cli,notion`, `bb agent set Coder mascot frog`,
   `bb agent set Coder color 3`).
-  --clear resets model (provider default), skills and mcp (all), description,
-  or instructions. Changing the provider without a model clears the model.
+  --clear resets model (provider default), secondary-model and
+  secondary-reasoning (same as primary), skills and mcp (all), description,
+  or instructions. Changing the provider without a model clears the model and
+  the secondary model.
   home prints the home folder path; show prints it as `Home:`.
 
 Spawn as an agent:

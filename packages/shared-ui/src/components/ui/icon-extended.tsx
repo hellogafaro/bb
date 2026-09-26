@@ -205,6 +205,7 @@ export const EXTENDED_ICON_MAP: ExtendedIconMap = {
   Connector: RiConnectorLine,
   Robot: RiRobot3Line,
   StopFill: RiStopFill,
+  EditBox: RiEditBoxLine,
   Plus: RiAddLine,
   Repeat: RiLoopLeftLine,
   SecurityCheck: RiShieldCheckLine,

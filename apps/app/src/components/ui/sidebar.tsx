@@ -714,16 +714,16 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
           data-sidebar="gap"
           style={widthStyle}
           className={cn(
-            "relative hidden h-full w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear md:block",
+            "relative hidden h-full w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none md:block",
             "group-data-[collapsible=offcanvas]:w-0",
           )}
         />
         <div
           data-sidebar="panel"
           className={cn(
-            "fixed inset-y-0 z-10 flex h-(--bb-shell-height) w-(--sidebar-width) select-none flex-col bg-sidebar text-sidebar-foreground [transition:left_200ms_linear,right_200ms_linear,width_200ms_linear,visibility_0s_linear_0s]",
-            "group-data-[collapsible=offcanvas]:invisible group-data-[collapsible=offcanvas]:[transition:left_200ms_linear,right_200ms_linear,width_200ms_linear,visibility_0s_linear_200ms]",
-            "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]",
+            "fixed inset-y-0 left-0 z-10 flex h-(--bb-shell-height) w-(--sidebar-width) select-none flex-col bg-sidebar text-sidebar-foreground [transition:translate_200ms_cubic-bezier(0.2,0,0,1),width_200ms_cubic-bezier(0.2,0,0,1),visibility_0s_linear_0s] motion-reduce:transition-none",
+            "group-data-[collapsible=offcanvas]:invisible group-data-[collapsible=offcanvas]:[transition:translate_200ms_cubic-bezier(0.2,0,0,1),width_200ms_cubic-bezier(0.2,0,0,1),visibility_0s_linear_200ms]",
+            "translate-x-0 group-data-[collapsible=offcanvas]:-translate-x-full",
             "border-border-seam group-data-[side=left]:border-r",
             className,
           )}

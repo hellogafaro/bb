@@ -8,7 +8,7 @@ import {
   MACOS_WINDOW_NO_DRAG_CLASS,
   shouldUseMacosDesktopChrome,
 } from "@/lib/bb-desktop";
-import { SidebarHistoryNavigationControls } from "./SidebarHistoryNavigationControls";
+import { SidebarQuickActions } from "./SidebarQuickActions";
 
 export function SidebarTopReserveRow({ testId }: { testId: string }) {
   const closeOnMobile = useCloseMobileSidebar();
@@ -24,8 +24,8 @@ export function SidebarTopReserveRow({ testId }: { testId: string }) {
         usesDesktopChrome && MACOS_WINDOW_DRAG_CLASS,
       )}
     >
-      <SidebarHistoryNavigationControls
-        onNavigate={closeOnMobile}
+      <SidebarQuickActions
+        onAction={closeOnMobile}
         className={usesDesktopChrome ? MACOS_WINDOW_NO_DRAG_CLASS : undefined}
       />
     </div>

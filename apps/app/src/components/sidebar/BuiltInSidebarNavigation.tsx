@@ -9,7 +9,7 @@ import {
   ProjectListSearchAction,
 } from "./SidebarPrimaryActions";
 import { DEFAULT_BUILT_IN_SIDEBAR_NAVIGATION_ORDER } from "@/components/plugin/pluginNavSidebarOrder";
-import { getThreadsRoutePath } from "@/lib/route-paths";
+import { getInboxRoutePath, getThreadsRoutePath } from "@/lib/route-paths";
 
 export type BuiltInSidebarNavigationProps = ComponentProps<
   typeof ProjectListNewThreadAction
@@ -21,30 +21,22 @@ export type BuiltInSidebarNavigationProps = ComponentProps<
   >;
 
 export function BuiltInSidebarNavigation({
-  newThreadSplit,
   onNavigate,
-  onNewChat,
-  onSearch,
   splitEnabled,
 }: BuiltInSidebarNavigationProps) {
   const builtInEntries: BuiltInSidebarNavEntry[] = [
     {
       kind: "built-in",
       pluginId: "__bb__",
-      id: "new-thread",
+      id: "inbox",
       content: (
-        <ProjectListNewThreadAction
-          splitEnabled={splitEnabled}
-          newThreadSplit={newThreadSplit}
-          onNewChat={onNewChat}
+        <ResourceNavSidebarItem
+          icon="Mail"
+          title="Inbox"
+          routePath={getInboxRoutePath()}
+          onNavigate={onNavigate}
         />
       ),
-    },
-    {
-      kind: "built-in",
-      pluginId: "__bb__",
-      id: "search-threads",
-      content: <ProjectListSearchAction onSearch={onSearch} />,
     },
     {
       kind: "built-in",
