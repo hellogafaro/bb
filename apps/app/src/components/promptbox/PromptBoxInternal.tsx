@@ -142,7 +142,7 @@ import {
 
 import { ComposerSendMenu } from "./ComposerSendMenu";
 
-const PROMPTBOX_MIN_HEIGHT = 64;
+const PROMPTBOX_MIN_HEIGHT = 24;
 const PROMPTBOX_SELECTION_REVEAL_MARGIN = 12;
 const COMPACT_PROMPT_ACTION_BUTTON_CLASS =
   "size-8 p-0 transition-all [&_[data-icon-root]]:size-4";

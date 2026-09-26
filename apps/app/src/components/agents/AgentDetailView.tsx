@@ -314,7 +314,7 @@ function AgentDetail({
               <AgentMascot
                 mascot={draft.mascot}
                 color={draft.color}
-                className="size-5"
+                className="size-4"
               />
             )}
           </ResourceIconFrame>

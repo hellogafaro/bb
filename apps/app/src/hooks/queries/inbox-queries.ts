@@ -44,6 +44,7 @@ export function useThreadOutput(threadId: string, version: number) {
   return useQuery({
     queryKey: ["threadOutput", threadId, version] as const,
     queryFn: ({ signal }) => sdk.threads.output({ threadId, signal }),
+    placeholderData: (previous) => previous,
     staleTime: Number.POSITIVE_INFINITY,
   });
 }

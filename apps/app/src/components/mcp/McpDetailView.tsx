@@ -238,7 +238,7 @@ function McpServerDetail({
               "size-8 rounded-md",
             )}
           >
-            {() => <Icon name="Connector" className="size-5" aria-hidden />}
+            {() => <Icon name="Connector" className="size-4" aria-hidden />}
           </ResourceIconFrame>
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="min-w-0 truncate text-base font-semibold leading-8">

@@ -111,13 +111,35 @@ const readThread = makeThreadListEntry({
   updatedAt: 100,
 });
 
+const runningThread = makeThreadListEntry({
+  id: "thr_running",
+  title: "Still working",
+  projectId: PERSONAL_PROJECT_ID,
+  status: "active",
+  lastReadAt: null,
+  latestAttentionAt: 400,
+  updatedAt: 400,
+});
+const pendingThread = makeThreadListEntry({
+  id: "thr_pending",
+  title: "Never started",
+  projectId: PERSONAL_PROJECT_ID,
+  status: "pending",
+  lastReadAt: null,
+  latestAttentionAt: 350,
+  updatedAt: 350,
+});
+
+let navigationThreads = [beta, readThread, alpha, runningThread, pendingThread];
 const navigationFixture = {
   sections: [],
   projects: [],
   personalProject: {
     id: PERSONAL_PROJECT_ID,
     name: "Personal",
-    threads: [beta, readThread, alpha],
+    get threads() {
+      return navigationThreads;
+    },
   },
 } as unknown as SidebarBootstrapResponse;
 
@@ -137,6 +159,7 @@ function selectedCard(): HTMLElement | null {
 
 beforeEach(() => {
   mocks.interactions = [];
+  navigationThreads = [beta, readThread, alpha, runningThread, pendingThread];
 });
 
 afterEach(() => {
@@ -145,6 +168,15 @@ afterEach(() => {
 });
 
 describe("InboxView", () => {
+  it("shows inbox zero without key hints when nothing needs attention", () => {
+    navigationThreads = [readThread, runningThread, pendingThread];
+    renderInbox();
+    expect(screen.getByText("You've reached inbox zero")).toBeTruthy();
+    expect(screen.getByTestId("wallpaper")).toBeTruthy();
+    expect(document.querySelector("[data-inbox-card]")).toBeNull();
+    expect(screen.queryByText("move")).toBeNull();
+  });
+
   it("lists unread threads newest first and opens the first one", () => {
     renderInbox();
     const cards = document.querySelectorAll("[data-inbox-card]");
@@ -157,7 +189,7 @@ describe("InboxView", () => {
     expect(screen.getByText("Ship the alpha fix")).toBeTruthy();
     expect(screen.getByText("Patch is ready")).toBeTruthy();
     expect(screen.queryByText("Everything that needs you")).toBeNull();
-    expect(screen.getByTestId("wallpaper")).toBeTruthy();
+    expect(screen.queryByTestId("wallpaper")).toBeNull();
   });
 
   it("moves the selection with the arrow keys and marks the selected thread done with undo", () => {
@@ -172,7 +204,7 @@ describe("InboxView", () => {
     expect(mocks.markRead).toHaveBeenCalledWith({ threadId: "thr_alpha" });
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       "Marked as done",
-      expect.objectContaining({ description: "Alpha" }),
+      expect.not.objectContaining({ description: expect.anything() }),
     );
     const options = mocks.toastSuccess.mock.calls[0]?.[1] as {
       action: { label: string; onClick: () => void };

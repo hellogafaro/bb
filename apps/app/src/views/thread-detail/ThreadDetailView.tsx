@@ -566,18 +566,28 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     ],
     [gitDiffTabStatus],
   );
+  const isFixedPanelStateSettled =
+    gitDiffTabStatus === "eligible" || gitDiffTabStatus === "ineligible";
+  const renderSecondaryPanelAsDrawer = useIsCompactViewport();
+  const opensSecondaryPanelByDefault = !renderSecondaryPanelAsDrawer;
   const fixedPanelTabsState = useReconciledFixedPanelTabsState({
     fixedTabs: threadFixedViewTabs,
-    isAuthoritative:
-      gitDiffTabStatus === "eligible" || gitDiffTabStatus === "ineligible",
-    openFirstFixedTabWhenEmpty: !useIsCompactViewport(),
+    isAuthoritative: isFixedPanelStateSettled,
+    openFirstFixedTabWhenEmpty: opensSecondaryPanelByDefault,
     panelStateId: threadId,
     syncThreadId: threadId,
   });
-  const isPersistedSecondaryPanelOpen = fixedPanelTabsState.secondary.isOpen;
-  const activeFixedSecondaryTab = getActiveFixedSecondaryTab({
-    fixedPanelTabsState,
-  });
+  const showsDefaultOpenSecondaryPanel =
+    opensSecondaryPanelByDefault &&
+    !isFixedPanelStateSettled &&
+    fixedPanelTabsState.secondary.tabs.length === 0 &&
+    fixedPanelTabsState.secondary.activeTabId === null &&
+    !fixedPanelTabsState.secondary.isOpen;
+  const isPersistedSecondaryPanelOpen =
+    fixedPanelTabsState.secondary.isOpen || showsDefaultOpenSecondaryPanel;
+  const activeFixedSecondaryTab =
+    getActiveFixedSecondaryTab({ fixedPanelTabsState }) ??
+    (showsDefaultOpenSecondaryPanel ? (threadFixedViewTabs[0] ?? null) : null);
   const openFixedSecondaryTab = isPersistedSecondaryPanelOpen
     ? activeFixedSecondaryTab
     : null;
@@ -586,7 +596,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     isPanelOpen: isPersistedSecondaryPanelOpen,
   });
   const activeFixedSecondaryTabId = activeFixedSecondaryTab?.id ?? null;
-  const renderSecondaryPanelAsDrawer = useIsCompactViewport();
   const secondaryPanelDrawerVisibility =
     useThreadSecondaryPanelDrawerVisibility({
       isCompactViewport: renderSecondaryPanelAsDrawer,
@@ -2916,6 +2925,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             header={timelineHeader}
             isMetadataLoading={environmentQuery.isLoading}
             isSecondaryPanelOpen={isSecondaryPanelOpen}
+            isSecondaryPanelStateSettled={isFixedPanelStateSettled}
             isConversationCollapsed={isConversationCollapsed}
             isBoundedPane={isBoundedPane}
             onToggleSecondaryPanel={toggleSecondaryPanel}
