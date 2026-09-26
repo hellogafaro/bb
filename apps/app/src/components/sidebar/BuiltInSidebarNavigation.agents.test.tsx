@@ -76,6 +76,54 @@ describe("BuiltInSidebarNavigation agents entry", () => {
     expect(screen.getByTestId("pathname").textContent).toBe("/agents");
   });
 
+  it("marks the entry for the current route as active", () => {
+    render(
+      <MemoryRouter initialEntries={["/threads?status=archived"]}>
+        <BuiltInSidebarNavigation
+          onNavigate={vi.fn()}
+          onNewChat={vi.fn()}
+          onSearch={vi.fn()}
+          splitEnabled={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen
+        .getByRole("button", { name: "Threads" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen
+        .getByRole("button", { name: "Agents" })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("marks a nested route as active for its entry", () => {
+    render(
+      <MemoryRouter initialEntries={["/agents/agent_1"]}>
+        <BuiltInSidebarNavigation
+          onNavigate={vi.fn()}
+          onNewChat={vi.fn()}
+          onSearch={vi.fn()}
+          splitEnabled={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen
+        .getByRole("button", { name: "Agents" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen
+        .getByRole("button", { name: "Threads" })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
   it("opens /threads from the Threads entry", () => {
     const onNavigate = vi.fn();
     render(

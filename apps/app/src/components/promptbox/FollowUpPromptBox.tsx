@@ -674,7 +674,7 @@ function FollowUpPromptBoxWithComposer({
     return () => observer.disconnect();
   }, [applyStackHeight]);
   const elasticTextareaMinHeight =
-    stack === null
+    stack === null || isCompactViewport
       ? FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT
       : Math.max(
           FOLLOW_UP_PROMPT_BOX_DEFAULT_MIN_HEIGHT,

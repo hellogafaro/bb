@@ -175,7 +175,9 @@ vi.mock("@/components/promptbox/PromptBoxInternal", () => ({
         title={submission?.title}
         data-show-modifier-action={submission?.showModifierSubmitAction}
         onClick={
-          submission?.swapSubmitActions ? onSubmit : submission?.onModifierSubmit
+          submission?.swapSubmitActions
+            ? onSubmit
+            : submission?.onModifierSubmit
         }
       >
         Modifier submit
@@ -444,6 +446,16 @@ describe("FollowUpPromptBox", () => {
 
     expect(initialMinHeight).toBe(96);
     expect(promptBox.getAttribute("data-min-height")).toBe("72");
+  });
+
+  it("does not reserve stack compensation height on compact viewports", () => {
+    mocks.isCompactViewport = true;
+    const props = createFollowUpPromptBoxProps({ kind: "ready" });
+    render(<FollowUpPromptBox {...props} stack={<></>} />);
+
+    expect(
+      screen.getByTestId("prompt-box").getAttribute("data-min-height"),
+    ).toBe("64");
   });
 
   it("renders plugin banners above native stack content", () => {
