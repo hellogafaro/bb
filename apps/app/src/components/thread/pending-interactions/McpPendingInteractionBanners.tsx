@@ -10,7 +10,6 @@ import { Button } from "@bb/shared-ui/button";
 import { Input } from "@bb/shared-ui/input";
 import { Pill } from "@bb/shared-ui/pill";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { McpRiskPill } from "@/components/mcp/McpRiskPill";
 import { getDetailScrollMaxHeightClass } from "@/components/ui/detail-scroll-size.js";
 import { useResolveThreadPendingInteraction } from "@/hooks/mutations/thread-interaction-mutations";
 import { getMutationErrorMessage } from "@/lib/mutation-errors";
@@ -74,6 +73,11 @@ export function McpApprovalBanner({
     <PendingInteractionShell
       label="MCP approval"
       title={payload.title}
+      titleTrailing={
+        <Pill variant="secondary" size="sm">
+          {payload.risk === "read" ? "read" : "write"}
+        </Pill>
+      }
       initiallyExpanded
       errorMessage={errorMessage}
       sourceThread={sourceThread}
@@ -102,12 +106,6 @@ export function McpApprovalBanner({
     >
       {() => (
         <div className="space-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <p className="min-w-0 truncate text-sm font-medium">
-              {payload.server} / {payload.tool}
-            </p>
-            <McpRiskPill risk={payload.risk} />
-          </div>
           <pre
             className={cn(
               getDetailScrollMaxHeightClass("base"),
@@ -319,12 +317,9 @@ export function McpElicitationBanner({
             accept();
           }}
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <Pill variant="outline" size="sm">
-              {payload.server}
-            </Pill>
-            <p className="min-w-0 text-sm">{payload.message}</p>
-          </div>
+          {payload.title.endsWith(payload.message) ? null : (
+            <p className="text-sm">{payload.message}</p>
+          )}
           {payload.fields.map((field) => (
             <ElicitationFieldInput
               key={field.name}

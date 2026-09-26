@@ -646,56 +646,60 @@ function AccessSection({
             ? `This agent can use every ${noun}.`
             : `This agent can use ${checkedCount} of ${rows.length} ${noun}s.`
       }
-      action={
-        rows.length > 0 && !allSelected ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange([])}
-          >
-            Select all
-          </Button>
-        ) : undefined
-      }
     >
       {rows.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
           {emptyText}
         </p>
       ) : (
-        <ul
-          aria-label={title}
-          className="divide-y divide-border rounded-lg border border-border bg-card px-4 py-2"
-        >
-          {rows.map((entry) => {
-            const checked = isChecked(entry.name);
-            const lastChecked = checked && checkedCount === 1;
-            return (
-              <li key={entry.name} className="py-2">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <Checkbox
-                    className="mt-0.5"
-                    checked={checked}
-                    disabled={lastChecked}
-                    aria-label={entry.name}
-                    onCheckedChange={(next) =>
-                      toggle(entry.name, next === true)
-                    }
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm">{entry.name}</span>
-                    {entry.description ? (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {entry.description}
+        <div className="overflow-hidden rounded-lg border border-border bg-card px-4 pb-1 pt-2">
+          <div className="flex items-center justify-between gap-3 pb-1">
+            <span className="text-xs text-muted-foreground">
+              Customize selection
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              disabled={allSelected}
+              onClick={() => onChange([])}
+            >
+              Select all
+            </Button>
+          </div>
+          <ul aria-label={title} className="divide-y divide-border">
+            {rows.map((entry) => {
+              const checked = isChecked(entry.name);
+              const lastChecked = checked && checkedCount === 1;
+              return (
+                <li key={entry.name} className="py-2">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={checked}
+                      disabled={lastChecked}
+                      aria-label={entry.name}
+                      onCheckedChange={(next) =>
+                        toggle(entry.name, next === true)
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm">
+                        {entry.name}
                       </span>
-                    ) : null}
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+                      {entry.description ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {entry.description}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </SectionCard>
   );

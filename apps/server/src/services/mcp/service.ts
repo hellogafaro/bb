@@ -146,7 +146,13 @@ export class McpService {
   }
 
   private elicit(request: ElicitRequest, id: string): Promise<ElicitResult> {
-    return this.approvals.elicit(request, id, this.store.get(id)?.handle ?? id);
+    const record = this.store.get(id);
+    return this.approvals.elicit(
+      request,
+      id,
+      record?.handle ?? id,
+      record?.name ?? record?.handle ?? id,
+    );
   }
 
   publish(id: string | null, changes: McpChangeKind[]): void {
@@ -251,6 +257,7 @@ export class McpService {
       const refused = await this.approvals.confirmTool({
         scope,
         server: tool.handle,
+        serverName: this.store.get(tool.sourceId)?.name ?? tool.handle,
         tool: tool.name,
         risk,
         args,

@@ -91,7 +91,7 @@ describe("McpDetailView", () => {
     expect(screen.getByText("github")).toBeTruthy();
     expect(screen.getByText("https://api.githubcopilot.com/mcp/")).toBeTruthy();
     expect(await screen.findByText("delete_repo")).toBeTruthy();
-    expect(screen.getByText("destructive")).toBeTruthy();
+    expect(screen.queryByText("destructive")).toBeNull();
     expect(screen.getByText("Read tools")).toBeTruthy();
     expect(screen.getByText("Write tools")).toBeTruthy();
     expect(screen.getAllByText("1 of 1 enabled")).toHaveLength(2);

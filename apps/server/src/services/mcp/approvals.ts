@@ -82,11 +82,13 @@ export class McpApprovals {
   async confirmTool(input: {
     scope: CallScope;
     server: string;
+    serverName: string;
     tool: string;
     risk: ToolRisk;
     args: JsonRecord;
   }): Promise<string | null> {
     const label = `${input.server}/${input.tool}`;
+    const title = `Run ${input.serverName} / ${input.tool}?`;
     const threadId = input.scope.threadId;
     if (!threadId) {
       return `${label} requires user approval (policy: confirm) and can only run from a BB thread, where the approval is shown; the tool was not run.`;
@@ -99,7 +101,7 @@ export class McpApprovals {
         threadId,
         {
           kind: "mcp_approval",
-          title: clamp(`Run ${label}?`, ROW_LABEL_MAX),
+          title: clamp(title, ROW_LABEL_MAX),
           server: input.server,
           tool: input.tool,
           risk: input.risk,
@@ -139,6 +141,7 @@ export class McpApprovals {
     request: ElicitRequest,
     sourceId: string,
     server: string,
+    serverName: string = server,
   ): Promise<ElicitResult> {
     const params = request.params;
     const message = params.message.trim() ? params.message : null;
@@ -160,7 +163,7 @@ export class McpApprovals {
         scope.threadId,
         {
           kind: "mcp_elicitation",
-          title: clamp(`${server} asks: ${message}`, ROW_LABEL_MAX),
+          title: clamp(`${serverName} asks: ${message}`, ROW_LABEL_MAX),
           server,
           message,
           fields,

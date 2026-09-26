@@ -9,7 +9,6 @@ import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Pill } from "@bb/shared-ui/pill";
 import { Switch } from "@bb/shared-ui/switch";
-import { McpRiskPill } from "./McpRiskPill";
 
 type PolicyMode = McpToolPolicy["mode"];
 type GroupId = "read" | "write";
@@ -170,19 +169,14 @@ export function McpToolGroup({
                   className="flex min-w-0 items-center justify-between gap-3 py-2.5"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p
-                        className={cn(
-                          "truncate text-sm font-medium",
-                          !enabled && "text-muted-foreground",
-                        )}
-                      >
-                        {tool.name}
-                      </p>
-                      {tool.risk === "destructive" ? (
-                        <McpRiskPill risk={tool.risk} />
-                      ) : null}
-                    </div>
+                    <p
+                      className={cn(
+                        "truncate text-sm font-medium",
+                        !enabled && "text-muted-foreground",
+                      )}
+                    >
+                      {tool.name}
+                    </p>
                     {tool.description ? (
                       <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                         {tool.description}

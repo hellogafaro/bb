@@ -136,12 +136,13 @@ describe("MCP pending interactions", () => {
     });
   });
 
-  it("renders an approval with its risk, truncated args, and decisions", () => {
+  it("renders an approval with its access group, truncated args, and decisions", () => {
     renderBanner(approval);
     expect(screen.getByTestId("mcp-approval-banner")).toBeTruthy();
     expect(screen.getByText("Allow github / delete_repo?")).toBeTruthy();
-    expect(screen.getByText("github / delete_repo")).toBeTruthy();
-    expect(screen.getByText("destructive")).toBeTruthy();
+    expect(screen.queryByText("github / delete_repo")).toBeNull();
+    expect(screen.queryByText("destructive")).toBeNull();
+    expect(screen.getByText("write")).toBeTruthy();
     expect(screen.getByText(/"repo": "get-bb\/bb"/)).toBeTruthy();
     expect(screen.getByText("Arguments truncated for display.")).toBeTruthy();
   });

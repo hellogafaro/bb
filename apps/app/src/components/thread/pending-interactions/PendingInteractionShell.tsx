@@ -21,6 +21,7 @@ export interface PendingInteractionSourceThread {
 interface PendingInteractionShellProps {
   label: string;
   title?: string;
+  titleTrailing?: ReactNode;
   initiallyExpanded: boolean;
   errorMessage?: string | null;
   footer?: ReactNode;
@@ -32,6 +33,7 @@ interface PendingInteractionShellProps {
 export function PendingInteractionShell({
   label,
   title,
+  titleTrailing,
   initiallyExpanded,
   errorMessage,
   footer,
@@ -141,14 +143,21 @@ export function PendingInteractionShell({
         <ThreadQuestionFormHost>
           <div id={contentId} hidden={!isExpanded} className="px-3 pb-3 pt-2.5">
             {title ? (
-              <h3 className="min-w-0 text-sm font-medium text-foreground">
-                <ExpandableLine
-                  fullText={title}
-                  collapsedClassName="line-clamp-2"
-                >
-                  {title}
-                </ExpandableLine>
-              </h3>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                  <ExpandableLine
+                    fullText={title}
+                    collapsedClassName="line-clamp-2"
+                  >
+                    {title}
+                  </ExpandableLine>
+                </h3>
+                {titleTrailing ? (
+                  <span className="flex h-[1lh] shrink-0 items-center">
+                    {titleTrailing}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
             {children ? (
               <div className={title ? "mt-2" : undefined}>
