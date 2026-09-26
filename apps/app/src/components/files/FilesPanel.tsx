@@ -31,6 +31,7 @@ import {
   type FilesTransport,
 } from "./files-transport";
 import { FILES_COPY } from "./files-copy";
+import { FileSearchMessage } from "./FileSearchMessage";
 import { ScrollEdgeFades, useOverflowEdges } from "./scroll-fade";
 import {
   expandedDirectoryPaths,
@@ -460,7 +461,12 @@ function SearchHits({
   onOpenFile: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   if (entries.length === 0) {
-    return <StatusLine>{FILES_COPY.noMatches}</StatusLine>;
+    return (
+      <FileSearchMessage
+        iconName="FileQuestion"
+        message={FILES_COPY.noMatches}
+      />
+    );
   }
   return (
     <ul className="m-0 list-none p-0">
@@ -629,9 +635,18 @@ export function FilesBrowser({
         </div>
         {filtering ? (
           search.error !== null ? (
-            <StatusLine destructive>{search.error}</StatusLine>
+            <FileSearchMessage
+              role="alert"
+              iconName="AlertCircle"
+              message={search.error || FILES_COPY.searchFailed}
+            />
           ) : search.hits === null ? (
-            <TreeSkeleton rows={6} />
+            <FileSearchMessage
+              aria-busy="true"
+              iconName="Spinner"
+              iconClassName="animate-spin"
+              message={FILES_COPY.searching}
+            />
           ) : (
             <SearchHits entries={search.hits} onOpenFile={onHitClick} />
           )

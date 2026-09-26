@@ -104,7 +104,6 @@ const baseProps = {
   onAutoFocusTerminalHandled: noop,
   onOpenBrowser: noop,
   onOpenPanelLink: () => false,
-  onSelectFileSearchResult: noop,
   onSelectionAddToChat: noop,
   onStartTerminal: noop,
   primaryHostId: "host-primary",

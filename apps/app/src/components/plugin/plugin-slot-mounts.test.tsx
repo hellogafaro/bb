@@ -2147,7 +2147,7 @@ describe("plugin thread panel actions", () => {
     }
 
     const root = render(<RootActionHarness />);
-    expect(screen.getByText("Start terminal")).toBeDefined();
+    expect(screen.getByText("Terminal")).toBeDefined();
     expect(screen.getByText("Set up thread")).toBeDefined();
     expect(screen.queryByText("Thread issue")).toBeNull();
     fireEvent.click(screen.getByText("Set up thread"));

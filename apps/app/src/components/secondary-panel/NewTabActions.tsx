@@ -122,7 +122,7 @@ export function NewTabActions({
     actions.push({
       id: START_TERMINAL_ACTION_ID,
       icon: actionIcon("Terminal"),
-      label: "Start terminal",
+      label: "Terminal",
       disabled: startTerminalDisabled,
       shortcut: terminalShortcut,
       trailing: startTerminalTrailing ?? null,

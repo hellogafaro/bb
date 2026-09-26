@@ -111,6 +111,24 @@ describe("FilesPanel", () => {
     );
   });
 
+  it("shows the searching, empty, and failed search states in the dashed panel", async () => {
+    const files = transport();
+    vi.mocked(files.search)
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("Search backend offline"));
+    renderPanel(files);
+    const searchbox = await screen.findByRole("searchbox");
+    fireEvent.change(searchbox, { target: { value: "nothing" } });
+    expect(await screen.findByText("Searching files...")).toBeTruthy();
+    expect(
+      await screen.findByText("No results match your search."),
+    ).toBeTruthy();
+    fireEvent.change(searchbox, { target: { value: "broken" } });
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Search backend offline");
+    expect(screen.queryByText("No results match your search.")).toBeNull();
+  });
+
   it("restores expanded folders and refreshes them when the tab mounts again", async () => {
     const files = transport();
     const first = renderPanel(files, vi.fn(), "/restored");

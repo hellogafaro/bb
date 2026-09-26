@@ -1,7 +1,9 @@
 export const FILES_COPY = {
   searchPlaceholder: "Search files",
   clearSearch: "Clear search",
-  noMatches: "No matching files",
+  searching: "Searching files...",
+  searchFailed: "Search failed.",
+  noMatches: "No results match your search.",
   loading: "Loading",
   empty: "Empty",
   noEnvironment: "This thread has no workspace yet.",

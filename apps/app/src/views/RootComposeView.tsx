@@ -152,10 +152,7 @@ import {
   shouldLoadThreadStorageFileList,
   useThreadStorageViewer,
 } from "@/components/secondary-panel/useThreadStorageViewer";
-import {
-  useThreadFileTabs,
-  type FileSearchSelection,
-} from "@/components/secondary-panel/useThreadFileTabs";
+import { useThreadFileTabs } from "@/components/secondary-panel/useThreadFileTabs";
 import { isSecondaryFileTab } from "@bb/client-core";
 import { RightPanelFileTabIcon } from "@/components/secondary-panel/RightPanelFileTabIcon";
 import {
@@ -1056,7 +1053,6 @@ function RootComposeSurface({
     orderedSecondaryFileTabs,
     reopenClosedTab,
     reorderTab,
-    selectFileSearchResult,
     updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId: ROOT_COMPOSE_FIXED_PANEL_STATE_ID,
@@ -1378,13 +1374,6 @@ function RootComposeSurface({
       updateBrowserTab,
     ],
   );
-  const handleSelectFileSearchResult = useCallback(
-    (selection: FileSearchSelection) => {
-      selectFileSearchResult(selection);
-      openCompactDrawer();
-    },
-    [openCompactDrawer, selectFileSearchResult],
-  );
   const handleActivateFileTab = useCallback(
     (tabId: string) => {
       activateTab(tabId);
@@ -1587,7 +1576,6 @@ function RootComposeSurface({
         onAutoFocusTerminalHandled={handleTerminalAutoFocusHandled}
         onOpenBrowser={openBrowserTabAndReveal}
         onOpenPanelLink={handleOpenPanelLink}
-        onSelectFileSearchResult={handleSelectFileSearchResult}
         onSelectionAddToChat={handleRootPanelSelectionAddToChat}
         onStartTerminal={handleStartTerminal}
         pane={pane}
@@ -1611,7 +1599,6 @@ function RootComposeSurface({
       handleNewTabAutoFocusHandled,
       handleOpenPanelLink,
       handleRootPanelSelectionAddToChat,
-      handleSelectFileSearchResult,
       handleStartTerminal,
       handleTerminalAutoFocusHandled,
       isPersistedSecondaryPanelOpen,

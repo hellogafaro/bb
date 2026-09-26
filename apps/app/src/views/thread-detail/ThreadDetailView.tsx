@@ -243,10 +243,7 @@ import {
   useThreadStorageBrowser,
   type ThreadStoragePathSelectHandler,
 } from "@/components/secondary-panel/useThreadStorageBrowser";
-import {
-  useThreadFileTabs,
-  type FileSearchSelection,
-} from "@/components/secondary-panel/useThreadFileTabs";
+import { useThreadFileTabs } from "@/components/secondary-panel/useThreadFileTabs";
 import { isSecondaryFileTab } from "@bb/client-core";
 import { useThreadOpenFileSignal } from "@/components/secondary-panel/useThreadOpenFileSignal";
 import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
@@ -705,7 +702,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     orderedSecondaryFileTabs,
     reopenClosedTab,
     reorderTab,
-    selectFileSearchResult,
     updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId: threadId,
@@ -1431,13 +1427,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         url,
       }),
     [canOpenUrlsInAppBrowser, openBrowserTabAndReveal, openLinksInAppBrowser],
-  );
-  const handleSelectFileSearchResult = useCallback(
-    (selection: FileSearchSelection) => {
-      selectFileSearchResult(selection);
-      openCompactDrawer();
-    },
-    [openCompactDrawer, selectFileSearchResult],
   );
   const openFilesTab = useCallback(() => {
     openTab({ kind: "files" });
@@ -2591,11 +2580,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             autoFocus={
               tab.id === activeFixedSecondaryTabId && shouldAutoFocusNewTab
             }
-            projectId={projectId ?? undefined}
-            environmentId={thread.environmentId ?? null}
-            currentThreadId={thread.id}
             onAutoFocusHandled={handleNewTabAutoFocusHandled}
-            onSelect={handleSelectFileSearchResult}
             onOpenBrowser={() => {
               activateTab(tab.id);
               openBrowserTabAndReveal();

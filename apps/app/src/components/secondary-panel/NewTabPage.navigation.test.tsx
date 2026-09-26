@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { AppCommandProvider } from "@/components/commands/AppCommandProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -16,49 +22,48 @@ vi.mock("@/hooks/usePluginCommandBindings", () => {
   ].map(([command, key]) => ({
     command,
     desktopOnly: false,
-    shortcut: { key, control: true, shift: true, mod: false, meta: false, alt: false },
+    shortcut: {
+      key,
+      control: true,
+      shift: true,
+      mod: false,
+      meta: false,
+      alt: false,
+    },
     when: { all: ["mainSurface"], none: ["modalOpen"] },
   }));
-  return { usePluginCommandBindings: () => ({ keybindings: bindings, defaults: bindings }) };
-});
-
-vi.mock("@/hooks/useFileSearchSuggestions", () => {
-  const result = {
-    suggestions: [],
-    isLoading: false,
-    fileSearchError: false,
-    isDebouncing: false,
-    isUnavailable: false,
+  return {
+    usePluginCommandBindings: () => ({
+      keybindings: bindings,
+      defaults: bindings,
+    }),
   };
-  return { useFileSearchSuggestions: () => result };
 });
 
-const recentItems = [
-  { source: "workspace" as const, path: "package.json", openedAt: 1 },
-  { source: "workspace" as const, path: "README.md", openedAt: 1 },
-];
-vi.mock("./threadRecentItems", async (importOriginal) => ({
-  ...await importOriginal<typeof import("./threadRecentItems")>(),
-  useThreadRecentItems: () => recentItems,
+vi.mock("@bb/shared-ui/hooks/use-pointer-coarse", () => ({
+  usePointerCoarse: () => false,
 }));
 
-beforeEach(() => {
-  vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(() => {});
-});
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   window.localStorage.clear();
 });
 
-function mountPage({ canNavigateTabs = true, selected = true, disabled = false } = {}) {
+function mountPage({
+  autoFocus = false,
+  canNavigateTabs = true,
+  selected = true,
+  disabled = false,
+  onAutoFocusHandled = vi.fn(),
+} = {}) {
   const { wrapper: Wrapper } = createQueryClientTestHarness();
-  const onSelect = vi.fn();
   render(
     <Wrapper>
       <AppCommandProvider>
         <SidebarProvider>
           <TooltipProvider>
+            <input aria-label="Composer" />
             <SidebarSplitContainer
               activeTabId="new-tab"
               canNavigateTabs={canNavigateTabs}
@@ -67,33 +72,41 @@ function mountPage({ canNavigateTabs = true, selected = true, disabled = false }
               onGlobalTabReorder={() => {}}
               onToggleFullScreen={() => {}}
               panelStateId="new-tab-items"
-              tabs={[{ id: "new-tab", label: "New tab", restoresPlacementAfterRemoval: false }]}
-              renderPane={() => selected ? (
-                <NewTabPage
-                  autoFocus={false}
-                  currentThreadId="thr_new_tab_items"
-                  environmentId="env_1"
-                  projectId="proj_1"
-                  onAutoFocusHandled={() => {}}
-                  onSelect={onSelect}
-                  onStartTerminal={() => {}}
-                  startTerminalDisabled={disabled}
-                  pluginActions={[{
-                    id: "side-chat",
-                    pluginId: "side-chat",
-                    icon: null,
-                    title: "Start side chat",
-                    onSelect: () => {},
-                  }]}
-                />
-              ) : <input aria-label="Editor" />}
+              tabs={[
+                {
+                  id: "new-tab",
+                  label: "New tab",
+                  restoresPlacementAfterRemoval: false,
+                },
+              ]}
+              renderPane={() =>
+                selected ? (
+                  <NewTabPage
+                    autoFocus={autoFocus}
+                    onAutoFocusHandled={onAutoFocusHandled}
+                    onStartTerminal={() => {}}
+                    startTerminalDisabled={disabled}
+                    pluginActions={[
+                      {
+                        id: "side-chat",
+                        pluginId: "side-chat",
+                        icon: null,
+                        title: "Start side chat",
+                        onSelect: () => {},
+                      },
+                    ]}
+                  />
+                ) : (
+                  <input aria-label="Editor" />
+                )
+              }
             />
           </TooltipProvider>
         </SidebarProvider>
       </AppCommandProvider>
     </Wrapper>,
   );
-  return onSelect;
+  return onAutoFocusHandled;
 }
 
 function move(key: "ArrowUp" | "ArrowDown") {
@@ -102,45 +115,58 @@ function move(key: "ArrowUp" | "ArrowDown") {
   return fireEvent.keyDown(target, { key, ctrlKey: true, shiftKey: true });
 }
 
-it("moves focus through search, actions and recents, skipping reorder handles", () => {
-  const onSelect = mountPage();
-  const search = screen.getByRole("combobox");
-  const terminal = screen.getByRole("button", { name: "Start terminal" });
+it("renders only the actions list without a file search", () => {
+  mountPage();
+  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.queryByRole("option")).toBeNull();
+  expect(screen.getByRole("button", { name: "Terminal" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Start side chat" })).toBeDefined();
+});
+
+it("moves focus through the actions, skipping reorder handles", () => {
+  mountPage();
+  const composer = screen.getByRole("textbox", { name: "Composer" });
+  const terminal = screen.getByRole("button", { name: "Terminal" });
   const sideChat = screen.getByRole("button", { name: "Start side chat" });
-  const [firstRecent, lastRecent] = screen.getAllByRole("option");
-  act(() => search.focus());
-  for (const target of [terminal, sideChat, firstRecent, lastRecent, search]) {
+  act(() => composer.focus());
+  for (const target of [terminal, sideChat, terminal]) {
     expect(move("ArrowDown")).toBe(false);
     expect(document.activeElement).toBe(target);
   }
   move("ArrowUp");
-  expect(document.activeElement).toBe(lastRecent);
-  expect(lastRecent?.getAttribute("aria-selected")).toBe("true");
-  if (lastRecent) fireEvent.click(lastRecent);
-  expect(onSelect).toHaveBeenCalledWith({ source: "workspace", path: "README.md" });
+  expect(document.activeElement).toBe(sideChat);
 });
 
-it("skips disabled actions and follows the rendered search state", () => {
+it("skips disabled actions", () => {
   mountPage({ disabled: true });
-  const search = screen.getByRole("combobox");
-  act(() => search.focus());
+  const composer = screen.getByRole("textbox", { name: "Composer" });
+  act(() => composer.focus());
   move("ArrowDown");
-  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Start side chat" }));
-  act(() => search.focus());
-  fireEvent.change(search, { target: { value: "no matching files" } });
-  move("ArrowDown");
-  expect(document.activeElement).toBe(search);
-  expect(screen.queryByRole("option")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Start side chat" })).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Start side chat" }),
+  );
+});
+
+it("focuses the first enabled action when asked to auto focus", () => {
+  const onAutoFocusHandled = mountPage({ autoFocus: true, disabled: true });
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Start side chat" }),
+  );
+  expect(onAutoFocusHandled).toHaveBeenCalledOnce();
 });
 
 it.each([
   { canNavigateTabs: false, selected: true },
   { canNavigateTabs: true, selected: false },
-])("leaves focus alone when the active panel has no navigable New tab page: %j", (options) => {
-  mountPage(options);
-  const input = screen.getByRole(options.selected ? "combobox" : "textbox");
-  act(() => input.focus());
-  move("ArrowDown");
-  expect(document.activeElement).toBe(input);
-});
+])(
+  "leaves focus alone when the active panel has no navigable New tab page: %j",
+  (options) => {
+    mountPage(options);
+    const input = screen.getByRole("textbox", {
+      name: options.selected ? "Composer" : "Editor",
+    });
+    act(() => input.focus());
+    move("ArrowDown");
+    expect(document.activeElement).toBe(input);
+  },
+);

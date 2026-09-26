@@ -17,7 +17,6 @@ import {
   LazyThreadTerminalPanel,
   LazyWorkspaceFilePreviewTabContent,
 } from "@/components/secondary-panel/lazySecondaryPanelComponents";
-import type { FileSearchSelection } from "@/components/secondary-panel/useThreadFileTabs";
 import {
   PluginPanelTabContent,
   type PluginPanelActionEntry,
@@ -58,7 +57,6 @@ interface RootComposePanelTabContentProps {
   onAutoFocusTerminalHandled: () => void;
   onOpenBrowser: () => void;
   onOpenPanelLink: MarkdownPreviewLinkHandler;
-  onSelectFileSearchResult: (selection: FileSearchSelection) => void;
   onSelectionAddToChat: (text: string) => void;
   onStartTerminal: () => void;
   pane: SecondaryPanelPaneRenderContext;
@@ -143,7 +141,6 @@ export function RootComposePanelTabContent({
   onAutoFocusTerminalHandled,
   onOpenBrowser,
   onOpenPanelLink,
-  onSelectFileSearchResult,
   onSelectionAddToChat,
   onStartTerminal,
   pane,
@@ -186,16 +183,7 @@ export function RootComposePanelTabContent({
           autoFocus={
             pane.isFocused && tab.id === activeTabId && shouldAutoFocusNewTab
           }
-          projectId={isProjectless ? undefined : currentProjectId}
-          environmentId={rootPanelEnvironmentId}
-          hostId={rootProjectHostId}
-          currentThreadId={rootPanelThreadId ?? ""}
           onAutoFocusHandled={onAutoFocusNewTabHandled}
-          onSelect={(selection) => {
-            onActivateTab(tab.id);
-            onSelectFileSearchResult(selection);
-          }}
-          recentItemsThreadId={ROOT_COMPOSE_FIXED_PANEL_STATE_ID}
           onOpenBrowser={
             rootPanelThreadId
               ? () => {
@@ -213,7 +201,6 @@ export function RootComposePanelTabContent({
               : undefined
           }
           pluginActions={pluginActions}
-          showFileSearch={!isProjectless}
         />
       );
     case "workspace-file-preview":

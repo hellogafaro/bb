@@ -1046,7 +1046,7 @@ export default definePluginApp((app) => {
   });
   app.slots.threadPanelAction({
     id: WORKFLOW_PANEL_ACTION_ID,
-    title: "Workflow run",
+    title: "Workflow",
     icon: "Workflow",
     component: WorkflowRunPanel,
     layout: "flush",

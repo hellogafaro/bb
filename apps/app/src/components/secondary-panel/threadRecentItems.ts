@@ -9,7 +9,6 @@ import { hasThreadId } from "@/lib/thread-id";
 const THREAD_RECENT_ITEMS_STORAGE_PREFIX = "bb.thread.recentItems";
 const THREAD_RECENT_ITEMS_STORAGE_VERSION = 1;
 const THREAD_RECENT_ITEMS_MAX_STORED = 24;
-export const THREAD_RECENT_ITEMS_VISIBLE_LIMIT = 6;
 
 type RecentItemSource = "workspace" | "thread-storage";
 

@@ -1,18 +1,15 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import type { PluginPanelActionEntry } from "@/components/plugin/PluginPanelActions";
 import {
   NewTabActions,
   type OpenBrowserHandler,
   type StartTerminalHandler,
 } from "./NewTabActions";
-import {
-  NewTabFileSearch,
-  type NewTabFileSearchProps,
-} from "./NewTabFileSearch";
 
-type NewTabPageFileSearchProps = Omit<NewTabFileSearchProps, "idleActions">;
-
-interface NewTabPageProps extends NewTabPageFileSearchProps {
+interface NewTabPageProps {
+  autoFocus?: boolean;
+  onAutoFocusHandled?: () => void;
   onOpenBrowser?: OpenBrowserHandler;
   onOpenFiles?: () => void;
   onStartTerminal?: StartTerminalHandler;
@@ -21,50 +18,70 @@ interface NewTabPageProps extends NewTabPageFileSearchProps {
   startTerminalTrailing?: ReactNode;
 }
 
+const FIRST_ACTION_SELECTOR = "[data-panel-new-tab-item]:not(:disabled)";
+
 export function NewTabPage({
-  autoFocus,
-  currentThreadId,
-  environmentId,
-  hostId,
-  initialQuery,
+  autoFocus = false,
   onAutoFocusHandled,
   onOpenBrowser,
   onOpenFiles,
-  onSelect,
   onStartTerminal,
   pluginActions,
-  projectId,
-  recentItemsThreadId,
-  showFileSearch,
   startTerminalDisabled,
   startTerminalTrailing,
 }: NewTabPageProps) {
+  const pageRef = useRef<HTMLDivElement>(null);
+  const focusFrameRef = useRef<number | null>(null);
+  const isPointerCoarse = usePointerCoarse();
+
+  useEffect(
+    () => () => {
+      if (focusFrameRef.current !== null) {
+        cancelAnimationFrame(focusFrameRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!autoFocus) return;
+
+    if (focusFrameRef.current !== null) {
+      cancelAnimationFrame(focusFrameRef.current);
+      focusFrameRef.current = null;
+    }
+
+    if (isPointerCoarse) {
+      onAutoFocusHandled?.();
+      return;
+    }
+
+    const focusFirstAction = () => {
+      pageRef.current
+        ?.querySelector<HTMLElement>(FIRST_ACTION_SELECTOR)
+        ?.focus({ preventScroll: true });
+    };
+    focusFirstAction();
+    focusFrameRef.current = requestAnimationFrame(() => {
+      focusFrameRef.current = null;
+      focusFirstAction();
+    });
+    onAutoFocusHandled?.();
+  }, [autoFocus, isPointerCoarse, onAutoFocusHandled]);
+
   return (
     <div
+      ref={pageRef}
       data-panel-new-tab-page=""
       className="flex min-h-full flex-col gap-3 bg-sidebar px-4 pb-3 pt-1"
     >
-      <NewTabFileSearch
-        projectId={projectId}
-        environmentId={environmentId}
-        hostId={hostId}
-        currentThreadId={currentThreadId}
-        autoFocus={autoFocus}
-        idleActions={
-          <NewTabActions
-            onOpenBrowser={onOpenBrowser}
-            onOpenFiles={onOpenFiles}
-            onStartTerminal={onStartTerminal}
-            pluginActions={pluginActions}
-            startTerminalDisabled={startTerminalDisabled}
-            startTerminalTrailing={startTerminalTrailing}
-          />
-        }
-        initialQuery={initialQuery}
-        onAutoFocusHandled={onAutoFocusHandled}
-        onSelect={onSelect}
-        recentItemsThreadId={recentItemsThreadId}
-        showFileSearch={showFileSearch}
+      <NewTabActions
+        onOpenBrowser={onOpenBrowser}
+        onOpenFiles={onOpenFiles}
+        onStartTerminal={onStartTerminal}
+        pluginActions={pluginActions}
+        startTerminalDisabled={startTerminalDisabled}
+        startTerminalTrailing={startTerminalTrailing}
       />
     </div>
   );

@@ -97,7 +97,7 @@ describe("workflows app registration", () => {
     expect(app.threadPanelActions).toMatchObject([
       {
         id: "workflow-run",
-        title: "Workflow run",
+        title: "Workflow",
         icon: "Workflow",
         layout: "flush",
       },

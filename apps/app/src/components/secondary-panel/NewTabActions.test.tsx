@@ -81,14 +81,14 @@ describe("NewTabActions", () => {
     expect(onSelectHost).toHaveBeenCalledOnce();
     expect(onStartTerminal).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Start terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
     expect(onStartTerminal).toHaveBeenCalledOnce();
   });
 
   it("renders built-in and plugin actions in the order the user saved", () => {
     renderActions([sideChat.id, START_TERMINAL_ID], [sideChat]);
 
-    expect(actionLabels()).toEqual(["Start side chat", "Start terminal"]);
+    expect(actionLabels()).toEqual(["Start side chat", "Terminal"]);
   });
 
   it("offers a reorder handle per action once there are two to order", () => {
@@ -98,15 +98,13 @@ describe("NewTabActions", () => {
       screen
         .getAllByRole("button", { name: /^Reorder / })
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["Reorder Start terminal", "Reorder Start side chat"]);
+    ).toEqual(["Reorder Terminal", "Reorder Start side chat"]);
   });
 
   it("offers no reorder handle when a single action cannot move", () => {
     renderActions([], []);
 
-    expect(
-      screen.getByRole("button", { name: "Start terminal" }),
-    ).toBeDefined();
+    expect(screen.getByRole("button", { name: "Terminal" })).toBeDefined();
     expect(screen.queryByRole("button", { name: /^Reorder / })).toBeNull();
   });
 
@@ -115,7 +113,7 @@ describe("NewTabActions", () => {
 
     expect(actionLabels()).toEqual([
       "Start side chat",
-      "Start terminal",
+      "Terminal",
       "Quickstart",
     ]);
   });
@@ -159,6 +157,6 @@ describe("NewTabActions", () => {
     );
 
     expect(store.get(newTabActionOrderAtom)).toEqual([]);
-    expect(actionLabels()).toEqual(["Start terminal", "Start side chat"]);
+    expect(actionLabels()).toEqual(["Terminal", "Start side chat"]);
   });
 });

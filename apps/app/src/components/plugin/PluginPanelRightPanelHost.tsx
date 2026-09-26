@@ -863,12 +863,6 @@ export function PluginPanelRightPanelHost({
         case "new-tab":
           return (
             <LazyNewTabPage
-              autoFocus={false}
-              projectId={undefined}
-              environmentId={null}
-              currentThreadId=""
-              onAutoFocusHandled={() => undefined}
-              onSelect={() => undefined}
               onOpenBrowser={
                 isDesktopBrowserAvailable()
                   ? () => {
@@ -881,7 +875,6 @@ export function PluginPanelRightPanelHost({
                 activateTab(tab.id);
                 startSelectedTerminal(tab.id);
               }}
-              showFileSearch={false}
               startTerminalDisabled={
                 createTerminal.isPending ||
                 selectedTerminalHost?.status !== "connected"

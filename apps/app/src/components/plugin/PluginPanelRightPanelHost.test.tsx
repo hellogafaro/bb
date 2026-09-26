@@ -478,7 +478,7 @@ vi.mock("@/components/secondary-panel/NewTabPage", () => ({
             disabled={startTerminalDisabled}
             onClick={onStartTerminal}
           >
-            Start terminal
+            Terminal
           </button>
           {startTerminalTrailing}
         </>
@@ -1319,7 +1319,7 @@ describe("PluginPanelRightPanelHost", () => {
       { button: 0 },
     );
     fireEvent.click(screen.getByRole("menuitem", { name: /Laptop/u }));
-    fireEvent.click(screen.getByRole("button", { name: "Start terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
 
     await waitFor(() =>
       expect(createTerminal).toHaveBeenCalledWith({
