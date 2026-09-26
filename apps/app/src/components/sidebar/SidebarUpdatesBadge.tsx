@@ -21,6 +21,9 @@ const PROVIDER_ACTION_CLASS = cn(
   "w-auto gap-1 px-1.5 max-md:pointer-coarse:w-auto max-md:pointer-coarse:px-2",
 );
 
+const PROVIDER_MARK_CLASS =
+  "size-3.5 min-h-0 min-w-0 max-md:pointer-coarse:size-4";
+
 function joinNames(names: string[]): string {
   if (names.length <= 1) {
     return names[0] ?? "";
@@ -137,15 +140,15 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
                       key={stale.provider}
                       data-provider-icon={providerId}
                       aria-hidden
-                      className="flex size-4 shrink-0 items-center justify-center opacity-80 max-md:pointer-coarse:size-5"
+                      className="flex size-3.5 shrink-0 items-center justify-center opacity-80 max-md:pointer-coarse:size-4"
                     >
                       {provider === undefined ? (
-                        <iconInfo.icon className="size-4 max-md:pointer-coarse:size-5" />
+                        <iconInfo.icon className={PROVIDER_MARK_CLASS} />
                       ) : (
                         <ProviderIconMark
                           provider={provider}
                           icon={iconInfo.icon}
-                          className="size-4 max-md:pointer-coarse:size-5"
+                          className={PROVIDER_MARK_CLASS}
                         />
                       )}
                     </span>
