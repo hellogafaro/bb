@@ -1186,11 +1186,10 @@ const EXPERIMENT_DEFINITIONS: Record<
 };
 const EXPERIMENT_SETTING_IDS: Record<ExperimentKey, CoreSettingId> = {
   changelogPreview: "changelog-preview",
+  legacyJitiPluginLoader: "legacy-jiti-plugin-loader",
   mobileApp: "mobile-app",
-  multiMachinePicker: "multi-machine-picker",
   serverMove: "server-move",
   sidebarProgressiveDisclosure: "sidebar-progressive-disclosure",
-  timelineWindowing: "timeline-windowing",
 };
 export function ExperimentsSettingsSection({
   disabled,

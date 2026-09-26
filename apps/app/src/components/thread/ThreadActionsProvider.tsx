@@ -44,7 +44,6 @@ import {
   ThreadArchiveDialog,
   type ThreadArchiveDialogTarget,
 } from "@/components/dialogs/ThreadArchiveDialog";
-import { ArchivedThreadToastDescription } from "@/components/thread/ArchivedThreadToastDescription";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
 import { getInboxRoutePath, getThreadRoutePath } from "@/lib/route-paths";
@@ -52,10 +51,8 @@ import { getDesktopBrowserApi } from "@/lib/bb-desktop";
 import { useRouteNavigate } from "@/components/ui/app-route-anchor";
 
 export interface ThreadActionsContextValue {
-  archiveThreadAndChildren: (thread: Thread) => void;
   generateTitle: (threadId: string) => Promise<void>;
   generatingTitleIds: ReadonlySet<string>;
-  renameThread: (threadId: string, title: string) => void;
   requestArchive: (thread: Thread) => void;
   renameThreadAsync: (threadId: string, title: string) => Promise<void>;
   requestRename: (thread: Thread) => void;
@@ -475,7 +472,6 @@ export function ThreadActionsProvider({
     () => ({
       generateTitle,
       generatingTitleIds,
-      renameThread,
       renameThreadAsync,
       requestRename,
       requestArchive,
@@ -485,10 +481,8 @@ export function ThreadActionsProvider({
       toggleRead,
     }),
     [
-      archiveThreadAndChildrenAction,
       generateTitle,
       generatingTitleIds,
-      renameThread,
       renameThreadAsync,
       requestArchive,
       requestRename,

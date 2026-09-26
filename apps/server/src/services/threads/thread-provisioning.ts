@@ -147,7 +147,7 @@ function settleSeededThreadProvisioning(
     (tx) => {
       const current = getThreadProvisionContext(tx, args.threadId);
       const outcome = applyLoggedThreadLifecycleEventInTransaction(
-        { db: tx, logger: deps.logger },
+        { db: tx, hub: deps.hub, logger: deps.logger },
         { threadId: args.threadId, event: { type: "run.succeeded" } },
       );
       const completedProvisioning =
@@ -344,7 +344,7 @@ export function requestThreadEnvironmentRestore(
   return deps.db.transaction(
     (tx) => {
       const prepared = applyLoggedThreadLifecycleEventInTransaction(
-        { db: tx, logger: deps.logger },
+        { db: tx, hub: deps.hub, logger: deps.logger },
         { event: { type: "run.preparing" }, threadId: args.thread.id },
       );
       if (!prepared.applied) {

@@ -1817,7 +1817,7 @@ function interruptActiveThreads(
           getThread(tx, thread.threadId)?.status === "active"
         ) {
           applyLoggedThreadLifecycleEventInTransaction(
-            { db: tx, logger: deps.logger },
+            { db: tx, hub: deps.hub, logger: deps.logger },
             { event: { type: "stop.requested" }, threadId: thread.threadId },
           );
         }

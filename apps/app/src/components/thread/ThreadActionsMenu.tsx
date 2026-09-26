@@ -185,7 +185,6 @@ function ThreadActionsMenuItems({
   surface,
 }: ThreadActionsMenuItemsProps) {
   const {
-    archiveThreadAndChildren,
     generateTitle,
     generatingTitleIds,
     requestArchive,

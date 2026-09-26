@@ -562,9 +562,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={threadId}
           threadTitle={threadTitle}
         />
@@ -603,9 +601,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Focused thread"
         />
@@ -657,9 +653,7 @@ describe("ThreadDetailHeader", () => {
           actionsMenu={null}
           childPillLabel={null}
           isSecondaryPanelOpen={false}
-          onOpenThreadGitAction={vi.fn()}
           onToggleSecondaryPanel={vi.fn()}
-          threadHeaderGitActions={[]}
           threadId={THREAD_ID}
           threadTitle="Focused thread"
         />

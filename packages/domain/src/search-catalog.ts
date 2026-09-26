@@ -376,13 +376,6 @@ const definitions = [
     aliases: ["phone"],
   },
   {
-    id: "multi-machine-picker",
-    label: "Multi-machine picker",
-    sectionId: "experiments",
-    description: "Use searchable machine and environment pickers.",
-    aliases: ["machine picker"],
-  },
-  {
     id: "server-move",
     label: "Server move",
     sectionId: "experiments",
@@ -390,18 +383,18 @@ const definitions = [
     aliases: ["move server"],
   },
   {
+    id: "legacy-jiti-plugin-loader",
+    label: "Legacy plugin loader (JITI)",
+    sectionId: "experiments",
+    description: "Load plugin server code with the legacy JITI runtime.",
+    aliases: ["jiti", "plugin loader"],
+  },
+  {
     id: "sidebar-progressive-disclosure",
     label: "Sidebar progressive disclosure",
     sectionId: "experiments",
     description: "Reveal sidebar groups progressively.",
     aliases: ["sidebar groups"],
-  },
-  {
-    id: "timeline-windowing",
-    label: "Timeline windowing",
-    sectionId: "experiments",
-    description: "Mount nearby rows in long timelines.",
-    aliases: ["timeline performance"],
   },
   {
     id: "community",

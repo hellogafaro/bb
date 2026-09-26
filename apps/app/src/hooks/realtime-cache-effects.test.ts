@@ -438,6 +438,9 @@ describe("createRealtimeCacheEffects", () => {
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
     }
     expect(queryClient.getQueryState(skillsKey)?.isInvalidated).toBe(false);
+    effects.dispose();
+  });
+
   it("refreshes only the app update status when the launcher reports progress", () => {
     const { effects, queryClient } = createRealtimeEffectsTestContext();
     const statusKey = systemAppUpdateQueryKey();
