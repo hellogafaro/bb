@@ -30,7 +30,6 @@ interface AppVersionGetSystemVersionArgs {
 interface CreateAppVersionServiceArgs {
   config: Pick<ServerRuntimeConfig, "appVersion" | "isDevelopment">;
   fetchImpl?: typeof fetch;
-  githubToken: string | null;
   logger: ServerLogger;
   cacheTtlMs?: number;
   now?: () => number;
@@ -49,7 +48,6 @@ export function createAppVersionService(
   const now = args.now ?? (() => Date.now());
   const logger = args.logger;
   const config = args.config;
-  const githubToken = args.githubToken;
 
   let cache: LatestReleaseCacheEntry | null = null;
   let inflight: Promise<string | null> | null = null;
@@ -60,29 +58,19 @@ export function createAppVersionService(
       () => controller.abort(),
       LATEST_RELEASE_TIMEOUT_MS,
     );
-    const authenticated = githubToken !== null;
     try {
       const response = await fetchImpl(FORK_LATEST_RELEASE_API_URL, {
         headers: {
           accept: "application/vnd.github+json",
           "user-agent": "bb-app",
           "x-github-api-version": "2022-11-28",
-          ...(githubToken === null
-            ? {}
-            : { authorization: `Bearer ${githubToken}` }),
         },
         signal: controller.signal,
       });
       if (!response.ok) {
         logger.warn(
-          {
-            status: response.status,
-            url: FORK_LATEST_RELEASE_API_URL,
-            authenticated,
-          },
-          authenticated
-            ? "Failed to fetch latest bb release from GitHub"
-            : "Failed to fetch latest bb release from GitHub; set GITHUB_TOKEN or GH_TOKEN if the release repository is private",
+          { status: response.status, url: FORK_LATEST_RELEASE_API_URL },
+          "Failed to fetch latest bb release from GitHub",
         );
         return null;
       }

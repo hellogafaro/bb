@@ -11,7 +11,6 @@ interface StubFetchOptions {
 
 interface FetchCall {
   url: string;
-  headers: Headers;
   signal: AbortSignal | null;
 }
 
@@ -27,11 +26,7 @@ function createStubFetch(
         : input instanceof URL
           ? input.toString()
           : String(input);
-    calls.push({
-      url,
-      headers: new Headers(init?.headers),
-      signal: init?.signal ?? null,
-    });
+    calls.push({ url, signal: init?.signal ?? null });
     const response = responses[Math.min(index, responses.length - 1)];
     index += 1;
     if (response.throwError) {
@@ -56,7 +51,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -79,7 +73,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -89,7 +82,6 @@ describe("createAppVersionService", () => {
     expect(calls[0]?.url).toBe(
       "https://api.github.com/repos/hellogafaro/bb/releases/latest",
     );
-    expect(calls[0]?.headers.get("authorization")).toBeNull();
   });
 
   it("reports updateAvailable=false when versions are equal", async () => {
@@ -99,7 +91,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -114,7 +105,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -130,7 +120,6 @@ describe("createAppVersionService", () => {
         [{ throwError: new Error("network down") }],
         [],
       ),
-      githubToken: null,
       logger: { ...testLogger, warn },
     });
     const response = await service.getSystemVersion();
@@ -149,7 +138,6 @@ describe("createAppVersionService", () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch([{ ok: false, status: 429, body: {} }], []),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -161,7 +149,6 @@ describe("createAppVersionService", () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch([{ body: { unexpected: true } }], []),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -175,7 +162,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -194,7 +180,6 @@ describe("createAppVersionService", () => {
         ],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const first = await service.getSystemVersion();
@@ -215,7 +200,6 @@ describe("createAppVersionService", () => {
         ],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const first = await service.getSystemVersion();
@@ -238,7 +222,6 @@ describe("createAppVersionService", () => {
         ],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
       now: () => currentTime,
     });
@@ -258,7 +241,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6" } }],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const [first, second] = await Promise.all([
@@ -283,7 +265,6 @@ describe("createAppVersionService", () => {
         ],
         calls,
       ),
-      githubToken: null,
       logger: testLogger,
       now: () => currentTime,
     });
@@ -303,7 +284,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.6-alpha.1" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -318,7 +298,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.5-alpha.1" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -333,7 +312,6 @@ describe("createAppVersionService", () => {
         [{ body: { tag_name: "desktop-v0.0.5+build.1" } }],
         [],
       ),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();
@@ -341,43 +319,10 @@ describe("createAppVersionService", () => {
     expect(response.updateAvailable).toBe(false);
   });
 
-  it("sends the GitHub token when one is configured", async () => {
-    const calls: FetchCall[] = [];
-    const service = createAppVersionService({
-      config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch(
-        [{ body: { tag_name: "desktop-v0.0.6" } }],
-        calls,
-      ),
-      githubToken: "test-token",
-      logger: testLogger,
-    });
-    await service.getSystemVersion();
-    expect(calls[0]?.headers.get("authorization")).toBe("Bearer test-token");
-  });
-
-  it("warns and returns latestVersion=null when the private repository hides releases without a token", async () => {
-    const warn = vi.fn();
-    const service = createAppVersionService({
-      config: { appVersion: "0.0.5", isDevelopment: false },
-      fetchImpl: createStubFetch([{ status: 404, body: {} }], []),
-      githubToken: null,
-      logger: { ...testLogger, warn },
-    });
-    const response = await service.getSystemVersion();
-    expect(response.latestVersion).toBeNull();
-    expect(response.updateAvailable).toBe(false);
-    expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 404, authenticated: false }),
-      expect.stringContaining("GITHUB_TOKEN"),
-    );
-  });
-
   it("returns latestVersion=null when the latest release tag is not a desktop-v tag", async () => {
     const service = createAppVersionService({
       config: { appVersion: "0.0.5", isDevelopment: false },
       fetchImpl: createStubFetch([{ body: { tag_name: "v0.0.6" } }], []),
-      githubToken: null,
       logger: testLogger,
     });
     const response = await service.getSystemVersion();

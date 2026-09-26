@@ -226,7 +226,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
 
   const appVersion = createAppVersionService({
     config: runtimeConfig,
-    githubToken: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null,
     logger,
   });
   const {
