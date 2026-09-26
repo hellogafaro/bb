@@ -5,7 +5,6 @@ SOURCE_DIR="$HOME/.local/bb"
 RELEASE_REPO="hellogafaro/bb"
 RELEASES_DIR="$HOME/.local/bb-releases"
 CURRENT_LINK="$HOME/.local/bb-current"
-NATIVE_PACKAGES="better-sqlite3,node-pty,@parcel/watcher"
 LOG="$HOME/.local/bb-build-logs/reload.log"
 
 usage() {
@@ -89,11 +88,19 @@ install_release() {
   fi
   mkdir -p "$RELEASES_DIR" "$(dirname "$LOG")"
   staging=$(mktemp -d "$RELEASES_DIR/.$version.XXXXXX")
-  printf '{\n  "private": true\n}\n' > "$staging/package.json"
+  cat > "$staging/package.json" <<'EOF'
+{
+  "private": true,
+  "allowScripts": {
+    "@parcel/watcher": true,
+    "better-sqlite3": true,
+    "node-pty": true
+  }
+}
+EOF
   echo "Installing bb-app $version and building its native add-ons..."
   if ! (cd "$staging" && npm_config_ignore_scripts=false npm install \
-    --allow-scripts="$NATIVE_PACKAGES" --omit=dev --no-audit --no-fund \
-    "$tarball_path") > "$LOG" 2>&1; then
+    --omit=dev --no-audit --no-fund "$tarball_path") > "$LOG" 2>&1; then
     tail -20 "$LOG"
     rm -rf "$staging"
     fail "npm install of bb-app $version failed. Full log: $LOG"
