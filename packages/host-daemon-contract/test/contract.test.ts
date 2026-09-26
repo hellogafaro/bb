@@ -404,6 +404,14 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
     sizeBytes: 15,
     sha256: "a".repeat(64),
   },
+  "host.read_file_range": {
+    path: "/tmp/movie.mp4",
+    mimeType: "video/mp4",
+    sizeBytes: 1024,
+    modifiedAtMs: 1234,
+    offset: 512,
+    content: "AAEC",
+  },
   "host.read_file_relative": {
     path: "assets/logo.png",
     content: "iVBORw0KGgo=",
@@ -1190,7 +1198,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(221);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(222);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

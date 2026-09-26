@@ -22,6 +22,7 @@ export interface SecondaryPanelPaneRenderContext {
 
 export interface SecondaryPanelRenderableTab {
   contentFillsRegion?: boolean;
+  downloadUrl?: string | null;
   label: string;
   isHidden?: boolean;
   isPinned?: boolean;

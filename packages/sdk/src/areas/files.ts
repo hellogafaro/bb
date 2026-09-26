@@ -76,6 +76,23 @@ export interface FilePreviewArgs {
   ttlMs?: number;
 }
 
+export type RawFileSource =
+  | { kind: "worktree"; threadId: string; path: string }
+  | { kind: "threadStorage"; threadId: string; path: string }
+  | { kind: "hostFile"; threadId: string; path: string }
+  | {
+      kind: "project";
+      projectId: string;
+      path: string;
+      hostId?: string;
+      environmentId?: string;
+    };
+
+export interface RawFileUrlArgs {
+  source: RawFileSource;
+  download?: boolean;
+}
+
 export type FileReadResult = HostFileReadResponse;
 export type FileReadNotModifiedResult = HostFileReadNotModifiedResponse;
 export type FileWriteResult = HostFileWriteResponse;
@@ -100,6 +117,61 @@ export interface FilesArea {
   move(args: FileMoveArgs): Promise<FileMoveResult>;
   remove(args: FileRemoveArgs): Promise<FileRemoveResult>;
   createPreview(args: FilePreviewArgs): Promise<FilePreviewResult>;
+  /** Builds the raw byte URL for a file. The route streams any size, answers
+   * single HTTP byte ranges, and sends an attachment disposition when
+   * `download` is true. */
+  experimental_rawFileUrl(args: RawFileUrlArgs): string;
+}
+
+function encodePathSegments(filePath: string): string {
+  return filePath
+    .split("/")
+    .filter((segment) => segment !== "")
+    .map(encodeURIComponent)
+    .join("/");
+}
+
+function rawFilePathAndQuery(source: RawFileSource): {
+  pathname: string;
+  query: Record<string, string>;
+} {
+  switch (source.kind) {
+    case "worktree":
+      return {
+        pathname: `threads/${encodeURIComponent(source.threadId)}/worktree/files/${encodePathSegments(source.path)}`,
+        query: {},
+      };
+    case "threadStorage":
+      return {
+        pathname: `threads/${encodeURIComponent(source.threadId)}/thread-storage/files/${encodePathSegments(source.path)}`,
+        query: {},
+      };
+    case "hostFile":
+      return {
+        pathname: `threads/${encodeURIComponent(source.threadId)}/host-files/content`,
+        query: { path: source.path },
+      };
+    case "project":
+      return {
+        pathname: `projects/${encodeURIComponent(source.projectId)}/files/content`,
+        query: {
+          path: source.path,
+          ...(source.hostId !== undefined ? { hostId: source.hostId } : {}),
+          ...(source.environmentId !== undefined
+            ? { environmentId: source.environmentId }
+            : {}),
+        },
+      };
+  }
+}
+
+function buildRawFileUrl(baseUrl: string, args: RawFileUrlArgs): string {
+  const { pathname, query } = rawFilePathAndQuery(args.source);
+  const search = new URLSearchParams({
+    ...query,
+    ...(args.download ? { download: "1" } : {}),
+  }).toString();
+  return `${baseUrl.replace(/\/$/u, "")}/api/v1/${pathname}${search === "" ? "" : `?${search}`}`;
 }
 
 export function createFilesArea(args: CreateSdkAreaArgs): FilesArea {
@@ -193,6 +265,9 @@ export function createFilesArea(args: CreateSdkAreaArgs): FilesArea {
       return transport.readJson(
         transport.api.v1.files.remove.$post({ json: input }),
       );
+    },
+    experimental_rawFileUrl(input) {
+      return buildRawFileUrl(transport.baseUrl, input);
     },
     async createPreview(input) {
       return transport.readJson(

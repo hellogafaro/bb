@@ -53,6 +53,7 @@ function transport(): FilesTransport {
       { name: "app.ts", kind: "file" as const, relativePath: "src/app.ts" },
     ]),
     isMissing: () => false,
+    isTooLarge: () => false,
   };
 }
 

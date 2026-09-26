@@ -238,6 +238,7 @@ import type {
   ThreadFilesRawQuery,
   ThreadGetQuery,
   ThreadHostFileContentQuery,
+  RawFileDownloadQuery,
   ThreadCountQuery,
   ThreadCountResponse,
   ThreadListQuery,
@@ -372,6 +373,7 @@ import {
   threadFilesRawQuerySchema,
   threadGetQuerySchema,
   threadHostFileContentQuerySchema,
+  rawFileDownloadQuerySchema,
   threadCountQuerySchema,
   threadListQuerySchema,
   threadOpenRequestSchema,
@@ -1692,7 +1694,10 @@ export const publicApiRoutes = {
     storageFile: defineRoute({
       path: "/threads/:id/thread-storage/files/:filePath{.+}",
       method: "get",
-      request: noRequest<PathThreadAndFilePath>(),
+      request: optionalQueryRequest<
+        PathThreadAndFilePath,
+        RawFileDownloadQuery
+      >(rawFileDownloadQuerySchema),
       response: binaryResponse<Uint8Array>(),
     }),
     storagePaths: defineRoute({
@@ -1722,7 +1727,10 @@ export const publicApiRoutes = {
     worktreeFile: defineRoute({
       path: "/threads/:id/worktree/files/:filePath{.+}",
       method: "get",
-      request: noRequest<PathThreadAndFilePath>(),
+      request: optionalQueryRequest<
+        PathThreadAndFilePath,
+        RawFileDownloadQuery
+      >(rawFileDownloadQuerySchema),
       response: binaryResponse<Uint8Array>(),
     }),
     rawFile: defineRoute({

@@ -7,12 +7,8 @@ import type {
   PromptHistoryResponse,
   WorkspacePathListResponse,
 } from "@bb/server-contract";
-import {
-  buildFilePreview,
-  normalizeFilePreviewMimeType,
-  type FilePreview,
-} from "@bb/client-core";
-import { decodeBase64Bytes } from "@/lib/base64-bytes";
+import type { FilePreview } from "@bb/client-core";
+import { loadFilePreview } from "@/lib/api";
 import { buildProjectFileContentUrl } from "@/lib/file-content-urls";
 import { readProjectBranchOptions } from "@/lib/project-branch-options";
 import { sdk } from "@/lib/sdk";
@@ -257,33 +253,20 @@ export function useProjectFilePreview(
         hookName: "useProjectFilePreview",
         argName: "path",
       });
-      const content = await sdk.projects.fileContent({
-        projectId: requiredProjectId,
-        path: requiredPath,
+      return loadFilePreview(
+        {
+          name: requiredPath.split("/").at(-1),
+          path: requiredPath,
+          url: buildProjectFileContentUrl(requiredProjectId, requiredPath, {
+            ...(routing.environmentId !== null
+              ? { environmentId: routing.environmentId }
+              : routing.hostId !== null
+                ? { hostId: routing.hostId }
+                : {}),
+          }),
+        },
         signal,
-        ...(routing.environmentId !== null
-          ? { environmentId: routing.environmentId }
-          : routing.hostId !== null
-            ? { hostId: routing.hostId }
-            : {}),
-      });
-      const contentBytes =
-        content.contentEncoding === "base64"
-          ? decodeBase64Bytes(content.content)
-          : new TextEncoder().encode(content.content);
-      return buildFilePreview({
-        contentBytes,
-        mimeType: normalizeFilePreviewMimeType(content.mimeType),
-        name: requiredPath.split("/").at(-1),
-        path: requiredPath,
-        url: buildProjectFileContentUrl(requiredProjectId, requiredPath, {
-          ...(routing.environmentId !== null
-            ? { environmentId: routing.environmentId }
-            : routing.hostId !== null
-              ? { hostId: routing.hostId }
-              : {}),
-        }),
-      });
+      );
     },
     enabled,
     ...EXPENSIVE_MANUAL_QUERY_POLICY,

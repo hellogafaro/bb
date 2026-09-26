@@ -10,12 +10,14 @@ export interface DiskFile {
   encoding: "utf8" | "base64";
   mimeType: string | null;
   sha256: string;
+  sizeBytes: number;
 }
 
 export type DiskState =
   | { status: "loading" }
   | { status: "ready"; file: DiskFile }
   | { status: "missing" }
+  | { status: "too-large" }
   | { status: "error"; message: string };
 
 export interface DiskChange {
@@ -77,6 +79,7 @@ function sameDiskState(left: DiskState, right: DiskState): boolean {
   switch (left.status) {
     case "loading":
     case "missing":
+    case "too-large":
       return right.status === left.status;
     case "error":
       return right.status === "error" && right.message === left.message;
@@ -225,6 +228,7 @@ export class FileDocumentStore {
               encoding: "utf8",
               mimeType: previous?.mimeType ?? null,
               sha256: result.sha256,
+              sizeBytes: result.sizeBytes,
             },
           },
           writer,
@@ -312,6 +316,7 @@ export class FileDocumentStore {
             encoding: file.contentEncoding,
             mimeType: file.mimeType ?? null,
             sha256: file.sha256,
+            sizeBytes: file.sizeBytes,
           },
         },
         null,
@@ -322,7 +327,9 @@ export class FileDocumentStore {
         entry,
         this.transport.isMissing(error)
           ? { status: "missing" }
-          : { status: "error", message: errorMessage(error) },
+          : this.transport.isTooLarge(error)
+            ? { status: "too-large" }
+            : { status: "error", message: errorMessage(error) },
         null,
       );
     } finally {
@@ -356,6 +363,7 @@ export class FileDocumentStore {
             encoding: result.contentEncoding,
             mimeType: result.mimeType ?? null,
             sha256: result.sha256,
+            sizeBytes: result.sizeBytes,
           },
         },
         null,

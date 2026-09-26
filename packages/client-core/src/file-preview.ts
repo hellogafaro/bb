@@ -24,6 +24,83 @@ const CSV_FILE_EXTENSIONS = [".csv"];
 const CSV_MIME_TYPES = new Set(["application/csv", "text/csv"]);
 const HTML_FILE_EXTENSION = ".html";
 const NULL_CHARACTER = "\u0000";
+const PDF_MIME_TYPE = "application/pdf";
+
+export const TEXT_FILE_PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
+
+export type OfficeDocumentFormat = "docx" | "pptx" | "xlsx";
+
+export type StreamedFilePreviewType =
+  | { kind: "audio" | "image" | "pdf" | "video"; mimeType: string }
+  | { kind: "office"; format: OfficeDocumentFormat; mimeType: string };
+
+const OFFICE_MIME_TYPES = new Map<string, OfficeDocumentFormat>([
+  [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "docx",
+  ],
+  [
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "pptx",
+  ],
+  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"],
+]);
+
+function officeType(format: OfficeDocumentFormat): StreamedFilePreviewType {
+  const mimeType = [...OFFICE_MIME_TYPES].find(
+    ([, candidate]) => candidate === format,
+  )?.[0];
+  return {
+    kind: "office",
+    format,
+    mimeType: mimeType ?? DEFAULT_FILE_PREVIEW_MIME_TYPE,
+  };
+}
+
+const STREAMED_FILE_PREVIEW_TYPES = new Map<string, StreamedFilePreviewType>([
+  ["apng", { kind: "image", mimeType: "image/apng" }],
+  ["avif", { kind: "image", mimeType: "image/avif" }],
+  ["bmp", { kind: "image", mimeType: "image/bmp" }],
+  ["gif", { kind: "image", mimeType: "image/gif" }],
+  ["heic", { kind: "image", mimeType: "image/heic" }],
+  ["heif", { kind: "image", mimeType: "image/heif" }],
+  ["ico", { kind: "image", mimeType: "image/vnd.microsoft.icon" }],
+  ["jpeg", { kind: "image", mimeType: "image/jpeg" }],
+  ["jpg", { kind: "image", mimeType: "image/jpeg" }],
+  ["png", { kind: "image", mimeType: "image/png" }],
+  ["svg", { kind: "image", mimeType: "image/svg+xml" }],
+  ["svgz", { kind: "image", mimeType: "image/svg+xml" }],
+  ["tif", { kind: "image", mimeType: "image/tiff" }],
+  ["tiff", { kind: "image", mimeType: "image/tiff" }],
+  ["webp", { kind: "image", mimeType: "image/webp" }],
+  ["3g2", { kind: "video", mimeType: "video/3gpp2" }],
+  ["3gp", { kind: "video", mimeType: "video/3gpp" }],
+  ["avi", { kind: "video", mimeType: "video/x-msvideo" }],
+  ["m4v", { kind: "video", mimeType: "video/x-m4v" }],
+  ["mkv", { kind: "video", mimeType: "video/x-matroska" }],
+  ["mov", { kind: "video", mimeType: "video/quicktime" }],
+  ["mp4", { kind: "video", mimeType: "video/mp4" }],
+  ["mpeg", { kind: "video", mimeType: "video/mpeg" }],
+  ["mpg", { kind: "video", mimeType: "video/mpeg" }],
+  ["ogv", { kind: "video", mimeType: "video/ogg" }],
+  ["webm", { kind: "video", mimeType: "video/webm" }],
+  ["wmv", { kind: "video", mimeType: "video/x-ms-wmv" }],
+  ["aac", { kind: "audio", mimeType: "audio/aac" }],
+  ["aif", { kind: "audio", mimeType: "audio/aiff" }],
+  ["aiff", { kind: "audio", mimeType: "audio/aiff" }],
+  ["flac", { kind: "audio", mimeType: "audio/flac" }],
+  ["m4a", { kind: "audio", mimeType: "audio/mp4" }],
+  ["mp3", { kind: "audio", mimeType: "audio/mpeg" }],
+  ["oga", { kind: "audio", mimeType: "audio/ogg" }],
+  ["ogg", { kind: "audio", mimeType: "audio/ogg" }],
+  ["opus", { kind: "audio", mimeType: "audio/opus" }],
+  ["wav", { kind: "audio", mimeType: "audio/wav" }],
+  ["weba", { kind: "audio", mimeType: "audio/webm" }],
+  ["pdf", { kind: "pdf", mimeType: PDF_MIME_TYPE }],
+  ["docx", officeType("docx")],
+  ["pptx", officeType("pptx")],
+  ["xlsx", officeType("xlsx")],
+]);
 
 export interface FilePreviewTarget {
   name?: string;
@@ -32,7 +109,7 @@ export interface FilePreviewTarget {
 }
 
 interface FilePreviewBase extends FilePreviewTarget {
-  kind: "image" | "text" | "unsupported" | "video";
+  kind: "audio" | "image" | "office" | "pdf" | "text" | "unsupported" | "video";
   mimeType: string;
 }
 
@@ -44,20 +121,38 @@ interface VideoFilePreview extends FilePreviewBase {
   kind: "video";
 }
 
+interface AudioFilePreview extends FilePreviewBase {
+  kind: "audio";
+}
+
+interface PdfFilePreview extends FilePreviewBase {
+  kind: "pdf";
+}
+
+export interface OfficeFilePreview extends FilePreviewBase {
+  kind: "office";
+  format: OfficeDocumentFormat;
+}
+
 export interface TextFilePreview extends FilePreviewBase {
   kind: "text";
   content: string;
 }
 
-interface UnsupportedFilePreview extends FilePreviewBase {
+export interface UnsupportedFilePreview extends FilePreviewBase {
   kind: "unsupported";
+  reason: "too-large" | "type";
+  sizeBytes: number | null;
 }
 
 export type FilePreview =
+  | AudioFilePreview
   | ImageFilePreview
-  | VideoFilePreview
+  | OfficeFilePreview
+  | PdfFilePreview
   | TextFilePreview
-  | UnsupportedFilePreview;
+  | UnsupportedFilePreview
+  | VideoFilePreview;
 
 export type EnvironmentFilePreviewSource =
   | { kind: "working-tree" }
@@ -167,6 +262,86 @@ interface BuildFilePreviewArgs extends FilePreviewTarget {
   mimeType: string;
 }
 
+interface BuildUnsupportedFilePreviewArgs extends FilePreviewTarget {
+  mimeType: string;
+  reason: UnsupportedFilePreview["reason"];
+  sizeBytes: number | null;
+}
+
+function filePreviewExtension(path: string): string {
+  const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? "" : name.slice(dot + 1);
+}
+
+function getStreamedFilePreviewTypeForMimeType(
+  mimeType: string,
+): StreamedFilePreviewType | null {
+  if (mimeType === PDF_MIME_TYPE) {
+    return { kind: "pdf", mimeType };
+  }
+  if (mimeType.startsWith("audio/")) {
+    return { kind: "audio", mimeType };
+  }
+  if (mimeType.startsWith("video/")) {
+    return { kind: "video", mimeType };
+  }
+  const format = OFFICE_MIME_TYPES.get(mimeType);
+  return format === undefined ? null : { kind: "office", format, mimeType };
+}
+
+export function getStreamedFilePreviewType(
+  path: string,
+  mimeType: string | null = null,
+): StreamedFilePreviewType | null {
+  const byExtension = STREAMED_FILE_PREVIEW_TYPES.get(
+    filePreviewExtension(path),
+  );
+  if (byExtension !== undefined) {
+    return byExtension;
+  }
+  if (mimeType === null) {
+    return null;
+  }
+  const normalizedMimeType = normalizeFilePreviewMimeType(mimeType);
+  if (normalizedMimeType.startsWith("image/")) {
+    return { kind: "image", mimeType: normalizedMimeType };
+  }
+  return getStreamedFilePreviewTypeForMimeType(normalizedMimeType);
+}
+
+export function hasStreamedFilePreviewRenderer(
+  type: StreamedFilePreviewType,
+): boolean {
+  return type.kind !== "office" || type.format !== "pptx";
+}
+
+export function buildStreamedFilePreview(
+  target: FilePreviewTarget,
+  type: StreamedFilePreviewType,
+): FilePreview {
+  return { ...type, ...target };
+}
+
+export function buildUnsupportedFilePreview({
+  mimeType,
+  name,
+  path,
+  reason,
+  sizeBytes,
+  url,
+}: BuildUnsupportedFilePreviewArgs): UnsupportedFilePreview {
+  return {
+    kind: "unsupported",
+    mimeType,
+    name,
+    path,
+    reason,
+    sizeBytes,
+    url,
+  };
+}
+
 function isKnownTextMimeType(mimeType: string): boolean {
   return (
     mimeType.startsWith("text/") ||
@@ -233,6 +408,51 @@ export function isCsvFilePreview(preview: FilePreview): boolean {
   );
 }
 
+interface BuildOversizedFilePreviewArgs extends FilePreviewTarget {
+  mimeType: string;
+  prefixBytes: Uint8Array;
+  sizeBytes: number;
+}
+
+function isUtf8TextPrefix(prefixBytes: Uint8Array): boolean {
+  try {
+    const content = new TextDecoder("utf-8", { fatal: true }).decode(
+      prefixBytes,
+      { stream: true },
+    );
+    return !content.includes(NULL_CHARACTER);
+  } catch {
+    return false;
+  }
+}
+
+export function buildOversizedFilePreview({
+  mimeType,
+  prefixBytes,
+  sizeBytes,
+  ...target
+}: BuildOversizedFilePreviewArgs): FilePreview {
+  if (isKnownTextMimeType(mimeType) || isUtf8TextPrefix(prefixBytes)) {
+    return buildUnsupportedFilePreview({
+      ...target,
+      mimeType,
+      reason: "too-large",
+      sizeBytes,
+    });
+  }
+  const streamedType = mimeType.startsWith("image/")
+    ? { kind: "image" as const, mimeType }
+    : getStreamedFilePreviewTypeForMimeType(mimeType);
+  return streamedType === null || !hasStreamedFilePreviewRenderer(streamedType)
+    ? buildUnsupportedFilePreview({
+        ...target,
+        mimeType,
+        reason: "type",
+        sizeBytes,
+      })
+    : buildStreamedFilePreview(target, streamedType);
+}
+
 export function buildFilePreview(args: BuildFilePreviewArgs): FilePreview {
   const base = {
     mimeType: args.mimeType,
@@ -248,13 +468,16 @@ export function buildFilePreview(args: BuildFilePreviewArgs): FilePreview {
     };
   }
 
+  const unsupported = buildUnsupportedFilePreview({
+    ...base,
+    reason: "type",
+    sizeBytes: args.contentBytes.byteLength,
+  });
+
   if (isKnownTextMimeType(args.mimeType)) {
     const textContent = decodeDeclaredTextContent(args.contentBytes);
     if (textContent === null) {
-      return {
-        kind: "unsupported",
-        ...base,
-      };
+      return unsupported;
     }
     return {
       kind: "text",
@@ -272,15 +495,8 @@ export function buildFilePreview(args: BuildFilePreviewArgs): FilePreview {
     };
   }
 
-  if (args.mimeType.startsWith("video/")) {
-    return {
-      kind: "video",
-      ...base,
-    };
-  }
-
-  return {
-    kind: "unsupported",
-    ...base,
-  };
+  const streamedType = getStreamedFilePreviewTypeForMimeType(args.mimeType);
+  return streamedType === null || !hasStreamedFilePreviewRenderer(streamedType)
+    ? unsupported
+    : buildStreamedFilePreview(base, streamedType);
 }

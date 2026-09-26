@@ -35,6 +35,26 @@ interface MockPierreFileProps {
   } | null;
 }
 
+const officeModuleLoads = vi.hoisted(() => ({ mammoth: 0, xlsx: 0 }));
+
+vi.mock("mammoth", () => {
+  officeModuleLoads.mammoth += 1;
+  return {
+    default: {
+      convertToHtml: async () => ({
+        messages: [],
+        value:
+          '<h1>Launch plan</h1><p>Ship <strong>Friday</strong>.</p><p><img src="data:image/png;base64,AA" /></p><p><a href="javascript:alert(1)">bad link</a></p>',
+      }),
+    },
+  };
+});
+
+vi.mock("xlsx", async (importOriginal) => {
+  officeModuleLoads.xlsx += 1;
+  return importOriginal();
+});
+
 const pierreMock = vi.hoisted(() => {
   interface WorkerStats {
     activeTasks: number;
@@ -856,12 +876,12 @@ describe("FilePreview", () => {
         activePath="docs/huge.bin"
         error={
           new HttpError({
-            status: 413,
-            message: "File is too large to preview",
-            code: "file_too_large",
+            status: 502,
+            message: "Host is not connected",
+            code: "host_unavailable",
             body: {
-              code: "file_too_large",
-              message: "File is too large to preview",
+              code: "host_unavailable",
+              message: "Host is not connected",
             },
           })
         }
@@ -870,9 +890,7 @@ describe("FilePreview", () => {
       />,
     );
 
-    expect(screen.getByRole("alert").textContent).toBe(
-      "File is too large to preview",
-    );
+    expect(screen.getByRole("alert").textContent).toBe("Host is not connected");
   });
 
   it("states the reason an SDK-sourced file preview failed", () => {
@@ -950,13 +968,16 @@ describe("FilePreview", () => {
   it("does not announce an unsupported preview type as an alert", () => {
     render(
       <SecondaryPanelFilePreview
-        activePath="docs/report.pdf"
+        activePath="dist/bundle.zip"
+        downloadUrl="/api/v1/threads/t/worktree/files/dist/bundle.zip?download=1"
         filePreview={{
           kind: "unsupported",
-          mimeType: "application/pdf",
-          name: "report.pdf",
-          path: "docs/report.pdf",
-          url: "/api/v1/preview/report",
+          mimeType: "application/zip",
+          name: "bundle.zip",
+          path: "dist/bundle.zip",
+          reason: "type",
+          sizeBytes: 4_812_300,
+          url: "/api/v1/threads/t/worktree/files/dist/bundle.zip",
         }}
         isLoading={false}
       />,
@@ -964,21 +985,292 @@ describe("FilePreview", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
     expect(
-      screen.getByText("Preview not available for application/pdf."),
+      screen.getByText("Preview isn't available for .zip files."),
     ).not.toBeNull();
+    expect(screen.getByText("bundle.zip")).not.toBeNull();
+    expect(screen.getByText("application/zip · 4.6 MB")).not.toBeNull();
   });
 
-  it("does not show the file preview actions menu for non-text previews", () => {
+  it("downloads an unsupported file from the card with the raw download url", () => {
+    const clicked: HTMLAnchorElement[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        clicked.push(this);
+      },
+    );
+    const onOpenInEditor = vi.fn();
     render(
-      <FilePreview
-        path="docs/screenshots/right-panel.png"
-        state={{ kind: "image", url: "/preview/right-panel.png" }}
+      <SecondaryPanelFilePreview
+        activePath="dist/bundle.zip"
+        downloadUrl="/api/v1/threads/t/worktree/files/dist/bundle.zip?download=1"
+        filePreview={{
+          kind: "unsupported",
+          mimeType: "application/zip",
+          path: "dist/bundle.zip",
+          reason: "type",
+          sizeBytes: 12,
+          url: "/api/v1/threads/t/worktree/files/dist/bundle.zip",
+        }}
+        isLoading={false}
+        onOpenInEditor={onOpenInEditor}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    expect(clicked).toHaveLength(1);
+    expect(clicked[0]?.getAttribute("href")).toBe(
+      "/api/v1/threads/t/worktree/files/dist/bundle.zip?download=1",
+    );
+    expect(clicked[0]?.download).toBe("bundle.zip");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open externally" }));
+    expect(onOpenInEditor).toHaveBeenCalledWith("dist/bundle.zip");
+  });
+
+  it("shows the too-large card when the preview route rejects the size", () => {
+    render(
+      <SecondaryPanelFilePreview
+        activePath="logs/huge.log"
+        downloadUrl="/raw/logs/huge.log?download=1"
+        error={new HttpError({ status: 413, message: "Payload Too Large" })}
+        filePreview={undefined}
+        isLoading={false}
       />,
     );
 
     expect(
-      screen.queryByRole("button", { name: "File preview actions" }),
+      screen.getByText("This file is too large to preview."),
+    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Download" })).not.toBeNull();
+  });
+
+  it("streams PDFs into an iframe with a rendering overlay", () => {
+    render(
+      <SecondaryPanelFilePreview
+        activePath="docs/report.pdf"
+        filePreview={{
+          kind: "pdf",
+          mimeType: "application/pdf",
+          path: "docs/report.pdf",
+          url: "/api/v1/threads/t/worktree/files/docs/report.pdf",
+        }}
+        isLoading={false}
+      />,
+    );
+
+    const frame = screen.getByTitle("docs/report.pdf");
+    expect(frame.tagName).toBe("IFRAME");
+    expect(frame.getAttribute("src")).toBe(
+      "/api/v1/threads/t/worktree/files/docs/report.pdf",
+    );
+    expect(
+      screen.getByRole("status", { name: "Rendering docs/report.pdf" }),
+    ).not.toBeNull();
+    fireEvent.load(frame);
+    expect(
+      screen.queryByRole("status", { name: "Rendering docs/report.pdf" }),
     ).toBeNull();
+  });
+
+  it("offers Open and Download instead of an iframe for PDFs on iOS", () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    );
+    render(
+      <FilePreview
+        path="docs/report.pdf"
+        downloadUrl="/raw/docs/report.pdf?download=1"
+        state={{ kind: "pdf", url: "/raw/docs/report.pdf" }}
+      />,
+    );
+
+    expect(screen.queryByTitle("docs/report.pdf")).toBeNull();
+    expect(screen.getByRole("button", { name: "Open" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Download" })).not.toBeNull();
+  });
+
+  it("plays audio and video straight from the raw url", () => {
+    const { container, rerender } = render(
+      <FilePreview
+        path="media/standup.mp3"
+        state={{ kind: "audio", url: "/raw/media/standup.mp3" }}
+      />,
+    );
+    const audio = container.querySelector("audio");
+    expect(audio?.getAttribute("src")).toBe("/raw/media/standup.mp3");
+    expect(audio?.hasAttribute("controls")).toBe(true);
+    expect(screen.getByText("standup.mp3")).not.toBeNull();
+
+    rerender(
+      <FilePreview
+        path="media/demo.mp4"
+        state={{ kind: "video", url: "/raw/media/demo.mp4" }}
+      />,
+    );
+    const video = container.querySelector("video");
+    expect(video?.getAttribute("src")).toBe("/raw/media/demo.mp4");
+    expect(video?.getAttribute("preload")).toBe("metadata");
+  });
+
+  it("resolves streamed preview kinds into their surface states", () => {
+    const { rerender } = render(
+      <SecondaryPanelFilePreview
+        activePath="decks/roadmap.pptx"
+        downloadUrl="/raw/decks/roadmap.pptx?download=1"
+        filePreview={{
+          kind: "unsupported",
+          mimeType: "application/vnd.ms-powerpoint",
+          path: "decks/roadmap.pptx",
+          reason: "type",
+          sizeBytes: 2_400_000,
+          url: "/raw/decks/roadmap.pptx",
+        }}
+        isLoading={false}
+      />,
+    );
+    expect(
+      screen.getByText("Preview isn't available for .pptx files."),
+    ).not.toBeNull();
+    expect(
+      screen.getByText("application/vnd.ms-powerpoint · 2.3 MB"),
+    ).not.toBeNull();
+
+    rerender(
+      <SecondaryPanelFilePreview
+        activePath="media/clip.ogg"
+        filePreview={{
+          kind: "audio",
+          mimeType: "audio/ogg",
+          path: "media/clip.ogg",
+          url: "/raw/media/clip.ogg",
+        }}
+        isLoading={false}
+      />,
+    );
+    expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+      "/raw/media/clip.ogg",
+    );
+  });
+
+  it("offers copy, download, and open actions from the header menu", async () => {
+    const clicked: HTMLAnchorElement[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        clicked.push(this);
+      },
+    );
+    const onOpenInEditor = vi.fn();
+    render(
+      <SecondaryPanelFilePreview
+        activePath="notes/todo.txt"
+        filePreview={{
+          kind: "text",
+          content: "ship it",
+          mimeType: "text/plain",
+          path: "notes/todo.txt",
+          url: "/raw/notes/todo.txt",
+        }}
+        isLoading={false}
+        onOpenInEditor={onOpenInEditor}
+      />,
+    );
+
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "File actions" }),
+      { button: 0, ctrlKey: false },
+    );
+    const items = (await screen.findAllByRole("menuitem")).map(
+      (item) => item.textContent,
+    );
+    expect(items).toEqual([
+      "Copy path",
+      "Copy contents",
+      "Download",
+      "Open in editor",
+    ]);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Download" }));
+    expect(clicked[0]?.getAttribute("href")).toBe(
+      "data:text/plain;charset=utf-8,ship%20it",
+    );
+    expect(clicked[0]?.download).toBe("todo.txt");
+  });
+
+  it("keeps Download but not Copy contents in the menu for binary previews", async () => {
+    render(
+      <FilePreview
+        path="docs/screenshots/right-panel.png"
+        downloadUrl="/raw/right-panel.png?download=1"
+        state={{ kind: "image", url: "/preview/right-panel.png" }}
+      />,
+    );
+
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "File actions" }),
+      { button: 0, ctrlKey: false },
+    );
+    const items = (await screen.findAllByRole("menuitem")).map(
+      (item) => item.textContent,
+    );
+    expect(items).toEqual(["Copy path", "Download"]);
+  });
+
+  it("loads the docx renderer chunk only when a docx preview mounts", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([80, 75, 3, 4]), {
+        headers: { "content-length": "4" },
+        status: 200,
+      }),
+    );
+    const { rerender } = render(
+      <FilePreview
+        path="docs/report.pdf"
+        state={{ kind: "pdf", url: "/raw/docs/report.pdf" }}
+      />,
+    );
+    expect(officeModuleLoads.mammoth).toBe(0);
+    expect(officeModuleLoads.xlsx).toBe(0);
+
+    rerender(
+      <FilePreview
+        path="docs/plan.docx"
+        state={{ kind: "office", format: "docx", url: "/raw/docs/plan.docx" }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Launch plan" }),
+    ).not.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/raw/docs/plan.docx",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(officeModuleLoads.mammoth).toBe(1);
+    expect(officeModuleLoads.xlsx).toBe(0);
+    expect(document.querySelector("img")).toBeNull();
+    expect(
+      screen.getByText("bad link").closest("a")?.getAttribute("href") ?? "",
+    ).not.toContain("javascript:");
+  });
+
+  it("shows the too-large card when an office document exceeds the budget", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        headers: { "content-length": String(64 * 1024 * 1024) },
+        status: 200,
+      }),
+    );
+    render(
+      <FilePreview
+        path="docs/huge.docx"
+        downloadUrl="/raw/docs/huge.docx?download=1"
+        state={{ kind: "office", format: "docx", url: "/raw/docs/huge.docx" }}
+      />,
+    );
+
+    expect(
+      await screen.findByText("This file is too large to preview."),
+    ).not.toBeNull();
   });
 
   it("passes cache keys for loaded text previews to Pierre", async () => {

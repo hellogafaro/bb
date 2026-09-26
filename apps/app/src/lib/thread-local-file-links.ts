@@ -5,6 +5,7 @@ import {
   normalizeAbsoluteFilePath,
 } from "./absolute-file-path";
 import { isRoutePath } from "./route-paths";
+import { buildRawFileUrl } from "./raw-file-url";
 
 const THREAD_LOCAL_FILE_LINK_UNAVAILABLE_DESCRIPTION =
   "Thread file links are only available when the thread has an environment.";
@@ -185,4 +186,39 @@ export function resolveThreadLocalFileLink(
       path: normalizedPath,
     },
   };
+}
+
+export function buildThreadLocalFileDownloadUrl(
+  resolution: ThreadLocalFileLinkResolution,
+  threadId: string,
+): string | null {
+  switch (resolution.kind) {
+    case "open-workspace-path":
+      return buildRawFileUrl(
+        {
+          kind: "workspace",
+          environmentId: null,
+          hostId: null,
+          projectId: null,
+          threadId,
+        },
+        resolution.request.relativePath,
+        { download: true },
+      );
+    case "open-thread-storage-path":
+      return buildRawFileUrl(
+        { kind: "thread-storage", threadId },
+        resolution.request.relativePath,
+        { download: true },
+      );
+    case "open-host-path":
+      return buildRawFileUrl(
+        { kind: "host", threadId },
+        resolution.request.path,
+        { download: true },
+      );
+    case "app-route":
+    case "error":
+      return null;
+  }
 }

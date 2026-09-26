@@ -665,7 +665,7 @@ function MarkdownAnchor({
   );
 }
 
-function renderMarkdownLocalFileContextMenuItem(
+export function renderMarkdownLocalFileContextMenuItem(
   item: MarkdownLocalFileContextMenuItem,
 ) {
   if (item.type === "separator") {

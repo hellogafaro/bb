@@ -22,6 +22,7 @@ import {
   readFileForTransport,
   readFileFromGitRef,
   readFileMetadataForTransport,
+  readFileRangeForTransport,
   readRootRelativeFileForTransport,
   type ReadFileContentForTransportResult,
 } from "./file-read.js";
@@ -249,6 +250,19 @@ export async function readHostFileMetadata(
 ): Promise<HostDaemonOnlineRpcResult<"host.file_metadata">> {
   assertAbsoluteHostDiskPathCommand(command);
   return readFileMetadataForTransport({
+    resolvedPath: command.path,
+    resultPath: command.path,
+    ...(command.rootPath !== undefined ? { rootPath: command.rootPath } : {}),
+  });
+}
+
+export async function readHostFileRange(
+  command: CommandOf<"host.read_file_range">,
+): Promise<HostDaemonOnlineRpcResult<"host.read_file_range">> {
+  assertAbsoluteHostDiskPathCommand(command);
+  return readFileRangeForTransport({
+    length: command.length,
+    offset: command.offset,
     resolvedPath: command.path,
     resultPath: command.path,
     ...(command.rootPath !== undefined ? { rootPath: command.rootPath } : {}),

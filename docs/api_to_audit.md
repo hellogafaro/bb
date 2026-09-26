@@ -3077,6 +3077,23 @@ Before stabilizing, decide whether the condition belongs on `read` itself
 (a union result would break existing typed callers) and whether a
 modification-time precheck should let the host skip hashing unchanged files.
 
+## Raw file URLs (`files.experimental_rawFileUrl`)
+
+`files.experimental_rawFileUrl({ source, download? })` returns the URL of a raw
+byte route without making a request. `source` is one of
+`{ kind: "worktree" | "threadStorage", threadId, path }` (thread-relative
+path), `{ kind: "hostFile", threadId, path }` (absolute path on the thread's
+machine), or `{ kind: "project", projectId, path, hostId?, environmentId? }`.
+The routes stream files of any size in bounded chunks, answer a single
+`Range: bytes=` request with 206 or 416, and add
+`Content-Disposition: attachment` with an RFC 5987 file name when
+`download` is true (`?download=1`). `bb file download` is the CLI form.
+
+Before stabilizing, decide whether the SDK should also offer a streaming
+download call (the node transport's request timeout currently rules that out
+for large files) and whether `source` should share one type with file-link and
+viewer sources.
+
 ## Moving the server (`bb.sdk.experimental_server`, `hosts.experimental_deleteOldServerCopy`)
 
 `experimental_server.checkMove({ targetHostId, serverUrl })` returns the pre-move

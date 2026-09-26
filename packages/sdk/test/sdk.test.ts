@@ -189,6 +189,55 @@ describe("@bb/sdk", () => {
     ]);
   });
 
+  it("builds raw file URLs for every file source", () => {
+    const sdk = createBbSdk({
+      transport: createHttpTransport({
+        baseUrl: "http://bb.test/",
+        fetch: createFetchQueue([]).fetch,
+        runtime: "node",
+      }),
+    });
+
+    expect(
+      sdk.files.experimental_rawFileUrl({
+        source: {
+          kind: "worktree",
+          threadId: "thr 1",
+          path: "clips/movie night#1.mp4",
+        },
+        download: true,
+      }),
+    ).toBe(
+      "http://bb.test/api/v1/threads/thr%201/worktree/files/clips/movie%20night%231.mp4?download=1",
+    );
+    expect(
+      sdk.files.experimental_rawFileUrl({
+        source: { kind: "threadStorage", threadId: "thr_1", path: "a/b.pdf" },
+      }),
+    ).toBe("http://bb.test/api/v1/threads/thr_1/thread-storage/files/a/b.pdf");
+    expect(
+      sdk.files.experimental_rawFileUrl({
+        source: { kind: "hostFile", threadId: "thr_1", path: "/tmp/a&b.txt" },
+        download: true,
+      }),
+    ).toBe(
+      "http://bb.test/api/v1/threads/thr_1/host-files/content?path=%2Ftmp%2Fa%26b.txt&download=1",
+    );
+    expect(
+      sdk.files.experimental_rawFileUrl({
+        source: {
+          kind: "project",
+          projectId: "proj_1",
+          path: "docs/spec.docx",
+          hostId: "host_1",
+        },
+        download: false,
+      }),
+    ).toBe(
+      "http://bb.test/api/v1/projects/proj_1/files/content?path=docs%2Fspec.docx&hostId=host_1",
+    );
+  });
+
   it("reads provider installation events through the response instance", async () => {
     const events = [
       {

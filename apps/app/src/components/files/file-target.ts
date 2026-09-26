@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useEnvironment } from "@/hooks/queries/environment-queries";
 import { useThreadStorageLocation } from "@/hooks/queries/thread-queries";
+import type { RawFileSource } from "@/lib/raw-file-url";
 import { joinRoot } from "./file-paths";
 import { FILES_COPY } from "./files-copy";
 import type { FileLocation } from "./files-transport";
@@ -9,12 +10,50 @@ export type FileTargetSource =
   | { kind: "workspace"; environmentId: string; path: string }
   | { kind: "thread-storage"; threadId: string; path: string }
   | { kind: "host"; hostId: string; path: string }
-  | { kind: "environment-host"; environmentId: string; path: string };
+  | {
+      kind: "environment-host";
+      environmentId: string;
+      path: string;
+      threadId: string;
+    };
 
 type FileTargetResolution =
   | { status: "loading" }
   | { status: "unavailable"; message: string }
-  | { status: "ready"; location: FileLocation };
+  | {
+      status: "ready";
+      location: FileLocation;
+      rawSource: RawFileSource | null;
+    };
+
+interface ResolveRawSourceArgs {
+  environmentId: string | null;
+  hostId: string;
+  kind: FileTargetSource["kind"];
+  projectId: string | null;
+  threadId: string | null;
+}
+
+function resolveRawSource({
+  environmentId,
+  hostId,
+  kind,
+  projectId,
+  threadId,
+}: ResolveRawSourceArgs): RawFileSource | null {
+  switch (kind) {
+    case "workspace":
+      return projectId === null
+        ? null
+        : { kind: "workspace", environmentId, hostId, projectId, threadId };
+    case "environment-host":
+      return threadId === null ? null : { kind: "host", threadId };
+    case "thread-storage":
+      return threadId === null ? null : { kind: "thread-storage", threadId };
+    case "host":
+      return null;
+  }
+}
 
 export function useFileTarget(source: FileTargetSource): FileTargetResolution {
   const environmentId =
@@ -31,6 +70,7 @@ export function useFileTarget(source: FileTargetSource): FileTargetResolution {
   let hostId: string | null = null;
   let rootPath: string | null = null;
   let message: string | null = null;
+  let projectId: string | null = null;
   switch (source.kind) {
     case "host":
       hostId = source.hostId;
@@ -46,6 +86,7 @@ export function useFileTarget(source: FileTargetSource): FileTargetResolution {
       } else {
         hostId = environment.data.hostId;
         rootPath = environment.data.path;
+        projectId = environment.data.projectId;
       }
       break;
     case "thread-storage":
@@ -58,22 +99,35 @@ export function useFileTarget(source: FileTargetSource): FileTargetResolution {
       break;
   }
   const path = source.path;
+  const threadId =
+    source.kind === "environment-host" || source.kind === "thread-storage"
+      ? source.threadId
+      : null;
   return useMemo((): FileTargetResolution => {
     if (hostId === null) {
       return message === null
         ? { status: "loading" }
         : { status: "unavailable", message };
     }
+    const rawSource = resolveRawSource({
+      environmentId,
+      hostId,
+      kind: source.kind,
+      projectId,
+      threadId,
+    });
     if (rootPath === null) {
       return {
         status: "ready",
         location: { hostId, absolutePath: path, rootPath: path },
+        rawSource,
       };
     }
     try {
       return {
         status: "ready",
         location: { hostId, absolutePath: joinRoot(rootPath, path), rootPath },
+        rawSource,
       };
     } catch (error) {
       return {
@@ -81,5 +135,14 @@ export function useFileTarget(source: FileTargetSource): FileTargetResolution {
         message: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [hostId, message, path, rootPath]);
+  }, [
+    environmentId,
+    hostId,
+    message,
+    path,
+    projectId,
+    rootPath,
+    source.kind,
+    threadId,
+  ]);
 }

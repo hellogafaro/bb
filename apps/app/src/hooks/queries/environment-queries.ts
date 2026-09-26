@@ -22,6 +22,7 @@ import {
 } from "@bb/client-core";
 import { decodeBase64Bytes, encodeBase64Bytes } from "@/lib/base64-bytes";
 import { buildEnvironmentDiffFileContentUrl } from "@/lib/file-content-urls";
+import { loadFilePreview } from "@/lib/api";
 import { sdk } from "@/lib/sdk";
 import { useEnvironmentDetailRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import {
@@ -241,6 +242,7 @@ export function useEnvironmentFilePreview(
   environmentId: string | null | undefined,
   path: string | null,
   source: EnvironmentFilePreviewSource | null,
+  rawUrl: string | null,
   options?: QueryOptions,
 ) {
   const enabled =
@@ -251,7 +253,12 @@ export function useEnvironmentFilePreview(
   useEnvironmentDetailRealtimeSubscription(environmentId, { enabled });
 
   return useQuery<FilePreview>({
-    queryKey: environmentFilePreviewQueryKey(environmentId, path, source),
+    queryKey: environmentFilePreviewQueryKey(
+      environmentId,
+      path,
+      source,
+      rawUrl,
+    ),
     queryFn: async ({ signal }) => {
       const resolvedPath = requireEnabledQueryArg({
         value: path,
@@ -263,6 +270,16 @@ export function useEnvironmentFilePreview(
         hookName: "useEnvironmentFilePreview",
         argName: "source",
       });
+      if (resolvedSource.kind === "working-tree" && rawUrl !== null) {
+        return loadFilePreview(
+          {
+            name: resolvedPath.split("/").at(-1),
+            path: resolvedPath,
+            url: rawUrl,
+          },
+          signal,
+        );
+      }
       const resolvedEnvironmentId = requireEnvironmentId(
         environmentId,
         "useEnvironmentFilePreview",
@@ -428,7 +445,7 @@ export function buildEnvironmentFilePreview({
     path,
     url: contentUrl,
   });
-  if (preview.kind !== "image" && preview.kind !== "video") {
+  if (preview.kind === "text") {
     return preview;
   }
   const base64Content =

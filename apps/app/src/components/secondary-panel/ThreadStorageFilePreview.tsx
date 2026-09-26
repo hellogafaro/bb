@@ -7,6 +7,7 @@ import {
 import { hashSourceContents } from "@/components/code/source-code-budget";
 import type { MarkdownLinkRouting } from "@/components/ui/markdown-link-routing.js";
 import { asHttpError, getHttpErrorMessage } from "@/lib/http-error";
+import { getFilePreviewLeaseBaseUrl } from "@/lib/file-content-urls";
 import { extractErrorMessage } from "@bb/core-ui";
 import type {
   FilePreview,
@@ -25,6 +26,7 @@ const GENERIC_HTML_IFRAME_SANDBOX = "allow-scripts";
 interface SecondaryPanelFilePreviewProps {
   activePath: string;
   copyPath?: string | null;
+  downloadUrl?: string | null;
   error?: Error | null;
   filePreview: FilePreview | undefined;
   htmlPreviewUrl?: string | null;
@@ -105,8 +107,17 @@ function resolveSecondaryPanelFilePreviewState({
   lineRange,
 }: ResolveSecondaryPanelFilePreviewStateArgs): FilePreviewState {
   if (error) {
-    if (asHttpError(error)?.status === 404) {
+    const status = asHttpError(error)?.status;
+    if (status === 404) {
       return { kind: "not-found" };
+    }
+    if (status === 413) {
+      return {
+        kind: "unsupported",
+        mimeType: null,
+        reason: "too-large",
+        sizeBytes: null,
+      };
     }
     const message = resolveFilePreviewErrorMessage(error);
     return message === null ? { kind: "error" } : { kind: "error", message };
@@ -158,15 +169,56 @@ function resolveSecondaryPanelFilePreviewState({
     return { kind: "video", url: filePreview.url };
   }
 
+  if (filePreview.kind === "audio") {
+    return { kind: "audio", url: filePreview.url };
+  }
+
+  if (filePreview.kind === "pdf") {
+    return { kind: "pdf", url: filePreview.url };
+  }
+
+  if (filePreview.kind === "office") {
+    return {
+      kind: "office",
+      format: filePreview.format,
+      url: filePreview.url,
+    };
+  }
+
   return {
     kind: "unsupported",
-    message: `Preview not available for ${filePreview.mimeType}.`,
+    mimeType: filePreview.mimeType,
+    reason: filePreview.reason,
+    sizeBytes: filePreview.sizeBytes,
   };
+}
+
+export function resolveFilePreviewDownloadUrl(
+  downloadUrl: string | null,
+  filePreview: FilePreview | undefined,
+): string | null {
+  if (downloadUrl !== null) {
+    return downloadUrl;
+  }
+  if (filePreview === undefined) {
+    return null;
+  }
+  if (
+    filePreview.url.startsWith("data:") ||
+    getFilePreviewLeaseBaseUrl(filePreview.url) !== null
+  ) {
+    return filePreview.url;
+  }
+  if (filePreview.kind === "text") {
+    return `data:${filePreview.mimeType};charset=utf-8,${encodeURIComponent(filePreview.content)}`;
+  }
+  return null;
 }
 
 export function SecondaryPanelFilePreview({
   activePath,
   copyPath = null,
+  downloadUrl = null,
   error,
   filePreview,
   htmlPreviewUrl = null,
@@ -191,6 +243,7 @@ export function SecondaryPanelFilePreview({
     <FilePreviewSurface
       path={activePath}
       copyPath={copyPath}
+      downloadUrl={resolveFilePreviewDownloadUrl(downloadUrl, filePreview)}
       onSelectionAddToChat={onSelectionAddToChat}
       onOpenInEditor={onOpenInEditor}
       onRefresh={onRefresh}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   areEnvironmentFilePreviewSourcesEqual,
   buildFilePreview,
+  getStreamedFilePreviewType,
   isCsvFilePreview,
   isMarkdownFilePreview,
   normalizeFilePreviewMimeType,
@@ -113,13 +114,91 @@ describe("file-preview", () => {
       kind: "unsupported",
       mimeType: "text/plain",
       path: "broken.txt",
+      reason: "type",
+      sizeBytes: 3,
       url: "/files/broken.txt",
     });
     expect(binaryPreview).toEqual({
       kind: "unsupported",
       mimeType: "application/octet-stream",
       path: "archive.bin",
+      reason: "type",
+      sizeBytes: 4,
       url: "/files/archive.bin",
+    });
+  });
+
+  it("classifies streamed previews by extension before any fetch", () => {
+    expect(getStreamedFilePreviewType("docs/Report Final.PDF")).toEqual({
+      kind: "pdf",
+      mimeType: "application/pdf",
+    });
+    expect(getStreamedFilePreviewType("media/intro.mp3")).toEqual({
+      kind: "audio",
+      mimeType: "audio/mpeg",
+    });
+    expect(getStreamedFilePreviewType("media/demo.webm")?.kind).toBe("video");
+    expect(getStreamedFilePreviewType("img/logo.png")?.kind).toBe("image");
+    expect(getStreamedFilePreviewType("q3/budget.xlsx")).toMatchObject({
+      kind: "office",
+      format: "xlsx",
+    });
+    expect(getStreamedFilePreviewType("notes.docx")).toMatchObject({
+      kind: "office",
+      format: "docx",
+    });
+    expect(getStreamedFilePreviewType("deck.pptx")).toMatchObject({
+      kind: "office",
+      format: "pptx",
+    });
+    expect(getStreamedFilePreviewType("src/index.ts")).toBeNull();
+    expect(getStreamedFilePreviewType("archive.zip")).toBeNull();
+    expect(getStreamedFilePreviewType(".pdf")).toBeNull();
+  });
+
+  it("falls back to the mime type when the extension is unknown", () => {
+    expect(
+      getStreamedFilePreviewType("download", "application/pdf; charset=binary"),
+    ).toEqual({ kind: "pdf", mimeType: "application/pdf" });
+    expect(getStreamedFilePreviewType("voice", "audio/ogg")?.kind).toBe(
+      "audio",
+    );
+    expect(
+      getStreamedFilePreviewType(
+        "export",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ),
+    ).toMatchObject({ kind: "office", format: "xlsx" });
+    expect(
+      getStreamedFilePreviewType("blob", "application/octet-stream"),
+    ).toBeNull();
+  });
+
+  it("keeps fetched pptx bodies on the unsupported card with their size", () => {
+    expect(
+      buildFilePreview({
+        contentBytes: Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff]),
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        path: "deck",
+        url: "/files/deck",
+      }),
+    ).toMatchObject({ kind: "unsupported", reason: "type", sizeBytes: 6 });
+  });
+
+  it("classifies fetched binary bodies by their declared mime type", () => {
+    expect(
+      buildFilePreview({
+        contentBytes: Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x00, 0xff]),
+        mimeType: "application/pdf",
+        path: "scan",
+        url: "/files/scan",
+      }),
+    ).toEqual({
+      kind: "pdf",
+      mimeType: "application/pdf",
+      path: "scan",
+      url: "/files/scan",
     });
   });
 

@@ -242,6 +242,7 @@ server.
 
 - `bb file`
 - `bb file read`
+- `bb file download`
 - `bb file write`
 - `bb file list`
 - `bb file paths`
