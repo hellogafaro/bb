@@ -46,6 +46,7 @@ export const EXTENDED_ICON_NAMES = [
   "DragDropHorizontal",
   "DragDropVertical",
   "EditBox",
+  "Inbox",
   "EditFile",
   "ElectricPlugs",
   "Eye",

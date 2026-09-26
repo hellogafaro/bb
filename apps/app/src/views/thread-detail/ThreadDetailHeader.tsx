@@ -17,6 +17,7 @@ import {
   COMPACT_SHELF_HIDDEN_PAGE_HEADER_ACTIONS_CLASS,
   HEADER_ICON_BUTTON_CLASS,
   HEADER_PANE_ACTION_ICON_BUTTON_CLASS,
+  HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
 } from "@/components/layout/AppPageHeader";
 import {
   getBbDesktopInfo,
@@ -226,7 +227,10 @@ export function ThreadDetailHeader({
               type="button"
               variant="ghost"
               size="icon"
-              className={cn(HEADER_ICON_BUTTON_CLASS, "text-foreground")}
+              className={cn(
+                HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
+                "text-foreground",
+              )}
               aria-label={
                 panelShortcut
                   ? `${rightPanelLabel} (${panelShortcut.label})`

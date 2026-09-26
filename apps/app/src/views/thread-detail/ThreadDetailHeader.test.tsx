@@ -33,6 +33,7 @@ vi.mock("@/components/layout/AppPageHeader", () => ({
     "compact-shelf-hidden-header-actions",
   HEADER_ICON_BUTTON_CLASS: "header-icon-button",
   HEADER_PANE_ACTION_ICON_BUTTON_CLASS: "header-pane-action-button",
+  HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS: "header-panel-toggle-button",
   AppPageHeader: ({
     actions,
     center,

@@ -42,6 +42,7 @@ import {
 } from "@/components/sidebar/status-list/status-sections";
 import { ThreadPendingInteractionBanner } from "@/components/thread/pending-interactions/ThreadPendingInteractionBanner";
 import { appToast } from "@/components/ui/app-toast";
+import { HomeWallpaper } from "@/components/wallpaper/HomeWallpaper";
 import { listSidebarNavigationThreads } from "@/hooks/cache-owners/query-cache";
 import { useResolveThreadPendingInteraction } from "@/hooks/mutations/thread-interaction-mutations";
 import {
@@ -60,7 +61,7 @@ import { getThreadDisplayTitle } from "@/lib/thread-title";
 
 const INBOX_BAND_CLASSES = "mx-auto w-full max-w-3xl px-4 md:px-5";
 const INBOX_SELECTED_CARD_CLASSES =
-  "outline-2 -outline-offset-1 outline-primary";
+  "border-foreground/25 ring-[3px] ring-foreground/15";
 const INBOX_KEY_HINT_CLASSES =
   "inline-flex h-4 min-w-4 items-center justify-center rounded-[3px] bg-state-hover px-1 font-sans text-2xs tabular-nums text-subtle-foreground";
 
@@ -85,7 +86,8 @@ const INBOX_KEY_HINTS: readonly { keys: string[]; label: string }[] = [
 
 export function InboxView() {
   return (
-    <div className="-mx-4 -mb-4 -mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:-mx-5 md:-mb-5 md:-mt-5">
+    <div className="relative isolate -mx-4 -mb-4 -mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:-mx-5 md:-mb-5 md:-mt-5">
+      <HomeWallpaper />
       <div className="min-h-0 flex-1 overflow-hidden">
         <div className="box-border flex h-full w-full flex-col gap-3 pb-4 pt-3 md:pt-4">
           <div className="md:pr-3">
@@ -433,7 +435,7 @@ function InboxCard({
       onClick={onSelect}
       onFocusCapture={onSelect}
       className={cn(
-        "min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-card outline-0 outline-transparent transition-[outline-color] duration-150",
+        "min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-card ring-0 ring-transparent transition-[box-shadow,border-color] duration-150",
         selected && INBOX_SELECTED_CARD_CLASSES,
       )}
     >

@@ -2,6 +2,7 @@ import { useState, type ReactNode, type Ref } from "react";
 import { useIsSidebarShowing } from "@/components/ui/sidebar.js";
 import {
   COARSE_POINTER_HEADER_ICON_BUTTON_CLASS,
+  COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
   COARSE_POINTER_HEADER_REDUCED_GLYPH_ICON_BUTTON_CLASS,
 } from "@bb/shared-ui/coarse-pointer-sizing";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
@@ -20,6 +21,9 @@ import { useDesktopWindowState } from "@/hooks/useDesktopWindowState";
 import { cn } from "@bb/shared-ui/lib/utils";
 
 export const HEADER_ICON_BUTTON_CLASS = COARSE_POINTER_HEADER_ICON_BUTTON_CLASS;
+
+export const HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS =
+  COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS;
 
 export const HEADER_PANE_ACTION_ICON_BUTTON_CLASS =
   COARSE_POINTER_HEADER_REDUCED_GLYPH_ICON_BUTTON_CLASS;

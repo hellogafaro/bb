@@ -13,7 +13,7 @@ import type { Host, JsonValue } from "@bb/domain";
 import { jsonValueSchema } from "@bb/domain";
 import type { PluginFixedTabDeclaration } from "@get-bb/plugin-sdk";
 import { Button } from "@bb/shared-ui/button";
-import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
+import { COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { Icon } from "@bb/shared-ui/icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
@@ -97,7 +97,7 @@ const TERMINAL_COLS = 100;
 const TERMINAL_ROWS = 30;
 const MARKETPLACE_PLUGIN_DETAIL_TAB_PREFIX = "marketplace-plugin:";
 const EMPTY_TERMINAL_HOSTS: readonly Host[] = [];
-const RIGHT_PANEL_TOGGLE_CLASS = `${COARSE_POINTER_HEADER_ICON_BUTTON_CLASS} text-foreground`;
+const RIGHT_PANEL_TOGGLE_CLASS = `${COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS} text-foreground`;
 
 interface PluginDetailTabMetadata {
   icon: string | null;

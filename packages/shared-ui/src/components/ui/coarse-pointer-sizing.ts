@@ -30,6 +30,8 @@ const HEADER_ICON_BUTTON_BOX_CLASS =
 
 export const COARSE_POINTER_HEADER_ICON_BUTTON_CLASS = `${HEADER_ICON_BUTTON_BOX_CLASS} [&_[data-icon-root]]:size-[16px] max-md:pointer-coarse:[&_[data-icon-root]]:size-[20px]`;
 
+export const COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS = `${HEADER_ICON_BUTTON_BOX_CLASS} [&_[data-icon-root]]:size-[14px] max-md:pointer-coarse:[&_[data-icon-root]]:size-[18px]`;
+
 export const COARSE_POINTER_HEADER_REDUCED_GLYPH_ICON_BUTTON_CLASS = `${HEADER_ICON_BUTTON_BOX_CLASS} [&_[data-icon-root]]:size-[13px] max-md:pointer-coarse:[&_[data-icon-root]]:size-[16px]`;
 
 export const COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS =

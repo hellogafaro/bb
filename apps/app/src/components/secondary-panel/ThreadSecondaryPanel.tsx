@@ -23,7 +23,7 @@ import { HEADER_PANE_ACTION_ICON_BUTTON_CLASS } from "@/components/layout/AppPag
 import { CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS } from "@bb/shared-ui/chrome-style-tokens";
 import {
   COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS,
-  COARSE_POINTER_HEADER_ICON_BUTTON_CLASS,
+  COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
 } from "@bb/shared-ui/coarse-pointer-sizing";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
@@ -117,7 +117,7 @@ const SECONDARY_RESIZABLE_PANEL_STYLE: CSSProperties = {
   pointerEvents: "auto",
 };
 const SECONDARY_PANEL_CHROME_ICON_BUTTON_CLASS = `${COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS} shrink-0 ${CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS}`;
-const SECONDARY_PANEL_HIDE_ICON_BUTTON_CLASS = `${COARSE_POINTER_HEADER_ICON_BUTTON_CLASS} shrink-0 ${CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS}`;
+const SECONDARY_PANEL_HIDE_ICON_BUTTON_CLASS = `${COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS} shrink-0 ${CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS}`;
 const EMPTY_DIFF_FILES: readonly DiffFileEntry[] = [];
 
 export function getSecondaryPanelChromeStackClassName(
@@ -145,8 +145,7 @@ export function resolveCollapsedPanelTrafficLightReserveClassName({
 }: CollapsedPanelTrafficLightReserveArgs): string | false {
   const reserves =
     reserveMacosTrafficLights &&
-    (renderAsDrawer ||
-      (isConversationCollapsed && isSidebarShowing === false));
+    (renderAsDrawer || (isConversationCollapsed && isSidebarShowing === false));
   return reserves && MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS;
 }
 

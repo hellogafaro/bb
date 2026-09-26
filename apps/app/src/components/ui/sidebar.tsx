@@ -5,7 +5,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Button } from "@bb/shared-ui/button";
-import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
+import { COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { Icon } from "@bb/shared-ui/icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
@@ -988,7 +988,7 @@ const SidebarTrigger = React.forwardRef<
       variant="ghost"
       size="icon"
       className={cn(
-        COARSE_POINTER_HEADER_ICON_BUTTON_CLASS,
+        COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
         "select-none",
         className,
       )}

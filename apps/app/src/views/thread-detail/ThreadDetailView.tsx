@@ -268,9 +268,11 @@ import {
   resolveThreadWorkspaceOpenPath,
 } from "./threadWorkspaceOpenPath";
 import {
+  buildThreadLocalFileDownloadUrl,
   resolveThreadLocalFileLink,
   type ThreadLocalFileLinkResolution,
 } from "@/lib/thread-local-file-links";
+import { buildRawFileUrl, downloadRawFile } from "@/lib/raw-file-url";
 import {
   MarkdownLocalFileContextMenuContext,
   type MarkdownLinkRouting,
@@ -568,6 +570,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     fixedTabs: threadFixedViewTabs,
     isAuthoritative:
       gitDiffTabStatus === "eligible" || gitDiffTabStatus === "ineligible",
+    openFirstFixedTabWhenEmpty: !useIsCompactViewport(),
     panelStateId: threadId,
     syncThreadId: threadId,
   });
@@ -2315,6 +2318,26 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       if (items.length > 0) {
         items.push({ id: "copy-separator", type: "separator" });
       }
+      const downloadUrl = buildThreadLocalFileDownloadUrl(
+        resolveThreadLocalFileLink({
+          hostFileLinksAvailable:
+            thread?.environmentId !== null &&
+            thread?.environmentId !== undefined,
+          link,
+          threadStorageRootPath,
+          workspaceRootPath: workspacePreviewRootPath,
+        }),
+        threadId,
+      );
+      if (downloadUrl !== null) {
+        items.push({
+          id: "download",
+          label: "Download",
+          onSelect: () => {
+            downloadRawFile(downloadUrl, getFileBasename(link.path));
+          },
+        });
+      }
       items.push(
         {
           id: "copy-path",
@@ -2344,6 +2367,10 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       handleOpenTimelineLocalFileLink,
       openPathInFileTarget,
       pluginFileOpeners,
+      thread?.environmentId,
+      threadId,
+      threadStorageRootPath,
+      workspacePreviewRootPath,
     ],
   );
   const handleOpenFilePreview = useCallback<OpenFilePreviewHandler>(
@@ -2781,6 +2808,21 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "workspace-file-preview":
           return {
             ...shared,
+            downloadUrl:
+              tab.source.kind === "working-tree" &&
+              tab.statusLabel !== "deleted"
+                ? buildRawFileUrl(
+                    {
+                      kind: "workspace",
+                      environmentId: tab.environmentId,
+                      hostId: null,
+                      projectId: null,
+                      threadId,
+                    },
+                    tab.path,
+                    { download: true },
+                  )
+                : null,
             label: filenameOfPanelTab(tab.path),
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
             statusLabel: tab.statusLabel,
@@ -2789,6 +2831,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "host-file-preview":
           return {
             ...shared,
+            downloadUrl: buildRawFileUrl({ kind: "host", threadId }, tab.path, {
+              download: true,
+            }),
             label: filenameOfPanelTab(tab.path),
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,
             statusLabel: null,
@@ -2797,6 +2842,11 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         case "thread-storage-file-preview":
           return {
             ...shared,
+            downloadUrl: buildRawFileUrl(
+              { kind: "thread-storage", threadId },
+              tab.path,
+              { download: true },
+            ),
             label: filenameOfPanelTab(tab.path),
             isPinned: tab.isPinned,
             leadingVisual: <RightPanelFileTabIcon path={tab.path} />,

@@ -63,6 +63,10 @@ vi.mock("@/components/ui/app-toast", () => ({
   appToast: { success: mocks.toastSuccess, error: vi.fn() },
 }));
 
+vi.mock("@/components/wallpaper/HomeWallpaper", () => ({
+  HomeWallpaper: () => <div data-testid="wallpaper" />,
+}));
+
 vi.mock("@/components/plugin/PluginThreadChat", () => ({
   PluginThreadChat: ({ threadId }: { threadId: string }) => (
     <div data-testid={`chat-${threadId}`}>
@@ -153,6 +157,7 @@ describe("InboxView", () => {
     expect(screen.getByText("Ship the alpha fix")).toBeTruthy();
     expect(screen.getByText("Patch is ready")).toBeTruthy();
     expect(screen.queryByText("Everything that needs you")).toBeNull();
+    expect(screen.getByTestId("wallpaper")).toBeTruthy();
   });
 
   it("moves the selection with the arrow keys and marks the selected thread done with undo", () => {

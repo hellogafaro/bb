@@ -15,7 +15,10 @@ type ThreadSecondaryPanelThreadId =
   | null
   | undefined;
 
-const DEFAULT_SECONDARY_PANEL_WIDTH_PERCENT = 50;
+const GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+const DEFAULT_SECONDARY_PANEL_WIDTH_PERCENT = Number(
+  ((100 / (1 + GOLDEN_RATIO)) as number).toFixed(1),
+);
 const secondaryPanelWidthStorage = createLocalStorageSyncStorage<number>({
   parse: (storedValue, initialValue) => {
     if (storedValue === null) return initialValue;

@@ -1,7 +1,7 @@
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Button } from "@bb/shared-ui/button";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
-import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
+import { COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import type { KeyboardCommandId } from "@bb/domain";
 import { useAppCommandRunner } from "@/components/commands/AppCommandProvider";
 
@@ -11,7 +11,7 @@ interface SidebarQuickActionsProps {
 }
 
 const SIDEBAR_QUICK_ACTION_BUTTON_CLASS = cn(
-  COARSE_POINTER_HEADER_ICON_BUTTON_CLASS,
+  COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS,
   "text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2",
 );
 

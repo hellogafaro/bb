@@ -31,7 +31,7 @@ export function BuiltInSidebarNavigation({
       id: "inbox",
       content: (
         <ResourceNavSidebarItem
-          icon="Mail"
+          icon="Inbox"
           title="Inbox"
           routePath={getInboxRoutePath()}
           onNavigate={onNavigate}
