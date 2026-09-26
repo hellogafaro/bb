@@ -434,7 +434,6 @@ export function StatusThreadList({ onNavigate }: StatusThreadListProps) {
       <SidebarThreadHoverCard
         container={listContainer}
         threadsById={threadsById}
-        draftThreadIds={draftThreadIds}
       />
       <CustomSnoozeDialog
         threadId={customFor}

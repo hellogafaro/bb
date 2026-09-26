@@ -1,6 +1,6 @@
 export const SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS = 150;
 export const SIDEBAR_THREAD_HOVER_CARD_CLOSE_DELAY_MS = 100;
-export const SIDEBAR_THREAD_HOVER_CARD_GAP_PX = 8;
+export const SIDEBAR_THREAD_HOVER_CARD_GAP_PX = 12;
 export const SIDEBAR_THREAD_HOVER_CARD_VIEWPORT_MARGIN_PX = 8;
 export const SIDEBAR_THREAD_HOVER_CARD_TRANSITION = "transform 120ms ease-out";
 
@@ -79,6 +79,7 @@ export interface HoverCardTimingController {
   enterRow(threadId: string): void;
   leaveRows(): void;
   hideNow(): void;
+  suppress(): void;
   phase(): HoverCardTimingPhase;
   dispose(): void;
 }
@@ -103,6 +104,7 @@ export function createSidebarHoverCardTimingController({
 }: HoverCardTimingOptions): HoverCardTimingController {
   let phase: HoverCardTimingPhase = { kind: "hidden" };
   let timer: unknown = null;
+  let suppressedThreadId: string | null = null;
 
   const clearTimer = () => {
     if (timer !== null) cancel(timer);
@@ -114,8 +116,17 @@ export function createSidebarHoverCardTimingController({
     onShow(threadId);
   };
 
+  const hide = () => {
+    const wasVisible = phase.kind === "shown" || phase.kind === "closing";
+    clearTimer();
+    phase = { kind: "hidden" };
+    if (wasVisible) onHide();
+  };
+
   return {
     enterRow(threadId) {
+      if (suppressedThreadId === threadId) return;
+      suppressedThreadId = null;
       switch (phase.kind) {
         case "hidden":
           phase = { kind: "pending", threadId };
@@ -137,6 +148,7 @@ export function createSidebarHoverCardTimingController({
       }
     },
     leaveRows() {
+      suppressedThreadId = null;
       switch (phase.kind) {
         case "hidden":
         case "closing":
@@ -157,11 +169,11 @@ export function createSidebarHoverCardTimingController({
         }
       }
     },
-    hideNow() {
-      const wasVisible = phase.kind === "shown" || phase.kind === "closing";
-      clearTimer();
-      phase = { kind: "hidden" };
-      if (wasVisible) onHide();
+    hideNow: hide,
+    suppress() {
+      const threadId = phase.kind === "hidden" ? null : phase.threadId;
+      hide();
+      suppressedThreadId = threadId;
     },
     phase() {
       return phase;
@@ -169,6 +181,7 @@ export function createSidebarHoverCardTimingController({
     dispose() {
       clearTimer();
       phase = { kind: "hidden" };
+      suppressedThreadId = null;
     },
   };
 }

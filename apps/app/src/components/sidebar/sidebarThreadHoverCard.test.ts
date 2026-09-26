@@ -17,7 +17,7 @@ describe("computeSidebarHoverCardPosition", () => {
       card,
       viewport,
     });
-    expect(position).toEqual({ x: 256, y: 200, side: "right" });
+    expect(position).toEqual({ x: 260, y: 200, side: "right" });
   });
 
   it("clamps the card inside the viewport vertically", () => {
@@ -41,7 +41,7 @@ describe("computeSidebarHoverCardPosition", () => {
       card,
       viewport,
     });
-    expect(position).toEqual({ x: 900 - 8 - 288, y: 100, side: "left" });
+    expect(position).toEqual({ x: 900 - 12 - 288, y: 100, side: "left" });
   });
 
   it("keeps the right side when neither side fits", () => {
@@ -51,7 +51,7 @@ describe("computeSidebarHoverCardPosition", () => {
       viewport: { width: 500, height: 800 },
     });
     expect(position.side).toBe("right");
-    expect(position.x).toBe(308);
+    expect(position.x).toBe(312);
   });
 });
 

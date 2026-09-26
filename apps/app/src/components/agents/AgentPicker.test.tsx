@@ -16,10 +16,7 @@ import {
   agentsQueryKey,
   systemProvidersQueryKey,
 } from "@/hooks/queries/query-keys";
-import {
-  AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS,
-  AgentPicker,
-} from "./AgentPicker";
+import { AGENT_PICKER_TOOLTIP_DELAY_MS, AgentPicker } from "./AgentPicker";
 
 function makeAgent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -65,13 +62,12 @@ function renderPicker({
   );
 }
 
-function hoverCard(): HTMLElement | null {
-  return document.querySelector("[data-agent-picker-hover-card]");
+function tooltip(): HTMLElement | null {
+  return document.querySelector("[data-agent-picker-tooltip]");
 }
 
 function hover(element: HTMLElement) {
-  fireEvent.pointerEnter(element, { pointerType: "mouse" });
-  fireEvent.mouseEnter(element);
+  fireEvent.pointerMove(element, { pointerType: "mouse" });
 }
 
 afterEach(() => {
@@ -79,33 +75,31 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("AgentPicker hover card", () => {
-  it("shows the agent summary after the open delay on pointer hover", () => {
+describe("AgentPicker tooltip", () => {
+  it("shows one model line after the delay on pointer hover", () => {
     vi.useFakeTimers();
     renderPicker({ onChange: vi.fn() });
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     expect(trigger.querySelector("[title]")).toBeNull();
+    expect(
+      trigger
+        .querySelector("[data-agent-mascot]")
+        ?.classList.contains("size-5"),
+    ).toBe(true);
 
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS - 1);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS - 1);
     });
-    expect(hoverCard()).toBeNull();
+    expect(tooltip()).toBeNull();
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    const card = hoverCard();
-    expect(card).not.toBeNull();
-    expect(card?.textContent).toContain("BB");
-    expect(card?.textContent).toContain("Codex · Default model · Medium");
-    expect(card?.textContent).toContain("all skills · 1 MCP");
-
-    fireEvent.pointerLeave(trigger, { pointerType: "mouse" });
-    fireEvent.mouseLeave(trigger);
-    act(() => {
-      vi.advanceTimersByTime(0);
-    });
-    expect(hoverCard()).toBeNull();
+    const content = tooltip();
+    expect(content).not.toBeNull();
+    expect(content?.textContent).toContain("Codex · Default model · Medium");
+    expect(content?.textContent).not.toContain("BB");
+    expect(content?.querySelector("[data-agent-mascot]")).toBeNull();
   });
 
   it("does not open on keyboard focus", () => {
@@ -114,48 +108,47 @@ describe("AgentPicker hover card", () => {
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     fireEvent.focus(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS * 2);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS * 2);
     });
-    expect(hoverCard()).toBeNull();
+    expect(tooltip()).toBeNull();
   });
 
-  it("closes the hover card when the picker opens", () => {
+  it("closes the tooltip when the picker opens", () => {
     vi.useFakeTimers();
     renderPicker({ onChange: vi.fn() });
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS);
     });
-    expect(hoverCard()).not.toBeNull();
+    expect(tooltip()).not.toBeNull();
 
     fireEvent.click(trigger);
-    expect(hoverCard()).toBeNull();
+    expect(tooltip()).toBeNull();
     expect(screen.getByRole("listbox", { name: "Agents" })).not.toBeNull();
   });
 
-  it("shows the hover card for a read-only trigger", () => {
+  it("keeps hover and the tooltip on a read-only trigger", () => {
     vi.useFakeTimers();
     renderPicker();
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     expect(trigger.hasAttribute("disabled")).toBe(true);
-    hover(trigger.parentElement as HTMLElement);
+    expect(trigger.className).toContain("disabled:pointer-events-auto");
+    hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS);
     });
-    expect(hoverCard()?.textContent).toContain(
-      "Codex · Default model · Medium",
-    );
+    expect(tooltip()?.textContent).toContain("Codex · Default model · Medium");
   });
 
-  it("skips the hover card on compact viewports", () => {
+  it("skips the tooltip on compact viewports", () => {
     vi.useFakeTimers();
     renderPicker({ compact: true, onChange: vi.fn() });
     const trigger = screen.getByRole("button", { name: "Agent: BB" });
     hover(trigger);
     act(() => {
-      vi.advanceTimersByTime(AGENT_PICKER_HOVER_CARD_OPEN_DELAY_MS * 2);
+      vi.advanceTimersByTime(AGENT_PICKER_TOOLTIP_DELAY_MS * 2);
     });
-    expect(hoverCard()).toBeNull();
+    expect(tooltip()).toBeNull();
   });
 });

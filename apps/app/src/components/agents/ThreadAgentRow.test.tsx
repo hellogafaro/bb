@@ -84,7 +84,10 @@ describe("ThreadAgentRow", () => {
     const { container } = renderRow({ withEntry: false });
     const link = screen.getByRole("link", { name: "Coder" });
     expect(link.getAttribute("href")).toContain("agent");
-    expect(screen.getByText("Claude Code · Opus · High")).not.toBeNull();
+    expect(screen.getByText("· Claude Code · Opus · High")).not.toBeNull();
+    expect(
+      container.querySelector("[data-thread-agent-row]")?.textContent,
+    ).not.toContain("skills");
     const mascot = container.querySelector('[data-agent-mascot="frog"]');
     expect(mascot).not.toBeNull();
     expect(container.querySelector("[data-thread-status-mascot]")).toBeNull();

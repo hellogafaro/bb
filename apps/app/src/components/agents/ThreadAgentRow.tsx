@@ -11,7 +11,6 @@ import { useSidebarNavigationThreadSelection } from "@/hooks/queries/sidebar-nav
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { agentOptionDetail } from "./agent-display";
 import { AgentMascot } from "./mascots/AgentMascot";
-import { ProviderMark } from "./ProviderMark";
 import { ThreadStatusMascot } from "./ThreadStatusMascot";
 
 export function ThreadAgentRow({
@@ -35,34 +34,32 @@ export function ThreadAgentRow({
       align="start"
       valueClassName="min-w-0"
     >
-      <span data-thread-agent-row="" className="flex min-w-0 flex-col">
-        <span className="flex h-5 min-w-0 items-center gap-1.5">
-          {entry === null ? (
-            <AgentMascot
-              mascot={agent.mascot}
-              color={agent.color}
-              className="size-4"
-            />
-          ) : (
-            <ThreadStatusMascot
-              {...threadListIndicatorStateForThread(entry, false)}
-              agent={agent}
-              archived={entry.archivedAt !== null}
-              decorative
-            />
-          )}
-          <Link
-            to={getAgentDetailRoutePath(agent.id)}
-            className="min-w-0 truncate hover:underline"
-          >
-            {agent.name}
-          </Link>
-        </span>
-        <span className="flex min-w-0 items-center gap-1 text-meta text-muted-foreground">
-          <ProviderMark providerId={agent.providerId} className="size-3" />
-          <span className="min-w-0 truncate">
-            {agentOptionDetail(agent, providersQuery.data)}
-          </span>
+      <span
+        data-thread-agent-row=""
+        className="flex h-5 min-w-0 items-center gap-1.5"
+      >
+        {entry === null ? (
+          <AgentMascot
+            mascot={agent.mascot}
+            color={agent.color}
+            className="size-4"
+          />
+        ) : (
+          <ThreadStatusMascot
+            {...threadListIndicatorStateForThread(entry, false)}
+            agent={agent}
+            archived={entry.archivedAt !== null}
+            decorative
+          />
+        )}
+        <Link
+          to={getAgentDetailRoutePath(agent.id)}
+          className="shrink-0 truncate hover:underline"
+        >
+          {agent.name}
+        </Link>
+        <span className="min-w-0 truncate text-muted-foreground">
+          · {agentOptionDetail(agent, providersQuery.data)}
         </span>
       </span>
     </DetailRow>

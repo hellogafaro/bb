@@ -7,21 +7,30 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
-import { threadListIndicatorStateForThread } from "@bb/client-core";
-import type { ThreadListEntry } from "@bb/domain";
+import { PERSONAL_PROJECT_ID, type ThreadListEntry } from "@bb/domain";
+import { Icon } from "@bb/shared-ui/icon";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { useMediaQuery } from "@bb/shared-ui/hooks/use-media-query";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import {
-  AGENT_HOVER_CARD_CLASS_NAME,
-  AgentHoverCardContent,
-  useAgentHoverCardThread,
-} from "@/components/agents/AgentHoverCard";
-import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+  agentModelLabel,
+  providerDisplayName,
+} from "@/components/agents/agent-display";
+import { ProviderMark } from "@/components/agents/ProviderMark";
+import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import { useSidebarProjectName } from "@/components/thread/ThreadTitleMentions";
 import { APP_OVERLAY_LAYER } from "@/components/ui/app-overlay-layers";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
+import { useProjectColor } from "@/hooks/queries/project-color-query";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
+import { reasoningLevelLabel } from "@/lib/reasoning-labels";
+import { getThreadDisplayTitle } from "@/lib/thread-title";
+import {
+  formatRelativeAge,
+  getThreadLastActivityAt,
+  useRelativeTimeNow,
+} from "./ThreadRowMeta";
 import {
   computeSidebarHoverCardPosition,
   createSidebarHoverCardTimingController,
@@ -39,46 +48,84 @@ interface HoverTarget {
 export interface SidebarThreadHoverCardProps {
   container: HTMLElement | null;
   threadsById: ReadonlyMap<string, ThreadListEntry>;
-  draftThreadIds: ReadonlySet<string>;
 }
 
-function SidebarThreadHoverCardBody({
-  thread,
-  hasComposerDraft,
-}: {
-  thread: ThreadListEntry;
-  hasComposerDraft: boolean;
-}) {
-  const agents = useAgents().data ?? [];
+function SidebarThreadHoverCardBody({ thread }: { thread: ThreadListEntry }) {
+  const now = useRelativeTimeNow();
+  const projectName = useSidebarProjectName(thread.projectId);
+  const isPersonal = thread.projectId === PERSONAL_PROJECT_ID || !projectName;
+  const projectColor = useProjectColor(isPersonal ? null : thread.projectId);
   const providers = useSystemProviders().data;
-  const agent = resolveThreadAgent(agents, thread.agentId);
-  const cardThread = useAgentHoverCardThread(thread, hasComposerDraft);
-  if (agent === null) return null;
-  const indicatorState = threadListIndicatorStateForThread(
-    thread,
-    hasComposerDraft,
-  );
+  const agent = resolveThreadAgent(useAgents().data ?? [], thread.agentId);
+  const at = getThreadLastActivityAt(thread);
+  const age = formatRelativeAge(at, now);
+  const providerId = agent?.providerId ?? thread.providerId;
+  const provider = providers?.find((entry) => entry.id === providerId);
+  const worktree =
+    thread.environmentProviderId !== null ? thread.environmentName : null;
   return (
-    <AgentHoverCardContent
-      agent={agent}
-      providers={providers}
-      thread={cardThread}
-      mascot={
-        <ThreadStatusMascot
-          {...indicatorState}
-          agent={agent}
-          archived={thread.archivedAt !== null}
-          decorative
-        />
-      }
-    />
+    <div className="flex flex-col gap-2 px-3.5 py-3 text-xs leading-4">
+      <div className="flex items-center justify-between gap-3 text-subtle-foreground">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <ProjectColorDot color={isPersonal ? null : projectColor} />
+          <span className="min-w-0 truncate">
+            {isPersonal ? "Personal" : projectName}
+          </span>
+        </span>
+        <time className="shrink-0" dateTime={new Date(at).toISOString()}>
+          {age === "now" ? "now" : `${age} ago`}
+        </time>
+      </div>
+      <p className="m-0 max-h-60 overflow-y-auto text-sm leading-5 text-foreground [overflow-wrap:anywhere] [scrollbar-width:thin]">
+        {getThreadDisplayTitle(thread)}
+      </p>
+      <div className="flex flex-col gap-1.5 border-t border-border pt-2.5 text-muted-foreground">
+        <span
+          data-sidebar-thread-hover-card-model=""
+          className="flex min-h-4 min-w-0 items-center gap-1.5"
+        >
+          <ProviderMark
+            providerId={providerId}
+            className="size-3.5 text-subtle-foreground"
+          />
+          {agent === null ? (
+            <span className="min-w-0 truncate">
+              {providerDisplayName(providers, providerId)}
+            </span>
+          ) : (
+            <>
+              <span className="min-w-0 truncate">{agentModelLabel(agent)}</span>
+              <span className="shrink-0 text-subtle-foreground">
+                {reasoningLevelLabel(agent.reasoningLevel, provider)}
+              </span>
+            </>
+          )}
+        </span>
+        {thread.environmentBranchName || worktree ? (
+          <span className="flex min-h-4 min-w-0 items-center gap-1.5">
+            <Icon
+              name="GitBranch"
+              className="size-3.5 shrink-0 text-subtle-foreground"
+              aria-hidden
+            />
+            <span className="min-w-0 truncate">
+              {thread.environmentBranchName}
+            </span>
+            {worktree && worktree !== thread.environmentBranchName ? (
+              <span className="shrink-0 text-subtle-foreground">
+                {worktree}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 export function SidebarThreadHoverCard({
   container,
   threadsById,
-  draftThreadIds,
 }: SidebarThreadHoverCardProps) {
   const isCompactViewport = useIsCompactViewport();
   const isCoarsePointer = usePointerCoarse();
@@ -95,7 +142,9 @@ export function SidebarThreadHoverCard({
       controller: createSidebarHoverCardTimingController({
         onShow: (threadId) => {
           const row = rowElements.get(threadId);
-          if (row === undefined) return;
+          if (row === undefined || row.getBoundingClientRect().height === 0) {
+            return;
+          }
           setTarget({ threadId, row });
         },
         onHide: () => setTarget(null),
@@ -104,6 +153,7 @@ export function SidebarThreadHoverCard({
   });
 
   const hideNow = useCallback(() => controller.hideNow(), [controller]);
+  const suppress = useCallback(() => controller.suppress(), [controller]);
 
   useEffect(() => () => controller.dispose(), [controller]);
 
@@ -133,28 +183,28 @@ export function SidebarThreadHoverCard({
     const onPointerLeave = () => controller.leaveRows();
     container.addEventListener("pointerover", onPointerOver);
     container.addEventListener("pointerleave", onPointerLeave);
-    container.addEventListener("pointerdown", hideNow);
-    container.addEventListener("contextmenu", hideNow);
-    container.addEventListener("dragstart", hideNow);
+    container.addEventListener("pointerdown", suppress);
+    container.addEventListener("contextmenu", suppress);
+    container.addEventListener("dragstart", suppress);
     return () => {
       container.removeEventListener("pointerover", onPointerOver);
       container.removeEventListener("pointerleave", onPointerLeave);
-      container.removeEventListener("pointerdown", hideNow);
-      container.removeEventListener("contextmenu", hideNow);
-      container.removeEventListener("dragstart", hideNow);
+      container.removeEventListener("pointerdown", suppress);
+      container.removeEventListener("contextmenu", suppress);
+      container.removeEventListener("dragstart", suppress);
       controller.hideNow();
     };
-  }, [container, controller, enabled, hideNow, rows]);
+  }, [container, controller, enabled, hideNow, rows, suppress]);
 
   useEffect(() => {
     if (target === null) return;
-    window.addEventListener("scroll", hideNow, {
+    window.addEventListener("scroll", suppress, {
       capture: true,
       passive: true,
     });
     return () =>
-      window.removeEventListener("scroll", hideNow, { capture: true });
-  }, [hideNow, target]);
+      window.removeEventListener("scroll", suppress, { capture: true });
+  }, [suppress, target]);
 
   useEffect(() => {
     if (target !== null && !threadsById.has(target.threadId)) hideNow();
@@ -182,8 +232,8 @@ export function SidebarThreadHoverCard({
       role="presentation"
       data-sidebar-thread-hover-card={target.threadId}
       className={cn(
-        AGENT_HOVER_CARD_CLASS_NAME,
-        "pointer-events-none fixed left-0 top-0 animate-in fade-in-0 duration-100",
+        "pointer-events-none fixed left-0 top-0 w-72 rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+        "animate-in fade-in-0 duration-100",
       )}
       style={{
         zIndex: APP_OVERLAY_LAYER.sharedPortaledOverlay,
@@ -191,10 +241,7 @@ export function SidebarThreadHoverCard({
         willChange: "transform",
       }}
     >
-      <SidebarThreadHoverCardBody
-        thread={thread}
-        hasComposerDraft={draftThreadIds.has(target.threadId)}
-      />
+      <SidebarThreadHoverCardBody thread={thread} />
     </div>,
     document.body,
   );

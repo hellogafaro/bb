@@ -73,7 +73,6 @@ const threadsById = new Map<string, ThreadListEntry>([
   [threadA.id, threadA],
   [threadB.id, threadB],
 ]);
-const noDrafts: ReadonlySet<string> = new Set();
 
 function rowRect(top: number): DOMRect {
   return {
@@ -129,7 +128,6 @@ function Harness({
         <SidebarThreadHoverCard
           container={container}
           threadsById={threadsById}
-          draftThreadIds={noDrafts}
         />
         {children}
       </ThreadTitleMentionResourcesProvider>
@@ -187,10 +185,14 @@ describe("SidebarThreadHoverCard", () => {
     });
     const first = card();
     expect(first).not.toBeNull();
-    expect(first?.textContent).toContain("BB");
+    expect(first?.textContent).not.toContain("BB");
     expect(first?.textContent).toContain("Alpha thread");
     expect(first?.textContent).toContain("Web App");
-    expect(first?.style.transform).toBe("translate3d(256px, 100px, 0)");
+    expect(first?.textContent).toContain("Default model");
+    expect(first?.textContent).toContain("Medium");
+    expect(first?.querySelector("[data-project-color-dot]")).not.toBeNull();
+    expect(first?.querySelector("[data-agent-mascot]")).toBeNull();
+    expect(first?.style.transform).toBe("translate3d(260px, 100px, 0)");
     expect(first?.style.transition).toBe("transform 120ms ease-out");
     expect(first?.style.zIndex).toBe("50");
 
@@ -199,14 +201,13 @@ describe("SidebarThreadHoverCard", () => {
     });
     const second = card();
     expect(second).toBe(first);
-    expect(second?.textContent).toContain("Coder");
+    expect(second?.textContent).not.toContain("Coder");
     expect(second?.textContent).toContain("Beta thread");
-    expect(second?.textContent).toContain("beta · feature/beta");
-    expect(second?.textContent).toContain("Thread needs user input");
-    expect(
-      second?.querySelector('[data-thread-status-mascot="waiting"]'),
-    ).not.toBeNull();
-    expect(second?.style.transform).toBe("translate3d(256px, 140px, 0)");
+    expect(second?.textContent).toContain("feature/beta");
+    expect(second?.textContent).toContain("Opus");
+    expect(second?.textContent).toContain("High");
+    expect(second?.textContent).not.toContain("Thread needs user input");
+    expect(second?.style.transform).toBe("translate3d(260px, 140px, 0)");
   });
 
   it("hides after the close delay when leaving the rows and instantly on pointerdown", () => {
@@ -243,6 +244,18 @@ describe("SidebarThreadHoverCard", () => {
       fireEvent.pointerDown(view.getByTestId("link-a"));
     });
     expect(card()).toBeNull();
+
+    pointerOver(view.getByTestId("link-a"));
+    act(() => {
+      vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS * 2);
+    });
+    expect(card()).toBeNull();
+
+    pointerOver(view.getByTestId("link-b"));
+    act(() => {
+      vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS);
+    });
+    expect(card()?.textContent).toContain("Beta thread");
   });
 
   it("hides on scroll and on route navigation", () => {
@@ -267,6 +280,12 @@ describe("SidebarThreadHoverCard", () => {
       fireEvent.scroll(view.getByTestId("list"));
     });
     expect(card()).toBeNull();
+    pointerOver(view.getByTestId("link-a"));
+    act(() => {
+      vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS * 2);
+    });
+    expect(card()).toBeNull();
+    fireEvent.pointerLeave(view.getByTestId("list"));
 
     pointerOver(view.getByTestId("link-a"));
     act(() => {
