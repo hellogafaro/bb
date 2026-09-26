@@ -57,7 +57,7 @@ export function BuiltInSidebarNavigation({
       id: "threads",
       content: (
         <ResourceNavSidebarItem
-          icon="ChatThread"
+          icon="ListUnordered"
           title="Threads"
           routePath={getThreadsRoutePath()}
           onNavigate={onNavigate}

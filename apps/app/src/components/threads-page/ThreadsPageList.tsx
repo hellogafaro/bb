@@ -5,10 +5,6 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import { EmptyStatePanel } from "@bb/shared-ui/empty-state";
 import { ResourceCollectionViewport } from "@bb/shared-ui/resource-list";
 import {
-  agentModelLabel,
-  providerDisplayName,
-} from "@/components/agents/agent-display";
-import {
   CollapsibleHeader,
   getCollapsibleHeaderToneClass,
 } from "@/components/ui/disclosure";
@@ -16,7 +12,6 @@ import { useRelativeTimeNow } from "@/components/sidebar/ThreadRowMeta";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 import { useAgents, resolveThreadAgent } from "@/hooks/queries/agent-queries";
 import { useSidebarNavigation } from "@/hooks/queries/sidebar-navigation-query";
-import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { useRouteState } from "@/hooks/useRouteState";
 import { useSidebarThreadDraftIds } from "@/lib/plugin-sidebar-hooks";
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
@@ -60,26 +55,14 @@ function useThreadsPageProjects(): ReadonlyMap<string, ThreadsPageRowProject> {
   }, [navigation.data]);
 }
 
-function useThreadsPageAgents(): {
-  agentFor: (thread: ThreadListEntry) => Agent | null;
-  modelLabelFor: (thread: ThreadListEntry, agent: Agent | null) => string;
-} {
-  const agents = useAgents();
-  const providers = useSystemProviders();
-  const agentList = agents.data;
-  const providerList = providers.data;
-  return useMemo(
-    () => ({
-      agentFor: (thread) =>
-        agentList === undefined
-          ? null
-          : resolveThreadAgent(agentList, thread.agentId),
-      modelLabelFor: (thread, agent) =>
-        agent === null
-          ? providerDisplayName(providerList, thread.providerId)
-          : agentModelLabel(agent),
-    }),
-    [agentList, providerList],
+function useThreadsPageAgents(): (thread: ThreadListEntry) => Agent | null {
+  const agentList = useAgents().data;
+  return useCallback(
+    (thread) =>
+      agentList === undefined
+        ? null
+        : resolveThreadAgent(agentList, thread.agentId),
+    [agentList],
   );
 }
 
@@ -94,7 +77,7 @@ export function ThreadsPageList({
   const { threadId: activeThreadId } = useRouteState();
   const draftThreadIds = useSidebarThreadDraftIds();
   const projects = useThreadsPageProjects();
-  const { agentFor, modelLabelFor } = useThreadsPageAgents();
+  const agentFor = useThreadsPageAgents();
   const now = useRelativeTimeNow();
   const headerIndexes = useMemo(() => headerRowIndexes(rows), [rows]);
   const rangeExtractor = useCallback(
@@ -157,7 +140,7 @@ export function ThreadsPageList({
                     key={item.key}
                     data-index={item.index}
                     className={cn(
-                      "left-0 flex w-full items-end bg-background",
+                      "left-0 flex w-full items-end bg-background pl-2",
                       item.index === 0 ? "pt-0" : "pt-3",
                     )}
                     style={{ ...style, height: item.size }}
@@ -197,8 +180,6 @@ export function ThreadsPageList({
                     project={
                       projects.get(row.thread.projectId) ?? PERSONAL_PROJECT
                     }
-                    modelLabel={modelLabelFor(row.thread, agent)}
-                    providerId={agent?.providerId ?? row.thread.providerId}
                     hasDraft={draftThreadIds.has(row.thread.id)}
                     now={now}
                     isActive={activeThreadId === row.thread.id}

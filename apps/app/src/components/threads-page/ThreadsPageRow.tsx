@@ -8,18 +8,27 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import { LIST_HOVER_TRANSITION } from "@bb/shared-ui/motion";
 import { Pill } from "@bb/shared-ui/pill";
 import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
-import { ProviderMark } from "@/components/agents/ProviderMark";
 import { ProjectColorDot } from "@/components/projects/ProjectColorDot";
+import { SIDEBAR_ROW_ACTION_BUTTON_CLASS } from "@/components/sidebar/sidebarRowClasses";
+import { SidebarRowControls } from "@/components/sidebar/SidebarRowControls";
 import {
   formatRelativeAge,
   getThreadLastActivityAt,
 } from "@/components/sidebar/ThreadRowMeta";
-import { formatWakeLabel } from "@/components/thread/ThreadSnoozeControls";
-import { ThreadActionsContextMenu } from "@/components/thread/ThreadActionsMenu";
+import {
+  ThreadActionsContextMenu,
+  ThreadActionsMenu,
+  ThreadArchiveQuickAction,
+} from "@/components/thread/ThreadActionsMenu";
 import { useThreadActions } from "@/components/thread/ThreadActionsProvider";
+import { formatWakeLabel } from "@/components/thread/ThreadSnoozeControls";
 import { ThreadTitleMentions } from "@/components/thread/ThreadTitleMentions";
-import { ThreadUnarchiveButton } from "@/components/thread/ThreadUnarchiveButton";
 import { useRouteNavigate } from "@/components/ui/app-route-anchor";
+import {
+  SIDEBAR_HOVER_ACTIONS_CLASS,
+  SIDEBAR_HOVER_ACTIONS_FADE_CLASS,
+  SIDEBAR_HOVER_ACTIONS_ROW_CLASS,
+} from "@/components/ui/sidebar-hover-actions";
 import { openThreadInSplit } from "@/lib/split-layout/openThreadInSplit";
 import { getThreadRoutePath } from "@/lib/route-paths";
 import { getThreadDisplayTitle } from "@/lib/thread-title";
@@ -34,23 +43,31 @@ export interface ThreadsPageRowProps {
   depth: number;
   agent: Agent | null;
   project: ThreadsPageRowProject;
-  modelLabel: string;
-  providerId: string;
   hasDraft: boolean;
   now: number;
   isActive: boolean;
 }
 
-const DEPTH_INDENT_PX = 20;
-const ROW_PADDING_PX = 8;
+export const THREADS_PAGE_ROW_PADDING_PX = 8;
+export const THREADS_PAGE_DEPTH_INDENT_PX = 20;
+const GLYPH_CENTER_OFFSET_PX = 8;
+
+export function threadsPageGuideLineLeft(level: number): number {
+  return (
+    THREADS_PAGE_ROW_PADDING_PX +
+    level * THREADS_PAGE_DEPTH_INDENT_PX +
+    GLYPH_CENTER_OFFSET_PX
+  );
+}
+
+const TIME_CLASS =
+  "w-8 shrink-0 text-right text-meta tabular-nums text-subtle-foreground";
 
 export const ThreadsPageRow = memo(function ThreadsPageRow({
   thread,
   depth,
   agent,
   project,
-  modelLabel,
-  providerId,
   hasDraft,
   now,
   isActive,
@@ -58,7 +75,7 @@ export const ThreadsPageRow = memo(function ThreadsPageRow({
   const store = useStore();
   const navigate = useRouteNavigate();
   const isCompact = useIsCompactViewport();
-  const { unarchiveThread, requestRename } = useThreadActions();
+  const { requestRename } = useThreadActions();
   const title = getThreadDisplayTitle(thread);
   const archived = thread.archivedAt !== null;
   const statusProps = threadListIndicatorStateForThread(thread, hasDraft);
@@ -86,25 +103,41 @@ export const ThreadsPageRow = memo(function ThreadsPageRow({
     },
     [isCompact, openInSplit],
   );
+  const rename = useCallback(
+    () => requestRename(thread),
+    [requestRename, thread],
+  );
 
   return (
     <ThreadActionsContextMenu
       thread={thread}
       onOpenInSplit={isCompact ? undefined : openInSplit}
-      onRename={() => requestRename(thread)}
+      onRename={rename}
     >
       <div
         data-threads-page-row={thread.id}
         data-threads-page-row-active={isActive ? "" : undefined}
         className={cn(
-          "group/threads-row relative flex h-10 items-center gap-2.5 rounded-md pr-2 text-sm",
+          SIDEBAR_HOVER_ACTIONS_ROW_CLASS,
+          "relative flex h-10 items-center gap-2.5 rounded-md pr-2 text-sm",
           LIST_HOVER_TRANSITION,
           isActive
             ? "bg-accent text-foreground"
             : "text-foreground hover:bg-state-hover has-[[data-state=open]]:bg-state-hover",
         )}
-        style={{ paddingLeft: ROW_PADDING_PX + depth * DEPTH_INDENT_PX }}
+        style={{
+          paddingLeft:
+            THREADS_PAGE_ROW_PADDING_PX + depth * THREADS_PAGE_DEPTH_INDENT_PX,
+        }}
       >
+        {Array.from({ length: depth }, (_, level) => (
+          <span
+            key={level}
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-0 top-0 w-px bg-border-hairline opacity-70"
+            style={{ left: threadsPageGuideLineLeft(level) }}
+          />
+        ))}
         <Link
           to={getThreadRoutePath({
             projectId: thread.projectId,
@@ -128,7 +161,12 @@ export const ThreadsPageRow = memo(function ThreadsPageRow({
         >
           <ThreadTitleMentions title={title} />
         </span>
-        <span className="pointer-events-none flex shrink-0 items-center gap-1.5">
+        <span
+          className={cn(
+            SIDEBAR_HOVER_ACTIONS_FADE_CLASS,
+            "pointer-events-none flex shrink-0 items-center gap-2.5",
+          )}
+        >
           <Pill
             variant="outline"
             size="sm"
@@ -137,41 +175,47 @@ export const ThreadsPageRow = memo(function ThreadsPageRow({
           >
             {project.name}
           </Pill>
-          <Pill
-            variant="outline"
-            size="sm"
-            className="hidden max-w-40 text-meta text-muted-foreground md:inline-flex"
-            leading={
-              <ProviderMark providerId={providerId} className="size-3" />
+          {wakesAt !== null ? (
+            <time
+              className={TIME_CLASS}
+              dateTime={new Date(wakesAt).toISOString()}
+              title={`Wakes ${new Date(wakesAt).toLocaleString()}`}
+            >
+              {formatWakeLabel(wakesAt, now)}
+            </time>
+          ) : (
+            <time
+              className={TIME_CLASS}
+              dateTime={new Date(timestamp).toISOString()}
+              title={`${archived ? "Archived" : "Last update"}: ${new Date(timestamp).toLocaleString()}`}
+            >
+              {formatRelativeAge(timestamp, now)}
+            </time>
+          )}
+        </span>
+        <div
+          className={cn(
+            SIDEBAR_HOVER_ACTIONS_CLASS,
+            "absolute inset-y-0 right-0 z-[1] flex items-center rounded-r-md pl-10 pr-1 max-md:pointer-coarse:hidden",
+            "[background-image:linear-gradient(to_right,transparent,color-mix(in_oklab,var(--state-hover),var(--background))_40%)]",
+          )}
+        >
+          <SidebarRowControls
+            primaryAction={
+              <ThreadArchiveQuickAction
+                thread={thread}
+                className={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
+              />
             }
           >
-            {modelLabel}
-          </Pill>
-        </span>
-        {archived ? (
-          <span className="relative z-[1] hidden shrink-0 group-focus-within/threads-row:inline-flex group-hover/threads-row:inline-flex">
-            <ThreadUnarchiveButton
-              onUnarchive={() => unarchiveThread(thread)}
+            <ThreadActionsMenu
+              thread={thread}
+              triggerClassName={SIDEBAR_ROW_ACTION_BUTTON_CLASS}
+              onOpenInSplit={isCompact ? undefined : openInSplit}
+              onRename={rename}
             />
-          </span>
-        ) : null}
-        {wakesAt !== null ? (
-          <time
-            className="pointer-events-none w-8 shrink-0 text-right text-meta tabular-nums text-subtle-foreground"
-            dateTime={new Date(wakesAt).toISOString()}
-            title={`Wakes ${new Date(wakesAt).toLocaleString()}`}
-          >
-            {formatWakeLabel(wakesAt, now)}
-          </time>
-        ) : (
-          <time
-            className="pointer-events-none w-8 shrink-0 text-right text-meta tabular-nums text-subtle-foreground"
-            dateTime={new Date(timestamp).toISOString()}
-            title={`${archived ? "Archived" : "Last update"}: ${new Date(timestamp).toLocaleString()}`}
-          >
-            {formatRelativeAge(timestamp, now)}
-          </time>
-        )}
+          </SidebarRowControls>
+        </div>
       </div>
     </ThreadActionsContextMenu>
   );

@@ -9,6 +9,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { SidebarBootstrapResponse } from "@bb/server-contract";
 import {
@@ -36,7 +37,9 @@ vi.mock("./SplitWorkspaceRoute", () => ({
 }));
 const threadActions = {
   unarchiveThread: vi.fn(),
+  archiveThreadAndChildren: vi.fn(),
   requestRename: vi.fn(),
+  generatingTitleIds: new Set<string>(),
 };
 vi.mock("@/components/thread/ThreadActionsProvider", () => ({
   useThreadActions: () => threadActions,
@@ -115,8 +118,10 @@ function renderRoutes(
   render(
     <MemoryRouter initialEntries={[initialPath]}>
       <QueryClientWrapper>
-        <AppRoutes />
-        <LocationPath />
+        <TooltipProvider>
+          <AppRoutes />
+          <LocationPath />
+        </TooltipProvider>
       </QueryClientWrapper>
     </MemoryRouter>,
   );
@@ -153,7 +158,11 @@ describe("Threads page", () => {
     const projectPill = screen.getAllByText("Test project")[0]!.parentElement!;
     expect(projectPill.className).toContain("gap-1");
     expect(projectPill.querySelector("[data-project-color-dot]")).toBeTruthy();
-    await waitFor(() => expect(screen.getAllByText("Codex").length).toBe(3));
+    expect(screen.queryByText("Codex")).toBeNull();
+    const childRow = document.querySelector(
+      '[data-threads-page-row="thr_child"]',
+    );
+    expect(childRow?.querySelectorAll(".bg-border-hairline").length).toBe(1);
   });
 
   it("collapses a status group from its header", async () => {

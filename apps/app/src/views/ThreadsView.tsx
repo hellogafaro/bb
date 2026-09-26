@@ -6,6 +6,8 @@ import {
   ResourceCreateButton,
   ResourceListState,
 } from "@bb/shared-ui/resource-list";
+import { Skeleton } from "@bb/shared-ui/skeleton";
+import { cn } from "@bb/shared-ui/lib/utils";
 import { resolveThreadsListRoute } from "@/components/threads-page/threads-page-navigation";
 import { ThreadsPageList } from "@/components/threads-page/ThreadsPageList";
 import {
@@ -27,6 +29,25 @@ import {
 
 export const THREADS_PAGE_DESCRIPTION =
   "Every thread across your projects, grouped by what needs you next.";
+
+const SKELETON_ROWS = [0, 1, 2, 3];
+
+function ThreadsPageSkeleton({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className={cn(TOOLS_PAGE_BAND_CLASSES, "flex flex-col")}
+    >
+      {SKELETON_ROWS.map((row) => (
+        <div key={row} className="flex h-10 items-center gap-2.5 px-2">
+          <Skeleton className="size-4 rounded-sm" />
+          <Skeleton className="h-3.5 w-56" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function toggleSet<T>(current: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(current);
@@ -128,7 +149,7 @@ function ActiveThreadsList() {
     return navigation.isError ? (
       <ResourceListState state="error" message="Threads are unavailable" />
     ) : (
-      <ResourceListState state="loading" message="Loading threads" />
+      <ThreadsPageSkeleton label="Loading threads" />
     );
   }
   return (
@@ -173,7 +194,7 @@ function ArchivedThreadsList() {
         onRetry={() => void query.refetch()}
       />
     ) : (
-      <ResourceListState state="loading" message="Loading archived threads" />
+      <ThreadsPageSkeleton label="Loading archived threads" />
     );
   }
   return (
