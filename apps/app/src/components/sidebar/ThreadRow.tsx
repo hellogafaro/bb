@@ -83,7 +83,12 @@ import {
   resolveThreadStatus,
   type ThreadStatusGlyphProps,
 } from "@/components/thread/ThreadStatusGlyph";
+import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import {
+  SidebarThreadHoverCard,
+  SidebarThreadHoverCardTrigger,
+} from "./SidebarThreadHoverCard";
 import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import { usePluginThreadRowStatus } from "@/lib/plugin-thread-row-status";
 
@@ -458,6 +463,7 @@ function ThreadRowComponent({
   const parentGuideLeft =
     options.depth > 0 ? getSidebarThreadGroupLineLeft(options.depth - 1) : null;
   const isActionsOpen = isDropdownActionsOpen || isContextActionsOpen;
+  const isCompactViewport = useIsCompactViewport();
   const handleRowClickCapture = useCallback<ThreadRowClickCaptureHandler>(
     (event) => {
       if (!options.consumeClickSuppression?.()) {
@@ -703,7 +709,7 @@ function ThreadRowComponent({
     style: rowStyle,
   });
 
-  return (
+  const contextMenu = (
     <ThreadActionsContextMenu
       thread={thread}
       onOpenInSplit={splitAvailable ? openInSplit : undefined}
@@ -712,8 +718,21 @@ function ThreadRowComponent({
       onCloseAutoFocus={rename.onCloseAutoFocus}
       disabled={isEditing}
     >
-      {row}
+      {isCompactViewport ? (
+        row
+      ) : (
+        <SidebarThreadHoverCardTrigger>{row}</SidebarThreadHoverCardTrigger>
+      )}
     </ThreadActionsContextMenu>
+  );
+  if (isCompactViewport) return contextMenu;
+  return (
+    <SidebarThreadHoverCard
+      thread={thread}
+      suppressed={isActionsOpen || isEditing}
+    >
+      {contextMenu}
+    </SidebarThreadHoverCard>
   );
 }
 

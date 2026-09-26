@@ -38,6 +38,7 @@ vi.mock("@/components/thread/ThreadActionsProvider", () => ({
 }));
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { ThreadTitleMentionResourcesProvider } from "@/components/thread/ThreadTitleMentions";
+import { SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS } from "./SidebarThreadHoverCard";
 import {
   ThreadSnoozeContext,
   type ThreadSnoozeState,
@@ -66,12 +67,16 @@ import { sdk } from "@/lib/sdk";
 import {
   agentsQueryKey,
   sidebarNavigationQueryKey,
+  systemProvidersQueryKey,
 } from "@/hooks/queries/query-keys";
 import {
   makeProjectWithThreadsResponse,
   makeSidebarBootstrapResponse,
 } from "@/test/fixtures/projects";
-import { makeThreadListEntry as makeThreadListEntryFixture } from "@bb/test-helpers/domain-fixtures";
+import {
+  makeProviderInfo,
+  makeThreadListEntry as makeThreadListEntryFixture,
+} from "@bb/test-helpers/domain-fixtures";
 
 vi.mock("@/components/thread/ThreadActionsMenu", async (importOriginal) => ({
   ...(await importOriginal<
@@ -962,6 +967,121 @@ describe("ThreadRow", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("hover card", () => {
+    function hoverCard() {
+      return document.querySelector("[data-sidebar-thread-hover-card]");
+    }
+
+    function renderHoverRow() {
+      const client = createTestQueryClient([createAgent({ model: "opus" })]);
+      client.setQueryData(systemProvidersQueryKey(), [
+        makeProviderInfo({ id: "codex", displayName: "Codex" }),
+      ]);
+      const view = render(
+        <ThreadTitleMentionResourcesProvider
+          sectionNamesById={new Map()}
+          projectNamesById={new Map([["proj_web", "Web App"]])}
+          threadById={new Map()}
+        >
+          <ThreadRowTestHarness
+            queryClient={client}
+            thread={createThread({
+              projectId: "proj_web",
+              title: "Alpha thread",
+              environmentBranchName: "feature/alpha",
+            })}
+          />
+        </ThreadTitleMentionResourcesProvider>,
+      );
+      const row = view.container.querySelector<HTMLElement>(
+        "[data-sidebar-rename-row]",
+      );
+      if (row === null) throw new Error("row not rendered");
+      return { row };
+    }
+
+    function hover(row: HTMLElement) {
+      fireEvent.pointerEnter(row, { pointerType: "mouse" });
+      fireEvent.mouseEnter(row);
+    }
+
+    it("opens after the delay with the project, title, model, and branch", () => {
+      vi.useFakeTimers();
+      try {
+        const { row } = renderHoverRow();
+        hover(row);
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS - 1);
+        });
+        expect(hoverCard()).toBeNull();
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+        const card = hoverCard();
+        expect(card).not.toBeNull();
+        const text = card?.textContent ?? "";
+        expect(text).toContain("Web App");
+        expect(text).toContain("Alpha thread");
+        expect(text).toContain("Opus");
+        expect(text).toContain("Medium");
+        expect(text).toContain("Codex");
+        expect(text).toContain("feature/alpha");
+        expect(text).not.toContain("BB");
+        expect(card?.querySelector("[data-agent-mascot]")).toBeNull();
+        expect(card?.querySelector("[data-project-color-dot]")).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("closes on pointerdown and stays closed until the pointer re-enters", () => {
+      vi.useFakeTimers();
+      try {
+        const { row } = renderHoverRow();
+        hover(row);
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS);
+        });
+        expect(hoverCard()).not.toBeNull();
+        act(() => {
+          fireEvent.pointerDown(row, { pointerType: "mouse", button: 0 });
+        });
+        expect(hoverCard()).toBeNull();
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS * 2);
+        });
+        expect(hoverCard()).toBeNull();
+        fireEvent.pointerLeave(row, { pointerType: "mouse" });
+        fireEvent.mouseLeave(row);
+        hover(row);
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS);
+        });
+        expect(hoverCard()).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("closes on scroll", () => {
+      vi.useFakeTimers();
+      try {
+        const { row } = renderHoverRow();
+        hover(row);
+        act(() => {
+          vi.advanceTimersByTime(SIDEBAR_THREAD_HOVER_CARD_OPEN_DELAY_MS);
+        });
+        expect(hoverCard()).not.toBeNull();
+        act(() => {
+          fireEvent.scroll(row);
+        });
+        expect(hoverCard()).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   function trailingMascot(container: HTMLElement) {
