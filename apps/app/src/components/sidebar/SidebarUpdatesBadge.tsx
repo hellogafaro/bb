@@ -16,7 +16,7 @@ interface SidebarUpdatesBadgeProps {
   onNavigate?: () => void;
 }
 
-const PROVIDER_ACTION_CLASS = cn(
+const UPDATE_ACTION_CLASS = cn(
   SIDEBAR_FOOTER_ACTION_CLASS,
   "w-auto gap-1 px-1.5 max-md:pointer-coarse:w-auto max-md:pointer-coarse:px-2",
 );
@@ -91,7 +91,7 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
             asChild
             aria-label={bbLabel}
             tooltip={{ children: bbLabel, hidden: false, side: "top" }}
-            className={SIDEBAR_FOOTER_ACTION_CLASS}
+            className={UPDATE_ACTION_CLASS}
           >
             <Link
               to={updatesRoutePath}
@@ -99,6 +99,9 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
               data-testid="sidebar-updates-badge-bb"
             >
               <Icon name="Download" />
+              <span aria-hidden className="text-xs">
+                bb
+              </span>
               <span className="sr-only">{bbLabel}</span>
             </Link>
           </SidebarMenuButton>
@@ -110,7 +113,7 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
             asChild
             aria-label={providerLabel}
             tooltip={{ children: providerLabel, hidden: false, side: "top" }}
-            className={PROVIDER_ACTION_CLASS}
+            className={UPDATE_ACTION_CLASS}
           >
             <Link
               to={updatesRoutePath}
