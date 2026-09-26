@@ -441,7 +441,7 @@ export function UsageSettingsContent({
               }
             >
               <Icon
-                name="RotateCcw"
+                name={loading ? "Spinner" : "RotateCcw"}
                 className={cn("size-3.5", loading && "animate-spin")}
               />
             </Button>

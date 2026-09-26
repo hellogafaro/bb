@@ -565,7 +565,7 @@ export function ProviderUsageStatusContent({
           }
         >
           <Icon
-            name="RotateCcw"
+            name={snapshot.isRefreshing ? "Spinner" : "RotateCcw"}
             aria-hidden="true"
             className={
               "size-3.5 " + (snapshot.isRefreshing ? "animate-spin" : "")

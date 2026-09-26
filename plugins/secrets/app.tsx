@@ -1,10 +1,11 @@
-import { RiEyeLine, RiEyeOffLine, RiLoader5Line } from "react-icons/ri";
+import { RiEyeLine, RiEyeOffLine } from "react-icons/ri";
 import { useMemo, useState } from "react";
 import {
   definePluginApp,
   type PluginPendingInteractionProps,
 } from "@get-bb/plugin-sdk/app";
 import { Button } from "@bb/shared-ui/button";
+import { Icon } from "@bb/shared-ui/icon";
 import { Input } from "@bb/shared-ui/input";
 import { Label } from "@bb/shared-ui/label";
 import {
@@ -192,7 +193,7 @@ function SecretRequestInteraction({
           disabled={busy}
         >
           {busy ? (
-            <RiLoader5Line className="size-3 animate-spin" aria-hidden="true" />
+            <Icon name="Spinner" className="size-3 animate-spin" aria-hidden="true" />
           ) : null}
           Add secrets
         </Button>

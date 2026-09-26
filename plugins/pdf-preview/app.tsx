@@ -3,6 +3,7 @@ import {
   definePluginApp,
   type PluginFileOpenerProps,
 } from "@get-bb/plugin-sdk/app";
+import { Icon } from "@bb/shared-ui/icon";
 import { loadPdfBlob, resolvePdfReadTarget } from "./pdf-source.js";
 
 type PreviewState =
@@ -79,7 +80,7 @@ function PdfFileOpener({ path, source, Original }: PluginFileOpenerProps) {
         role="status"
         aria-label={`Loading ${path}`}
       >
-        <span className="size-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
+        <Icon name="Spinner" className="size-4 animate-spin" aria-hidden="true" />
         Loading PDF…
       </div>
     );
@@ -93,7 +94,7 @@ function PdfFileOpener({ path, source, Original }: PluginFileOpenerProps) {
           role="status"
           aria-label={`Rendering ${path}`}
         >
-          <span className="size-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
+          <Icon name="Spinner" className="size-4 animate-spin" aria-hidden="true" />
           Rendering PDF…
         </div>
       )}
