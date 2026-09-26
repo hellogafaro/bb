@@ -12,6 +12,7 @@ import type {
   UpdateInventory,
   UpdateInventoryMachine,
 } from "@/hooks/useUpdateInventory";
+import { SidebarProvider } from "@/components/ui/sidebar.js";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
 import { SidebarUpdatesBadge } from "./SidebarUpdatesBadge";
 
@@ -154,7 +155,9 @@ function BadgeHarness() {
   return (
     <MemoryRouter>
       <TooltipProvider>
-        <SidebarUpdatesBadge />
+        <SidebarProvider>
+          <SidebarUpdatesBadge />
+        </SidebarProvider>
       </TooltipProvider>
     </MemoryRouter>
   );
@@ -162,8 +165,9 @@ function BadgeHarness() {
 
 describe("SidebarUpdatesBadge", () => {
   it("renders nothing when no update needs attention", () => {
-    const result = renderBadge({});
-    expect(result.container.innerHTML).toBe("");
+    renderBadge({});
+    expect(screen.queryByTestId("sidebar-updates-badge-bb")).toBeNull();
+    expect(screen.queryByTestId("sidebar-updates-badge-providers")).toBeNull();
   });
 
   it("shows only the bb chip for a bb-only update", () => {

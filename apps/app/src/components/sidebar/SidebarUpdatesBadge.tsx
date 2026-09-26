@@ -1,24 +1,24 @@
 import { Link } from "react-router-dom";
 import type { ProviderCliKey } from "@bb/host-daemon-contract";
 import { Icon } from "@bb/shared-ui/icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { useProviderCliInstallRunner } from "@/components/provider-cli/provider-cli-install";
 import { providerCliJobKey } from "@/components/provider-cli/provider-cli-install-store";
-import { SidebarMenuItem } from "@/components/ui/sidebar.js";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar.js";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
 import { useUpdateInventory } from "@/hooks/useUpdateInventory";
 import { ProviderIconMark } from "@/components/settings/ProviderIconMark";
 import { getProviderIconInfo } from "@/lib/provider-icon";
 import { getSettingsRoutePath } from "@/lib/route-paths";
+import { SIDEBAR_FOOTER_ACTION_CLASS } from "./sidebarRowClasses";
 
 interface SidebarUpdatesBadgeProps {
   onNavigate?: () => void;
 }
 
-const CHIP_CLASS = cn(
-  "flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-sidebar-border px-2",
-  "text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent",
+const PROVIDER_ACTION_CLASS = cn(
+  SIDEBAR_FOOTER_ACTION_CLASS,
+  "w-auto gap-1 px-1.5 max-md:pointer-coarse:w-auto max-md:pointer-coarse:px-2",
 );
 
 function joinNames(names: string[]): string {
@@ -81,40 +81,42 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
   )} ${staleProviders.length === 1 ? "update" : "updates"} available`;
 
   return (
-    <SidebarMenuItem className="flex min-w-0 items-center gap-1">
+    <>
       {bbUpdateCount > 0 ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <SidebarMenuItem className="min-w-0">
+          <SidebarMenuButton
+            asChild
+            aria-label={bbLabel}
+            tooltip={{ children: bbLabel, hidden: false, side: "top" }}
+            className={SIDEBAR_FOOTER_ACTION_CLASS}
+          >
             <Link
               to={updatesRoutePath}
               onClick={onNavigate}
-              aria-label={bbLabel}
               data-testid="sidebar-updates-badge-bb"
-              className={CHIP_CLASS}
             >
-              <Icon name="Download" className="size-3 text-muted-foreground" />
-              bb
+              <Icon name="Download" />
+              <span className="sr-only">{bbLabel}</span>
             </Link>
-          </TooltipTrigger>
-          <TooltipContent side="top">{bbLabel}</TooltipContent>
-        </Tooltip>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       ) : null}
       {staleProviders.length > 0 ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <SidebarMenuItem className="min-w-0">
+          <SidebarMenuButton
+            asChild
+            aria-label={providerLabel}
+            tooltip={{ children: providerLabel, hidden: false, side: "top" }}
+            className={PROVIDER_ACTION_CLASS}
+          >
             <Link
               to={updatesRoutePath}
               onClick={onNavigate}
-              aria-label={providerLabel}
               data-testid="sidebar-updates-badge-providers"
-              className={CHIP_CLASS}
             >
               <Icon
                 name={providerUpdateRunning ? "Loading" : "Download"}
-                className={cn(
-                  "size-3 text-muted-foreground",
-                  providerUpdateRunning && "animate-spin",
-                )}
+                className={cn(providerUpdateRunning && "animate-spin")}
               />
               <span className="flex items-center gap-1">
                 {staleProviders.map((stale) => {
@@ -135,26 +137,26 @@ export function SidebarUpdatesBadge({ onNavigate }: SidebarUpdatesBadgeProps) {
                       key={stale.provider}
                       data-provider-icon={providerId}
                       aria-hidden
-                      className="flex size-3 shrink-0 items-center justify-center"
+                      className="flex size-4 shrink-0 items-center justify-center opacity-80 max-md:pointer-coarse:size-5"
                     >
                       {provider === undefined ? (
-                        <iconInfo.icon className="size-3" />
+                        <iconInfo.icon className="size-4 max-md:pointer-coarse:size-5" />
                       ) : (
                         <ProviderIconMark
                           provider={provider}
                           icon={iconInfo.icon}
-                          className="size-3"
+                          className="size-4 max-md:pointer-coarse:size-5"
                         />
                       )}
                     </span>
                   );
                 })}
               </span>
+              <span className="sr-only">{providerLabel}</span>
             </Link>
-          </TooltipTrigger>
-          <TooltipContent side="top">{providerLabel}</TooltipContent>
-        </Tooltip>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       ) : null}
-    </SidebarMenuItem>
+    </>
   );
 }
