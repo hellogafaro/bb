@@ -43,6 +43,11 @@ const ThreadTerminalPanelChunk = lazy(() =>
     ({ ThreadTerminalPanel }) => ({ default: ThreadTerminalPanel }),
   ),
 );
+const BrowserTabDeckChunk = lazy(() =>
+  import("./BrowserTabDeck").then(({ BrowserTabDeck }) => ({
+    default: BrowserTabDeck,
+  })),
+);
 const FilesPanelChunk = lazy(() =>
   import("@/components/files/FilesPanel").then(({ FilesPanel }) => ({
     default: FilesPanel,
@@ -198,6 +203,8 @@ export const LazyThreadTerminalPanel = withSuspense(
   ThreadTerminalPanelChunk,
   <SecondaryPanelContentSkeleton />,
 );
+
+export const LazyBrowserTabDeck = withSuspense(BrowserTabDeckChunk, null);
 
 export const LazyFilesPanel = withSuspense(
   FilesPanelChunk,

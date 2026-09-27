@@ -39,17 +39,20 @@ describe("settings deep links", () => {
     ) : null;
   }
 
-  function generalSettings() {
+  function generalSettings(desktopBrowserAvailable: boolean) {
     return (
       <GeneralSettingsSection
+        desktopBrowserAvailable={desktopBrowserAvailable}
         generalSettingsDisabled={false}
         managedBranchPrefix=""
         navigateToThreadAfterCreate={false}
         onManagedBranchPrefixChange={vi.fn()}
         onNavigateToThreadAfterCreateChange={vi.fn()}
+        onOpenLinksInAppBrowserChange={vi.fn()}
         onRewriteLocalhostLinksChange={vi.fn()}
         onRichTextEditingChange={vi.fn()}
         onSteerActiveThreadOnEnterChange={vi.fn()}
+        openLinksInAppBrowser={false}
         rewriteLocalhostLinks={false}
         richTextEditing={false}
         steerActiveThreadOnEnter={false}
@@ -61,7 +64,7 @@ describe("settings deep links", () => {
     Element.prototype.scrollIntoView = vi.fn();
     render(
       <SettingsDeepLinkTarget settingId="new-branch-prefix">
-        {generalSettings()}
+        {generalSettings(false)}
       </SettingsDeepLinkTarget>,
     );
     await waitFor(() =>
@@ -75,7 +78,7 @@ describe("settings deep links", () => {
     vi.useFakeTimers();
     render(
       <SettingsDeepLinkTarget settingId="in-app-links">
-        {generalSettings()}
+        {generalSettings(false)}
       </SettingsDeepLinkTarget>,
     );
     act(() => vi.advanceTimersByTime(2000));

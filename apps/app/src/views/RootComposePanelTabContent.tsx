@@ -37,6 +37,7 @@ import {
 import { getFilePreviewLineRangeStart } from "@bb/client-core";
 import { resolveAbsoluteFilePath } from "@/lib/absolute-file-path";
 import { useAppCommandHandler } from "@/components/commands/AppCommandProvider";
+import type { MarkdownPreviewLinkHandler } from "@/components/ui/markdown-link";
 
 export const ROOT_COMPOSE_FIXED_PANEL_STATE_ID = "root-compose";
 
@@ -54,6 +55,8 @@ interface RootComposePanelTabContentProps {
   onActivateTab: (tabId: string) => void;
   onAutoFocusNewTabHandled: () => void;
   onAutoFocusTerminalHandled: () => void;
+  onOpenBrowser: () => void;
+  onOpenPanelLink: MarkdownPreviewLinkHandler;
   onSelectionAddToChat: (text: string) => void;
   onStartTerminal: () => void;
   pane: SecondaryPanelPaneRenderContext;
@@ -136,6 +139,8 @@ export function RootComposePanelTabContent({
   onActivateTab,
   onAutoFocusNewTabHandled,
   onAutoFocusTerminalHandled,
+  onOpenBrowser,
+  onOpenPanelLink,
   onSelectionAddToChat,
   onStartTerminal,
   pane,
@@ -164,6 +169,7 @@ export function RootComposePanelTabContent({
           isPanelOpen={isPanelOpen}
           isPanelPersistedOpen={isPanelPersistedOpen}
           onAutoFocusHandled={onAutoFocusTerminalHandled}
+          onOpenLink={onOpenPanelLink}
           onSelectionAddToChat={onSelectionAddToChat}
           panelStateId={ROOT_COMPOSE_FIXED_PANEL_STATE_ID}
           syncThreadId={null}
@@ -178,6 +184,14 @@ export function RootComposePanelTabContent({
             pane.isFocused && tab.id === activeTabId && shouldAutoFocusNewTab
           }
           onAutoFocusHandled={onAutoFocusNewTabHandled}
+          onOpenBrowser={
+            rootPanelThreadId
+              ? () => {
+                  onActivateTab(tab.id);
+                  onOpenBrowser();
+                }
+              : undefined
+          }
           onStartTerminal={
             canCreateTerminal
               ? () => {

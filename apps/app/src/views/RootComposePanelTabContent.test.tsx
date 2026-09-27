@@ -102,6 +102,8 @@ const baseProps = {
   onActivateTab: noop,
   onAutoFocusNewTabHandled: noop,
   onAutoFocusTerminalHandled: noop,
+  onOpenBrowser: noop,
+  onOpenPanelLink: () => false,
   onSelectionAddToChat: noop,
   onStartTerminal: noop,
   primaryHostId: "host-primary",

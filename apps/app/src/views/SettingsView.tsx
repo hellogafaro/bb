@@ -69,10 +69,12 @@ import {
   useUpdateExperiments,
 } from "@/hooks/mutations/settings-mutations";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
+import { isDesktopBrowserAvailable } from "@/lib/bb-desktop";
 import {
   FAVICON_COLOR_VALUES,
   getFaviconGlyphHref,
 } from "@/lib/favicon-color-preference";
+import { useOpenLinksInAppBrowserPreference } from "@/lib/in-app-browser-link-preference";
 import { useRewriteLocalhostLinksPreference } from "@/lib/localhost-link-rewrite-preference";
 import { localhostLinkRewriteDescription } from "@/lib/localhost-link-rewrite-description";
 import { useRichTextEditingPreference } from "@/lib/rich-text-editing-preference";
@@ -214,14 +216,17 @@ interface AppearanceSettingsSectionProps {
 }
 
 interface GeneralSettingsSectionProps {
+  desktopBrowserAvailable: boolean;
   generalSettingsDisabled: boolean;
   managedBranchPrefix: string;
   navigateToThreadAfterCreate: boolean;
   onManagedBranchPrefixChange: (prefix: string) => Promise<void> | void;
   onNavigateToThreadAfterCreateChange: (enabled: boolean) => void;
+  onOpenLinksInAppBrowserChange: (enabled: boolean) => void;
   onRewriteLocalhostLinksChange: (enabled: boolean) => void;
   onRichTextEditingChange: (enabled: boolean) => void;
   onSteerActiveThreadOnEnterChange: (enabled: boolean) => void;
+  openLinksInAppBrowser: boolean;
   rewriteLocalhostLinks: boolean;
   richTextEditing: boolean;
   steerActiveThreadOnEnter: boolean;
@@ -409,6 +414,7 @@ function FaviconColorSettingsControl({
   );
 }
 
+const IN_APP_BROWSER_LINK_SETTING_LABEL = "Open links in the in-app browser";
 const REWRITE_LOCALHOST_LINKS_SETTING_LABEL = "Rewrite localhost links";
 const NAVIGATE_TO_THREAD_AFTER_CREATE_SETTING_LABEL =
   "Navigate to threads on creation";
@@ -671,14 +677,17 @@ export function AppearanceSettingsSection({
 }
 
 export function GeneralSettingsSection({
+  desktopBrowserAvailable,
   generalSettingsDisabled,
   managedBranchPrefix,
   navigateToThreadAfterCreate,
   onManagedBranchPrefixChange,
   onNavigateToThreadAfterCreateChange,
+  onOpenLinksInAppBrowserChange,
   onRewriteLocalhostLinksChange,
   onRichTextEditingChange,
   onSteerActiveThreadOnEnterChange,
+  openLinksInAppBrowser,
   rewriteLocalhostLinks,
   richTextEditing,
   steerActiveThreadOnEnter,
@@ -767,24 +776,40 @@ export function GeneralSettingsSection({
           </SettingsWithControl>
         </div>
       </SettingsSection>
-      {localhostRewriteDescription !== null ? (
+      {desktopBrowserAvailable || localhostRewriteDescription !== null ? (
         <SettingsSection title="Links">
           <div className="space-y-5">
-            <SettingsWithControl
-              settingId="localhost-links"
-              label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
-              description={
-                <span className="break-words [overflow-wrap:anywhere]">
-                  {localhostRewriteDescription}
-                </span>
-              }
-            >
-              <Switch
-                checked={rewriteLocalhostLinks}
-                onCheckedChange={onRewriteLocalhostLinksChange}
-                aria-label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
-              />
-            </SettingsWithControl>
+            {desktopBrowserAvailable ? (
+              <SettingsWithControl
+                settingId="in-app-links"
+                label={IN_APP_BROWSER_LINK_SETTING_LABEL}
+                description="Open web links inside bb."
+              >
+                <Switch
+                  checked={openLinksInAppBrowser}
+                  onCheckedChange={onOpenLinksInAppBrowserChange}
+                  aria-label={IN_APP_BROWSER_LINK_SETTING_LABEL}
+                />
+              </SettingsWithControl>
+            ) : null}
+
+            {localhostRewriteDescription !== null ? (
+              <SettingsWithControl
+                settingId="localhost-links"
+                label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
+                description={
+                  <span className="break-words [overflow-wrap:anywhere]">
+                    {localhostRewriteDescription}
+                  </span>
+                }
+              >
+                <Switch
+                  checked={rewriteLocalhostLinks}
+                  onCheckedChange={onRewriteLocalhostLinksChange}
+                  aria-label={REWRITE_LOCALHOST_LINKS_SETTING_LABEL}
+                />
+              </SettingsWithControl>
+            ) : null}
           </div>
         </SettingsSection>
       ) : null}
@@ -933,11 +958,14 @@ export function SettingsView() {
   const navigate = useNavigate();
   const themePreference = useThemePreference();
   const systemConfigQuery = useSystemConfig();
+  const [openLinksInAppBrowser, setOpenLinksInAppBrowser] =
+    useOpenLinksInAppBrowserPreference();
   const [rewriteLocalhostLinks, setRewriteLocalhostLinks] =
     useRewriteLocalhostLinksPreference();
   const [navigateToThreadAfterCreate, setNavigateToThreadAfterCreate] =
     useNavigateToThreadAfterCreatePreference();
   const [richTextEditing, setRichTextEditing] = useRichTextEditingPreference();
+  const [desktopBrowserAvailable] = useState(isDesktopBrowserAvailable);
   const experiments = systemConfigQuery.data?.experiments ?? defaultExperiments;
   const updateExperimentsMutation = useUpdateExperiments();
   const generalSettings =
@@ -1061,6 +1089,7 @@ export function SettingsView() {
     content = (
       <>
         <GeneralSettingsSection
+          desktopBrowserAvailable={desktopBrowserAvailable}
           generalSettingsDisabled={
             systemConfigQuery.data === undefined ||
             updateGeneralSettingsMutation.isPending
@@ -1073,10 +1102,12 @@ export function SettingsView() {
             });
           }}
           navigateToThreadAfterCreate={navigateToThreadAfterCreate}
+          openLinksInAppBrowser={openLinksInAppBrowser}
           rewriteLocalhostLinks={rewriteLocalhostLinks}
           richTextEditing={richTextEditing}
           steerActiveThreadOnEnter={generalSettings.steerActiveThreadOnEnter}
           onNavigateToThreadAfterCreateChange={setNavigateToThreadAfterCreate}
+          onOpenLinksInAppBrowserChange={setOpenLinksInAppBrowser}
           onRewriteLocalhostLinksChange={setRewriteLocalhostLinks}
           onRichTextEditingChange={setRichTextEditing}
           onSteerActiveThreadOnEnterChange={(enabled) =>

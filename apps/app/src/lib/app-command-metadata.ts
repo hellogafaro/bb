@@ -279,17 +279,17 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
   {
     label: "Browser",
     commands: [
-      paletteHiddenCommand(
+      command(
         "browser.focusLocation",
         "Focus location",
         "Focus the embedded browser address bar.",
       ),
-      paletteHiddenCommand(
+      command(
         "browser.reload",
         "Reload page",
         "Reload the active embedded browser page.",
       ),
-      paletteHiddenCommand(
+      command(
         "browser.find",
         "Find in page",
         "Open the find bar for the active embedded browser page.",

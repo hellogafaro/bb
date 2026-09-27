@@ -58,6 +58,7 @@ function useSettingsStoryState() {
   });
   const [navigateToThreadAfterCreate, setNavigateToThreadAfterCreate] =
     useState(false);
+  const [openLinksInAppBrowser, setOpenLinksInAppBrowser] = useState(false);
   const [rewriteLocalhostLinks, setRewriteLocalhostLinks] = useState(true);
   const [richTextEditing, setRichTextEditing] = useState(false);
   const [steerActiveThreadOnEnter, setSteerActiveThreadOnEnter] =
@@ -78,6 +79,7 @@ function useSettingsStoryState() {
     experiments,
     managedBranchPrefix,
     navigateToThreadAfterCreate,
+    openLinksInAppBrowser,
     preferredAudioInputDeviceId,
     rewriteLocalhostLinks,
     richTextEditing,
@@ -90,6 +92,7 @@ function useSettingsStoryState() {
     setExperiments,
     setManagedBranchPrefix,
     setNavigateToThreadAfterCreate,
+    setOpenLinksInAppBrowser,
     setPreferredAudioInputDeviceId,
     setRewriteLocalhostLinks,
     setRichTextEditing,
@@ -117,12 +120,17 @@ function VoiceInputStory() {
   );
 }
 
-function GeneralSettingsStory() {
+function GeneralSettingsStory({
+  desktopBrowserAvailable = false,
+}: {
+  desktopBrowserAvailable?: boolean;
+}) {
   const state = useSettingsStoryState();
 
   return (
     <>
       <GeneralSettingsSection
+        desktopBrowserAvailable={desktopBrowserAvailable}
         generalSettingsDisabled={false}
         managedBranchPrefix={state.managedBranchPrefix}
         onManagedBranchPrefixChange={state.setManagedBranchPrefix}
@@ -130,9 +138,11 @@ function GeneralSettingsStory() {
         onNavigateToThreadAfterCreateChange={
           state.setNavigateToThreadAfterCreate
         }
+        onOpenLinksInAppBrowserChange={state.setOpenLinksInAppBrowser}
         onRewriteLocalhostLinksChange={state.setRewriteLocalhostLinks}
         onRichTextEditingChange={state.setRichTextEditing}
         onSteerActiveThreadOnEnterChange={state.setSteerActiveThreadOnEnter}
+        openLinksInAppBrowser={state.openLinksInAppBrowser}
         rewriteLocalhostLinks={state.rewriteLocalhostLinks}
         richTextEditing={state.richTextEditing}
         steerActiveThreadOnEnter={state.steerActiveThreadOnEnter}
@@ -248,7 +258,11 @@ function SettingsStoryContent({ route }: { route: SettingsStoryRoute }) {
     case "experiments":
       return <ExperimentsStory />;
     case "general":
-      return <GeneralSettingsStory />;
+      return (
+        <>
+          <GeneralSettingsStory desktopBrowserAvailable />
+        </>
+      );
   }
 }
 

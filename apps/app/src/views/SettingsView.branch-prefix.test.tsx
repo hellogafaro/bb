@@ -12,6 +12,7 @@ import { GeneralSettingsSection, PrivacySettingsSection } from "./SettingsView";
 afterEach(cleanup);
 
 function renderSection(overrides?: {
+  desktopBrowserAvailable?: boolean;
   telemetryEnabled?: boolean;
   onTelemetryEnabledChange?: (enabled: boolean) => void;
   managedBranchPrefix?: string;
@@ -20,6 +21,7 @@ function renderSection(overrides?: {
   return render(
     <>
       <GeneralSettingsSection
+        desktopBrowserAvailable={overrides?.desktopBrowserAvailable ?? false}
         generalSettingsDisabled={false}
         managedBranchPrefix={overrides?.managedBranchPrefix ?? "bb/"}
         navigateToThreadAfterCreate={false}
@@ -27,9 +29,11 @@ function renderSection(overrides?: {
           overrides?.onManagedBranchPrefixChange ?? vi.fn()
         }
         onNavigateToThreadAfterCreateChange={vi.fn()}
+        onOpenLinksInAppBrowserChange={vi.fn()}
         onRewriteLocalhostLinksChange={vi.fn()}
         onRichTextEditingChange={vi.fn()}
         onSteerActiveThreadOnEnterChange={vi.fn()}
+        openLinksInAppBrowser={false}
         rewriteLocalhostLinks={false}
         richTextEditing={false}
         steerActiveThreadOnEnter={false}
@@ -114,6 +118,12 @@ describe("localhost link rewrite setting", () => {
     renderSection();
     expect(screen.queryByText("Rewrite localhost links")).toBeNull();
     expect(screen.queryByText("Links")).toBeNull();
+  });
+
+  it("keeps the Links section for the in-app browser setting", () => {
+    renderSection({ desktopBrowserAvailable: true });
+    expect(screen.getByText("Links")).not.toBeNull();
+    expect(screen.queryByText("Rewrite localhost links")).toBeNull();
   });
 });
 

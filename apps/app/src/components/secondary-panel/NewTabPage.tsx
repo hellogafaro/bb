@@ -1,11 +1,16 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import type { PluginPanelActionEntry } from "@/components/plugin/PluginPanelActions";
-import { NewTabActions, type StartTerminalHandler } from "./NewTabActions";
+import {
+  NewTabActions,
+  type OpenBrowserHandler,
+  type StartTerminalHandler,
+} from "./NewTabActions";
 
 interface NewTabPageProps {
   autoFocus?: boolean;
   onAutoFocusHandled?: () => void;
+  onOpenBrowser?: OpenBrowserHandler;
   onOpenFiles?: () => void;
   onStartTerminal?: StartTerminalHandler;
   pluginActions?: readonly PluginPanelActionEntry[];
@@ -18,6 +23,7 @@ const FIRST_ACTION_SELECTOR = "[data-panel-new-tab-item]:not(:disabled)";
 export function NewTabPage({
   autoFocus = false,
   onAutoFocusHandled,
+  onOpenBrowser,
   onOpenFiles,
   onStartTerminal,
   pluginActions,
@@ -70,6 +76,7 @@ export function NewTabPage({
       className="flex min-h-full flex-col gap-3 bg-sidebar px-4 pb-3 pt-1"
     >
       <NewTabActions
+        onOpenBrowser={onOpenBrowser}
         onOpenFiles={onOpenFiles}
         onStartTerminal={onStartTerminal}
         pluginActions={pluginActions}
