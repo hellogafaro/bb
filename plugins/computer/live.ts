@@ -17,20 +17,28 @@ export interface CapturedImage {
   readonly height: number;
 }
 
+export type LivePreviewSize = "thumbnail" | "full";
+
 export interface LiveCaptureOptions {
   readonly capture: (signal: AbortSignal) => Promise<CapturedImage>;
-  readonly maxFps: number;
+  readonly thumbnailFps: number;
+  readonly fullFps: number;
   readonly maxFrameBytes: number;
   readonly isProtected: () => boolean;
   readonly viewerTtlMs?: number;
   readonly now?: () => number;
 }
 
+interface Viewer {
+  expiresAt: number;
+  size: LivePreviewSize;
+}
+
 export class LiveCaptureLoop {
   readonly #options: LiveCaptureOptions;
   readonly #now: () => number;
   readonly #viewerTtlMs: number;
-  readonly #viewers = new Map<string, number>();
+  readonly #viewers = new Map<string, Viewer>();
   #latest: LiveFrame | null = null;
   #sequence = 0;
   #wake: (() => void) | null = null;
@@ -42,8 +50,8 @@ export class LiveCaptureLoop {
     this.#viewerTtlMs = options.viewerTtlMs ?? 8_000;
   }
 
-  touchViewer(viewerId: string): void {
-    this.#viewers.set(viewerId, this.#now() + this.#viewerTtlMs);
+  touchViewer(viewerId: string, size: LivePreviewSize): void {
+    this.#viewers.set(viewerId, { expiresAt: this.#now() + this.#viewerTtlMs, size });
     this.#wake?.();
   }
 
@@ -53,8 +61,16 @@ export class LiveCaptureLoop {
 
   activeViewerCount(): number {
     const now = this.#now();
-    for (const [id, expiresAt] of this.#viewers) if (expiresAt <= now) this.#viewers.delete(id);
+    for (const [id, viewer] of this.#viewers) if (viewer.expiresAt <= now) this.#viewers.delete(id);
     return this.#viewers.size;
+  }
+
+  #targetFps(): number {
+    let fps = this.#options.thumbnailFps;
+    for (const viewer of this.#viewers.values()) {
+      if (viewer.size === "full") fps = Math.max(fps, this.#options.fullFps);
+    }
+    return fps;
   }
 
   latest(afterSequence: number | null): LiveFrame | null {
@@ -64,7 +80,6 @@ export class LiveCaptureLoop {
   }
 
   async run(signal: AbortSignal): Promise<void> {
-    const intervalMs = 1_000 / Math.min(12, Math.max(0.2, this.#options.maxFps));
     try {
       while (!signal.aborted) {
         if (this.#paused) {
@@ -76,6 +91,7 @@ export class LiveCaptureLoop {
           await this.#waitForDemand(signal);
           continue;
         }
+        const intervalMs = 1_000 / Math.min(12, Math.max(0.2, this.#targetFps()));
         const started = this.#now();
         if (this.#options.isProtected()) {
           this.#publishState("redacted");

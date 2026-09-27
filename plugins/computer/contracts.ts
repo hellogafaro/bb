@@ -173,6 +173,22 @@ export const captureImageSchema = z
   .strict();
 export type CaptureImage = z.infer<typeof captureImageSchema>;
 
+export const previewSizeSchema = z.enum(["thumbnail", "full"]);
+export type PreviewSize = z.infer<typeof previewSizeSchema>;
+
+export const previewFrameSchema = z
+  .object({
+    sequence: z.number().int().nonnegative(),
+    state: z.enum(["live", "paused", "redacted", "disconnected", "none"]),
+    mimeType: imageMimeTypeSchema.nullable(),
+    dataBase64: z.string().nullable(),
+    width: z.number().int().nonnegative(),
+    height: z.number().int().nonnegative(),
+    capturedAt: z.number().int().nonnegative().nullable(),
+  })
+  .strict();
+export type PreviewFrame = z.infer<typeof previewFrameSchema>;
+
 export const runStateSchema = z.enum([
   "idle",
   "observing",
@@ -278,6 +294,10 @@ export const rpcContract = defineRpcContract({
     input: z.object({ runId: runIdSchema }).strict(),
     output: runStatusSchema,
   },
+  activeRun: {
+    input: z.object({ hostId: hostIdSchema }).strict(),
+    output: z.object({ runId: runIdSchema.nullable() }).strict(),
+  },
   takeControl: {
     input: z.object({ hostId: hostIdSchema, clientId: z.string().min(1) }).strict(),
     output: z.object({ owner: z.enum(["human", "busy"]) }).strict(),
@@ -286,24 +306,20 @@ export const rpcContract = defineRpcContract({
     input: z.object({ hostId: hostIdSchema, clientId: z.string().min(1) }).strict(),
     output: z.object({ released: z.boolean() }).strict(),
   },
+  controlStatus: {
+    input: z.object({ hostId: hostIdSchema, clientId: z.string().min(1) }).strict(),
+    output: z.object({ owner: z.enum(["you", "other", "agent"]) }).strict(),
+  },
   preview: {
     input: z
       .object({
         hostId: hostIdSchema,
         viewerId: z.string().min(1).max(80),
+        size: previewSizeSchema.default("thumbnail"),
         afterSequence: z.number().int().nonnegative().nullable(),
       })
       .strict(),
-    output: z
-      .object({
-        sequence: z.number().int().nonnegative(),
-        state: z.enum(["live", "paused", "redacted", "disconnected", "none"]),
-        mimeType: imageMimeTypeSchema.nullable(),
-        dataBase64: z.string().nullable(),
-        width: z.number().int().nonnegative(),
-        height: z.number().int().nonnegative(),
-      })
-      .strict(),
+    output: previewFrameSchema,
   },
 });
 
@@ -342,20 +358,11 @@ export const hostContract = defineRpcContract({
       .strict(),
   },
   previewTouch: {
-    input: z.object({ viewerId: z.string().min(1) }).strict(),
+    input: z.object({ viewerId: z.string().min(1), size: previewSizeSchema.default("thumbnail") }).strict(),
     output: z.object({ ok: z.boolean() }).strict(),
   },
   previewLatest: {
     input: z.object({ afterSequence: z.number().int().nonnegative().nullable() }).strict(),
-    output: z
-      .object({
-        sequence: z.number().int().nonnegative(),
-        state: z.enum(["live", "paused", "redacted", "disconnected", "none"]),
-        mimeType: imageMimeTypeSchema.nullable(),
-        dataBase64: z.string().nullable(),
-        width: z.number().int().nonnegative(),
-        height: z.number().int().nonnegative(),
-      })
-      .strict(),
+    output: previewFrameSchema,
   },
 });

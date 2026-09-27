@@ -41,6 +41,12 @@ export class ControlGate {
     return this.#activeHuman() === clientId;
   }
 
+  statusFor(clientId: string): "you" | "other" | "agent" {
+    const owner = this.#activeHuman();
+    if (owner === null) return "agent";
+    return owner === clientId ? "you" : "other";
+  }
+
   release(clientId: string): boolean {
     if (this.#activeHuman() !== clientId) return false;
     this.#clearHuman();

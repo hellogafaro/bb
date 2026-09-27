@@ -171,5 +171,6 @@ export function cuaEnv(base: Readonly<Record<string, string | undefined>>): Reco
     WAYLAND_DISPLAY: base.WAYLAND_DISPLAY ?? "",
     XDG_RUNTIME_DIR: base.XDG_RUNTIME_DIR ?? "",
     DBUS_SESSION_BUS_ADDRESS: base.DBUS_SESSION_BUS_ADDRESS ?? "",
+    XAUTHORITY: base.XAUTHORITY ?? "",
   };
 }

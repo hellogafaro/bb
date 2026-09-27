@@ -95,8 +95,14 @@ export default async function computerPlugin(bb: BbPluginApi) {
     return run;
   }
 
+  const TERMINAL_STATES = new Set(["done", "cancelled", "error"]);
+  const activeRunByHost = new Map<string, string>();
+
   function touchRun(run: RunRecord, patch: Partial<RunStatus>): void {
     run.status = { ...run.status, ...patch, updatedAt: Date.now() };
+    if (TERMINAL_STATES.has(run.status.state) && activeRunByHost.get(run.status.hostId) === run.status.runId) {
+      activeRunByHost.delete(run.status.hostId);
+    }
   }
 
   async function runJevLoop(run: RunRecord, input: StartInput, provider: DecisionProvider, textGenerator: OpenRouterTextGenerator | null) {
@@ -184,6 +190,7 @@ export default async function computerPlugin(bb: BbPluginApi) {
     };
     const run: RunRecord = { status: base, abort };
     runs.set(runId, run);
+    activeRunByHost.set(input.hostId, runId);
     if (input.mode === "agent") {
       touchRun(run, { state: "escalated", lastSummary: "Agent mode: drive this goal with computer_observe/computer_act, then report computer_status." });
       return run.status;
@@ -221,10 +228,12 @@ export default async function computerPlugin(bb: BbPluginApi) {
       touchRun(run, { state: "cancelled" });
       return run.status;
     },
+    activeRun: async ({ hostId }) => ({ runId: activeRunByHost.get(hostId) ?? null }),
     takeControl: async ({ hostId, clientId }) => ({ owner: await controlGateForHost(hostId).acquire(clientId, lifecycle.signal) }),
     releaseControl: async ({ hostId, clientId }) => ({ released: controlGateForHost(hostId).release(clientId) }),
-    preview: async ({ hostId, viewerId, afterSequence }) => {
-      await host.call("previewTouch", { viewerId }, { hostId, signal: lifecycle.signal });
+    controlStatus: async ({ hostId, clientId }) => ({ owner: controlGateForHost(hostId).statusFor(clientId) }),
+    preview: async ({ hostId, viewerId, size, afterSequence }) => {
+      await host.call("previewTouch", { viewerId, size }, { hostId, signal: lifecycle.signal });
       return host.call("previewLatest", { afterSequence }, { hostId, signal: lifecycle.signal });
     },
   });

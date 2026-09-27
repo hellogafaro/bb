@@ -35,6 +35,7 @@ describe("cuaEnv", () => {
       WAYLAND_DISPLAY: "",
       XDG_RUNTIME_DIR: "",
       DBUS_SESSION_BUS_ADDRESS: "",
+      XAUTHORITY: "",
     });
   });
 });

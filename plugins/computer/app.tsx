@@ -1,40 +1,47 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@bb/shared-ui/dialog";
 import {
   definePluginApp,
   useRpc,
   type PluginMessageDirectiveProps,
-  type PluginThreadPanelActionContext,
   type PluginThreadPanelProps,
 } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./contracts.js";
+import { closeLightbox, openLightbox, useLightboxTarget } from "./lightbox-store.js";
 import { PREVIEW_DIRECTIVE_ID } from "./preview-directive.js";
 
 const PANEL_ACTION_ID = "computer";
 
-function useLiveFrame(hostId: string | null, active: boolean) {
+function useLiveFrame(hostId: string | null, active: boolean, size: "thumbnail" | "full" = "thumbnail") {
   const rpc = useRpc<typeof rpcContract>();
   const viewerId = useId();
-  const [frame, setFrame] = useState<{ src: string; state: string } | null>(null);
+  const [frame, setFrame] = useState<{ src: string; state: string; capturedAt: number | null; displayedAt: number } | null>(null);
   const sequence = useRef<number | null>(null);
+  const pollIntervalMs = size === "full" ? 80 : 160;
   useEffect(() => {
     if (hostId === null || !active) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = () => {
       rpc
-        .call("preview", { hostId, viewerId, afterSequence: sequence.current })
+        .call("preview", { hostId, viewerId, size, afterSequence: sequence.current })
         .then((result) => {
           if (stopped) return;
           if (result.dataBase64 !== null && result.mimeType !== null) {
             sequence.current = result.sequence;
-            setFrame({ src: `data:${result.mimeType};base64,${result.dataBase64}`, state: result.state });
+            setFrame({
+              src: `data:${result.mimeType};base64,${result.dataBase64}`,
+              state: result.state,
+              capturedAt: result.capturedAt,
+              displayedAt: Date.now(),
+            });
           } else if (result.state !== "none") {
             setFrame((prev) => (prev === null ? null : { ...prev, state: result.state }));
           }
         })
         .catch(() => {})
         .finally(() => {
-          if (!stopped) timer = setTimeout(poll, 500);
+          if (!stopped) timer = setTimeout(poll, pollIntervalMs);
         });
     };
     poll();
@@ -42,30 +49,101 @@ function useLiveFrame(hostId: string | null, active: boolean) {
       stopped = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [hostId, active, rpc, viewerId]);
+  }, [hostId, active, rpc, viewerId, size, pollIntervalMs]);
   return frame;
+}
+
+function useActiveRun(hostId: string) {
+  const rpc = useRpc<typeof rpcContract>();
+  const [runId, setRunId] = useState<string | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    const poll = () => {
+      rpc
+        .call("activeRun", { hostId })
+        .then((result) => {
+          if (!stopped) setRunId(result.runId);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!stopped) timer = setTimeout(poll, 1500);
+        });
+    };
+    let timer: ReturnType<typeof setTimeout>;
+    poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [hostId, rpc]);
+  return runId;
+}
+
+function useControlStatus(hostId: string, clientId: string) {
+  const rpc = useRpc<typeof rpcContract>();
+  const [owner, setOwner] = useState<"you" | "other" | "agent">("agent");
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = () => {
+      rpc
+        .call("controlStatus", { hostId, clientId })
+        .then((result) => {
+          if (!stopped) setOwner(result.owner);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!stopped) timer = setTimeout(poll, 1200);
+        });
+    };
+    poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [hostId, clientId, rpc]);
+  return [owner, setOwner] as const;
 }
 
 function ControlBanner({ hostId }: { hostId: string }) {
   const rpc = useRpc<typeof rpcContract>();
   const clientId = useId();
-  const [owner, setOwner] = useState<"agent" | "human">("agent");
+  const [owner, setOwner] = useControlStatus(hostId, clientId);
+  const activeRunId = useActiveRun(hostId);
   const takeControl = () => {
     rpc
       .call("takeControl", { hostId, clientId })
-      .then((result) => setOwner(result.owner === "human" ? "human" : "agent"))
+      .then((result) => setOwner(result.owner === "human" ? "you" : "other"))
       .catch(() => {});
   };
   const release = () => {
     rpc.call("releaseControl", { hostId, clientId }).then(() => setOwner("agent")).catch(() => {});
   };
+  const stop = () => {
+    if (activeRunId !== null) rpc.call("cancel", { runId: activeRunId }).catch(() => {});
+  };
+  const label =
+    owner === "you"
+      ? "Controlled by you"
+      : owner === "other"
+        ? "Controlled by another session"
+        : activeRunId !== null
+          ? "Controlled by the agent — a run is active"
+          : "Controlled by the agent when a run is active";
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs">
-      <span className="text-muted-foreground">
-        {owner === "human" ? "Controlled by you" : "Controlled by the agent when a run is active"}
-      </span>
+      <span className="text-muted-foreground">{label}</span>
       <div className="flex gap-2">
-        {owner === "human" ? (
+        {activeRunId !== null ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="rounded border border-destructive px-2 py-1 text-destructive hover:bg-destructive/10"
+          >
+            Stop
+          </button>
+        ) : null}
+        {owner === "you" ? (
           <button
             type="button"
             onClick={release}
@@ -77,7 +155,8 @@ function ControlBanner({ hostId }: { hostId: string }) {
           <button
             type="button"
             onClick={takeControl}
-            className="rounded border border-border px-2 py-1 hover:bg-background"
+            disabled={owner === "other"}
+            className="rounded border border-border px-2 py-1 hover:bg-background disabled:opacity-50"
           >
             Take control
           </button>
@@ -87,8 +166,8 @@ function ControlBanner({ hostId }: { hostId: string }) {
   );
 }
 
-function LiveView({ hostId, active }: { hostId: string; active: boolean }) {
-  const frame = useLiveFrame(hostId, active);
+function LiveView({ hostId, active, size = "thumbnail" }: { hostId: string; active: boolean; size?: "thumbnail" | "full" }) {
+  const frame = useLiveFrame(hostId, active, size);
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center bg-black/90">
       {frame === null ? (
@@ -135,7 +214,7 @@ function ComputerPanel({ params }: PluginThreadPanelProps) {
       ) : (
         <>
           <ControlBanner hostId={hostId} />
-          <LiveView hostId={hostId} active={true} />
+          <LiveView hostId={hostId} active={true} size="full" />
         </>
       )}
     </div>
@@ -144,25 +223,48 @@ function ComputerPanel({ params }: PluginThreadPanelProps) {
 
 function ComputerPreviewDirective({ attributes }: PluginMessageDirectiveProps) {
   const hostId = attributes.host ?? null;
-  const [expanded, setExpanded] = useState(false);
   return (
     <div className="my-1 overflow-hidden rounded-lg border border-border">
       <div className="flex items-center justify-between px-3 py-2 text-xs">
         <span>Computer — {hostId ?? "unknown machine"}</span>
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="rounded border border-border px-2 py-1 hover:bg-muted"
+          onClick={() => hostId !== null && openLightbox(hostId)}
+          disabled={hostId === null}
+          className="rounded border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
         >
-          {expanded ? "Collapse" : "Expand"}
+          Expand
         </button>
       </div>
-      {expanded && hostId !== null ? (
+      {hostId !== null ? (
         <div className="h-64">
-          <LiveView hostId={hostId} active={expanded} />
+          <LiveView hostId={hostId} active={true} />
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ComputerPreviewLightbox() {
+  const hostId = useLightboxTarget();
+  return (
+    <Dialog
+      open={hostId !== null}
+      onOpenChange={(open) => {
+        if (!open) closeLightbox();
+      }}
+    >
+      <DialogContent className="max-w-6xl gap-3 p-4">
+        <DialogHeader>
+          <DialogTitle className="truncate pr-8 text-sm">Computer — {hostId ?? ""}</DialogTitle>
+        </DialogHeader>
+        {hostId !== null ? (
+          <div className="h-[70dvh]">
+            <LiveView hostId={hostId} active={hostId !== null} size="full" />
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -170,6 +272,10 @@ export default definePluginApp((app) => {
   app.slots.messageDirective({
     id: PREVIEW_DIRECTIVE_ID,
     component: ComputerPreviewDirective,
+  });
+  app.slots.experimental_appOverlay({
+    id: "computer-preview-lightbox",
+    component: ComputerPreviewLightbox,
   });
   app.slots.threadPanelAction({
     id: PANEL_ACTION_ID,

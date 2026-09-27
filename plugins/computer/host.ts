@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, readdir, stat } from "node:fs/promises";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,6 +9,7 @@ import {
 import { hostContract } from "./contracts.js";
 import { content, CuaError, cuaEnv, ProcessCuaTransport, type CuaTransport } from "./cua-transport.js";
 import { LiveCaptureLoop } from "./live.js";
+import { buildCapabilityManifest, WindowGrantSet } from "./manifest.js";
 import { findWindow, TargetTable } from "./target-table.js";
 
 const BINARY_PATH = process.env.CUA_DRIVER_PATH ?? "cua-driver";
@@ -22,6 +23,7 @@ function daemonEnv(): Record<string, string> {
     XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
     DBUS_SESSION_BUS_ADDRESS:
       process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=${homedir()}/.cache/at-spi/bus`,
+    XAUTHORITY: process.env.XAUTHORITY ?? "/run/bb-xvfb/Xauthority",
   });
 }
 
@@ -40,26 +42,67 @@ async function runProbe(args: string[], stdin?: string): Promise<{ code: number 
 }
 
 let daemonProcess: ChildProcess | null = null;
+const windowGrants = new WindowGrantSet();
 
 async function daemonRunning(): Promise<boolean> {
   const status = await runProbe(["status"]);
   return status.code === 0;
 }
 
-async function ensureDaemon(): Promise<void> {
-  if (await daemonRunning()) return;
-  if (daemonProcess !== null && daemonProcess.exitCode === null) return;
-  daemonProcess = spawn(BINARY_PATH, ["serve"], {
-    stdio: "ignore",
-    detached: true,
-    env: daemonEnv(),
+function manifestPath(dataDir: string): string {
+  return join(dataDir, "capability-manifest.json");
+}
+
+async function writeManifestFile(dataDir: string): Promise<void> {
+  const manifest = buildCapabilityManifest({
+    writablePaths: [join(dataDir, "runs")],
+    windows: windowGrants.list(),
   });
+  await writeFile(manifestPath(dataDir), JSON.stringify(manifest, null, 2));
+}
+
+const PERMISSION_MODE = process.env.CUA_DRIVER_PERMISSION_MODE ?? "bounded";
+
+async function spawnDaemon(dataDir: string): Promise<void> {
+  const args =
+    PERMISSION_MODE === "bounded"
+      ? ["serve", "--permission-mode", "bounded", "--capability-manifest", manifestPath(dataDir), "--approve-capability-manifest"]
+      : ["serve", "--permission-mode", PERMISSION_MODE];
+  daemonProcess = spawn(BINARY_PATH, args, { stdio: "ignore", detached: true, env: daemonEnv() });
   daemonProcess.unref();
   for (let attempt = 0; attempt < 20; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     if (await daemonRunning()) return;
   }
   throw new CuaError("Cua Driver daemon did not start within 5 seconds", "setup-required");
+}
+
+async function stopDaemon(): Promise<void> {
+  await runProbe(["stop"]);
+  if (daemonProcess !== null && daemonProcess.exitCode === null) daemonProcess.kill("SIGTERM");
+  daemonProcess = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!(await daemonRunning())) return;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+async function ensureDaemon(dataDir: string): Promise<void> {
+  if (await daemonRunning()) return;
+  if (daemonProcess !== null && daemonProcess.exitCode === null) return;
+  await mkdir(dataDir, { recursive: true });
+  await writeManifestFile(dataDir);
+  await spawnDaemon(dataDir);
+}
+
+async function ensureWindowGranted(dataDir: string, pid: number, windowId: number): Promise<void> {
+  await ensureDaemon(dataDir);
+  if (PERMISSION_MODE !== "bounded") return;
+  if (windowGrants.has(pid, windowId)) return;
+  windowGrants.add(pid, windowId);
+  await writeManifestFile(dataDir);
+  await stopDaemon();
+  await spawnDaemon(dataDir);
 }
 
 async function doctorReport() {
@@ -86,15 +129,23 @@ async function doctorReport() {
       message: health.code === 0 ? "End-to-end health probe passed" : "The health_report probe failed",
     });
     let windowCount = -1;
+    let refusalMessage: string | null = null;
     try {
-      windowCount = ((JSON.parse(windows.stdout).windows ?? []) as unknown[]).length;
+      const parsed = JSON.parse(windows.stdout) as { windows?: unknown[]; refusal?: { message?: string } };
+      windowCount = (parsed.windows ?? []).length;
+      refusalMessage = parsed.refusal?.message ?? null;
     } catch {
       windowCount = -1;
     }
     probes.push({
       label: "windows",
       status: windows.code === 0 && windowCount >= 0 ? "ok" : "unavailable",
-      message: windows.code === 0 && windowCount >= 0 ? `${windowCount} on-screen window(s) visible` : "Could not list on-screen windows",
+      message:
+        windows.code === 0 && windowCount >= 0
+          ? `${windowCount} on-screen window(s) visible`
+          : refusalMessage !== null
+            ? `Could not list on-screen windows: ${refusalMessage}`
+            : "Could not list on-screen windows",
     });
   }
   const state = probes.every((probe) => probe.status === "ok")
@@ -113,7 +164,8 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
   const transport = transportFactory();
   const table = new TargetTable();
   const liveLoop = new LiveCaptureLoop({
-    maxFps: 6,
+    thumbnailFps: 6,
+    fullFps: 12,
     maxFrameBytes: 1_500_000,
     isProtected: () => false,
     capture: async (signal) => {
@@ -145,24 +197,28 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
   return experimental_defineHostEntry({
     contract: hostContract,
     handlers: {
-      async doctor(_input, _context) {
-        await ensureDaemon().catch(() => {});
+      async doctor(_input, context) {
+        await ensureDaemon(context.experimental_paths.dataDir).catch(() => {});
         return doctorReport();
       },
       async observe({ appId }, context) {
         context.signal.throwIfAborted();
-        await ensureDaemon();
+        const dataDir = context.experimental_paths.dataDir;
+        await ensureDaemon(dataDir);
+        const window = await findWindow(transport, context.signal, appId);
+        await ensureWindowGranted(dataDir, window.pid, window.windowId);
         return table.observe(transport, context.signal, appId);
       },
       async act({ action }, context) {
         context.signal.throwIfAborted();
-        await ensureDaemon();
+        await ensureDaemon(context.experimental_paths.dataDir);
         const outcome = await performAction(transport, table, action, context.signal);
         return outcome;
       },
       async capture({ kind, appId }, context) {
         context.signal.throwIfAborted();
-        await ensureDaemon();
+        const dataDir = context.experimental_paths.dataDir;
+        await ensureDaemon(dataDir);
         if (kind === "desktop") {
           const result = await transport.call("get_desktop_state", {}, context.signal);
           const data = content(result);
@@ -174,6 +230,7 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
           };
         }
         const window = await findWindow(transport, context.signal, appId);
+        await ensureWindowGranted(dataDir, window.pid, window.windowId);
         const state = await transport.call(
           "get_window_state",
           { pid: window.pid, window_id: window.windowId, include_screenshot: false, max_elements: 1 },
@@ -196,7 +253,7 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
         };
       },
       async recordStart({ runId }, context) {
-        await ensureDaemon();
+        await ensureDaemon(context.experimental_paths.dataDir);
         const outputDir = join(context.experimental_paths.dataDir, "runs", runId);
         await mkdir(outputDir, { recursive: true });
         await transport.call("start_recording", { output_dir: outputDir, record_video: true }, context.signal);
@@ -214,16 +271,16 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
         const trajectoryPath = (await readdir(outputDir).catch(() => [])).length > 0 ? outputDir : null;
         return { videoPath, trajectoryPath };
       },
-      async previewTouch({ viewerId }, context) {
+      async previewTouch({ viewerId, size }, context) {
         ensureLiveLoop(context);
-        liveLoop.touchViewer(viewerId);
+        liveLoop.touchViewer(viewerId, size);
         return { ok: true };
       },
       async previewLatest({ afterSequence }, context) {
         ensureLiveLoop(context);
         const frame = liveLoop.latest(afterSequence);
         if (frame === null) {
-          return { sequence: afterSequence ?? 0, state: "none" as const, mimeType: null, dataBase64: null, width: 0, height: 0 };
+          return { sequence: afterSequence ?? 0, state: "none" as const, mimeType: null, dataBase64: null, width: 0, height: 0, capturedAt: null };
         }
         return {
           sequence: frame.sequence,
@@ -232,6 +289,7 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
           dataBase64: frame.bytes === null ? null : Buffer.from(frame.bytes).toString("base64"),
           width: frame.width,
           height: frame.height,
+          capturedAt: frame.capturedAt,
         };
       },
     },
