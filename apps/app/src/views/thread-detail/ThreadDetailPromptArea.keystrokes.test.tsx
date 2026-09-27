@@ -371,18 +371,14 @@ function buildPromptArea({
         activeBackgroundCommands={[]}
         activePromptMode={null}
         activeWorkflows={[]}
-        canUseGitUi={false}
         childPendingInteractions={[]}
         childThreadsSection={null}
         composerFocusRequestNonce={0}
-        contextBannerMergeBase={null}
         canRestoreEnvironment={false}
         environmentGoneStatus={null}
         goal={null}
         modelFallback={null}
         isEnvironmentActionPending={false}
-        onChangedFileClick={vi.fn()}
-        onCommit={null}
         parentThreadSection={null}
         pendingInteractions={pendingInteractions}
         pendingInteractionsInitialLoading={false}
@@ -398,8 +394,6 @@ function buildPromptArea({
         }}
         steerActiveThreadOnEnter={false}
         thread={thread}
-        workspaceChangedFilesSection={null}
-        workspaceStatusPending={false}
       />
     </PluginComposerHostScopeProvider>
   );

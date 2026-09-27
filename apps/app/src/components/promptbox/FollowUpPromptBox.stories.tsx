@@ -6,7 +6,6 @@ import type {
   PromptMentionResource,
   PromptTextMention,
   ThreadQueuedMessage,
-  WorkspaceStatus,
 } from "@bb/domain";
 import { makeThreadQueuedMessage } from "@bb/test-helpers/domain-fixtures";
 import {
@@ -49,7 +48,6 @@ import {
   type WorkspaceCheckoutDisplay,
 } from "@/lib/workspace-checkout-display";
 import type { PickerOption } from "@/components/pickers/OptionPicker";
-import { selectWorkspaceChangedFilesSection } from "@/components/workspace/workspace-change-summary";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
 import { ModelPickerStoryQueryProvider } from "../../../.ladle/model-picker-query-provider";
 import {
@@ -382,78 +380,26 @@ const stackedCardsWithPillsMentions = buildStoryMentions(
   ],
 );
 
-const dirtyWorkspaceStatus: WorkspaceStatus = {
-  workingTree: {
-    state: "dirty_uncommitted",
-    hasUncommittedChanges: true,
-    files: [
-      {
-        path: "apps/app/src/components/promptbox/FollowUpPromptBox.tsx",
-        status: "M",
-        insertions: 42,
-        deletions: 18,
-      },
-      {
-        path: "apps/app/src/views/ThreadDetailPromptArea.tsx",
-        status: "M",
-        insertions: 12,
-        deletions: 6,
-      },
-      {
-        path: "apps/app/src/components/promptbox/banner/QueuedMessagesList.tsx",
-        status: "A",
-        insertions: 74,
-        deletions: 0,
-      },
-    ],
-    insertions: 128,
-    deletions: 24,
-    lineStatsComplete: true,
-  },
-  branch: {
-    currentBranch: STORY_BRANCH_NAME,
-    defaultBranch: "main",
-  },
-  checkout: {
-    kind: "branch",
-    branchName: STORY_BRANCH_NAME,
-    headSha: null,
-  },
-  mergeBase: null,
-};
-
-const dirtyContextBannerSection =
-  selectWorkspaceChangedFilesSection(dirtyWorkspaceStatus);
-
-const contextBannerElement: ReactNode = dirtyContextBannerSection ? (
+const contextBannerElement: ReactNode = (
   <ThreadPromptContextBanner
     archivedSection={null}
     environmentGoneSection={null}
-    gitSection={{
-      changedFiles: dirtyContextBannerSection,
-      mergeBase: {
-        branch: "main",
-        options: ["main", "develop", "release/2026-05"],
-        onChange: noop,
-      },
-      onPromptBannerFileClick: noop,
-      onCommit: noop,
+    parentThreadSection={{
+      parentThreadTitle: "Polish the design system",
+      href: "/projects/proj_promptbox/threads/thr_parent",
+      relationship: "parent",
     }}
-    gitSectionPending={false}
-    parentThreadSection={null}
     childThreadsSection={null}
     pullRequestSection={null}
     expandedSection={null}
     onToggleSection={noop}
   />
-) : null;
+);
 
 const archivedContextBannerElement: ReactNode = (
   <ThreadPromptContextBanner
     archivedSection={{ archivedAt: 1_731_456_000_000 }}
     environmentGoneSection={null}
-    gitSection={null}
-    gitSectionPending={false}
     parentThreadSection={null}
     childThreadsSection={null}
     pullRequestSection={null}
@@ -466,8 +412,6 @@ const environmentGoneContextBannerElement: ReactNode = (
   <ThreadPromptContextBanner
     archivedSection={null}
     environmentGoneSection={{ status: "destroyed" }}
-    gitSection={null}
-    gitSectionPending={false}
     parentThreadSection={null}
     childThreadsSection={null}
     pullRequestSection={null}

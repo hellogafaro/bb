@@ -882,18 +882,14 @@ function buildPromptAreaElement({
         activeBackgroundCommands={[]}
         activePromptMode={activePromptMode}
         activeWorkflows={activeWorkflows}
-        canUseGitUi={false}
         childPendingInteractions={childPendingInteractions}
         childThreadsSection={null}
         composerFocusRequestNonce={0}
-        contextBannerMergeBase={null}
         canRestoreEnvironment={false}
         environmentGoneStatus={environmentGoneStatus}
         goal={goal}
         modelFallback={modelFallback}
         isEnvironmentActionPending={false}
-        onChangedFileClick={vi.fn()}
-        onCommit={null}
         parentThreadSection={null}
         pendingInteractions={pendingInteractions}
         pendingInteractionsInitialLoading={pendingInteractionsInitialLoading}
@@ -910,8 +906,6 @@ function buildPromptAreaElement({
         sentMessageEdit={sentMessageEdit}
         steerActiveThreadOnEnter={false}
         thread={thread}
-        workspaceChangedFilesSection={null}
-        workspaceStatusPending={false}
       />
     </QueryClientProvider>
   );

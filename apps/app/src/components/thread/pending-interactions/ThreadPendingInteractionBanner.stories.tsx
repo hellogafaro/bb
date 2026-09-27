@@ -189,8 +189,6 @@ export function Overview() {
             threadId={commandApproval.threadId}
           />
           <ThreadPromptContextBanner
-            gitSection={null}
-            gitSectionPending={false}
             archivedSection={null}
             environmentGoneSection={null}
             parentThreadSection={null}

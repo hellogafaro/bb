@@ -159,7 +159,6 @@ import {
   type ThreadDetailSentMessageEdit,
 } from "./ThreadDetailPromptArea";
 import {
-  type ContextBannerMergeBaseConfig,
   isThreadDisplayStatusBannerActive,
   type ThreadPromptParentThreadSection,
   type ThreadPromptChildThreadsSection,
@@ -319,9 +318,6 @@ const pullRequestMergeMethodAtom = atomWithStorage<PullRequestMergeMethod>(
   { getOnInit: true },
 );
 
-type MergeBasePickerOpenChangeHandler = NonNullable<
-  ContextBannerMergeBaseConfig["onPickerOpenChange"]
->;
 type SecondaryPanelChangeHandler = (panel: ThreadSecondaryPanelTab) => void;
 type OpenInEditorHandler = NonNullable<
   ReturnType<typeof buildOpenInEditorHandler>
@@ -1420,12 +1416,11 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   useEffect(() => {
     setHasRequestedMergeBaseOptions(false);
   }, [thread?.environmentId]);
-  const handleMergeBasePickerOpenChange =
-    useCallback<MergeBasePickerOpenChangeHandler>((open) => {
-      if (open) {
-        setHasRequestedMergeBaseOptions(true);
-      }
-    }, []);
+  const handleMergeBasePickerOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      setHasRequestedMergeBaseOptions(true);
+    }
+  }, []);
   const handleSecondaryPanelChange = useCallback<SecondaryPanelChangeHandler>(
     (panel) => {
       clearActiveFileTabs();
@@ -1934,7 +1929,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     effectiveMergeBaseBranch,
     handleMergeBaseBranchChange,
     showBranchComparisonUi,
-    showMergeBase,
   } = useEnvironmentMergeBase({
     environment,
     selectedMergeBaseBranch,
@@ -2314,7 +2308,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         machineProviders: registeredMachineProviders,
       })
     : undefined;
-  const promptBannerMergeBaseBranch = effectiveMergeBaseBranch;
   const threadBranchName = workspaceBranch?.currentBranch ?? undefined;
   const threadCheckoutDisplay = workspaceStatus
     ? formatWorkspaceCheckoutDisplay({ checkout: workspaceStatus.checkout })
@@ -2388,7 +2381,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   const composerFooter = (
     <ThreadDetailPromptArea
       activeBackgroundAgentCount={thread.activeBackgroundAgentCount}
-      canUseGitUi={canUseGitUi}
       contextWindowUsage={contextWindowUsage}
       environmentCheckout={threadCheckoutDisplay}
       environmentCompactLabel={
@@ -2411,34 +2403,8 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       onPullRequestDraft={handlePullRequestDraft}
       onPullRequestReady={handlePullRequestReady}
       pullRequestMergeMethod={pullRequestMergeMethod}
-      onChangedFileClick={handleChangedFileClick}
-      onCommit={
-        gitActions.canCommit
-          ? () => gitActions.threadGitActionDialog.onOpen({ kind: "commit" })
-          : null
-      }
       projectId={projectId}
       resolveMentionLink={resolveMentionLink}
-      workspaceChangedFilesSection={
-        canUseGitUi ? workspaceChangedFilesSection : null
-      }
-      workspaceStatusPending={
-        canUseGitUi && (environmentQuery.isLoading || workStatusQuery.isLoading)
-      }
-      contextBannerMergeBase={
-        canUseGitUi && showMergeBase && promptBannerMergeBaseBranch
-          ? {
-              branch: promptBannerMergeBaseBranch,
-              branchRef: selectedMergeBaseBranchRef,
-              options: mergeBaseBranchOptions,
-              remoteOptions: mergeBaseRemoteBranchOptions,
-              optionsLoading: isLoadingMergeBaseBranchOptions,
-              onChange: handleMergeBaseBranchChange,
-              onPickerOpenChange: handleMergeBasePickerOpenChange,
-              onSearchQueryChange: setMergeBaseBranchSearchQuery,
-            }
-          : null
-      }
       composerFocusRequestNonce={composerFocusRequestNonce}
       sendMessage={sendMessage}
       sentMessageEdit={sentMessageEdit}

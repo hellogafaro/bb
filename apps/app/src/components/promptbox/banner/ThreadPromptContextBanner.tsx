@@ -7,15 +7,10 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import type {
   EnvironmentStatus,
-  GitBranchRefClassification,
   ThreadPullRequest,
   ThreadRuntimeDisplayStatus,
 } from "@bb/domain";
 import type { PullRequestMergeMethod } from "@bb/server-contract";
-import {
-  BranchPicker,
-  getMergeBaseBranchCandidateGroups,
-} from "@/components/pickers/BranchPicker";
 import {
   PromptStackCard,
   PromptStackCardChevron,
@@ -28,14 +23,6 @@ import {
   activityIconClass,
   activityRowClass,
 } from "@bb/shared-ui/activity-row-styles";
-import { WorkspaceChangesList } from "@/components/thread/WorkspaceChangesList";
-import {
-  formatChangeSummary,
-  renderChangeSummary,
-  toChangeTally,
-  type WorkspaceChangedFileSelection,
-  type WorkspaceChangedFilesSection,
-} from "@/components/workspace/workspace-change-summary";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
 import {
@@ -63,24 +50,6 @@ import {
   ThreadTitle,
   useThreadTitleDisplayText,
 } from "@/components/thread/ThreadTitleMentions";
-
-export interface ContextBannerMergeBaseConfig {
-  branch: string;
-  branchRef?: GitBranchRefClassification | null;
-  options?: readonly string[];
-  remoteOptions?: readonly string[];
-  optionsLoading?: boolean;
-  onChange: (branch: string) => void;
-  onPickerOpenChange?: (open: boolean) => void;
-  onSearchQueryChange?: (query: string) => void;
-}
-
-export interface ThreadPromptGitSection {
-  changedFiles: WorkspaceChangedFilesSection;
-  mergeBase: ContextBannerMergeBaseConfig | null;
-  onPromptBannerFileClick: (selection: WorkspaceChangedFileSelection) => void;
-  onCommit: (() => void) | null;
-}
 
 export interface ThreadPromptParentThreadSection {
   parentThreadTitle: string;
@@ -138,14 +107,11 @@ export function isThreadDisplayStatusBannerActive(
 }
 
 export type ThreadPromptContextBannerExpandedSection =
-  | "git"
   | "parentThread"
   | "childThreads"
   | "status";
 
 interface ThreadPromptContextBannerProps {
-  gitSection: ThreadPromptGitSection | null;
-  gitSectionPending: boolean;
   archivedSection: ThreadPromptArchivedSection | null;
   environmentGoneSection: ThreadPromptEnvironmentGoneSection | null;
   parentThreadSection: ThreadPromptParentThreadSection | null;
@@ -154,12 +120,6 @@ interface ThreadPromptContextBannerProps {
   expandedSection: ThreadPromptContextBannerExpandedSection | null;
   onToggleSection: (section: ThreadPromptContextBannerExpandedSection) => void;
 }
-
-const KIND_PREFIX: Record<WorkspaceChangedFilesSection["kind"], string> = {
-  uncommitted: "Uncommitted",
-  untracked: "Untracked",
-  committed: "Committed",
-};
 
 const ARCHIVED_THREAD_STATUS_LABEL = "Thread is archived";
 const ENVIRONMENT_GONE_STATUS_COPY: Record<
@@ -194,10 +154,6 @@ const SECTION_IDS = {
     toggle: "thread-prompt-banner-child-threads-toggle",
     body: "thread-prompt-banner-child-threads-body",
   },
-  git: {
-    toggle: "thread-prompt-banner-git-toggle",
-    body: "thread-prompt-banner-git-body",
-  },
   status: {
     toggle: "thread-prompt-banner-status-toggle",
     body: "thread-prompt-banner-status-body",
@@ -222,7 +178,6 @@ interface SectionToggleButtonProps {
   ariaLabel?: string;
   icon: ReactNode;
   label: ReactNode;
-  compactLabel?: ReactNode;
   hideLabelInCompact?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
@@ -234,7 +189,6 @@ function SectionToggleButton({
   ariaLabel,
   icon,
   label,
-  compactLabel,
   hideLabelInCompact = true,
   isExpanded,
   onToggle,
@@ -263,13 +217,6 @@ function SectionToggleButton({
           data-promptbox-hide-compact={hideLabelInCompact ? "" : undefined}
         >
           {label}
-        </span>
-      ) : null}
-      {hideLabelInCompact &&
-      compactLabel !== null &&
-      compactLabel !== undefined ? (
-        <span className="min-w-0 truncate" data-promptbox-compact-label="">
-          {compactLabel}
         </span>
       ) : null}
       <Icon
@@ -845,8 +792,6 @@ function ReadOnlyContextBanner({
 }
 
 export function ThreadPromptContextBanner({
-  gitSection,
-  gitSectionPending,
   archivedSection,
   environmentGoneSection,
   parentThreadSection,
@@ -888,23 +833,16 @@ export function ThreadPromptContextBanner({
       />
     );
   }
-  if (gitSectionPending) {
-    return null;
-  }
-  const showGit = gitSection !== null;
   const showParentThread = parentThreadSection !== null;
   const showChildThreads =
     childThreadsSection !== null && childThreadsSection.items.length > 0;
   const showPullRequest = pullRequestSection !== null;
-  if (!showGit && !showParentThread && !showChildThreads && !showPullRequest) {
+  if (!showParentThread && !showChildThreads && !showPullRequest) {
     return null;
   }
   const visibleSegmentCount =
-    Number(showParentThread) + Number(showPullRequest) + Number(showGit);
+    Number(showParentThread) + Number(showPullRequest);
   const hasSingleVisibleSegment = visibleSegmentCount === 1;
-  const isPullRequestAndGitOnly =
-    showPullRequest && showGit && visibleSegmentCount === 2;
-  const isGitExpanded = expandedSection === "git" && showGit;
   const isParentThreadExpanded =
     expandedSection === "parentThread" && showParentThread;
   const isChildThreadsExpanded =
@@ -917,69 +855,9 @@ export function ThreadPromptContextBanner({
         onToggle={() => onToggleSection("childThreads")}
       />
     ) : null;
-  const gitTally = showGit
-    ? toChangeTally(gitSection.changedFiles.stats)
-    : null;
-  const gitSummaryText = gitTally ? formatChangeSummary(gitTally) : "";
-  const gitSummaryPrefix = showGit
-    ? KIND_PREFIX[gitSection.changedFiles.kind]
-    : "";
-  const gitSummary: ReactNode =
-    showGit && gitTally ? (
-      <>
-        {gitSummaryPrefix} · {renderChangeSummary(gitTally)}
-      </>
-    ) : null;
-
-  const mergeBaseCandidates =
-    showGit && gitSection.mergeBase
-      ? getMergeBaseBranchCandidateGroups({
-          mergeBaseBranch: gitSection.mergeBase.branch,
-          mergeBaseBranchRef: gitSection.mergeBase.branchRef,
-          mergeBaseBranchOptions: gitSection.mergeBase.options,
-          remoteMergeBaseBranchOptions: gitSection.mergeBase.remoteOptions,
-        })
-      : { options: [], remoteOptions: [] };
-  const segmentAction =
-    hasSingleVisibleSegment && showGit && gitSection.mergeBase ? (
-      <BannerActionSlot hideInCompact>
-        <Icon
-          name="GitMerge"
-          className="size-3.5 shrink-0"
-          aria-hidden="true"
-        />
-        <span className="shrink-0">Merge base</span>
-        <BranchPicker
-          value={gitSection.mergeBase.branch}
-          options={mergeBaseCandidates.options}
-          remoteOptions={mergeBaseCandidates.remoteOptions}
-          variant="minimal"
-          emphasizeTriggerValue={false}
-          loading={gitSection.mergeBase.optionsLoading}
-          onChange={gitSection.mergeBase.onChange}
-          onOpenChange={gitSection.mergeBase.onPickerOpenChange}
-          onSearchQueryChange={gitSection.mergeBase.onSearchQueryChange}
-          className="max-w-[10rem]"
-          muted
-          popoverAlign="end"
-        />
-      </BannerActionSlot>
-    ) : null;
-
-  const commitAction =
-    showGit && gitSection.onCommit ? (
-      <BannerActionSlot hideInTiny={false}>
-        <PromptBannerActionButton onClick={gitSection.onCommit}>
-          Commit
-        </PromptBannerActionButton>
-      </BannerActionSlot>
-    ) : null;
-
-  const isParentThreadOnly = showParentThread && !showGit && !showPullRequest;
+  const isParentThreadOnly = showParentThread && !showPullRequest;
 
   const pullRequest = pullRequestSection?.pullRequest ?? null;
-  const showPullRequestLabel =
-    hasSingleVisibleSegment || isPullRequestAndGitOnly;
   const pullRequestActions = pullRequestSection?.actions;
   const pullRequestAction =
     pullRequest && pullRequestActions ? (
@@ -1033,57 +911,17 @@ export function ThreadPromptContextBanner({
             <PullRequestBannerLink
               pullRequest={pullRequest}
               hideLabelInCompact={!hasSingleVisibleSegment}
-              showLabel={showPullRequestLabel}
+              showLabel={hasSingleVisibleSegment}
               showStateLabel={hasSingleVisibleSegment}
             />
           ) : null}
-          {showGit && gitSummary ? (
-            <SectionToggleButton
-              id={SECTION_IDS.git.toggle}
-              controlsId={SECTION_IDS.git.body}
-              icon={
-                <Icon
-                  name="FileDiff"
-                  className="size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
-              }
-              label={gitSummary}
-              compactLabel={gitTally ? renderChangeSummary(gitTally) : null}
-              hideLabelInCompact={visibleSegmentCount > 2}
-              ariaLabel={`Changed files: ${gitSummaryPrefix}, ${gitSummaryText}`}
-              isExpanded={isGitExpanded}
-              onToggle={() => onToggleSection("git")}
-            />
-          ) : null}
           {pullRequestAction}
-          {segmentAction}
-          {commitAction}
         </div>
         {showParentThread && parentThreadSection && !isParentThreadOnly ? (
           <ParentThreadSectionBody
             section={parentThreadSection}
             isExpanded={isParentThreadExpanded}
           />
-        ) : null}
-        {showGit ? (
-          <AnimatedBody
-            collapsedBorder="reserve"
-            id={SECTION_IDS.git.body}
-            labelledBy={SECTION_IDS.git.toggle}
-            isExpanded={isGitExpanded}
-          >
-            <WorkspaceChangesList
-              files={gitSection.changedFiles.files}
-              className="max-h-32 px-3 pb-2 pt-1"
-              onFileClick={(file) =>
-                gitSection.onPromptBannerFileClick({
-                  file,
-                  section: gitSection.changedFiles,
-                })
-              }
-            />
-          </AnimatedBody>
         ) : null}
       </PromptStackCard>
     ) : null;
