@@ -17,9 +17,7 @@ import {
   SettingsSection,
 } from "@/components/ui/settings-section";
 import { useSystemProviders } from "@/hooks/queries/system-queries";
-import { isForkHiddenSettingsSection } from "@/lib/fork-settings";
 import { getProviderIconInfo } from "@/lib/provider-icon";
-import { ProviderCliUpdatesSection } from "./ProviderCliUpdatesSection";
 import { ProviderIconMark } from "./ProviderIconMark";
 import {
   SortableSettingsRowList,
@@ -287,9 +285,6 @@ export function ProvidersSettingsSection({
           </SettingsRowList>
         </SettingsSection>
       )}
-      {isForkHiddenSettingsSection("updates") ? (
-        <ProviderCliUpdatesSection />
-      ) : null}
     </>
   );
 }

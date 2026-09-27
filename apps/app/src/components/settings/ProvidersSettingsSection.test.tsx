@@ -18,18 +18,6 @@ import {
 
 const mocks = vi.hoisted(() => ({
   providers: [] as ProviderInfo[],
-  hiddenSections: ["updates"] as readonly string[],
-}));
-
-vi.mock("@/lib/fork-flags", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
-  get FORK_HIDDEN_SETTINGS_SECTIONS() {
-    return mocks.hiddenSections;
-  },
-}));
-
-vi.mock("./ProviderCliUpdatesSection", () => ({
-  ProviderCliUpdatesSection: () => <section>Provider CLIs</section>,
 }));
 
 vi.mock("@/hooks/queries/system-queries", () => ({
@@ -56,7 +44,6 @@ function provider(id: string, displayName: string): ProviderInfo {
 
 afterEach(() => {
   cleanup();
-  mocks.hiddenSections = ["updates"];
 });
 
 describe("ProvidersSettingsSection", () => {
@@ -102,28 +89,6 @@ describe("ProvidersSettingsSection", () => {
       ...defaultAppSettings,
       defaultProviderId: "gamma",
     });
-  });
-
-  it("shows provider CLI updates only while the Updates page is hidden", () => {
-    mocks.providers = [provider("alpha", "Alpha")];
-    const view = render(
-      <ProvidersSettingsSection
-        disabled={false}
-        generalSettings={defaultAppSettings}
-        onGeneralSettingsChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Provider CLIs")).toBeTruthy();
-
-    mocks.hiddenSections = [];
-    view.rerender(
-      <ProvidersSettingsSection
-        disabled={false}
-        generalSettings={defaultAppSettings}
-        onGeneralSettingsChange={vi.fn()}
-      />,
-    );
-    expect(screen.queryByText("Provider CLIs")).toBeNull();
   });
 
   it("marks an unavailable provider and blocks it as the default", () => {

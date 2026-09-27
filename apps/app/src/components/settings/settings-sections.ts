@@ -1,5 +1,4 @@
 import type { IconName } from "@bb/shared-ui/icon";
-import { isForkHiddenSettingsSection } from "@/lib/fork-settings";
 import { SETTINGS_ROUTE_PATH, getSettingsRoutePath } from "@/lib/route-paths";
 
 export const SETTINGS_NAV_SECTIONS = [
@@ -7,8 +6,6 @@ export const SETTINGS_NAV_SECTIONS = [
   { icon: "Bot", id: "providers", label: "Providers" },
   { icon: "Palette", id: "appearance", label: "Appearance" },
   { icon: "SlidersHorizontal", id: "keyboard", label: "Keyboard" },
-  { icon: "Browser", id: "browser", label: "Browser" },
-  { icon: "File", id: "files", label: "Files" },
   { icon: "FolderGit", id: "projects", label: "Projects" },
   { icon: "Laptop", id: "machines", label: "Machines" },
   {
@@ -18,9 +15,7 @@ export const SETTINGS_NAV_SECTIONS = [
   },
   { icon: "PackageReceive", id: "updates", label: "Updates" },
   { icon: "Plug02", id: "plugins", label: "Installed plugins" },
-  { icon: "Puzzle", id: "marketplaces", label: "Plugin marketplaces" },
   { icon: "Beaker", id: "experiments", label: "Experiments" },
-  { icon: "MessageSquare", id: "community", label: "Community" },
 ] as const satisfies readonly {
   icon: IconName;
   id: string;
@@ -47,9 +42,8 @@ export type CustomizeSectionId = (typeof CUSTOMIZE_NAV_SECTIONS)[number]["id"];
 
 export function isSettingsSectionId(value: string): value is SettingsSectionId {
   return (
-    (SETTINGS_NAV_SECTIONS.some((section) => section.id === value) ||
-      CUSTOMIZE_NAV_SECTIONS.some((section) => section.id === value)) &&
-    !isForkHiddenSettingsSection(value)
+    SETTINGS_NAV_SECTIONS.some((section) => section.id === value) ||
+    CUSTOMIZE_NAV_SECTIONS.some((section) => section.id === value)
   );
 }
 

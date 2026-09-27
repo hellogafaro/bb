@@ -9,14 +9,8 @@ import {
   defaultAppSettings,
   type AppSettings,
 } from "@bb/domain";
-import type {
-  WorkspaceOpenTarget,
-  WorkspaceOpenTargetId,
-} from "@bb/host-daemon-contract";
 import { VoiceInputSettingsSectionContent } from "@/components/settings/VoiceInputSettingsSection";
-import { CommunitySettingsSection } from "@/components/settings/CommunitySettingsSection";
 import { KeyboardSettingsSection } from "@/components/settings/KeyboardSettingsSection";
-import { MarketplacesSettingsSection } from "@/components/settings/MarketplacesSettingsSection";
 import { MachineEnvironmentSettings } from "@/components/settings/MachineEnvironmentSettings";
 import { MachinesSettingsSection } from "@/components/settings/MachinesSettingsSection";
 import { ProjectsSettingsSection } from "@/components/settings/ProjectsSettingsSection";
@@ -41,8 +35,6 @@ import {
   PrivacySettingsSection,
   ExperimentsSettingsSection,
   GeneralSettingsSection,
-  LocalOpenTargetSettingsSection,
-  type LocalOpenTargetSettingsSectionProps,
 } from "./SettingsView";
 import { MachineSettingsView } from "./MachineSettingsView";
 import { ProjectDetailSettingsView } from "./ProjectDetailSettingsView";
@@ -52,58 +44,9 @@ export default {
   title: "settings/Settings",
 };
 
-type StoredTargetId = LocalOpenTargetSettingsSectionProps["directoryTargetId"];
-
 const audioInputDevices: AudioInputDeviceOption[] = [
   { deviceId: "macbook-mic", label: "MacBook Pro Microphone" },
   { deviceId: "studio-mic", label: "Studio Display Microphone" },
-];
-
-const vscodeTarget: WorkspaceOpenTarget = {
-  capabilities: {
-    openDirectory: true,
-    openFile: true,
-    openFileAtLine: true,
-  },
-  id: "vscode",
-  label: "VS Code",
-};
-
-const finderTarget: WorkspaceOpenTarget = {
-  capabilities: {
-    openDirectory: true,
-    openFile: false,
-    openFileAtLine: false,
-  },
-  id: "finder",
-  label: "Finder",
-};
-
-const terminalTarget: WorkspaceOpenTarget = {
-  capabilities: {
-    openDirectory: true,
-    openFile: false,
-    openFileAtLine: false,
-  },
-  id: "terminal",
-  label: "Terminal",
-};
-
-const defaultAppTarget: WorkspaceOpenTarget = {
-  capabilities: {
-    openDirectory: true,
-    openFile: true,
-    openFileAtLine: false,
-  },
-  id: "default-app",
-  label: "Default App",
-};
-
-const connectedTargets: WorkspaceOpenTarget[] = [
-  vscodeTarget,
-  finderTarget,
-  terminalTarget,
-  defaultAppTarget,
 ];
 
 function useSettingsStoryState() {
@@ -128,18 +71,12 @@ function useSettingsStoryState() {
   const [showDiagnosticEvents, setShowDiagnosticEvents] = useState(false);
   const [preferredAudioInputDeviceId, setPreferredAudioInputDeviceId] =
     useState<PreferredAudioInputDeviceId>("studio-mic");
-  const [directoryTargetId, setDirectoryTargetId] =
-    useState<StoredTargetId>("finder");
-  const [fileTargetId, setFileTargetId] =
-    useState<StoredTargetId>("default-app");
   const [experiments, setExperiments] =
     useState<Experiments>(defaultExperiments);
 
   return {
     appearance,
-    directoryTargetId,
     experiments,
-    fileTargetId,
     managedBranchPrefix,
     navigateToThreadAfterCreate,
     openLinksInAppBrowser,
@@ -152,9 +89,7 @@ function useSettingsStoryState() {
     setTelemetryEnabled,
     showDiagnosticEvents,
     setAppearance,
-    setDirectoryTargetId,
     setExperiments,
-    setFileTargetId,
     setManagedBranchPrefix,
     setNavigateToThreadAfterCreate,
     setOpenLinksInAppBrowser,
@@ -257,31 +192,6 @@ function AppearanceSettingsStory() {
   );
 }
 
-function FilePreferencesStory() {
-  const state = useSettingsStoryState();
-
-  function handleDirectoryTargetChange(targetId: WorkspaceOpenTargetId): void {
-    state.setDirectoryTargetId(targetId);
-  }
-
-  function handleFileTargetChange(targetId: WorkspaceOpenTargetId): void {
-    state.setFileTargetId(targetId);
-  }
-
-  return (
-    <LocalOpenTargetSettingsSection
-      accessState="available"
-      directoryTargetId={state.directoryTargetId}
-      fileTargetId={state.fileTargetId}
-      hasDaemon={true}
-      onDirectoryTargetChange={handleDirectoryTargetChange}
-      onFileTargetChange={handleFileTargetChange}
-      onRequestAccess={async () => true}
-      targets={connectedTargets}
-    />
-  );
-}
-
 function ExperimentsStory() {
   const state = useSettingsStoryState();
 
@@ -337,8 +247,6 @@ function SettingsStoryContent({ route }: { route: SettingsStoryRoute }) {
       return <AppearanceSettingsStory />;
     case "keyboard":
       return <KeyboardSettingsSection />;
-    case "files":
-      return <FilePreferencesStory />;
     case "projects":
       return <ProjectsSettingsSection />;
     case "machines":
@@ -349,10 +257,6 @@ function SettingsStoryContent({ route }: { route: SettingsStoryRoute }) {
       return <SettingsUpdatesStory />;
     case "experiments":
       return <ExperimentsStory />;
-    case "marketplaces":
-      return <MarketplacesSettingsSection />;
-    case "community":
-      return <CommunitySettingsSection />;
     case "general":
       return (
         <>

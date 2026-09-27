@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { globalSearchQueryKeyPrefix } from "@/hooks/queries/global-search-query-key";
-import { isForkHiddenSettingsPath } from "@/lib/fork-settings";
 import {
   CORE_SETTINGS_CATALOG,
   CORE_SETTINGS_PAGES,
@@ -89,6 +88,20 @@ import {
   PaletteShell,
   PaletteShortcut,
 } from "./PaletteShell";
+
+const REMOVED_SETTINGS_SECTIONS: readonly string[] = [
+  "browser",
+  "marketplaces",
+  "community",
+  "files",
+];
+
+function isRemovedSettingsPath(path: string): boolean {
+  const sectionId = /^\/settings\/([^/?#]+)/u.exec(path)?.[1];
+  return (
+    sectionId !== undefined && REMOVED_SETTINGS_SECTIONS.includes(sectionId)
+  );
+}
 
 function targetOf(invocation: {
   target: EventTarget | null;
@@ -494,7 +507,7 @@ export function CommandPalette({
         ...recentThreads,
         ...recentProjects,
         ...recentSettings.filter(
-          (entry) => !isForkHiddenSettingsPath(entry.destination),
+          (entry) => !isRemovedSettingsPath(entry.destination),
         ),
         ...recentMachines,
       ].map((entry) => [entry.id, entry]),
@@ -534,7 +547,7 @@ export function CommandPalette({
           (entry) =>
             entry.kind !== "setting" ||
             (settingAvailable(entry.availability) &&
-              !isForkHiddenSettingsPath(entry.destination)),
+              !isRemovedSettingsPath(entry.destination)),
         );
         const entries =
           kind === "actions"
@@ -564,7 +577,7 @@ export function CommandPalette({
               ? [
                   ...serverEntries,
                   ...localSettings.filter(
-                    (entry) => !isForkHiddenSettingsPath(entry.destination),
+                    (entry) => !isRemovedSettingsPath(entry.destination),
                   ),
                 ]
               : serverEntries;
