@@ -31,15 +31,11 @@ import {
   type ThreadStorageFilePreviewFixedPanelTab,
   type WorkspaceFilePreviewFixedPanelTab,
 } from "@/lib/fixed-panel-tabs-state";
-import { usePluginSlots } from "@/lib/plugin-slots";
-import { useFileOpenerPreferenceValue } from "@/lib/file-opener-preference";
 import {
   createFileOpenerOriginalTab,
-  createFileOpenerTabForRequest,
   fileOpenerIdFromActionId,
   parseFileOpenerParams,
 } from "@/components/plugin/file-opener-tabs";
-import type { FileOpenerOverride } from "@/lib/plugin-slot-resolvers";
 import type { OpenPluginPanelArgs } from "@/components/plugin/PluginPanelActions";
 import type {
   HostFileTabState,
@@ -634,33 +630,17 @@ export function useThreadFileTabs({
     updateFixedPanelTabsState,
   ]);
 
-  const { fileOpeners } = usePluginSlots();
-  const fileOpenerPreference = useFileOpenerPreferenceValue();
-
   const openResolvedTab = useCallback(
     (
       request: OpenSecondaryPanelTabRequest,
       behavior: OpenResolvedTabBehavior,
-      viewer?: FileOpenerOverride,
     ): SecondaryPanelTab | null => {
-      const openerTab = createFileOpenerTabForRequest({
-        fileOpeners,
-        preference: fileOpenerPreference,
-        projectHostId,
+      const tab = createTabForOpenRequest({
         projectId,
         request,
         resolvedEnvironmentId,
         threadId: resolvedFileOwnerThreadId,
-        ...(viewer !== undefined ? { viewer } : {}),
       });
-      const tab =
-        openerTab ??
-        createTabForOpenRequest({
-          projectId,
-          request,
-          resolvedEnvironmentId,
-          threadId: resolvedFileOwnerThreadId,
-        });
       if (tab === null) return null;
 
       if (recentlyClosedPanelContextKey !== null) {
@@ -686,9 +666,6 @@ export function useThreadFileTabs({
       return tab;
     },
     [
-      fileOpenerPreference,
-      fileOpeners,
-      projectHostId,
       recordRecentItem,
       projectId,
       resolvedEnvironmentId,
@@ -699,16 +676,12 @@ export function useThreadFileTabs({
   );
 
   const openTab = useCallback(
-    (
-      request: OpenSecondaryPanelTabRequest,
-      options?: { viewer?: FileOpenerOverride },
-    ): SecondaryPanelTab | null => {
+    (request: OpenSecondaryPanelTabRequest): SecondaryPanelTab | null => {
       return openResolvedTab(
         request,
         request.kind === "browser" || request.kind === "files"
           ? "replace-new-tab"
           : "open",
-        options?.viewer,
       );
     },
     [openResolvedTab],

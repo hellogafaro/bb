@@ -10,20 +10,10 @@ import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { useResolvedLiveFileTarget } from "@/hooks/useResolvedLiveFileTarget";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
 import { copyToClipboardWithToast } from "@/lib/clipboard";
-import { FORK_BUILTIN_FILE_OPENER } from "@/lib/fork-flags";
 import {
   getFileBasename,
   getExperimentalFileLocationStart,
 } from "@/lib/live-file-navigation";
-import { usePluginSlots } from "@/lib/plugin-slots";
-
-function getFileExtension(path: string): string | null {
-  const name = getFileBasename(path);
-  const dotIndex = name.lastIndexOf(".");
-  return dotIndex > 0 && dotIndex < name.length - 1
-    ? name.slice(dotIndex + 1).toLowerCase()
-    : null;
-}
 
 export function ExperimentalFileLinkMenu({
   intent,
@@ -38,12 +28,6 @@ export function ExperimentalFileLinkMenu({
       ? { openContext: resolved.openContext }
       : {}),
   });
-  const { fileOpeners } = usePluginSlots();
-  const extension = getFileExtension(intent.target.path);
-  const matchingOpeners =
-    extension === null || FORK_BUILTIN_FILE_OPENER
-      ? []
-      : fileOpeners.filter((opener) => opener.extensions.includes(extension));
   const location = getExperimentalFileLocationStart(intent.location);
 
   return (
@@ -51,36 +35,6 @@ export function ExperimentalFileLinkMenu({
       <ContextMenuItem onSelect={() => navigation.openFilePreview(intent)}>
         Open preview
       </ContextMenuItem>
-      {matchingOpeners.length > 0 ? (
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>Open with</ContextMenuSubTrigger>
-          <ContextMenuSubContent className="min-w-52">
-            <ContextMenuItem
-              onSelect={() =>
-                navigation.openFilePreview({ ...intent, viewer: "builtin" })
-              }
-            >
-              BB preview
-            </ContextMenuItem>
-            {matchingOpeners.map((opener) => (
-              <ContextMenuItem
-                key={`${opener.pluginId}:${opener.id}`}
-                onSelect={() =>
-                  navigation.openFilePreview({
-                    ...intent,
-                    viewer: {
-                      pluginId: opener.pluginId,
-                      openerId: opener.id,
-                    },
-                  })
-                }
-              >
-                {opener.title}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-      ) : null}
       <ContextMenuItem
         disabled={
           resolved.status !== "available" ||

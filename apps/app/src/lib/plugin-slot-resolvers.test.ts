@@ -1,36 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   PluginComposerCustomizationSlot,
-  PluginFileOpenerSlot,
   PluginMessageDirectiveSlot,
   PluginPendingInteractionSlot,
 } from "./plugin-slots";
 import {
-  BUILT_IN_FILE_OPENER_PREFERENCE,
-  buildFileOpenerRef,
   resolveComposerActions,
   resolveComposerBanners,
   resolveComposerDraftObservers,
   resolveComposerEditorEffects,
   resolveComposerPlusMenuItems,
-  resolveFileOpenerReplacement,
   resolveMessageDirectiveRegistry,
   resolvePendingInteraction,
   resolveReplacement,
 } from "./plugin-slot-resolvers";
-
-const forkFlags = vi.hoisted(() => ({ builtinFileOpener: false }));
-
-vi.mock("@/lib/fork-flags", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
-  get FORK_BUILTIN_FILE_OPENER() {
-    return forkFlags.builtinFileOpener;
-  },
-}));
-
-afterEach(() => {
-  forkFlags.builtinFileOpener = false;
-});
 
 function Component() {
   return null;
@@ -163,129 +146,5 @@ describe("replacement resolvers", () => {
       ),
     ).toEqual({ kind: "plugin", registration: gamma });
     expect(resolveReplacement([], () => true)).toEqual({ kind: "owner" });
-  });
-
-  it("activates the first matching file opener and preserves per-open overrides", () => {
-    const markdown: PluginFileOpenerSlot = {
-      pluginId: "docs",
-      generation: 1,
-      id: "editor",
-      title: "Editor",
-      extensions: ["md"],
-      component: Component,
-    };
-    const text = { ...markdown, id: "text", extensions: ["txt"] };
-    const alternate = {
-      ...markdown,
-      pluginId: "alternate",
-      id: "preview",
-      title: "Preview",
-    };
-
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown, text],
-        path: "README.MD",
-      }),
-    ).toEqual({ kind: "plugin", registration: markdown });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown, alternate],
-        preference: { md: BUILT_IN_FILE_OPENER_PREFERENCE },
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "owner" });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown, alternate],
-        preference: { md: buildFileOpenerRef(alternate) },
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "plugin", registration: alternate });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown, text],
-        path: "README.md",
-        override: { pluginId: "docs", openerId: "text" },
-      }),
-    ).toEqual({ kind: "plugin", registration: text });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown],
-        path: "README.md",
-        override: "builtin",
-      }),
-    ).toEqual({ kind: "owner" });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [],
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "owner" });
-  });
-
-  it("reveals the next matching file opener when the first is removed", () => {
-    const first: PluginFileOpenerSlot = {
-      pluginId: "alpha",
-      generation: 1,
-      id: "markdown",
-      title: "Alpha Markdown",
-      extensions: ["md"],
-      component: Component,
-    };
-    const second = { ...first, pluginId: "beta", title: "Beta Markdown" };
-
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [first, second],
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "plugin", registration: first });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [second],
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "plugin", registration: second });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [second],
-        preference: { md: buildFileOpenerRef(first) },
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "owner" });
-  });
-
-  it("resolves every file to the built-in viewer under the fork's built-in file opener", () => {
-    forkFlags.builtinFileOpener = true;
-    const markdown: PluginFileOpenerSlot = {
-      pluginId: "docs",
-      generation: 1,
-      id: "markdown",
-      title: "Editor",
-      extensions: ["md"],
-      component: Component,
-    };
-
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown],
-        preference: { md: buildFileOpenerRef(markdown) },
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "owner" });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown],
-        path: "README.md",
-      }),
-    ).toEqual({ kind: "owner" });
-    expect(
-      resolveFileOpenerReplacement({
-        registrations: [markdown],
-        path: "README.md",
-        override: { pluginId: "docs", openerId: "markdown" },
-      }),
-    ).toEqual({ kind: "owner" });
   });
 });

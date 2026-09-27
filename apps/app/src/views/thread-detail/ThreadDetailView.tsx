@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { ExperimentalFileOpenOptions } from "@get-bb/plugin-sdk";
 import { nanoid } from "nanoid";
 import { useSystemProviderInfo } from "@/hooks/queries/system-queries";
 import { useImmediateRouteNavigate } from "@/components/ui/app-route-anchor";
@@ -170,7 +171,6 @@ import {
   type ThreadSecondaryPanelHostFileOpenHandler,
   type ThreadSecondaryPanelStorageFileOpenHandler,
   type ThreadSecondaryPanelWorkspaceFileOpenHandler,
-  type ThreadSecondaryPanelFileOpenOptions,
 } from "./useThreadSecondaryPanelVisibility";
 import type { HostConnectionNotice } from "@/components/thread/timeline/ThreadTimelineSurface";
 import {
@@ -208,14 +208,11 @@ import {
 } from "@/components/plugin/plugin-thread-panel-navigation";
 import { ThreadTimelineNavigationProvider } from "@/components/thread/timeline/ThreadTimelineNavigationContext";
 import { usePluginSlots } from "@/lib/plugin-slots";
-import { getFileExtension } from "@/lib/plugin-slot-resolvers";
-import { FORK_BUILTIN_FILE_OPENER } from "@/lib/fork-flags";
 import { Icon } from "@bb/shared-ui/icon";
 import { getBbDesktopInfo, getDesktopBrowserApi } from "@/lib/bb-desktop";
 import { openHttpUrlInExternalBrowser } from "@/lib/url-open-routing";
 import {
   AppNavigationHostProvider,
-  type AppFilePreviewIntent,
   type AppFixedTabOpenIntent,
 } from "@/lib/app-navigation-host";
 import { openAppFixedTabFromDestinations } from "@/lib/app-fixed-tab-navigation";
@@ -715,10 +712,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     openPluginPanel,
     threadId,
   });
-  const {
-    fileOpeners: pluginFileOpeners,
-    threadPanelActions: pluginThreadPanelActions,
-  } = usePluginSlots();
+  const { threadPanelActions: pluginThreadPanelActions } = usePluginSlots();
   useThreadOpenFileSignal({
     threadId,
     environmentId: thread?.environmentId,
@@ -741,20 +735,23 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   );
   const openPersistedWorkspaceFile =
     useCallback<ThreadSecondaryPanelWorkspaceFileOpenHandler>(
-      (file, options) =>
-        openTab({ kind: "workspace-file-preview", tab: file }, options),
+      (file) => {
+        openTab({ kind: "workspace-file-preview", tab: file });
+      },
       [openTab],
     );
   const openPersistedStorageFile =
     useCallback<ThreadSecondaryPanelStorageFileOpenHandler>(
-      (file, options) =>
-        openTab({ kind: "thread-storage-file-preview", tab: file }, options),
+      (file) => {
+        openTab({ kind: "thread-storage-file-preview", tab: file });
+      },
       [openTab],
     );
   const openPersistedHostFile =
     useCallback<ThreadSecondaryPanelHostFileOpenHandler>(
-      (file, options) =>
-        openTab({ kind: "host-file-preview", tab: file }, options),
+      (file) => {
+        openTab({ kind: "host-file-preview", tab: file });
+      },
       [openTab],
     );
   const openNewTab = useCallback(() => {
@@ -1279,34 +1276,29 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     [openFixedTab],
   );
   const handleOpenLiveFilePreview = useCallback(
-    (intent: AppFilePreviewIntent): boolean => {
+    (intent: ExperimentalFileOpenOptions): boolean => {
       const normalized = normalizeExperimentalFileOpenOptions(intent);
       if (normalized === null || thread === undefined) return false;
       const lineRange = toFilePreviewLineRange(normalized.location);
-      const options =
-        intent.viewer === undefined ? undefined : { viewer: intent.viewer };
       switch (normalized.target.kind) {
         case "workspace":
           if (normalized.target.environmentId !== thread.environmentId) {
             return false;
           }
-          openWorkspaceFile(
-            {
-              lineRange,
-              path: normalized.target.path,
-              source: { kind: "working-tree" },
-              statusLabel: null,
-            },
-            options,
-          );
+          openWorkspaceFile({
+            lineRange,
+            path: normalized.target.path,
+            source: { kind: "working-tree" },
+            statusLabel: null,
+          });
           return true;
         case "host":
           if (normalized.target.hostId !== environment?.hostId) return false;
-          openHostFile({ lineRange, path: normalized.target.path }, options);
+          openHostFile({ lineRange, path: normalized.target.path });
           return true;
         case "thread-storage":
           if (normalized.target.threadId !== thread.id) return false;
-          openStorageFile({ lineRange, path: normalized.target.path }, options);
+          openStorageFile({ lineRange, path: normalized.target.path });
           return true;
       }
     },
@@ -1976,10 +1968,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     [thread, updateThread],
   );
   const handleTimelineLocalFileLinkResolution = useCallback(
-    (
-      resolution: ThreadLocalFileLinkResolution,
-      options?: ThreadSecondaryPanelFileOpenOptions,
-    ) => {
+    (resolution: ThreadLocalFileLinkResolution) => {
       if (resolution.kind === "app-route") {
         return false;
       }
@@ -1991,45 +1980,33 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       }
 
       if (resolution.kind === "open-workspace-path") {
-        openWorkspaceFile(
-          {
-            lineRange: resolution.request.lineRange,
-            path: resolution.request.relativePath,
-            source: { kind: "working-tree" },
-            statusLabel: null,
-          },
-          options,
-        );
+        openWorkspaceFile({
+          lineRange: resolution.request.lineRange,
+          path: resolution.request.relativePath,
+          source: { kind: "working-tree" },
+          statusLabel: null,
+        });
         return true;
       }
 
       if (resolution.kind === "open-thread-storage-path") {
-        openStorageFile(
-          {
-            lineRange: resolution.request.lineRange,
-            path: resolution.request.relativePath,
-          },
-          options,
-        );
+        openStorageFile({
+          lineRange: resolution.request.lineRange,
+          path: resolution.request.relativePath,
+        });
         return true;
       }
 
-      openHostFile(
-        {
-          lineRange: resolution.request.lineRange,
-          path: resolution.request.path,
-        },
-        options,
-      );
+      openHostFile({
+        lineRange: resolution.request.lineRange,
+        path: resolution.request.path,
+      });
       return true;
     },
     [openHostFile, openStorageFile, openWorkspaceFile],
   );
   const handleOpenTimelineLocalFileLink = useCallback(
-    (
-      link: ThreadTimelineLocalFileLink,
-      options?: ThreadSecondaryPanelFileOpenOptions,
-    ) => {
+    (link: ThreadTimelineLocalFileLink) => {
       const resolution = resolveThreadLocalFileLink({
         hostFileLinksAvailable:
           thread?.environmentId !== null && thread?.environmentId !== undefined,
@@ -2042,7 +2019,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         resolution.kind !== "open-host-path" ||
         threadStorageRootPath !== null
       ) {
-        return handleTimelineLocalFileLinkResolution(resolution, options);
+        return handleTimelineLocalFileLinkResolution(resolution);
       }
 
       void refetchThreadStorageFiles()
@@ -2062,7 +2039,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             threadStorageRootPath: resolvedThreadStorageRootPath,
             workspaceRootPath: workspacePreviewRootPath,
           });
-          handleTimelineLocalFileLinkResolution(resolvedResolution, options);
+          handleTimelineLocalFileLinkResolution(resolvedResolution);
         })
         .catch((error: Error) => {
           appToast.error("Failed to open file locally", {
@@ -2199,13 +2176,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   });
   const getLocalFileContextMenuItems = useCallback(
     (link: ThreadTimelineLocalFileLink) => {
-      const extension = getFileExtension(link.path);
-      const matching =
-        extension === null || FORK_BUILTIN_FILE_OPENER
-          ? []
-          : pluginFileOpeners.filter((opener) =>
-              opener.extensions.includes(extension),
-            );
       const lineNumber = getFilePreviewLineRangeStart({
         lineRange: link.lineRange,
       });
@@ -2229,29 +2199,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           label: "Open in",
           type: "submenu",
         });
-      }
-      if (matching.length > 0) {
-        if (items.length > 0) {
-          items.push({ id: "open-with-separator", type: "separator" });
-        }
-        items.push(
-          {
-            id: "builtin",
-            label: "Open with built-in preview",
-            onSelect: () => {
-              handleOpenTimelineLocalFileLink(link, { viewer: "builtin" });
-            },
-          },
-          ...matching.map((opener) => ({
-            id: `${opener.pluginId}:${opener.id}`,
-            label: `Open with ${opener.title}`,
-            onSelect: () => {
-              handleOpenTimelineLocalFileLink(link, {
-                viewer: { pluginId: opener.pluginId, openerId: opener.id },
-              });
-            },
-          })),
-        );
       }
       if (items.length > 0) {
         items.push({ id: "copy-separator", type: "separator" });
@@ -2302,9 +2249,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     },
     [
       fileOpenTargets,
-      handleOpenTimelineLocalFileLink,
       openPathInFileTarget,
-      pluginFileOpeners,
       thread?.environmentId,
       threadId,
       threadStorageRootPath,

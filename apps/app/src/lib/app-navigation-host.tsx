@@ -4,14 +4,9 @@ import type {
   ExperimentalFileOpenOptions,
   JsonValue,
 } from "@get-bb/plugin-sdk";
-import type { FileOpenerOverride } from "@/lib/plugin-slot-resolvers";
 
 interface AppUrlOpenIntent {
   url: string;
-}
-
-export interface AppFilePreviewIntent extends ExperimentalFileOpenOptions {
-  viewer?: FileOpenerOverride;
 }
 
 export interface AppFixedTabReference {
@@ -27,14 +22,14 @@ export interface AppFixedTabOpenIntent {
 
 interface AppNavigationHostCapabilities {
   openFileExternally?: (intent: ExperimentalFileOpenOptions) => boolean;
-  openFilePreview?: (intent: AppFilePreviewIntent) => boolean;
+  openFilePreview?: (intent: ExperimentalFileOpenOptions) => boolean;
   openFixedTab?: (intent: AppFixedTabOpenIntent) => boolean;
   openUrl?: (intent: AppUrlOpenIntent) => boolean;
 }
 
 interface ResolvedAppNavigationHostCapabilities {
   openFileExternally: (intent: ExperimentalFileOpenOptions) => boolean;
-  openFilePreview: (intent: AppFilePreviewIntent) => boolean;
+  openFilePreview: (intent: ExperimentalFileOpenOptions) => boolean;
   openFixedTab: (intent: AppFixedTabOpenIntent) => boolean;
   openUrl: (intent: AppUrlOpenIntent) => boolean;
 }

@@ -1,26 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { threadTabsSchema } from "@bb/server-contract";
+import { describe, expect, it } from "vitest";
 import type { PluginFileOpenerSlot } from "@/lib/plugin-slots";
-import type { OpenSecondaryPanelTabRequest } from "@/components/secondary-panel/useThreadFileTabs";
-import {
-  buildFileOpenerPanelTab,
-  createFileOpenerOriginalTab,
-  createFileOpenerTabForRequest,
-  parseFileOpenerParams,
-} from "./file-opener-tabs";
-
-const forkFlags = vi.hoisted(() => ({ builtinFileOpener: false }));
-
-vi.mock("@/lib/fork-flags", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
-  get FORK_BUILTIN_FILE_OPENER() {
-    return forkFlags.builtinFileOpener;
-  },
-}));
-
-afterEach(() => {
-  forkFlags.builtinFileOpener = false;
-});
+import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
+import { createFileOpenerOriginalTab } from "./file-opener-tabs";
 
 const MARKDOWN_OPENER = {
   component: () => null,
@@ -30,112 +11,6 @@ const MARKDOWN_OPENER = {
   pluginId: "docs",
   title: "Docs editor",
 } satisfies PluginFileOpenerSlot;
-
-const REQUESTS: readonly {
-  label: string;
-  request: OpenSecondaryPanelTabRequest;
-}[] = [
-  {
-    label: "workspace file",
-    request: {
-      kind: "workspace-file-preview",
-      tab: {
-        lineRange: { endLineNumber: 12, startLineNumber: 8 },
-        path: "docs/readme.md",
-        source: { kind: "working-tree" },
-        statusLabel: null,
-      },
-    },
-  },
-  {
-    label: "host file",
-    request: {
-      kind: "host-file-preview",
-      tab: { lineRange: null, path: "/Users/dev/notes.md" },
-    },
-  },
-  {
-    label: "thread-storage file",
-    request: {
-      kind: "thread-storage-file-preview",
-      tab: { lineRange: null, path: "plan.md" },
-    },
-  },
-];
-
-describe("createFileOpenerTabForRequest thread-tabs contract", () => {
-  it.each(REQUESTS.map(({ label, request }) => [label, request] as const))(
-    "produces a %s tab the thread-tabs contract accepts",
-    (_label, request) => {
-      const tab = createFileOpenerTabForRequest({
-        fileOpeners: [MARKDOWN_OPENER],
-        preference: {},
-        projectId: null,
-        request,
-        resolvedEnvironmentId: "env_docs",
-        threadId: "thr_docs",
-      });
-
-      expect(tab?.fileOpenerOwner).toBeDefined();
-      expect(() => threadTabsSchema.parse([tab])).not.toThrow();
-    },
-  );
-
-  it("keeps a projectless workspace opener tab contract-valid", () => {
-    const tab = createFileOpenerTabForRequest({
-      fileOpeners: [MARKDOWN_OPENER],
-      preference: {},
-      projectId: null,
-      request: {
-        kind: "workspace-file-preview",
-        tab: {
-          lineRange: null,
-          path: "docs/readme.md",
-          source: { kind: "working-tree" },
-          statusLabel: null,
-        },
-      },
-      resolvedEnvironmentId: null,
-      threadId: null,
-    });
-
-    expect(tab?.fileOpenerOwner).toMatchObject({
-      environmentId: null,
-      kind: "workspace-file-preview",
-      projectId: null,
-      threadId: null,
-    });
-    expect(() => threadTabsSchema.parse([tab])).not.toThrow();
-  });
-
-  it("preserves the selected host for a project-backed opener", () => {
-    const tab = createFileOpenerTabForRequest({
-      fileOpeners: [MARKDOWN_OPENER],
-      preference: {},
-      projectHostId: "host_remote",
-      projectId: "proj_1",
-      request: {
-        kind: "workspace-file-preview",
-        tab: {
-          lineRange: null,
-          path: "docs/readme.md",
-          source: { kind: "working-tree" },
-          statusLabel: null,
-        },
-      },
-      resolvedEnvironmentId: null,
-      threadId: null,
-    });
-
-    const params = parseFileOpenerParams(tab?.paramsJson ?? null);
-    expect(params?.source).toMatchObject({
-      kind: "workspace",
-      projectId: "proj_1",
-      experimental_hostId: "host_remote",
-    });
-    expect(() => threadTabsSchema.parse([tab])).not.toThrow();
-  });
-});
 
 describe("createFileOpenerOriginalTab", () => {
   it("uses persisted workspace routing while retaining owner presentation", () => {

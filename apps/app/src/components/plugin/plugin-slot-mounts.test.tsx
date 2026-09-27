@@ -76,7 +76,7 @@ import {
   type OpenPluginPanelArgs,
 } from "./PluginPanelActions";
 import { NewTabActions } from "@/components/secondary-panel/NewTabActions";
-import { buildFileOpenerPanelTab } from "./file-opener-tabs";
+import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
 import { splitLayoutAtom } from "@/lib/split-layout/atoms";
 import type { PromptDraftState } from "@bb/client-core";
 

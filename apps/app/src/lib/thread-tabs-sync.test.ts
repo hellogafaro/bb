@@ -1,7 +1,7 @@
 import { openSecondaryPanelTabInState } from "@bb/client-core";
 import type { ThreadTab } from "@bb/server-contract";
 import { describe, expect, it } from "vitest";
-import { buildFileOpenerPanelTab } from "@/components/plugin/file-opener-tabs";
+import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
 import {
   createEmptyFixedPanelTabsState,
   createFilesFixedPanelTab,

@@ -2245,9 +2245,10 @@ describe("PluginDetail capability inventory", () => {
     );
 
     expect(screen.getAllByText("Docs")).toHaveLength(2);
-    for (const label of ["Document", "Markdown", "::docs"]) {
+    for (const label of ["Document", "::docs"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
+    expect(screen.queryByText("Markdown")).toBeNull();
   });
 });
 

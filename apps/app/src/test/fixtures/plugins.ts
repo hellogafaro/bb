@@ -1,6 +1,17 @@
-import type { InstalledPlugin } from "@bb/server-contract";
+import type { PluginFileOpenerProps } from "@get-bb/plugin-sdk";
+import type {
+  InstalledPlugin,
+  ThreadTabFileOpenerOwner,
+} from "@bb/server-contract";
 import type { PluginListItem } from "@/hooks/queries/plugin-settings-queries";
-import type { PluginRegistrationSet } from "@/lib/plugin-slots";
+import {
+  createPluginPanelFixedPanelTab,
+  type PluginPanelFixedPanelTab,
+} from "@/lib/fixed-panel-tabs-state";
+import type {
+  PluginFileOpenerSlot,
+  PluginRegistrationSet,
+} from "@/lib/plugin-slots";
 
 type PluginListItemOverrides = Omit<
   Partial<PluginListItem>,
@@ -135,5 +146,21 @@ export function makeInstalledPlugin(
     ...overrides,
     app: { ...plugin.app, ...overrides.app },
     handlerStats: { ...plugin.handlerStats, ...overrides.handlerStats },
+  };
+}
+
+export function buildFileOpenerPanelTab(
+  opener: Pick<PluginFileOpenerSlot, "id" | "pluginId">,
+  file: Pick<PluginFileOpenerProps, "path" | "source">,
+  owner: ThreadTabFileOpenerOwner,
+): PluginPanelFixedPanelTab {
+  return {
+    ...createPluginPanelFixedPanelTab({
+      actionId: `file-opener:${opener.id}`,
+      paramsJson: JSON.stringify({ path: file.path, source: file.source }),
+      pluginId: opener.pluginId,
+      title: file.path.split("/").at(-1) ?? file.path,
+    }),
+    fileOpenerOwner: owner,
   };
 }

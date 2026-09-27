@@ -492,7 +492,6 @@ describe("Plugin detail recipe", () => {
       ["Issues", "/plugins/github/issues"],
       ["GitHub dashboard", "/new#plugin-homepage:github:dashboard"],
       ["GitHub threads", "/settings/appearance"],
-      ["Markdown viewer", "/settings/files"],
       ["GitHub Dark", "/settings/appearance"],
       ["review", `/settings/skills/skill_${"a".repeat(64)}`],
     ] as const;

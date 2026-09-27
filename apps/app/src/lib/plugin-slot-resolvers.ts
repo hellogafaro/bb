@@ -5,12 +5,10 @@ import type {
 } from "@get-bb/plugin-sdk";
 import type {
   PluginComposerCustomizationSlot,
-  PluginFileOpenerSlot,
   PluginMessageDirectiveSlot,
   PluginPendingInteractionSlot,
   PluginTimelineRendererSlot,
 } from "./plugin-slots";
-import { FORK_BUILTIN_FILE_OPENER } from "./fork-flags";
 
 type ComposerAction = NonNullable<ComposerCustomization["actions"]>[number];
 type ComposerBanner = NonNullable<ComposerCustomization["banners"]>[number];
@@ -276,57 +274,9 @@ export function resolveReplacement<Registration>(
     : { kind: "plugin", registration };
 }
 
-export type FileOpenerOverride =
-  | "builtin"
-  | { pluginId: string; openerId: string };
-
-export type FileOpenerPreferenceMap = Record<string, string>;
-
-export const BUILT_IN_FILE_OPENER_PREFERENCE = "__builtin__";
-
 export function getFileExtension(path: string): string | null {
   const name = path.split("/").at(-1) ?? path;
   const dotIndex = name.lastIndexOf(".");
   if (dotIndex <= 0 || dotIndex === name.length - 1) return null;
   return name.slice(dotIndex + 1).toLowerCase();
-}
-
-export function buildFileOpenerRef(opener: {
-  pluginId: string;
-  id: string;
-}): string {
-  return `${opener.pluginId}:${opener.id}`;
-}
-
-export function resolveFileOpenerReplacement(args: {
-  registrations: readonly PluginFileOpenerSlot[];
-  preference?: FileOpenerPreferenceMap;
-  path: string;
-  override?: FileOpenerOverride;
-}): ResolvedReplacement<PluginFileOpenerSlot> {
-  if (FORK_BUILTIN_FILE_OPENER) return OWNER_REPLACEMENT;
-  const override = args.override;
-  if (override === "builtin") return OWNER_REPLACEMENT;
-  if (override !== undefined) {
-    return resolveReplacement(
-      args.registrations,
-      (candidate) =>
-        candidate.pluginId === override.pluginId &&
-        candidate.id === override.openerId,
-    );
-  }
-
-  const extension = getFileExtension(args.path);
-  if (extension === null) return OWNER_REPLACEMENT;
-  const preference = args.preference?.[extension];
-  if (preference === BUILT_IN_FILE_OPENER_PREFERENCE) {
-    return OWNER_REPLACEMENT;
-  }
-  return resolveReplacement(
-    args.registrations,
-    (candidate) =>
-      candidate.extensions.includes(extension) &&
-      (preference === undefined ||
-        buildFileOpenerRef(candidate) === preference),
-  );
 }

@@ -1,4 +1,5 @@
 import { FILES_PANEL_TITLE } from "@/components/files/files-title";
+import type { ExperimentalFileOpenOptions } from "@get-bb/plugin-sdk";
 import { useInitialPromptDraft } from "@/components/promptbox/mentions/initial-prompt-draft";
 import {
   ThreadTitle,
@@ -59,7 +60,6 @@ import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import { COARSE_POINTER_COMPACT_ICON_SIZE_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { PluginIcon } from "@/components/plugin/PluginIcon";
-import type { FileOpenerOverride } from "@/lib/plugin-slot-resolvers";
 import { usePluginNewThreadPanelActions } from "@/components/plugin/PluginPanelActions";
 import { usePluginSlots } from "@/lib/plugin-slots";
 import { useCreateThread } from "@/hooks/mutations/thread-runtime-mutations";
@@ -115,7 +115,6 @@ import type {
 } from "@bb/client-core";
 import {
   AppNavigationHostProvider,
-  type AppFilePreviewIntent,
   type AppFixedTabOpenIntent,
 } from "@/lib/app-navigation-host";
 import { openAppFixedTabFromDestinations } from "@/lib/app-fixed-tab-navigation";
@@ -1046,27 +1045,21 @@ function RootComposeSurface({
     environmentStatus: rootPanelEnvironment?.status,
   });
   const openPersistedWorkspaceFile = useCallback(
-    (
-      file: WorkspaceFileTabState,
-      options?: { viewer?: FileOpenerOverride },
-    ) => {
-      openTab({ kind: "workspace-file-preview", tab: file }, options);
+    (file: WorkspaceFileTabState) => {
+      openTab({ kind: "workspace-file-preview", tab: file });
     },
     [openTab],
   );
   const openPersistedStorageFile = useCallback(
-    (
-      file: ThreadStorageFileTabState,
-      options?: { viewer?: FileOpenerOverride },
-    ) => {
-      openTab({ kind: "thread-storage-file-preview", tab: file }, options);
+    (file: ThreadStorageFileTabState) => {
+      openTab({ kind: "thread-storage-file-preview", tab: file });
     },
     [openTab],
   );
   const openPersistedHostFile =
     useCallback<ThreadSecondaryPanelHostFileOpenHandler>(
-      (file: HostFileTabState, options) => {
-        openTab({ kind: "host-file-preview", tab: file }, options);
+      (file: HostFileTabState) => {
+        openTab({ kind: "host-file-preview", tab: file });
       },
       [openTab],
     );
@@ -1106,26 +1099,21 @@ function RootComposeSurface({
     closeWorkspacePanel();
   }, [dismissPluginDetails, closeWorkspacePanel]);
   const handleOpenLiveFilePreview = useCallback(
-    (intent: AppFilePreviewIntent): boolean => {
+    (intent: ExperimentalFileOpenOptions): boolean => {
       const normalized = normalizeExperimentalFileOpenOptions(intent);
       if (normalized === null) return false;
       const lineRange = toFilePreviewLineRange(normalized.location);
-      const options =
-        intent.viewer === undefined ? undefined : { viewer: intent.viewer };
       switch (normalized.target.kind) {
         case "workspace":
           if (normalized.target.environmentId !== rootPanelEnvironmentId) {
             return false;
           }
-          openWorkspaceFile(
-            {
-              lineRange,
-              path: normalized.target.path,
-              source: { kind: "working-tree" },
-              statusLabel: null,
-            },
-            options,
-          );
+          openWorkspaceFile({
+            lineRange,
+            path: normalized.target.path,
+            source: { kind: "working-tree" },
+            statusLabel: null,
+          });
           return true;
         case "host":
           if (
@@ -1134,11 +1122,11 @@ function RootComposeSurface({
           ) {
             return false;
           }
-          openHostFile({ lineRange, path: normalized.target.path }, options);
+          openHostFile({ lineRange, path: normalized.target.path });
           return true;
         case "thread-storage":
           if (normalized.target.threadId !== rootPanelThreadId) return false;
-          openStorageFile({ lineRange, path: normalized.target.path }, options);
+          openStorageFile({ lineRange, path: normalized.target.path });
           return true;
       }
     },

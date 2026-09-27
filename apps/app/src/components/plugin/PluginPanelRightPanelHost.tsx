@@ -11,7 +11,10 @@ import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { atomFamily } from "jotai-family";
 import type { Host, JsonValue } from "@bb/domain";
 import { jsonValueSchema } from "@bb/domain";
-import type { PluginFixedTabDeclaration } from "@get-bb/plugin-sdk";
+import type {
+  ExperimentalFileOpenOptions,
+  PluginFixedTabDeclaration,
+} from "@get-bb/plugin-sdk";
 import { Button } from "@bb/shared-ui/button";
 import { COARSE_POINTER_HEADER_PANEL_TOGGLE_ICON_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
@@ -60,10 +63,7 @@ import { useHosts } from "@/hooks/queries/host-queries";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { getBrowserUrlHost } from "@/lib/browser-url";
 import { usePluginSlots } from "@/lib/plugin-slots";
-import {
-  AppNavigationHostProvider,
-  type AppFilePreviewIntent,
-} from "@/lib/app-navigation-host";
+import { AppNavigationHostProvider } from "@/lib/app-navigation-host";
 import {
   AppFixedTabTargetProvider,
   getPluginFixedTabOwnerId,
@@ -495,7 +495,7 @@ export function PluginPanelRightPanelHost({
     [fixedTabDestinations],
   );
   const openFilePreview = useCallback(
-    (intent: AppFilePreviewIntent) => {
+    (intent: ExperimentalFileOpenOptions) => {
       const normalized = normalizeExperimentalFileOpenOptions(intent);
       if (normalized === null || panel === null) return false;
       selectPersistedPanelTab();
@@ -503,36 +503,27 @@ export function PluginPanelRightPanelHost({
       const { target } = normalized;
       const tab =
         target.kind === "workspace"
-          ? openTab(
-              {
-                kind: "workspace-file-preview",
-                environmentId: target.environmentId,
-                tab: {
-                  lineRange,
-                  path: target.path,
-                  source: { kind: "working-tree" },
-                  statusLabel: null,
-                },
+          ? openTab({
+              kind: "workspace-file-preview",
+              environmentId: target.environmentId,
+              tab: {
+                lineRange,
+                path: target.path,
+                source: { kind: "working-tree" },
+                statusLabel: null,
               },
-              { viewer: intent.viewer },
-            )
+            })
           : target.kind === "host"
-            ? openTab(
-                {
-                  kind: "host-file-preview",
-                  hostId: target.hostId,
-                  tab: { lineRange, path: target.path },
-                },
-                { viewer: intent.viewer },
-              )
-            : openTab(
-                {
-                  kind: "thread-storage-file-preview",
-                  threadId: target.threadId,
-                  tab: { lineRange, path: target.path },
-                },
-                { viewer: intent.viewer },
-              );
+            ? openTab({
+                kind: "host-file-preview",
+                hostId: target.hostId,
+                tab: { lineRange, path: target.path },
+              })
+            : openTab({
+                kind: "thread-storage-file-preview",
+                threadId: target.threadId,
+                tab: { lineRange, path: target.path },
+              });
       if (tab === null) return false;
       revealPanel();
       return true;

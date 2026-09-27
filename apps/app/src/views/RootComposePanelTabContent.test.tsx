@@ -7,7 +7,7 @@ import {
   createTerminalFixedPanelTab,
   createWorkspaceFilePreviewFixedPanelTab,
 } from "@/lib/fixed-panel-tabs-state";
-import { buildFileOpenerPanelTab } from "@/components/plugin/file-opener-tabs";
+import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
 import { RootComposePanelTabContent } from "./RootComposePanelTabContent";
 
 vi.mock("@/components/secondary-panel/lazySecondaryPanelComponents", () => ({

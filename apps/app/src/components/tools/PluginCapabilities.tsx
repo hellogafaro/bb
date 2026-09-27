@@ -332,25 +332,6 @@ function pluginAppSurfaceItems(
           ),
         ),
       ]),
-    ...slots.fileOpeners
-      .filter((slot) => slot.pluginId === pluginId)
-      .map((slot) => ({
-        ...namedSurface(
-          "file",
-          slot.id,
-          slot.title,
-          "Opens supported files in a plugin-provided viewer.",
-          getSettingsRoutePath("files"),
-        ),
-        detail: (
-          <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-            <span>Opens these files in a plugin-provided viewer:</span>
-            <span className="font-mono">
-              {slot.extensions.map((extension) => `.${extension}`).join(", ")}
-            </span>
-          </span>
-        ),
-      })),
     ...slots.messageDirectives
       .filter((slot) => slot.pluginId === pluginId)
       .map((slot) => ({

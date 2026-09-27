@@ -25,6 +25,7 @@ import {
 import { PluginPanelRightPanelHost } from "./PluginPanelRightPanelHost";
 import { openPluginDetailsInWorkspace } from "./plugin-detail-opener";
 import { getPluginPagePanelStateId } from "./plugin-page-panel-state";
+import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
 import {
   getPluginFixedTabOwnerId,
@@ -164,10 +165,6 @@ vi.mock("@/hooks/queries/plugin-catalog-queries", () => ({
   },
 }));
 
-vi.mock("@/lib/fork-flags", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
-  FORK_BUILTIN_FILE_OPENER: false,
-}));
 vi.mock("@/lib/split-layout/openPaneContentInSplit", () => ({
   openPaneContentInSplit: vi.fn(),
 }));
@@ -224,10 +221,6 @@ vi.mock("@/lib/plugin-slots", () => ({
         ]
       : [],
   }),
-}));
-
-vi.mock("@/lib/file-opener-preference", () => ({
-  useFileOpenerPreferenceValue: () => ({ kind: "automatic" }),
 }));
 
 vi.mock("@/hooks/queries/thread-terminal-queries", () => ({
@@ -1065,7 +1058,7 @@ describe("PluginPanelRightPanelHost", () => {
     ).toBeTruthy();
   });
 
-  it("gives plugin-page file openers the full content region", async () => {
+  it("gives a restored plugin file opener tab the full content region", async () => {
     fixedTabState.fileOpeners = [
       {
         id: "editor",
@@ -1076,11 +1069,49 @@ describe("PluginPanelRightPanelHost", () => {
         generation: 1,
       },
     ];
-    renderHost();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open workspace file" }),
+    const panelStateId = getPluginPagePanelStateId({
+      panelPath: "board",
+      pluginId: "demo",
+    });
+    const openerTab = buildFileOpenerPanelTab(
+      { id: "editor", pluginId: "demo" },
+      {
+        path: "src/index.ts",
+        source: {
+          kind: "workspace",
+          environmentId: "environment-1",
+          projectId: null,
+          threadId: null,
+        },
+      },
+      {
+        environmentId: "environment-1",
+        kind: "workspace-file-preview",
+        projectId: null,
+        tab: {
+          lineRange: null,
+          path: "src/index.ts",
+          source: { kind: "working-tree" },
+          statusLabel: null,
+        },
+        threadId: null,
+      },
     );
+    localStorage.setItem(
+      getFixedPanelTabsStateStorageKey({ threadId: panelStateId }),
+      serializeFixedPanelTabsState({
+        state: createEmptyFixedPanelTabsState({
+          lastUsedAt: Date.now(),
+          secondary: {
+            activeTabId: openerTab.id,
+            isOpen: true,
+            tabs: [openerTab],
+          },
+        }),
+      }),
+    );
+
+    renderHost();
 
     expect(await screen.findByText("Plugin file editor")).toBeTruthy();
     expect(
