@@ -2,10 +2,16 @@ import {
   createFakePluginHost,
   makePluginAgentConfigurationContext,
 } from "@get-bb/plugin-sdk/testing";
+import type {
+  PluginInteractionRequest,
+  PluginInteractionResult,
+} from "@get-bb/plugin-sdk";
 import { afterEach, describe, expect, it } from "vitest";
+import { registerWorkflowCli } from "./cli.js";
 import { getCall, getRunRequired, migrations } from "./data.js";
 import plugin from "./server.js";
 import { createWorkflowService } from "./service.js";
+import { buildWorkflowRunView } from "./ui-view.js";
 
 async function eventually(
   assertion: () => void | Promise<void>,
@@ -998,7 +1004,7 @@ describe("workflow resume cache integration", () => {
     expect(test.childCount()).toBe(2);
     expect(getCall(test.db, displayOnly.id, 0)).toMatchObject({
       optionsJson:
-        '{"selection":null,"outputSchema":null,"title":"Renamed first","phase":"Display A"}',
+        '{"selection":null,"agent":null,"outputSchema":null,"title":"Renamed first","phase":"Display A"}',
       replaySource: "resumed-run",
       replayedFromCallId: getCall(test.db, base.id, 0)?.id,
       resolvedProvider: "codex",
@@ -1476,6 +1482,259 @@ describe("workflow resume cache integration", () => {
     await eventually(() =>
       expect(getRunRequired(test.db, run.id).status).toBe("succeeded"),
     );
+
+    secondController.abort();
+    await secondWorker;
+  });
+
+  function agentRecord(agent: string) {
+    return {
+      id: `agent_${agent}`,
+      name: agent,
+      description: "",
+      providerId: "claude",
+      model: null,
+      reasoningLevel: "high",
+      secondaryModel: null,
+      secondaryReasoningLevel: null,
+      skills: [],
+      mcpServers: [],
+      instructions: "",
+      mascot: "robot",
+      color: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+  }
+
+  it("runs a call as a BB agent and keys replay by the agent", async () => {
+    const test = setup();
+    test.harness.sdk.stub("agents.get", async ({ agent }: { agent: string }) =>
+      agentRecord(agent),
+    );
+    const controller = new AbortController();
+    const worker = test.service.runWorker(controller.signal);
+    const cody = workflowSource(
+      `return await agent("plan", { agent: "cody" });`,
+    );
+    const run = await test.start(cody, null);
+
+    await eventually(() => expect(test.childCount()).toBe(1));
+    const spawn = test.harness.sdk.callsTo("threads.spawn")[0]?.[0];
+    expect(spawn).toMatchObject({
+      agentId: "agent_cody",
+      lifecycleOwnerThreadId: "origin",
+      visibility: "hidden",
+    });
+    for (const key of [
+      "providerId",
+      "model",
+      "reasoningLevel",
+      "permissionMode",
+      "parentThreadId",
+    ]) {
+      expect(spawn).not.toHaveProperty(key);
+    }
+    expect(test.harness.sdk.callsTo("providers.list")).toHaveLength(0);
+    expect(getCall(test.db, run.id, 0)).toMatchObject({
+      resolvedProvider: "claude",
+      resolvedModel: "",
+      resolvedReasoningLevel: "high",
+      resolvedPermissionMode: "full",
+    });
+    expect(
+      buildWorkflowRunView(test.service.inspect(run.id)!).unphasedCalls[0],
+    ).toMatchObject({ kind: "agent", agent: "cody", choice: null });
+
+    await test.finish("cache-child-1", "planned");
+    await eventually(() =>
+      expect(getRunRequired(test.db, run.id).status).toBe("succeeded"),
+    );
+    const same = await test.start(cody, run.id);
+    await eventually(() =>
+      expect(getRunRequired(test.db, same.id).status).toBe("succeeded"),
+    );
+    expect(test.childCount()).toBe(1);
+
+    await test.start(
+      workflowSource(`return await agent("plan", { agent: "sidekick" });`),
+      run.id,
+    );
+    await eventually(() => expect(test.childCount()).toBe(2));
+    expect(test.harness.sdk.callsTo("threads.spawn")[1]?.[0]).toMatchObject({
+      agentId: "agent_sidekick",
+    });
+
+    controller.abort();
+    await worker;
+  });
+
+  it("asks on the origin thread and replays the decision on resume", async () => {
+    const test = setup();
+    const controller = new AbortController();
+    const worker = test.service.runWorker(controller.signal);
+    const source = workflowSource(`
+      phase("Gate");
+      const choice = await ask("Ship it?", { detail: "**Diff** ready", title: "Release gate" });
+      return [choice, budget().agentCalls];`);
+    const run = await test.start(source, null);
+
+    await eventually(() =>
+      expect(test.harness.pendingInteractions).toHaveLength(1),
+    );
+    const [pending] = test.harness.pendingInteractions;
+    expect(pending).toMatchObject({
+      threadId: "origin",
+      rendererId: "ask",
+      title: "Release gate",
+      timeoutMs: 60 * 60 * 1_000,
+      payload: {
+        prompt: "Ship it?",
+        detail: "**Diff** ready",
+        options: ["Approve", "Decline"],
+      },
+    });
+    expect(getCall(test.db, run.id, 0)).toMatchObject({
+      status: "running",
+      childThreadId: null,
+    });
+
+    test.harness.submitInteraction(pending!.id, { choice: "Approve" });
+    await eventually(() =>
+      expect(getRunRequired(test.db, run.id)).toMatchObject({
+        status: "succeeded",
+        resultJson: '["Approve",0]',
+      }),
+    );
+    expect(test.childCount()).toBe(0);
+    expect(
+      buildWorkflowRunView(test.service.inspect(run.id)!).phases[0]?.calls[0],
+    ).toMatchObject({
+      kind: "ask",
+      label: "Release gate",
+      choice: "Approve",
+      childThreadId: null,
+      phase: "Gate",
+    });
+
+    registerWorkflowCli(test.bb, test.service);
+    const context = { threadId: "origin", projectId: "project-test" };
+    await expect(
+      test.harness.runCli(["status", run.id], context),
+    ).resolves.toMatchObject({ exitCode: 0 });
+    const history = await test.harness.runCli(
+      ["history", run.id, "--cursor", "0", "--limit", "10"],
+      context,
+    );
+    expect(history.exitCode).toBe(0);
+    expect(history.stdout).toContain('"result":"Approve"');
+
+    const resumed = await test.start(source, run.id);
+    await eventually(() =>
+      expect(getRunRequired(test.db, resumed.id)).toMatchObject({
+        status: "succeeded",
+        resultJson: '["Approve",0]',
+      }),
+    );
+    expect(test.harness.pendingInteractions).toHaveLength(0);
+    expect(getCall(test.db, resumed.id, 0)?.replaySource).toBe("resumed-run");
+
+    controller.abort();
+    await worker;
+  });
+
+  it("re-asks after a timeout and fails the call when dismissed", async () => {
+    const test = setup();
+    const requests: PluginInteractionRequest[] = [];
+    const results: PluginInteractionResult[] = [
+      { outcome: "cancelled", reason: "timeout" },
+      { outcome: "cancelled", reason: "user" },
+    ];
+    const service = createWorkflowService(
+      {
+        ...test.bb,
+        ui: {
+          ...test.bb.ui,
+          requestInput: async (request) => {
+            requests.push(request);
+            return results.shift()!;
+          },
+        },
+      },
+      test.db,
+    );
+    const controller = new AbortController();
+    const worker = service.runWorker(controller.signal);
+    const run = await service.start({
+      projectId: "project-test",
+      originThreadId: "origin",
+      source: workflowSource(`
+        try { return await ask("Ship it?"); }
+        catch (error) { return "caught: " + error.message; }`),
+      args: null,
+      resumedFromRunId: null,
+    });
+
+    await eventually(() =>
+      expect(getRunRequired(test.db, run.id)).toMatchObject({
+        status: "succeeded",
+        resultJson: '"caught: The decision was dismissed without a choice"',
+      }),
+    );
+    expect(requests).toHaveLength(2);
+    expect(getCall(test.db, run.id, 0)).toMatchObject({
+      status: "failed",
+      error: "The decision was dismissed without a choice",
+    });
+
+    controller.abort();
+    await worker;
+  });
+
+  it("re-asks only the pending decision after a restart", async () => {
+    const test = setup();
+    const run = await test.start(
+      workflowSource(`
+        const first = await ask("First?");
+        const second = await ask("Second?", { options: ["Left", "Right"] });
+        return [first, second];`),
+      null,
+    );
+    const firstController = new AbortController();
+    const firstWorker = test.service.runWorker(firstController.signal);
+    await eventually(() =>
+      expect(test.harness.pendingInteractions).toHaveLength(1),
+    );
+    test.harness.submitInteraction(test.harness.pendingInteractions[0]!.id, {
+      choice: "Approve",
+    });
+    await eventually(() =>
+      expect(test.harness.pendingInteractions[0]?.payload).toMatchObject({
+        prompt: "Second?",
+      }),
+    );
+    firstController.abort();
+    await firstWorker;
+    expect(test.harness.pendingInteractions).toHaveLength(0);
+    expect(getCall(test.db, run.id, 1)?.status).toBe("cancelled");
+    expect(getRunRequired(test.db, run.id).status).toBe("queued");
+
+    const restarted = createWorkflowService(test.bb, test.db);
+    const secondController = new AbortController();
+    const secondWorker = restarted.runWorker(secondController.signal);
+    await eventually(() =>
+      expect(test.harness.pendingInteractions).toHaveLength(1),
+    );
+    const [pending] = test.harness.pendingInteractions;
+    expect(pending?.payload).toMatchObject({ prompt: "Second?" });
+    test.harness.submitInteraction(pending!.id, { choice: "Right" });
+    await eventually(() =>
+      expect(getRunRequired(test.db, run.id)).toMatchObject({
+        status: "succeeded",
+        resultJson: '["Approve","Right"]',
+      }),
+    );
+    expect(getCall(test.db, run.id, 0)?.replaySource).toBe("same-run");
 
     secondController.abort();
     await secondWorker;

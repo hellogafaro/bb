@@ -15,10 +15,21 @@ interface ExplicitModelSelection {
 
 export interface WorkflowAgentOptions {
   selection: ExplicitModelSelection | null;
+  agent: string | null;
   outputSchema: JsonSchema | null;
   title: string | null;
   phase: string | null;
 }
+
+export interface WorkflowAskOptions {
+  kind: "ask";
+  options: string[];
+  detail: string | null;
+  title: string | null;
+  phase: string | null;
+}
+
+export type WorkflowCallOptions = WorkflowAgentOptions | WorkflowAskOptions;
 
 interface WorkflowPhase {
   title: string;
@@ -80,6 +91,11 @@ export interface WorkflowCapabilities {
   agent(
     prompt: string,
     options: WorkflowAgentOptions,
+    signal: AbortSignal,
+  ): Promise<JsonValue>;
+  ask?(
+    prompt: string,
+    options: WorkflowAskOptions,
     signal: AbortSignal,
   ): Promise<JsonValue>;
   workflow?(

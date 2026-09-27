@@ -15,7 +15,8 @@ data. Worker threads retain normal workspace tools and permissions.
 ## Start safely
 
 1. Inspect the task and repository before you choose the work list.
-2. Confirm the provider, model, and reasoning tuple from the live catalog.
+2. Confirm the provider, model, and reasoning tuple from the live catalog, or
+   name the BB agent that should run each worker.
 3. Write the smallest workflow that gives the requested coverage.
 4. Validate the exact source before execution.
 5. Start the background run.
@@ -34,7 +35,8 @@ Do not guess model identifiers or partial selection tuples.
 ## Read only the required detail
 
 - Read references/authoring.md when you write or change workflow source,
-  schemas, agent options, or nested workflows.
+  schemas, agent options, BB agent workers, `ask()` decisions, or nested
+  workflows.
 - Read references/orchestration.md when you design pipelines, barriers,
   verification, panels, loops, or other quality controls.
 - Read references/runs.md when you validate, start, inspect, stop, or resume a

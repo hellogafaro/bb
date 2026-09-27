@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   assertValidJsonSchema,
   parseAgentOptions,
+  parseAskInput,
   parseStoredAgentOptions,
+  parseStoredCallOptions,
 } from "./validation.js";
 
 describe("safe workflow JSON Schema subset", () => {
@@ -126,6 +128,7 @@ describe("workflow agent option validation", () => {
       }),
     ).toEqual({
       selection: null,
+      agent: null,
       outputSchema: { type: "object" },
       title: "Correctness review",
       phase: "Review",
@@ -183,6 +186,7 @@ describe("workflow agent option validation", () => {
       }),
     ).toEqual({
       selection: null,
+      agent: null,
       outputSchema: null,
       title: "Worker",
       phase: null,
@@ -215,5 +219,88 @@ describe("workflow agent option validation", () => {
         phase: null,
       }),
     ).toThrow("stored agent outputSchema.pattern");
+  });
+});
+
+describe("workflow BB agent and ask options", () => {
+  it("accepts a BB agent and rejects combining it with a model selection", () => {
+    expect(parseAgentOptions({ agent: "cody" })).toMatchObject({
+      agent: "cody",
+      selection: null,
+    });
+    expect(() => parseAgentOptions({ agent: "" })).toThrow(
+      "agent options.agent must be a non-empty string",
+    );
+    expect(() =>
+      parseAgentOptions({
+        agent: "cody",
+        provider: "codex",
+        model: "gpt",
+        reasoningLevel: "high",
+      }),
+    ).toThrow("omit those options");
+    expect(() => parseAgentOptions({ agent: "cody", model: "gpt" })).toThrow();
+  });
+
+  it("defaults ask options and enforces option rules", () => {
+    expect(parseAskInput("Ship it?", undefined)).toEqual({
+      prompt: "Ship it?",
+      options: {
+        kind: "ask",
+        options: ["Approve", "Decline"],
+        detail: null,
+        title: null,
+        phase: null,
+      },
+    });
+    expect(
+      parseAskInput("Pick", {
+        options: ["A", "B", "C"],
+        detail: "**why**",
+        title: "Choice",
+        phase: "Review",
+      }).options,
+    ).toEqual({
+      kind: "ask",
+      options: ["A", "B", "C"],
+      detail: "**why**",
+      title: "Choice",
+      phase: "Review",
+    });
+    expect(() => parseAskInput(" ", undefined)).toThrow("non-empty string");
+    expect(() => parseAskInput("Pick", { options: ["A"] })).toThrow(
+      "2 to 8 strings",
+    );
+    expect(() =>
+      parseAskInput("Pick", { options: Array.from({ length: 9 }, String) }),
+    ).toThrow("2 to 8 strings");
+    expect(() => parseAskInput("Pick", { options: ["A", "A"] })).toThrow(
+      "more than once",
+    );
+    expect(() => parseAskInput("Pick", { options: ["A", ""] })).toThrow(
+      "non-empty strings",
+    );
+    expect(() => parseAskInput("Pick", { choices: ["A", "B"] })).toThrow(
+      'Unknown ask option "choices"',
+    );
+    expect(() =>
+      parseAskInput("Pick", { detail: "x".repeat(64 * 1024) }),
+    ).toThrow("byte limit");
+  });
+
+  it("distinguishes stored ask options from agent options", () => {
+    const ask = parseAskInput("Ship it?", undefined).options;
+    expect(parseStoredCallOptions(JSON.parse(JSON.stringify(ask)))).toEqual(
+      ask,
+    );
+    expect(
+      parseStoredCallOptions({
+        selection: null,
+        outputSchema: null,
+        title: null,
+        phase: null,
+      }),
+    ).toMatchObject({ agent: null });
+    expect(() => parseStoredAgentOptions(ask)).toThrow();
   });
 });

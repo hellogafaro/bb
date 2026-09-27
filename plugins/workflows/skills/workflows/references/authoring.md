@@ -122,6 +122,28 @@ BB validates the tuple against the live provider/model catalog immediately
 before spawning the worker. A provider disappearing between authoring and
 execution fails the call instead of silently substituting another model.
 
+To run the worker as a named BB agent, pass its name, handle, or id. The worker
+uses that agent's provider, model, reasoning level, skills, MCP servers, and
+instructions. Combining `agent` with `provider`, `model`, or `reasoningLevel`
+is rejected:
+
+```js
+await agent("Plan the change", { agent: "cody" });
+```
+
+An unknown agent fails the call. Switching a call to a different agent
+invalidates its cached result on resume.
+
+## Human decisions
+
+```js
+const choice = await ask("Merge the reviewed change?", {
+  detail: summary,
+  options: ["Merge", "Hold"],
+});
+if (choice === "Hold") return { merged: false };
+```
+
 ## Structured agent results
 
 Set native `schema` (or the compatible `outputSchema` alias) on an individual

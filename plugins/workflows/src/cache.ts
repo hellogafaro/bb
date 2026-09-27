@@ -24,6 +24,15 @@ export interface WorkflowCallCacheInput {
   selection: ResolvedWorkflowExecutionSelection;
   outputSchema: JsonSchema | null;
   executionSemantics: WorkflowCallExecutionSemantics;
+  agentId?: string;
+}
+
+export interface WorkflowAskCacheInput {
+  version: typeof WORKFLOW_CALL_CACHE_VERSION;
+  previousCacheKey: string | null;
+  prompt: string;
+  options: readonly string[];
+  detail: string | null;
 }
 
 export type WorkflowCallResultStatus =
@@ -186,9 +195,27 @@ export function computeWorkflowCallCacheKey(
       resultProtocolVersion: input.executionSemantics.resultProtocolVersion,
       maxRepairAttempts: input.executionSemantics.maxRepairAttempts,
     },
+    ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
   };
+  return hashCanonical(semanticInput);
+}
+
+export function computeWorkflowAskCacheKey(
+  input: WorkflowAskCacheInput,
+): string {
+  return hashCanonical({
+    kind: "ask",
+    version: input.version,
+    previousCacheKey: input.previousCacheKey,
+    prompt: input.prompt,
+    options: [...input.options],
+    detail: input.detail,
+  });
+}
+
+function hashCanonical(value: unknown): string {
   return createHash("sha256")
-    .update(canonicalizeJson(semanticInput), "utf8")
+    .update(canonicalizeJson(value), "utf8")
     .digest("hex");
 }
 

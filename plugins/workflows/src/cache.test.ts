@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   WORKFLOW_CALL_CACHE_VERSION,
   canonicalizeJson,
+  computeWorkflowAskCacheKey,
   computeWorkflowCallCacheKey,
   reusableSuccessfulResult,
   type WorkflowCallCacheInput,
@@ -152,6 +153,43 @@ describe("workflow call cache identity", () => {
     expect(computeWorkflowCallCacheKey(otherPrefix)).not.toBe(
       computeWorkflowCallCacheKey(next),
     );
+  });
+
+  it("keys BB agent calls by agent id without changing existing keys", () => {
+    expect(computeWorkflowCallCacheKey(cacheInput())).toBe(
+      "836c4c5a50796a354fa9ac398bb6c7e4b394a8442fdf51e74e7d7fbc44997125",
+    );
+    const cody = computeWorkflowCallCacheKey({
+      ...cacheInput(),
+      agentId: "agent_cody",
+    });
+    expect(cody).not.toBe(computeWorkflowCallCacheKey(cacheInput()));
+    expect(
+      computeWorkflowCallCacheKey({
+        ...cacheInput(),
+        agentId: "agent_sidekick",
+      }),
+    ).not.toBe(cody);
+  });
+
+  it("keys ask calls by prompt, options, detail, and prefix", () => {
+    const ask = {
+      version: WORKFLOW_CALL_CACHE_VERSION,
+      previousCacheKey: null,
+      prompt: "Ship it?",
+      options: ["Approve", "Decline"],
+      detail: null,
+    };
+    const key = computeWorkflowAskCacheKey(ask);
+    expect(computeWorkflowAskCacheKey({ ...ask })).toBe(key);
+    for (const changed of [
+      { ...ask, prompt: "Ship now?" },
+      { ...ask, options: ["Decline", "Approve"] },
+      { ...ask, detail: "Diff attached" },
+      { ...ask, previousCacheKey: "prefix" },
+    ]) {
+      expect(computeWorkflowAskCacheKey(changed)).not.toBe(key);
+    }
   });
 
   it("ignores display-only title, label, and phase properties", () => {

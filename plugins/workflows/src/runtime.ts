@@ -16,7 +16,7 @@ import type {
   WorkflowReference,
   WorkflowRuntimeLimits,
 } from "./types.js";
-import { parseAgentOptions } from "./validation.js";
+import { parseAgentOptions, parseAskInput } from "./validation.js";
 
 const DEFAULT_LIMITS: WorkflowRuntimeLimits = {
   memoryLimitBytes: 32 * 1024 * 1024,
@@ -397,6 +397,30 @@ function installAgentFunction(
   });
   vm.setProp(vm.global, "agent", fn);
   fn.dispose();
+
+  const ask = vm.newFunction("ask", (...handles) => {
+    if (bridge.isClosed()) {
+      return bridge.rejectImmediately("Workflow is no longer running");
+    }
+    if (capabilities.ask === undefined) {
+      return bridge.rejectImmediately(
+        "ask() is unavailable: configure the workflow host capability to ask for decisions",
+      );
+    }
+    const parsed = parseAskInput(
+      handles[0] ? dumpJson(vm, handles[0], "ask prompt") : undefined,
+      handles[1] ? dumpJson(vm, handles[1], "ask options") : undefined,
+    );
+    const options = {
+      ...parsed.options,
+      phase: parsed.options.phase ?? currentPhase(),
+    };
+    return bridge.launch("ask result", (askSignal) =>
+      capabilities.ask!(parsed.prompt, options, askSignal),
+    );
+  });
+  vm.setProp(vm.global, "ask", ask);
+  ask.dispose();
 
   return { close: bridge.close };
 }

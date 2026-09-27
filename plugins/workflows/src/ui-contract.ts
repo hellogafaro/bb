@@ -1,6 +1,18 @@
 import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 
+export const ASK_RENDERER_ID = "ask";
+
+export const askPayloadSchema = z
+  .object({
+    prompt: z.string(),
+    detail: z.string().nullable(),
+    options: z.array(z.string()).min(1),
+  })
+  .strict();
+
+export const askResponseSchema = z.object({ choice: z.string() }).strict();
+
 const workflowRunStatusSchema = z.enum([
   "queued",
   "running",
@@ -14,6 +26,9 @@ const workflowCallViewSchema = z
     id: z.string(),
     index: z.number().int().nonnegative(),
     label: z.string(),
+    kind: z.enum(["agent", "ask"]),
+    agent: z.string().nullable(),
+    choice: z.string().nullable(),
     phase: z.string().nullable(),
     status: workflowRunStatusSchema,
     provider: z.string(),

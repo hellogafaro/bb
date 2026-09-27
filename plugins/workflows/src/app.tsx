@@ -30,19 +30,25 @@ import {
 } from "@bb/shared-ui/workflow-progress";
 import {
   definePluginApp,
+  Markdown,
   useBbNavigate,
   useComposerView,
   useRealtime,
   useRealtimeConnectionState,
   useRpc,
   type PluginMessageDirectiveProps,
+  type PluginPendingInteractionProps,
   type PluginThreadPanelProps,
 } from "@get-bb/plugin-sdk/app";
 import {
   WORKFLOW_RUNS_REALTIME_CHANNEL,
   workflowRunsSignalThreadId,
 } from "./realtime-channel.js";
-import type { workflowUiRpcContract } from "./ui-contract.js";
+import {
+  ASK_RENDERER_ID,
+  askPayloadSchema,
+  type workflowUiRpcContract,
+} from "./ui-contract.js";
 import type { WorkflowCallView, WorkflowRunView } from "./ui-contract.js";
 
 type RunLoadState =
@@ -308,7 +314,7 @@ function buildSharedWorkflowView(run: WorkflowRunView): SharedWorkflowView {
     id: call.id,
     actionable: call.childThreadId !== null,
     index: call.index + 1,
-    label: call.label,
+    label: call.choice === null ? call.label : `${call.label}: ${call.choice}`,
     state: workflowAgentState(call.status),
     model: call.model,
     attempt: call.providerRetryAttempts + call.repairAttempts + 1,
@@ -323,7 +329,14 @@ function buildSharedWorkflowView(run: WorkflowRunView): SharedWorkflowView {
       call.startedAt !== null && call.finishedAt !== null
         ? Math.max(0, call.finishedAt - call.startedAt)
         : undefined,
-    metadata: [call.provider, shortModelName(call.model), call.reasoningLevel],
+    metadata:
+      call.kind === "ask"
+        ? ["Decision"]
+        : [
+            call.agent ?? call.provider,
+            shortModelName(call.model),
+            call.reasoningLevel,
+          ].filter((item) => item !== ""),
   }));
   return {
     callsById,
@@ -1032,7 +1045,72 @@ function WorkflowRunPanelLoaded({
   );
 }
 
+function AskInteraction({
+  interaction,
+  submit,
+  cancel,
+}: PluginPendingInteractionProps) {
+  const parsed = useMemo(
+    () => askPayloadSchema.safeParse(interaction.payload),
+    [interaction.payload],
+  );
+  const [busy, setBusy] = useState(false);
+  const handleCancel = () => {
+    void cancel().catch(() => {});
+  };
+  if (!parsed.success) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          This decision could not be displayed.
+        </p>
+        <Button type="button" variant="outline" onClick={handleCancel}>
+          Dismiss
+        </Button>
+      </div>
+    );
+  }
+  const { prompt, detail, options } = parsed.data;
+  return (
+    <div className="space-y-3">
+      <p className="whitespace-pre-wrap text-sm text-foreground">{prompt}</p>
+      {detail === null ? null : <Markdown content={detail} />}
+      <div className="flex flex-wrap gap-2">
+        {options.map((choice) => (
+          <Button
+            key={choice}
+            type="button"
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void submit({ choice })
+                .catch(() => {})
+                .finally(() => setBusy(false));
+            }}
+          >
+            {choice}
+          </Button>
+        ))}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={handleCancel}
+        >
+          Dismiss
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default definePluginApp((app) => {
+  app.slots.pendingInteraction({
+    id: ASK_RENDERER_ID,
+    component: AskInteraction,
+  });
   app.composer.customize({
     id: "workflow-status",
     scopes: ["thread"],

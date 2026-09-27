@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import Ajv from "ajv";
-import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import type { BbPluginApi, PluginInteractionResult } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import {
   WORKFLOW_CALL_CACHE_VERSION,
+  computeWorkflowAskCacheKey,
   computeWorkflowCallCacheKey,
   reusableSuccessfulResult,
+  type ResolvedWorkflowExecutionSelection,
 } from "./cache.js";
 import {
   abandonOriginNotifications,
@@ -36,6 +38,7 @@ import {
   listPendingNotificationRuns,
   listRunningCalls,
   listTimedOutRuns,
+  markCallAwaitingInput,
   markCallReplayedSameRun,
   markNotificationSent,
   queueCallProviderRetry,
@@ -66,11 +69,17 @@ import type {
   JsonValue,
   NestedWorkflowContext,
   WorkflowAgentOptions,
+  WorkflowAskOptions,
+  WorkflowCallOptions,
   WorkflowCapabilities,
   WorkflowReference,
 } from "./types.js";
+import { ASK_RENDERER_ID, askResponseSchema } from "./ui-contract.js";
 import { utf8Prefix } from "./utf8.js";
-import { parseStoredAgentOptions } from "./validation.js";
+import {
+  parseStoredAgentOptions,
+  parseStoredCallOptions,
+} from "./validation.js";
 import { prepareWorkflowSource } from "./workflow-input.js";
 
 const executionValuesSchema = z.object({
@@ -95,6 +104,14 @@ const selectedExecutionSchema = z.object({
   permissionMode: executionValuesSchema.shape.permissionMode,
 });
 type ResolvedSelection = z.infer<typeof selectedExecutionSchema>;
+interface CallIdentity {
+  cacheKey: string;
+  selection: ResolvedWorkflowExecutionSelection;
+}
+interface AgentCallIdentity extends CallIdentity {
+  selection: ResolvedSelection;
+  agentId: string | null;
+}
 
 const MAX_REPAIR_ATTEMPTS = 2;
 const WORKER_PROMPT_VERSION = "workflow-worker-prompt-v1";
@@ -106,6 +123,9 @@ const NOTIFICATION_RETRY_MAX_MS = 60 * 60 * 1_000;
 const PROVIDER_RETRY_DELAYS_MS = [1_000, 4_000] as const;
 const RETENTION_SWEEP_RUNS = 20;
 const RECOVERY_SCAN_INTERVAL_MS = 30_000;
+const ASK_TIMEOUT_MS = 60 * 60 * 1_000;
+const ASK_RETRY_DELAY_MS = 5_000;
+const ASK_TITLE_LENGTH = 160;
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -375,7 +395,7 @@ export interface WorkflowService {
 }
 
 export interface WorkflowCallInspection extends WorkflowCallRow {
-  options: WorkflowAgentOptions;
+  options: WorkflowCallOptions;
   execution: {
     provider: string;
     model: string;
@@ -640,7 +660,7 @@ export function createWorkflowService(
   function inspectCall(call: WorkflowCallRow): WorkflowCallInspection {
     return {
       ...call,
-      options: parseStoredAgentOptions(
+      options: parseStoredCallOptions(
         parseJson(call.optionsJson, "workflow call options"),
       ),
       execution: {
@@ -818,34 +838,30 @@ export function createWorkflowService(
     });
   }
 
-  async function runAgentCall(
+  async function beginCall(
     run: WorkflowRunRow,
     callIndex: number,
     prompt: string,
-    options: WorkflowAgentOptions,
+    options: WorkflowCallOptions,
     replay: { prefix: boolean },
-    identity: Promise<{
-      cacheKey: string;
-      selection: ResolvedSelection;
-    }>,
+    identity: Promise<CallIdentity>,
     replayDecision: { previous: Promise<void>; release: () => void },
     signal: AbortSignal,
-  ): Promise<JsonValue> {
+  ): Promise<
+    | { replayed: true; result: JsonValue }
+    | { replayed: false; call: WorkflowCallRow }
+  > {
     await replayDecision.previous;
-    let call: WorkflowCallRow;
-    let selection: ResolvedSelection;
     try {
       throwIfCancelled(signal);
-      if (options.outputSchema !== null) {
+      if ("outputSchema" in options && options.outputSchema !== null) {
         assertBoundedJson(
           options.outputSchema,
           "Agent output schema",
           SCHEMA_LIMITS,
         );
       }
-      const resolvedIdentity = await identity;
-      const cacheKey = resolvedIdentity.cacheKey;
-      selection = resolvedIdentity.selection;
+      const { cacheKey, selection } = await identity;
       const sameRunCall = getCall(db, run.id, callIndex);
       if (replay.prefix) {
         if (sameRunCall !== null) {
@@ -864,7 +880,7 @@ export function createWorkflowService(
             });
             if (sameRunCall.cacheKey === cacheKey && reuse.reusable) {
               markCallReplayedSameRun(db, sameRunCall.id);
-              return reuse.result;
+              return { replayed: true, result: reuse.result };
             }
           }
           replay.prefix = false;
@@ -896,25 +912,70 @@ export function createWorkflowService(
                 selection,
                 replay: { callId: candidate.id, result: reuse.result },
               });
-              return reuse.result;
+              return { replayed: true, result: reuse.result };
             }
           }
           replay.prefix = false;
         }
       }
 
-      call = startCall(db, {
-        runId: run.id,
-        callIndex,
-        cacheKey,
-        prompt,
-        options,
-        selection,
-        replay: null,
-      });
+      return {
+        replayed: false,
+        call: startCall(db, {
+          runId: run.id,
+          callIndex,
+          cacheKey,
+          prompt,
+          options,
+          selection,
+          replay: null,
+        }),
+      };
     } finally {
       replayDecision.release();
     }
+  }
+
+  async function resolveAgent(
+    agent: string,
+    signal: AbortSignal,
+  ): Promise<{ selection: ResolvedSelection; agentId: string }> {
+    const record = await bb.sdk.agents.get({ agent, signal });
+    throwIfCancelled(signal);
+    return {
+      agentId: record.id,
+      selection: {
+        providerId: record.providerId,
+        model: record.model ?? "",
+        reasoningLevel: record.reasoningLevel,
+        permissionMode: "full",
+      },
+    };
+  }
+
+  async function runAgentCall(
+    run: WorkflowRunRow,
+    callIndex: number,
+    prompt: string,
+    options: WorkflowAgentOptions,
+    replay: { prefix: boolean },
+    identity: Promise<AgentCallIdentity>,
+    replayDecision: { previous: Promise<void>; release: () => void },
+    signal: AbortSignal,
+  ): Promise<JsonValue> {
+    const begun = await beginCall(
+      run,
+      callIndex,
+      prompt,
+      options,
+      replay,
+      identity,
+      replayDecision,
+      signal,
+    );
+    if (begun.replayed) return begun.result;
+    let call = begun.call;
+    const { selection, agentId } = await identity;
     while (true) {
       try {
         throwIfCancelled(signal);
@@ -936,10 +997,14 @@ export function createWorkflowService(
           environment: { type: "reuse", environmentId: run.environmentId },
           prompt: childPrompt(run, prompt, options),
           title: options.title ?? `${run.name} · ${callIndex + 1}`,
-          providerId: selection.providerId,
-          model: selection.model,
-          reasoningLevel: selection.reasoningLevel,
-          permissionMode: selection.permissionMode,
+          ...(agentId === null
+            ? {
+                providerId: selection.providerId,
+                model: selection.model,
+                reasoningLevel: selection.reasoningLevel,
+                permissionMode: selection.permissionMode,
+              }
+            : { agentId }),
           visibility: "hidden",
         });
         ownWorker(db, child.id, run.id, call.id, run.originThreadId);
@@ -1000,6 +1065,128 @@ export function createWorkflowService(
         await sleep(delay, signal);
       }
     }
+  }
+
+  async function requestChoice(
+    run: WorkflowRunRow,
+    prompt: string,
+    options: WorkflowAskOptions,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const title =
+      options.title ??
+      `${run.name}: decision needed`.slice(0, ASK_TITLE_LENGTH);
+    while (true) {
+      throwIfCancelled(signal);
+      if (await waitForOrigin(run.originThreadId, signal)) {
+        await onOriginUnavailable(run.originThreadId);
+        throw new Error("Workflow origin is archived or deleted");
+      }
+      let result: PluginInteractionResult;
+      try {
+        result = await bb.ui.requestInput(
+          {
+            threadId: run.originThreadId,
+            rendererId: ASK_RENDERER_ID,
+            title,
+            payload: {
+              prompt,
+              detail: options.detail,
+              options: options.options,
+            },
+            timeoutMs: ASK_TIMEOUT_MS,
+            presentation: {
+              label: {
+                pending: "Waiting for a decision",
+                completed: "Decided",
+              },
+            },
+            describeSubmission: (value) => {
+              const parsed = askResponseSchema.safeParse(value);
+              return parsed.success
+                ? { title: `Chose ${parsed.data.choice}` }
+                : {};
+            },
+          },
+          { signal },
+        );
+      } catch (error) {
+        if (!isInteractionConflict(error) && !isMissingThread(error)) {
+          throw error;
+        }
+        await sleep(ASK_RETRY_DELAY_MS, signal);
+        continue;
+      }
+      throwIfCancelled(signal);
+      if (result.outcome === "submitted") {
+        const parsed = askResponseSchema.safeParse(result.value);
+        if (parsed.success && options.options.includes(parsed.data.choice)) {
+          return parsed.data.choice;
+        }
+        throw new Error("The decision did not match any of the options");
+      }
+      switch (result.reason) {
+        case "timeout":
+        case "server-restarted":
+        case "thread-deleted":
+          continue;
+        case "plugin-disposed":
+          await sleep(ASK_RETRY_DELAY_MS, signal);
+          continue;
+        case "request-aborted":
+          throw new Error("Workflow cancelled");
+        case "user":
+        case "thread-stopped":
+          throw new Error("The decision was dismissed without a choice");
+      }
+    }
+  }
+
+  async function runAskCall(
+    run: WorkflowRunRow,
+    callIndex: number,
+    prompt: string,
+    options: WorkflowAskOptions,
+    replay: { prefix: boolean },
+    identity: Promise<CallIdentity>,
+    replayDecision: { previous: Promise<void>; release: () => void },
+    signal: AbortSignal,
+  ): Promise<JsonValue> {
+    const begun = await beginCall(
+      run,
+      callIndex,
+      prompt,
+      options,
+      replay,
+      identity,
+      replayDecision,
+      signal,
+    );
+    if (begun.replayed) return begun.result;
+    if (!markCallAwaitingInput(db, begun.call.id)) {
+      throw new Error("Workflow cancelled");
+    }
+    let choice: string;
+    try {
+      choice = await requestChoice(run, prompt, options, signal);
+    } catch (error) {
+      if (!signal.aborted) {
+        settleCall(db, {
+          id: begun.call.id,
+          status: "failed",
+          result: null,
+          error: message(error),
+        });
+      }
+      throw error;
+    }
+    settleCall(db, {
+      id: begun.call.id,
+      status: "succeeded",
+      result: choice,
+      error: null,
+    });
+    return choice;
   }
 
   function wakeCall(call: WorkflowCallRow): void {
@@ -1349,60 +1536,120 @@ export function createWorkflowService(
     let previousCacheKey = Promise.resolve<string | null>(null);
     let previousReplayDecision = Promise.resolve();
     let nestedLaunchQueue = Promise.resolve();
+    function sequenceCall<Identity extends CallIdentity>(
+      computeIdentity: (previousKey: string | null) => Promise<Identity>,
+    ) {
+      const identity = previousCacheKey.then(computeIdentity, async () => {
+        replay.prefix = false;
+        return computeIdentity(null);
+      });
+      previousCacheKey = identity.then(
+        (value) => value.cacheKey,
+        () => {
+          replay.prefix = false;
+          return null;
+        },
+      );
+      const priorDecision = previousReplayDecision;
+      let releaseDecision = (): void => undefined;
+      previousReplayDecision = new Promise<void>((resolve) => {
+        releaseDecision = resolve;
+      });
+      return {
+        identity,
+        replayDecision: { previous: priorDecision, release: releaseDecision },
+      };
+    }
+    function track(call: Promise<JsonValue>): Promise<JsonValue> {
+      inFlightCalls.add(call);
+      void call.catch(() => undefined);
+      void call
+        .finally(() => {
+          inFlightCalls.delete(call);
+        })
+        .catch(() => undefined);
+      return call;
+    }
     const capabilities: WorkflowCapabilities = {
       agent(prompt, options, callSignal) {
         const index = callIndex;
         callIndex += 1;
-        const computeIdentity = async (previousKey: string | null) => {
-          const selection = await validateSelection(run, options, callSignal);
-          const cacheKey = computeWorkflowCallCacheKey({
-            version: WORKFLOW_CALL_CACHE_VERSION,
-            previousCacheKey: previousKey,
-            prompt,
-            selection,
-            outputSchema: options.outputSchema,
-            executionSemantics: {
-              workerPromptVersion: WORKER_PROMPT_VERSION,
-              resultProtocolVersion: RESULT_PROTOCOL_VERSION,
-              maxRepairAttempts: MAX_REPAIR_ATTEMPTS,
-            },
-          });
-          return { cacheKey, selection };
-        };
-        const identity = previousCacheKey.then(computeIdentity, async () => {
-          replay.prefix = false;
-          return computeIdentity(null);
-        });
-        previousCacheKey = identity.then(
-          (value) => value.cacheKey,
-          () => {
-            replay.prefix = false;
-            return null;
+        const { identity, replayDecision } = sequenceCall(
+          async (previousKey) => {
+            const resolved =
+              options.agent === null
+                ? {
+                    selection: await validateSelection(
+                      run,
+                      options,
+                      callSignal,
+                    ),
+                    agentId: null,
+                  }
+                : await resolveAgent(options.agent, callSignal);
+            const cacheKey = computeWorkflowCallCacheKey({
+              version: WORKFLOW_CALL_CACHE_VERSION,
+              previousCacheKey: previousKey,
+              prompt,
+              selection: resolved.selection,
+              outputSchema: options.outputSchema,
+              executionSemantics: {
+                workerPromptVersion: WORKER_PROMPT_VERSION,
+                resultProtocolVersion: RESULT_PROTOCOL_VERSION,
+                maxRepairAttempts: MAX_REPAIR_ATTEMPTS,
+              },
+              ...(resolved.agentId === null
+                ? {}
+                : { agentId: resolved.agentId }),
+            });
+            return { cacheKey, ...resolved };
           },
         );
-        const priorDecision = previousReplayDecision;
-        let releaseDecision = (): void => undefined;
-        previousReplayDecision = new Promise<void>((resolve) => {
-          releaseDecision = resolve;
-        });
-        const call = runAgentCall(
-          run,
-          index,
-          prompt,
-          options,
-          replay,
-          identity,
-          { previous: priorDecision, release: releaseDecision },
-          callSignal,
+        return track(
+          runAgentCall(
+            run,
+            index,
+            prompt,
+            options,
+            replay,
+            identity,
+            replayDecision,
+            callSignal,
+          ),
         );
-        inFlightCalls.add(call);
-        void call.catch(() => undefined);
-        void call
-          .finally(() => {
-            inFlightCalls.delete(call);
-          })
-          .catch(() => undefined);
-        return call;
+      },
+      ask(prompt, options, callSignal) {
+        const index = callIndex;
+        callIndex += 1;
+        const { identity, replayDecision } = sequenceCall(
+          async (previousKey) => ({
+            cacheKey: computeWorkflowAskCacheKey({
+              version: WORKFLOW_CALL_CACHE_VERSION,
+              previousCacheKey: previousKey,
+              prompt,
+              options: options.options,
+              detail: options.detail,
+            }),
+            selection: {
+              providerId: run.originProvider,
+              model: run.originModel,
+              reasoningLevel: run.originReasoningLevel,
+              permissionMode: run.originPermissionMode,
+            },
+          }),
+        );
+        return track(
+          runAskCall(
+            run,
+            index,
+            prompt,
+            options,
+            replay,
+            identity,
+            replayDecision,
+            callSignal,
+          ),
+        );
       },
       async workflow(
         reference: WorkflowReference,
@@ -1514,6 +1761,14 @@ export function createWorkflowService(
       await Promise.allSettled(inFlightCalls);
       controllers.delete(run.id);
     }
+  }
+
+  function isInteractionConflict(error: unknown): boolean {
+    if (typeof error === "object" && error !== null) {
+      const candidate = error as { status?: unknown };
+      if (candidate.status === 409) return true;
+    }
+    return message(error).includes("already awaiting user interaction");
   }
 
   function isMissingThread(error: unknown): boolean {

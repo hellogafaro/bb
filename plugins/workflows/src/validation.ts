@@ -6,10 +6,13 @@ import type {
   JsonSchema,
   JsonValue,
   WorkflowAgentOptions,
+  WorkflowAskOptions,
+  WorkflowCallOptions,
 } from "./types.js";
 
 export const MAX_WORKFLOW_SOURCE_BYTES = 512 * 1024;
 export const AGENT_OPTION_KEYS = new Set([
+  "agent",
   "provider",
   "model",
   "reasoningLevel",
@@ -19,6 +22,11 @@ export const AGENT_OPTION_KEYS = new Set([
   "label",
   "phase",
 ]);
+const ASK_OPTION_KEYS = new Set(["options", "detail", "title", "phase"]);
+const DEFAULT_ASK_OPTIONS = ["Approve", "Decline"];
+const MAX_ASK_OPTIONS = 8;
+const MAX_ASK_TITLE_LENGTH = 160;
+const MAX_ASK_PAYLOAD_BYTES = 64 * 1024;
 const MAX_SCHEMA_BYTES = 64 * 1024;
 const MAX_SCHEMA_DEPTH = 32;
 const MAX_SCHEMA_NODES = 4_096;
@@ -126,11 +134,27 @@ const storedAgentOptionsSchema = z
       })
       .strict()
       .nullable(),
+    agent: z.string().min(1).nullable().default(null),
     outputSchema: jsonSchemaValueSchema.nullable(),
     title: z.string().min(1).nullable(),
     phase: z.string().min(1).nullable().default(null),
   })
   .strict();
+
+const storedAskOptionsSchema = z
+  .object({
+    kind: z.literal("ask"),
+    options: z.array(z.string().min(1)).min(2).max(MAX_ASK_OPTIONS),
+    detail: z.string().min(1).nullable(),
+    title: z.string().min(1).nullable(),
+    phase: z.string().min(1).nullable(),
+  })
+  .strict();
+
+export function parseStoredCallOptions(value: unknown): WorkflowCallOptions {
+  const ask = storedAskOptionsSchema.safeParse(value);
+  return ask.success ? ask.data : parseStoredAgentOptions(value);
+}
 
 export function parseStoredAgentOptions(value: unknown): WorkflowAgentOptions {
   const options = storedAgentOptionsSchema.parse(value) as WorkflowAgentOptions;
@@ -143,11 +167,12 @@ export function parseStoredAgentOptions(value: unknown): WorkflowAgentOptions {
 function optionalNonEmptyString(
   object: JsonObject,
   key: string,
+  label = "agent options",
 ): string | null {
   const value = object[key];
   if (value === undefined) return null;
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`agent options.${key} must be a non-empty string`);
+    throw new Error(`${label}.${key} must be a non-empty string`);
   }
   return value;
 }
@@ -357,6 +382,7 @@ export function parseAgentOptions(
   if (value === undefined) {
     return {
       selection: null,
+      agent: null,
       outputSchema: null,
       title: null,
       phase: null,
@@ -378,6 +404,12 @@ export function parseAgentOptions(
   if (selectionCount !== 0 && selectionCount !== 3) {
     throw new Error(
       "agent options must provide provider, model, and reasoningLevel together, or omit all three",
+    );
+  }
+  const agent = optionalNonEmptyString(value, "agent");
+  if (agent !== null && selectionCount !== 0) {
+    throw new Error(
+      "agent options.agent runs the call as a BB agent with its own provider, model, and reasoningLevel; omit those options",
     );
   }
 
@@ -415,8 +447,71 @@ export function parseAgentOptions(
       provider !== null && model !== null && reasoningLevel !== null
         ? { provider, model, reasoningLevel }
         : null,
+    agent,
     outputSchema,
     title: title ?? label,
     phase: optionalNonEmptyString(value, "phase"),
+  };
+}
+
+export function parseAskInput(
+  promptValue: JsonValue | undefined,
+  value: JsonValue | undefined,
+): { prompt: string; options: WorkflowAskOptions } {
+  if (typeof promptValue !== "string" || promptValue.trim() === "") {
+    throw new Error("ask prompt must be a non-empty string");
+  }
+  const object = value ?? {};
+  if (!isObject(object)) throw new Error("ask options must be an object");
+  for (const key of Object.keys(object)) {
+    if (!ASK_OPTION_KEYS.has(key))
+      throw new Error(`Unknown ask option ${JSON.stringify(key)}`);
+  }
+  const choices = object.options ?? DEFAULT_ASK_OPTIONS;
+  if (
+    !Array.isArray(choices) ||
+    choices.length < 2 ||
+    choices.length > MAX_ASK_OPTIONS
+  ) {
+    throw new Error(
+      `ask options.options must be an array of 2 to ${MAX_ASK_OPTIONS} strings`,
+    );
+  }
+  const options: string[] = [];
+  for (const choice of choices) {
+    if (typeof choice !== "string" || choice.trim() === "") {
+      throw new Error("ask options.options entries must be non-empty strings");
+    }
+    if (options.includes(choice)) {
+      throw new Error(
+        `ask options.options contains ${JSON.stringify(choice)} more than once`,
+      );
+    }
+    options.push(choice);
+  }
+  const title = optionalNonEmptyString(object, "title", "ask options");
+  if (title !== null && title.trim().length > MAX_ASK_TITLE_LENGTH) {
+    throw new Error(
+      `ask options.title must be at most ${MAX_ASK_TITLE_LENGTH} characters`,
+    );
+  }
+  const detail = optionalNonEmptyString(object, "detail", "ask options");
+  const payloadBytes = new TextEncoder().encode(
+    JSON.stringify({ prompt: promptValue, detail, options }),
+  ).byteLength;
+  if (payloadBytes > MAX_ASK_PAYLOAD_BYTES) {
+    throw new Error(
+      `ask prompt, detail, and options exceed the ${MAX_ASK_PAYLOAD_BYTES} byte limit (${payloadBytes} bytes)`,
+    );
+  }
+  return {
+    prompt: promptValue,
+    options: {
+      kind: "ask",
+      options,
+      detail,
+      title,
+      phase: optionalNonEmptyString(object, "phase", "ask options"),
+    },
   };
 }

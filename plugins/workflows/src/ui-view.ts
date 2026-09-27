@@ -17,13 +17,23 @@ function fallbackCallLabel(prompt: string, index: number): string {
     : `${truncateToWidth(normalized, MAX_FALLBACK_LABEL_WIDTH - 1)}…`;
 }
 
+function storedChoice(resultJson: string | null): string | null {
+  if (resultJson === null) return null;
+  const value: unknown = JSON.parse(resultJson);
+  return typeof value === "string" ? value : null;
+}
+
 function callView(
   call: WorkflowRunInspection["calls"][number],
 ): WorkflowCallView {
+  const ask = "kind" in call.options;
   return {
     id: call.id,
     index: call.callIndex,
     label: call.options.title ?? fallbackCallLabel(call.prompt, call.callIndex),
+    kind: ask ? "ask" : "agent",
+    agent: "agent" in call.options ? call.options.agent : null,
+    choice: ask ? storedChoice(call.resultJson) : null,
     phase: call.options.phase,
     status: call.status,
     provider: call.execution.provider,

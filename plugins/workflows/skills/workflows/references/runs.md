@@ -50,11 +50,12 @@ host filesystem access.
 To resume after a pause, stop, restart, or script edit, relaunch with the same
 current source and `resumeRunId`. Resume requires a terminal prior run in the
 same project and environment workspace and always creates a new run. The
-longest unchanged prefix of successful `agent()` calls returns cached results;
-the first edited or new call and everything after it runs live. The cache key
-includes call order, prompt, resolved provider/model/reasoning/permission,
-output schema, and worker protocol semantics. Display-only phase, label, and
-title changes do not invalidate it.
+longest unchanged prefix of successful `agent()` and `ask()` calls returns
+cached results; the first edited or new call and everything after it runs
+live. The cache key includes call order, prompt, resolved
+provider/model/reasoning/permission, the BB agent id when set, output schema,
+and worker protocol semantics. For `ask()` it includes the prompt, options, and
+detail. Display-only phase, label, and title changes do not invalidate it.
 
 Parallel calls receive cache identities in deterministic invocation order, so
 concurrency alone does not stop replay. Successful calls that edited files or
@@ -62,7 +63,8 @@ performed other writes are cached too: resume is restricted to the same
 environment workspace, where their side effects remain. Failed, cancelled,
 incomplete, and null-result calls are not reusable; the first such call and the
 entire suffix run live. Legacy runs without replay-safety metadata replay
-nothing. A plugin restart applies the same longest-prefix rule.
+nothing. A plugin restart applies the same longest-prefix rule. A decision
+still waiting at restart is cancelled and asked again when the run replays.
 
 Each `agent()` call retries transient provider failures twice with bounded
 backoff before surfacing the error to `parallel()`/`pipeline()` or the script.

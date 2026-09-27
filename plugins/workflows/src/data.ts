@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { ResolvedWorkflowExecutionSelection } from "./cache.js";
-import type { JsonValue, WorkflowAgentOptions } from "./types.js";
+import type { JsonValue, WorkflowCallOptions } from "./types.js";
 
 export type Db = Database.Database;
 type WorkflowRunStatus =
@@ -564,7 +564,7 @@ export function startCall(
     callIndex: number;
     cacheKey: string;
     prompt: string;
-    options: WorkflowAgentOptions;
+    options: WorkflowCallOptions;
     selection: ResolvedWorkflowExecutionSelection;
     replay: { callId: string; result: Exclude<JsonValue, null> } | null;
   },
@@ -655,6 +655,18 @@ export function attachCallThread(
          )`,
       )
       .run(threadId, Date.now(), Date.now(), callId).changes === 1
+  );
+}
+
+export function markCallAwaitingInput(db: Db, callId: string): boolean {
+  const now = Date.now();
+  return (
+    db
+      .prepare(
+        `UPDATE workflow_calls SET status = 'running', started_at = ?, last_activity_at = ?
+         WHERE id = ? AND status = 'queued' AND child_thread_id IS NULL`,
+      )
+      .run(now, now, callId).changes === 1
   );
 }
 
