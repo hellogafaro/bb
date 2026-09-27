@@ -111,7 +111,7 @@ export function NewTabActions({
     actions.push({
       id: OPEN_BROWSER_ACTION_ID,
       icon: actionIcon("Globe"),
-      label: "Open browser",
+      label: "Browser",
       disabled: false,
       shortcut: null,
       trailing: null,
