@@ -17,6 +17,7 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 - `apps/app/src/components/settings/settings-sections.ts`
 - `apps/app/src/components/settings/KeyboardSettingsSection.tsx`
 - `packages/domain/src/app-settings.ts`
+- `apps/app/src/lib/in-app-browser-link-preference.ts`
 - `packages/domain/src/experiments.ts`
 - `apps/cli/src/commands/settings.ts`
 - `apps/cli/src/commands/theme.ts`
@@ -25,7 +26,7 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 
 | Feature | Drive | Observable success |
 | --- | --- | --- |
-| General preferences | Toggle Navigate to threads on creation, Markdown formatting, follow-up Queue/Steer, Rewrite localhost links, and Streamer mode individually; reload and exercise their effect. | Each preference changes the named behavior, persists with its actual owner, and restores. Client-local preferences are not assumed to be in server config. |
+| General preferences | Toggle Navigate to threads on creation, Markdown formatting, follow-up Queue/Steer, Rewrite localhost links, Open links in the in-app browser (capable desktop client), and Streamer mode individually; reload and exercise their effect. | Each preference changes the named behavior, persists with its actual owner, and restores. Client-local preferences are not assumed to be in server config. |
 | Managed branch prefix | Set a valid prefix and create a disposable managed worktree; try an invalid Git prefix. | New branch uses the configured prefix; invalid input is rejected without saving. |
 | Provider order and default | Reorder providers and set a default; open a new composer and inspect provider list/models on the selected host. | Ordering/default affects the correct context and does not advertise unavailable models. |
 | Keyboard overrides | Record a shortcut, disable it, restore it, test conflicting bindings and held-modifier hints; compare settings keyboard list/set/reset/hints. | Only the intended action fires; text input remains usable; overrides and reset survive reload. |

@@ -1,6 +1,6 @@
-# Panels, files, terminals, and splits
+# Panels, files, terminals, splits, and embedded browser
 
-Status: **2026-09-05: 12 passed, 2 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
+Status: **2026-09-05: 12 passed, 3 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
 
 ## Setup and entry points
 
@@ -19,6 +19,10 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 - `apps/app/src/components/files/FileEditor.tsx`
 - `apps/app/src/components/files/file-document-store.ts`
 - `apps/app/src/components/secondary-panel/SidebarSplitContainer.tsx`
+- `apps/app/src/components/secondary-panel/BrowserTabDeck.tsx`
+- `apps/app/src/components/secondary-panel/BrowserTabContent.tsx`
+- `apps/app/src/components/secondary-panel/BrowserNewTabScreen.tsx`
+- `apps/app/src/lib/in-app-browser-link-preference.ts`
 - `apps/cli/src/commands/thread/open.ts`
 - `apps/cli/src/commands/thread/pane.ts`
 - `apps/cli/src/commands/file.ts`
@@ -47,6 +51,7 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 | Terminal interaction and lifecycle | Send input, resize, rename, restart, and close a synthetic terminal. | Input reaches only the target; dimensions/title update; restart returns a new terminal ID in the same scope; use that ID for subsequent output/input and close. |
 | Diff and Add to chat | Open environment diff, select changed lines, add them to the composer. | Selected patch and file identity are preserved with correct old/new line numbers. |
 | External editor | Choose a configured editor/terminal, use Open in preferred app, and test one-off Open in. | Host-local opener receives the intended path and line; unavailable integration reports failure. |
+| Embedded browser | In a capable desktop client open a local fixture URL, focus location, navigate, reload, find text, hide/show the panel, and close. Repeat driving the same tab with bb browser-automation open/run against the local backend. | History/search and native view visibility follow the active tab; hidden views do not cover dialogs; the built-in browser-automation plugin drives the identical tab the UI shows. |
 | Thread storage and raw files | Inspect a synthetic thread’s storage location, list paths/files, and open text/binary assets through the documented storage/raw-file API and UI link. | Stored artifacts resolve from thread storage rather than the worktree, content bytes/MIME agree, and missing files fail explicitly. |
 | Preview lifecycle | Request a fixture file preview through the public files API, follow its returned preview URL and test a missing/unsupported file. | Preview references only the chosen source and renders the expected bytes/error; the returned URL is not invented from a workspace path. |
 
