@@ -30,10 +30,7 @@ import {
   QueuedMessagesList,
   type QueuedMessageInlineEditor,
 } from "@/components/promptbox/banner/QueuedMessagesList";
-import type {
-  ExecutionControlsProps,
-  ExecutionPermissionConfig,
-} from "@/components/promptbox/ExecutionControls";
+import type { ExecutionControlsProps } from "@/components/promptbox/ExecutionControls";
 import { OverflowFade } from "@/components/ui/overflow-fade";
 import {
   ThreadTimelinePanelContent,
@@ -258,15 +255,12 @@ function EmbeddedThreadChatWithComposer({
     reasoningLevel,
     setReasoningLevel,
     permissionMode,
-    setPermissionMode,
     activeModel,
     modelOptions,
     moreModelOptions,
     modelLoadFailed,
     modelLoadError,
     reasoningOptions,
-    permissionModeOptions,
-    supportsPermissionModeSelection,
     supportsServiceTier,
     serviceTierSupportByProvider,
     serviceTierFastLabel,
@@ -953,47 +947,11 @@ function EmbeddedThreadChatWithComposer({
     ],
   );
 
-  const bottomPermissionConfig = useMemo<ExecutionPermissionConfig>(
-    () =>
-      composer.permissionPolicy === "snapshot"
-        ? {
-            value: snapshotPermissionMode,
-            options: permissionModeOptions,
-            onChange: () => {},
-            supported: supportsPermissionModeSelection,
-          }
-        : {
-            value: permissionMode,
-            options: permissionModeOptions,
-            onChange: setPermissionMode,
-            supported: supportsPermissionModeSelection,
-          },
-    [
-      composer.permissionPolicy,
-      permissionMode,
-      permissionModeOptions,
-      setPermissionMode,
-      snapshotPermissionMode,
-      supportsPermissionModeSelection,
-    ],
-  );
-  const inlinePermissionConfig = useMemo<ExecutionPermissionConfig | null>(
-    () =>
-      inlineEditingQueuedMessage
-        ? {
-            ...bottomPermissionConfig,
-            value: inlineEditingQueuedMessage.permissionMode,
-          }
-        : null,
-    [bottomPermissionConfig, inlineEditingQueuedMessage],
-  );
-
   const inlineEditor = useMemo<QueuedMessageInlineEditor | undefined>(() => {
     if (
       !inlineEditingQueuedMessage ||
       !inlineComposerConfig ||
-      !inlineExecutionConfig ||
-      !inlinePermissionConfig
+      !inlineExecutionConfig
     ) {
       return undefined;
     }
@@ -1013,8 +971,6 @@ function EmbeddedThreadChatWithComposer({
           contextWindowUsage={null}
           execution={inlineExecutionConfig}
           executionReadOnly
-          permission={inlinePermissionConfig}
-          permissionReadOnly
           typeahead={typeaheadConfig}
           promptActions={promptActions}
           collapseResetKey={`${surfaceKey}:queued-message:${inlineEditingQueuedMessage.queuedMessageId}`}
@@ -1032,7 +988,6 @@ function EmbeddedThreadChatWithComposer({
     inlineComposerFocusNonce,
     inlineEditingQueuedMessage,
     inlineExecutionConfig,
-    inlinePermissionConfig,
     promptActions,
     queuedComposerTextEffects,
     queuedPluginComposerHost,
@@ -1107,8 +1062,6 @@ function EmbeddedThreadChatWithComposer({
           autoFocus={composer.autoFocus ?? true}
           hideExecutionControls={composer.executionControls === "hidden"}
           execution={bottomExecutionConfig}
-          permission={bottomPermissionConfig}
-          permissionReadOnly={composer.permissionPolicy === "snapshot"}
           typeahead={typeaheadConfig}
           promptActions={promptActions}
           collapseResetKey={surfaceKey}

@@ -127,8 +127,6 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
       execution,
       executionReadOnly,
       pendingInteraction,
-      permission,
-      permissionReadOnly,
       pluginComposerHost,
       showScrollToBottomButton,
       stack,
@@ -178,8 +176,6 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
       };
       executionReadOnly?: boolean;
       pendingInteraction?: ReactNode;
-      permission: { value?: string };
-      permissionReadOnly?: boolean;
       pluginComposerHost?: PluginComposerHost | null;
       showScrollToBottomButton?: boolean;
       stack: ReactNode;
@@ -239,12 +235,8 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
         <div data-testid="selected-service-tier">
           {execution.serviceTier?.value}
         </div>
-        <div data-testid="selected-permission">{permission.value}</div>
         <div data-testid="execution-read-only">
           {executionReadOnly ? "true" : "false"}
-        </div>
-        <div data-testid="permission-read-only">
-          {permissionReadOnly ? "true" : "false"}
         </div>
         <div data-testid="attachment-count">{attachments.items.length}</div>
         <div data-testid="composer-text-effect">
@@ -1626,13 +1618,7 @@ describe("ThreadDetailPromptArea", () => {
     expect(inlineEditor.getByTestId("selected-service-tier").textContent).toBe(
       "fast",
     );
-    expect(inlineEditor.getByTestId("selected-permission").textContent).toBe(
-      "full",
-    );
     expect(inlineEditor.getByTestId("execution-read-only").textContent).toBe(
-      "true",
-    );
-    expect(inlineEditor.getByTestId("permission-read-only").textContent).toBe(
       "true",
     );
   });
@@ -2294,7 +2280,6 @@ describe("ThreadDetailPromptArea", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Switch provider" }));
     expect(screen.getByTestId("active-permission-mode").textContent).toBe("");
-    expect(screen.getByTestId("selected-permission").textContent).toBe("full");
     fireEvent.click(screen.getByRole("button", { name: "Submit composer" }));
     await waitFor(() =>
       expect(mocks.createThreadMutateAsync).toHaveBeenCalledWith(

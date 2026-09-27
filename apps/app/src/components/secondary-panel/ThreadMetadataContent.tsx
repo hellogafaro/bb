@@ -80,7 +80,6 @@ import { GithubFaviconIcon } from "@/components/pull-request/GithubFaviconIcon";
 import { useUrlAnchorClickHandler } from "@/lib/url-open-routing";
 import { ParentThreadPicker } from "@/components/pickers/ParentThreadPicker";
 import { ThreadAgentRow } from "@/components/agents/ThreadAgentRow";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
 interface ParentSelectorRowProps {
   thread: Thread;
@@ -1013,7 +1012,7 @@ export function ThreadMetadataContent(props: ThreadMetadataContentProps) {
 
   return (
     <ThreadMetadataCard>
-      {FORK_AGENT_COMPOSER ? <ThreadAgentRow thread={thread} /> : null}
+      <ThreadAgentRow thread={thread} />
       <ParentSelectorRow
         thread={thread}
         projectId={projectId}

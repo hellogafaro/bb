@@ -29,7 +29,6 @@ const mocks = vi.hoisted(() => {
     isCompactViewport: false,
     isPointerCoarse: false,
     scrollToBottom: vi.fn(),
-    permissionModePicker: vi.fn(),
     voiceState: "idle" as "idle" | "recording" | "transcribing" | "error",
   };
   return Object.assign(values, {});
@@ -212,16 +211,6 @@ vi.mock("@/components/promptbox/ExecutionControls", () => ({
   },
 }));
 
-vi.mock("@/components/pickers/PermissionModePicker", () => ({
-  PermissionModePicker: (props: {
-    disabled?: boolean;
-    showChevronWhenDisabled?: boolean;
-  }) => {
-    mocks.permissionModePicker(props);
-    return null;
-  },
-}));
-
 vi.mock("@/views/thread-detail/ThreadTimelineScrollToBottomButton", () => ({
   ThreadTimelineScrollToBottomButton: () => null,
 }));
@@ -282,12 +271,6 @@ function createFollowUpPromptBoxProps(
         options: [],
         onChange: vi.fn(),
       },
-    },
-    permission: {
-      value: "accept-edits",
-      options: [{ value: "accept-edits", label: "Accept Edits" }],
-      onChange: vi.fn(),
-      supported: true,
     },
     typeahead: {
       mention: {
@@ -859,39 +842,6 @@ describe("FollowUpPromptBox", () => {
       }
     },
   );
-
-  it("hides the permission picker because agents always run with full access", () => {
-    const props = createFollowUpPromptBoxProps({
-      kind: "queue",
-      onStop: vi.fn(),
-    });
-
-    render(
-      <FollowUpPromptBox
-        {...props}
-        activePromptMode={{
-          mode: "plan",
-          providerId: "codex",
-          prompt: "inspect the failing test",
-        }}
-      />,
-    );
-
-    expect(mocks.permissionModePicker).not.toHaveBeenCalled();
-  });
-
-  it("can lock permission without disabling execution controls", () => {
-    const props = createFollowUpPromptBoxProps({ kind: "ready" });
-
-    render(<FollowUpPromptBox {...props} permissionReadOnly />);
-
-    expect(mocks.executionControls).toHaveBeenCalledWith(
-      expect.objectContaining({
-        disabled: false,
-      }),
-    );
-    expect(mocks.permissionModePicker).not.toHaveBeenCalled();
-  });
 
   it("starts as a single compact row on mobile without size controls", () => {
     mocks.isCompactViewport = true;

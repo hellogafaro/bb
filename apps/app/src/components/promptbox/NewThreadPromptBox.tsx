@@ -28,7 +28,6 @@ import {
 import {
   ExecutionControls,
   type ExecutionControlsProps,
-  type ExecutionPermissionConfig,
 } from "@/components/promptbox/ExecutionControls";
 import {
   DEFAULT_COMPOSER_SCOPE,
@@ -40,7 +39,6 @@ import {
   type PromptBoxHandle,
   type TypeaheadConfig,
 } from "@/components/promptbox/PromptBoxInternal";
-import { usePromptModePermissionDisplay } from "@/components/promptbox/usePromptModePermissionDisplay";
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
 import { useOptionalPaneContext } from "@/views/thread-detail/PaneContext";
 import {
@@ -50,7 +48,6 @@ import {
 } from "@/components/pickers/EnvironmentPicker";
 import { MachinePickerUI } from "@/components/pickers/MachinePicker";
 import { parseEnvironmentValue } from "@/components/pickers/environment-picker-value";
-import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
 import {
   ProjectSelector,
   type ProjectSelectorCreateProjectConfig,
@@ -68,7 +65,6 @@ import {
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { useSystemMachineProviders } from "@/hooks/queries/machine-provider-queries";
 import { useHostDaemon } from "@/hooks/useHostDaemon";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
 const NEW_THREAD_PROMPT_BOX_MIN_HEIGHT = 24;
 
@@ -112,7 +108,6 @@ export interface NewThreadProjectConfig {
 export interface NewThreadModeConfig {
   environment: NewThreadEnvironmentConfig;
   worktree: NewThreadWorktreeConfig;
-  permission: ExecutionPermissionConfig;
   environmentProviderInputsSlot?: ReactNode;
   machineProviderInputsSlot?: ReactNode;
   banner?: ReactNode;
@@ -275,13 +270,6 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
   const isProjectlessPrompt = project?.value === null;
   const placeholder =
     placeholderOverride ?? getNewThreadPromptPlaceholder(isProjectlessPrompt);
-  const { permissionDisplayOverride, permissionPickerDisabledByPlanMode } =
-    usePromptModePermissionDisplay({
-      execution,
-      value,
-      mentionRanges,
-      activePromptMode: null,
-    });
   const submitTitle = isSubmitting
     ? "Submitting..."
     : execution.model.isLoading
@@ -355,19 +343,6 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
             machineProviderInputsSlot={modeConfig.machineProviderInputsSlot}
           />
         </div>
-        {FORK_AGENT_COMPOSER ? null : (
-          <div className="flex shrink-0 items-center gap-2">
-            <PermissionModePicker
-              value={modeConfig.permission.value}
-              options={modeConfig.permission.options}
-              onChange={modeConfig.permission.onChange}
-              supported={modeConfig.permission.supported}
-              disabled={permissionPickerDisabledByPlanMode}
-              showChevronWhenDisabled={permissionPickerDisabledByPlanMode}
-              displayOverride={permissionDisplayOverride}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

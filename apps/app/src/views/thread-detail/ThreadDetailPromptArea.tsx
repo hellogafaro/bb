@@ -139,7 +139,6 @@ import {
   type FollowUpPromptBoxProps,
   type FollowUpSubmitMode,
 } from "@/components/promptbox/FollowUpPromptBox";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 import type { SendMessageMutationLike } from "./threadDetailMutationTypes";
 import {
   buildAutoFollowUpRequest,
@@ -227,7 +226,6 @@ interface InlineDraftComposerOptions {
   onChangeMessage: FollowUpComposerProps["onChangeMessage"];
   onEscape?: FollowUpComposerProps["onEscape"];
   onSelectHistoryEntry: (draft: PromptDraftState) => void;
-  permission: FollowUpPromptBoxProps["permission"];
   pluginComposerHost: PluginComposerHost;
   promptActions: FollowUpPromptBoxProps["promptActions"];
   promptPlaceholder: string;
@@ -279,8 +277,6 @@ function buildInlineDraftComposer(options: InlineDraftComposerOptions) {
       contextWindowUsage={null}
       execution={options.execution}
       executionReadOnly
-      permission={options.permission}
-      permissionReadOnly
       typeahead={options.typeahead}
       promptActions={options.promptActions}
       collapseResetKey={options.collapseResetKey}
@@ -669,12 +665,9 @@ export function ThreadDetailPromptArea({
     modelLoadFailed,
     modelLoadError,
     reasoningOptions,
-    permissionModeOptions,
-    supportsPermissionModeSelection,
     supportsServiceTier,
     serviceTierSupportByProvider,
     serviceTierFastLabel,
-    executionInputSources,
   } = useThreadCreationOptions({
     enabled: thread.archivedAt === null,
     environmentId: thread.environmentId ?? undefined,
@@ -1091,28 +1084,6 @@ export function ThreadDetailPromptArea({
       runtimeDisplayStatus,
       submitModeKind: submitMode.kind,
     });
-  const followUpExecutionSelection = useMemo<FollowUpExecutionSelection>(() => {
-    if (FORK_AGENT_COMPOSER || !hasConcreteDefaultExecutionOptions) {
-      return null;
-    }
-    return {
-      model: effectiveSelectedModel,
-      supportsServiceTier,
-      serviceTier,
-      reasoningLevel,
-      permissionMode,
-      executionInputSources,
-    };
-  }, [
-    effectiveSelectedModel,
-    executionInputSources,
-    hasConcreteDefaultExecutionOptions,
-    permissionMode,
-    reasoningLevel,
-    serviceTier,
-    supportsServiceTier,
-  ]);
-
   const createHandoffThread = useCallback(
     async (
       submittedDraft: PromptDraftState,
@@ -1198,7 +1169,7 @@ export function ThreadDetailPromptArea({
         const request = buildCreateQueuedFollowUpRequest({
           threadId: thread.id,
           input: submittedInput,
-          execution: followUpExecutionSelection,
+          execution: null,
         });
         if (request) {
           await createQueuedMessage.mutateAsync(request);
@@ -1207,7 +1178,7 @@ export function ThreadDetailPromptArea({
         const request = buildAutoFollowUpRequest({
           threadId: thread.id,
           input: submittedInput,
-          execution: followUpExecutionSelection,
+          execution: null,
         });
         if (request) {
           await sendMessage.mutateAsync(request);
@@ -1228,7 +1199,6 @@ export function ThreadDetailPromptArea({
     createQueuedMessage,
     currentPromptDraft,
     currentPromptDraftInput,
-    followUpExecutionSelection,
     isDefaultExecutionOptionsLoading,
     isHandoffSelection,
     promptDraft,
@@ -1275,7 +1245,7 @@ export function ThreadDetailPromptArea({
       const request = buildAutoFollowUpRequest({
         threadId: thread.id,
         input: promptDraftToInput(submittedDraft),
-        execution: followUpExecutionSelection,
+        execution: null,
       });
       if (request === null) {
         throw new Error("Type a message before submitting it.");
@@ -1308,7 +1278,6 @@ export function ThreadDetailPromptArea({
       createHandoffThread,
       shouldHideComposer,
       effectiveSelectedModel,
-      followUpExecutionSelection,
       isDefaultExecutionOptionsLoading,
       isHandoffSelection,
       promptDraft,
@@ -1329,7 +1298,7 @@ export function ThreadDetailPromptArea({
     const submittedDraft = currentPromptDraft;
     const submittedInput = currentPromptDraftInput;
     const shortcutRequest = buildFollowUpShortcutRequest({
-      execution: followUpExecutionSelection,
+      execution: null,
       input: submittedInput,
       queuedMessages: queuedMessagesRef.current,
       threadId: thread.id,
@@ -1378,7 +1347,6 @@ export function ThreadDetailPromptArea({
     canSubmitModifierShortcut,
     currentPromptDraft,
     currentPromptDraftInput,
-    followUpExecutionSelection,
     promptDraft,
     queuedMessagesRef,
     sendMessage,
@@ -1526,15 +1494,10 @@ export function ThreadDetailPromptArea({
       return;
     }
     sentMessageEdit.onSubmit({
-      execution: followUpExecutionSelection,
+      execution: null,
       input: sentMessageEditInput,
     });
-  }, [
-    canSubmitSentMessageEdit,
-    followUpExecutionSelection,
-    sentMessageEdit,
-    sentMessageEditInput,
-  ]);
+  }, [canSubmitSentMessageEdit, sentMessageEdit, sentMessageEditInput]);
   const bottomExecutionConfig = useMemo(
     () => ({
       providerRouting:
@@ -1643,33 +1606,6 @@ export function ThreadDetailPromptArea({
     };
   }, [compactExecutionConfig, inlineEditingQueuedMessage]);
 
-  const bottomPermissionConfig = useMemo(
-    () => ({
-      value: hasConcreteDefaultExecutionOptions ? permissionMode : undefined,
-      options: hasConcreteDefaultExecutionOptions ? permissionModeOptions : [],
-      onChange: setPermissionMode,
-      supported:
-        hasConcreteDefaultExecutionOptions && supportsPermissionModeSelection,
-    }),
-    [
-      hasConcreteDefaultExecutionOptions,
-      permissionMode,
-      permissionModeOptions,
-      setPermissionMode,
-      supportsPermissionModeSelection,
-    ],
-  );
-  const inlinePermissionConfig = useMemo(
-    () =>
-      inlineEditingQueuedMessage
-        ? {
-            ...bottomPermissionConfig,
-            value: inlineEditingQueuedMessage.permissionMode,
-          }
-        : null,
-    [bottomPermissionConfig, inlineEditingQueuedMessage],
-  );
-
   const environmentSummary = useMemo(
     () =>
       thread.environmentId !== null ? (
@@ -1777,7 +1713,6 @@ export function ThreadDetailPromptArea({
     if (
       !inlineEditingQueuedMessage ||
       !inlineExecutionConfig ||
-      !inlinePermissionConfig ||
       !queuedMessagePluginComposerHost
     ) {
       return null;
@@ -1809,7 +1744,6 @@ export function ThreadDetailPromptArea({
         isSubmitting: isUpdateQueuedMessagePending,
         onChangeMessage: handleComposerMessageChange,
         onSelectHistoryEntry: setActiveComposerDraft,
-        permission: inlinePermissionConfig,
         pluginComposerHost: queuedMessagePluginComposerHost,
         promptActions: inlinePromptActions,
         promptPlaceholder,
@@ -1834,7 +1768,6 @@ export function ThreadDetailPromptArea({
     inlineAttachmentError,
     inlineEditingQueuedMessage,
     inlineExecutionConfig,
-    inlinePermissionConfig,
     isAttachingInlineFiles,
     inlinePendingUploads,
     isUpdateQueuedMessagePending,
@@ -1929,7 +1862,6 @@ export function ThreadDetailPromptArea({
           onEscape: sentMessageEdit.onCancel,
           onSelectHistoryEntry: (nextDraft) =>
             sentMessageEdit.updateDraft(() => nextDraft),
-          permission: bottomPermissionConfig,
           pluginComposerHost: sentMessagePluginComposerHost,
           promptActions: inlinePromptActions,
           promptPlaceholder: "Edit message",
@@ -1946,7 +1878,6 @@ export function ThreadDetailPromptArea({
       hostElement,
     );
   }, [
-    bottomPermissionConfig,
     canSubmitSentMessageEdit,
     compactExecutionConfig,
     editFocusNonce,
@@ -2163,7 +2094,6 @@ export function ThreadDetailPromptArea({
       environmentSummary={environmentSummary}
       contextWindowUsage={contextWindowUsage ?? null}
       execution={bottomExecutionConfig}
-      permission={bottomPermissionConfig}
       typeahead={typeaheadConfig}
       promptActions={promptActions}
     />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PermissionMode, PromptTextMention } from "@bb/domain";
+import type { PromptTextMention } from "@bb/domain";
 import type { SystemExecutionOptionsModelLoadError } from "@bb/server-contract";
 import {
   NewThreadPromptBoxUI,
@@ -14,7 +14,6 @@ import type {
 } from "@/components/promptbox/PromptBoxInternal";
 import { AUTOMATION_PROMPT_ACTION } from "@/components/promptbox/PromptBoxActionsMenu";
 import { ProviderCliBanner } from "@/components/promptbox/banner/ProviderCliBanner";
-import type { PickerOption } from "@/components/pickers/OptionPicker";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
 import { ModelPickerStoryQueryProvider } from "../../../.ladle/model-picker-query-provider";
 import {
@@ -70,19 +69,6 @@ const baseProject: NewThreadProjectConfig = {
   onChange: noop,
 };
 
-const permissionModeOptions: readonly PickerOption<PermissionMode>[] = [
-  { value: "accept-edits", label: "Accept Edits" },
-  { value: "auto", label: "Approve for me" },
-  { value: "full", label: "Full Access", tone: "warning" },
-];
-
-const basePermission = {
-  value: "auto" as PermissionMode,
-  options: permissionModeOptions,
-  onChange: noop,
-  supported: true,
-};
-
 const baseHistory: HistoryConfig = {
   currentDraft: { text: "", mentions: [], attachments: [] },
   entries: [
@@ -124,7 +110,6 @@ function useControlledValue(initial: string) {
 const baseModeConfig: NewThreadModeConfig = {
   environment: baseEnvironment,
   worktree: baseWorktree,
-  permission: basePermission,
 };
 
 interface PromptStageProps {
@@ -512,33 +497,6 @@ function ClaudeProviderRow() {
   );
 }
 
-function FullAccessRow() {
-  const { value, mentionRanges, onChange } = useControlledValue("");
-  return (
-    <PromptStage>
-      <NewThreadPromptBoxUI
-        mentionMenuPlacement="bottom"
-        id="story-new-thread-full-access"
-        value={value}
-        mentionRanges={mentionRanges}
-        onChange={onChange}
-        onSubmit={noop}
-        isSubmitting={false}
-        disabled={false}
-        history={baseHistory}
-        typeahead={makeTypeahead()}
-        attachments={makeAttachments()}
-        modeConfig={{
-          ...baseModeConfig,
-          permission: { ...basePermission, value: "full" },
-        }}
-        project={baseProject}
-        execution={baseExecution}
-      />
-    </PromptStage>
-  );
-}
-
 const projectlessHosts = [
   makeHost({ id: HOST_IDS.local, name: "MacBook Air" }),
   makeHost({
@@ -550,7 +508,6 @@ const projectlessHosts = [
 function ProjectlessThreadRow() {
   const { value, mentionRanges, onChange } = useControlledValue("");
   const execution = useInteractiveExecutionControls(baseExecution);
-  const [permission, setPermission] = useState<PermissionMode>("auto");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [hostId, setHostId] = useState<string | null>(HOST_IDS.remote);
   const [environmentValue, setEnvironmentValue] = useState(
@@ -591,11 +548,6 @@ function ProjectlessThreadRow() {
             ...baseWorktree,
             value: worktreeId,
             onChange: setWorktreeId,
-          },
-          permission: {
-            ...basePermission,
-            value: permission,
-            onChange: setPermission,
           },
         }}
         project={{
@@ -678,12 +630,9 @@ export function Overview() {
         >
           <ClaudeProviderRow />
         </StoryRow>
-        <StoryRow label="full access" hint='permission tone="warning"'>
-          <FullAccessRow />
-        </StoryRow>
         <StoryRow
           label="projectless"
-          hint="interactive machine, project, model, and permissions; long machine label truncates"
+          hint="interactive machine, project, and model; long machine label truncates"
         >
           <ProjectlessThreadRow />
         </StoryRow>

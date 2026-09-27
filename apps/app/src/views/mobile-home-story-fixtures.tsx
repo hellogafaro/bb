@@ -130,16 +130,6 @@ const storyProject: NewThreadProjectConfig = {
 const storyModeConfig = {
   environment: storyEnvironment,
   worktree: storyWorktree,
-  permission: {
-    value: "auto",
-    options: [
-      { value: "accept-edits", label: "Accept Edits" },
-      { value: "auto", label: "Approve for me" },
-      { value: "full", label: "Full Access", tone: "warning" },
-    ],
-    onChange: noop,
-    supported: true,
-  },
 } satisfies NewThreadModeConfig;
 
 const storyExecution = makeExecutionControlsProps();

@@ -45,14 +45,10 @@ import {
   type PromptBoxHandle,
   type TypeaheadConfig,
 } from "@/components/promptbox/PromptBoxInternal";
-import { usePromptModePermissionDisplay } from "@/components/promptbox/usePromptModePermissionDisplay";
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
-import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
-  type ExecutionPermissionConfig,
 } from "@/components/promptbox/ExecutionControls";
 import { useBottomAnchoredScroll } from "@/components/ui/bottom-anchored-scroll-body.js";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
@@ -158,9 +154,7 @@ export interface FollowUpPromptBoxProps {
   environmentSummary: ReactNode | null;
   contextWindowUsage: ContextWindowUsage | null;
   execution: ExecutionControlsProps;
-  permission: ExecutionPermissionConfig;
   executionReadOnly?: boolean;
-  permissionReadOnly?: boolean;
   typeahead: TypeaheadConfig;
   promptActions?: readonly PromptBoxAction[];
   suppressPluginComposerCustomizations?: boolean;
@@ -232,9 +226,7 @@ function FollowUpPromptBoxWithComposer({
   environmentSummary,
   contextWindowUsage,
   execution,
-  permission,
   executionReadOnly,
-  permissionReadOnly,
   typeahead,
   promptActions,
   suppressPluginComposerCustomizations,
@@ -621,44 +613,8 @@ function FollowUpPromptBoxWithComposer({
       ),
     [execution, executionControlsDisabled, hideExecutionControls],
   );
-  const { permissionDisplayOverride, permissionPickerDisabledByPlanMode } =
-    usePromptModePermissionDisplay({
-      execution,
-      value: composer.message,
-      mentionRanges: composer.mentionRanges,
-      activePromptMode,
-    });
   const showComposerFooterRow =
-    environmentSummary !== null ||
-    contextWindowUsage !== null ||
-    !FORK_AGENT_COMPOSER;
-  const permissionReadOnlyResolved =
-    (permissionReadOnly ?? false) || hasPendingInteraction;
-  const permissionPickerDisabled =
-    permissionReadOnlyResolved || permissionPickerDisabledByPlanMode;
-  const permissionControl = useMemo(
-    () => (
-      <PermissionModePicker
-        value={permission.value}
-        options={permission.options}
-        onChange={permission.onChange}
-        supported={permission.supported}
-        disabled={permissionPickerDisabled}
-        showChevronWhenDisabled={permissionPickerDisabledByPlanMode}
-        displayOverride={permissionDisplayOverride}
-        className="h-6"
-      />
-    ),
-    [
-      permission.onChange,
-      permission.options,
-      permission.supported,
-      permission.value,
-      permissionDisplayOverride,
-      permissionPickerDisabledByPlanMode,
-      permissionPickerDisabled,
-    ],
-  );
+    environmentSummary !== null || contextWindowUsage !== null;
   const stackRef = useRef<HTMLDivElement>(null);
   const lastStackHeightRef = useRef(0);
   const [stackHeight, setStackHeight] = useState(0);
@@ -803,7 +759,6 @@ function FollowUpPromptBoxWithComposer({
             {environmentSummary}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {FORK_AGENT_COMPOSER ? null : permissionControl}
             {contextWindowUsage ? (
               <ThreadContextWindowIndicator usage={contextWindowUsage} />
             ) : null}

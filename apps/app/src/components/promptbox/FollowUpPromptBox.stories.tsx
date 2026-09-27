@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type {
   Environment,
   Host,
-  PermissionMode,
   PromptMentionResource,
   PromptTextMention,
   ThreadQueuedMessage,
@@ -47,7 +46,6 @@ import {
   formatWorkspaceCheckoutDisplay,
   type WorkspaceCheckoutDisplay,
 } from "@/lib/workspace-checkout-display";
-import type { PickerOption } from "@/components/pickers/OptionPicker";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
 import { ModelPickerStoryQueryProvider } from "../../../.ladle/model-picker-query-provider";
 import {
@@ -58,10 +56,7 @@ import {
   PROJECT_NAMES,
   STORY_PROVIDER_OPTIONS,
 } from "../../../.ladle/story-fixtures";
-import type {
-  ExecutionControlsProps,
-  ExecutionPermissionConfig,
-} from "@/components/promptbox/ExecutionControls";
+import type { ExecutionControlsProps } from "@/components/promptbox/ExecutionControls";
 import { PageShell } from "@/components/ui/page-shell.js";
 import { promptDraftToInput, type PromptDraftState } from "@bb/client-core";
 import { queuedInputToDraft } from "@bb/client-core";
@@ -85,19 +80,6 @@ const codexModelLoadError = {
   code: "failed",
   detail: "model list command_failed: codex exited before responding",
 } satisfies SystemExecutionOptionsModelLoadError;
-
-const permissionModeOptions: readonly PickerOption<PermissionMode>[] = [
-  { value: "accept-edits", label: "Accept Edits" },
-  { value: "auto", label: "Approve for me" },
-  { value: "full", label: "Full Access", tone: "warning" },
-];
-
-const basePermission: ExecutionPermissionConfig = {
-  value: "auto",
-  options: permissionModeOptions,
-  onChange: noop,
-  supported: true,
-};
 
 const promptActions: readonly PromptBoxAction[] = [
   { kind: "skills", text: "/" },
@@ -445,8 +427,6 @@ const queuedMessages: readonly ThreadQueuedMessage[] = [
   makeStoryQueuedMessage("q_8", "Capture the final interaction states."),
 ];
 
-type RowPermission = Parameters<typeof FollowUpPromptBox>[0]["permission"];
-
 interface RowConfig {
   initialMessage?: string;
   initialMentions?: PromptTextMention[];
@@ -461,7 +441,6 @@ interface RowConfig {
   collapseResetKey?: string;
   hideComposer?: boolean;
   execution?: ExecutionControlsProps;
-  permission?: RowPermission;
   activePromptMode?: Parameters<
     typeof FollowUpPromptBox
   >[0]["activePromptMode"];
@@ -501,7 +480,6 @@ function Row({
   collapseResetKey = "thr_demo",
   hideComposer = false,
   execution = baseExecution,
-  permission = basePermission,
   activePromptMode = null,
   readOnly = false,
 }: RowConfig) {
@@ -609,8 +587,6 @@ function Row({
                 contextWindowUsage={null}
                 execution={execution}
                 executionReadOnly
-                permission={permission}
-                permissionReadOnly
                 promptActions={promptActions}
                 typeahead={typeaheadBase}
                 collapseResetKey={`${collapseResetKey}:queued-message`}
@@ -627,7 +603,6 @@ function Row({
       handleChangeInlineMessage,
       handleSubmit,
       inlineEditingQueuedMessage,
-      permission,
       resolvedCompactPlaceholder,
       resolvedPlaceholder,
       threadRuntimeDisplayStatus,
@@ -703,11 +678,9 @@ function Row({
         environmentSummary={environmentSummary}
         contextWindowUsage={contextWindowUsage}
         execution={execution}
-        permission={permission}
         activePromptMode={activePromptMode}
         promptActions={promptActions}
         executionReadOnly={readOnly}
-        permissionReadOnly={readOnly}
         typeahead={typeaheadBase}
         collapseResetKey={collapseResetKey}
       />

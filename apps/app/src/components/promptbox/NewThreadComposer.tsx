@@ -30,7 +30,6 @@ import {
   useApplyComposerAgent,
   useComposerAgent,
 } from "@/components/agents/useComposerAgent";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 import type {
   ExperimentalComposerSelection,
   NewThreadRequest,
@@ -678,7 +677,11 @@ export function NewThreadComposer({
         threads: [],
       },
     ];
-  }, [seededReuseEnvironmentRow, threadDerivedReuseOptions, worktreeHostNameById]);
+  }, [
+    seededReuseEnvironmentRow,
+    threadDerivedReuseOptions,
+    worktreeHostNameById,
+  ]);
   const { value: storedMachineId, setValue: setStoredMachineId } =
     usePromptBoxMachinePreference(projectId);
   const [activeSeedSignature, setActiveSeedSignature] = useState(seedSignature);
@@ -850,7 +853,6 @@ export function NewThreadComposer({
     modelOptions,
     moreModelOptions,
     permissionMode,
-    permissionModeOptions,
     providerOptions,
     reasoningLevel,
     reasoningOptions,
@@ -868,16 +870,19 @@ export function NewThreadComposer({
     setSelectedModel,
     setSelectedProviderId,
     setServiceTier,
-    supportsPermissionModeSelection,
     supportsServiceTier,
     clearReuseEnvironment,
   } = creationOptions;
   const selectedThreadModel = activeModel?.model ?? selectedModel;
   const composerAgent = useComposerAgent(projectId);
-  const submittedAgent = FORK_AGENT_COMPOSER ? composerAgent.selected : null;
+  const submittedAgent = composerAgent.selected;
   useApplyComposerAgent({
     agent: seed?.providerId === undefined ? submittedAgent : null,
-    selection: { providerId: selectedProviderId, model: selectedModel, reasoningLevel },
+    selection: {
+      providerId: selectedProviderId,
+      model: selectedModel,
+      reasoningLevel,
+    },
     setProviderModelReasoning,
     setReasoningLevel,
     setSelectedProviderId,
@@ -1359,7 +1364,13 @@ export function NewThreadComposer({
         setIsUploading(pendingUploadCountRef.current > 0);
       }
     },
-    [projectId, promptDraft, uploadPromptAttachment, startUploads, finishUploads],
+    [
+      projectId,
+      promptDraft,
+      uploadPromptAttachment,
+      startUploads,
+      finishUploads,
+    ],
   );
   const changeProject = useCallback(
     async (nextProjectId: string | null): Promise<ProjectChangeOutcome> => {
@@ -1915,12 +1926,6 @@ export function NewThreadComposer({
               onChange: handleWorktreeChange,
               disabled: locks.environment,
             },
-            permission: {
-              value: permissionMode,
-              options: permissionModeOptions,
-              onChange: handlePermissionChange,
-              supported: supportsPermissionModeSelection,
-            },
             environmentProviderInputsSlot,
             machineProviderInputsSlot: machineProviderInputs.control,
             banner:
@@ -2008,16 +2013,10 @@ export function NewThreadComposer({
               options: reasoningOptions,
               onChange: handleReasoningChange,
             },
-            ...(FORK_AGENT_COMPOSER
-              ? {
-                  agent: {
-                    agentId: composerAgent.selected?.id ?? null,
-                    ...(locks.provider
-                      ? {}
-                      : { onChange: composerAgent.select }),
-                  },
-                }
-              : {}),
+            agent: {
+              agentId: composerAgent.selected?.id ?? null,
+              ...(locks.provider ? {} : { onChange: composerAgent.select }),
+            },
           }}
         />
       );
@@ -2037,7 +2036,6 @@ export function NewThreadComposer({
       handleAttachFiles,
       handleEditorFocus,
       handleModelChange,
-      handlePermissionChange,
       handleProjectChange,
       handleProviderChange,
       handleReasoningChange,
@@ -2058,8 +2056,6 @@ export function NewThreadComposer({
       modelLoadFailed,
       modelOptions,
       moreModelOptions,
-      permissionMode,
-      permissionModeOptions,
       projectId,
       projectOptions,
       projectSources,
@@ -2079,7 +2075,6 @@ export function NewThreadComposer({
       serviceTier,
       serviceTierSupportByProvider,
       sidebarNavigationSettled,
-      supportsPermissionModeSelection,
       supportsServiceTier,
       submitDisabledReason,
       machineServerAccessReason,

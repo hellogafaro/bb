@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { PermissionMode, ReasoningLevel, ServiceTier } from "@bb/domain";
+import type { ReasoningLevel, ServiceTier } from "@bb/domain";
 import type {
   SystemExecutionOptionsModelLoadError,
   SystemProvidersQuery,
@@ -16,7 +16,6 @@ import {
   AgentPicker,
   type ExecutionAgentConfig,
 } from "@/components/agents/AgentPicker";
-import { FORK_AGENT_COMPOSER } from "@/lib/fork-flags";
 
 interface ExecutionProviderConfig {
   options?: readonly ProviderPickerOption[];
@@ -48,13 +47,6 @@ interface ExecutionReasoningConfig {
   value: ReasoningLevel;
   options: readonly PickerOption<ReasoningLevel>[];
   onChange: (value: ReasoningLevel) => void;
-}
-
-export interface ExecutionPermissionConfig {
-  value?: PermissionMode;
-  options: readonly PickerOption<PermissionMode>[];
-  onChange: (value: PermissionMode) => void;
-  supported: boolean;
 }
 
 export interface ExecutionControlsProps {
@@ -95,7 +87,7 @@ export const ExecutionControls = memo(function ExecutionControls({
     selectedProviderId.length > 0 ||
     handoff !== undefined;
 
-  if (FORK_AGENT_COMPOSER && agent !== undefined) {
+  if (agent !== undefined) {
     return <AgentPicker {...agent} disabled={disabled} />;
   }
 

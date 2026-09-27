@@ -2720,7 +2720,6 @@ describe("NewThreadComposer setSelection", () => {
     expect(result.serviceTier).toBeUndefined();
     expect(latestPromptBoxProps().execution.model.selected).toBe("gpt-5.6-sol");
     expect(latestPromptBoxProps().execution.reasoning.value).toBe("medium");
-    expect(latestPromptBoxProps().modeConfig.permission.value).toBe("auto");
     expect(window.localStorage.getItem("bb.promptbox.model-codex-1")).toBe(
       "gpt-5.6-sol",
     );
