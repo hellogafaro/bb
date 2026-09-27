@@ -206,6 +206,12 @@ function statusSummary(page: WorkflowRunInspectionPage) {
   };
 }
 
+function storedSourceOrigin(run: WorkflowRunRow): JsonValue {
+  return run.sourceOriginJson === null
+    ? null
+    : parseStoredJson(run.sourceOriginJson, "workflow source origin");
+}
+
 function listRunSummary(run: WorkflowRunRow) {
   const name = boundedText(run.name, LIST_DISPLAY_TEXT_MAX_BYTES);
   const phase = boundedText(run.phase, LIST_DISPLAY_TEXT_MAX_BYTES);
@@ -216,6 +222,7 @@ function listRunSummary(run: WorkflowRunRow) {
     environmentId: run.environmentId,
     name: name.value,
     nameTruncated: name.truncated,
+    sourceOrigin: storedSourceOrigin(run),
     status: run.status,
     phase: phase.value,
     phaseTruncated: phase.truncated,
@@ -231,12 +238,15 @@ function listRunSummary(run: WorkflowRunRow) {
 }
 
 function runLogRecord(run: WorkflowRunRow, exportedAt: number) {
-  const { argsJson, settingsJson, resultJson, ...fields } = run;
+  const { argsJson, settingsJson, resultJson, sourceOriginJson, ...fields } =
+    run;
+  void sourceOriginJson;
   return {
     type: "run",
     logVersion: 1,
     exportedAt,
     ...fields,
+    sourceOrigin: storedSourceOrigin(run),
     args: parseStoredJson(argsJson, "workflow args"),
     settings: parseStoredWorkflowSettings(
       parseStoredJson(settingsJson, "workflow settings"),
@@ -306,7 +316,7 @@ const SOURCE_OPTIONS = {
     placeholder: "name",
     aliases: ["workflow"],
     description:
-      "Named workflow under .bb/workflows/<name>.js; lowercase kebab-case, at most 64 characters",
+      "Named workflow at .bb/workflows/<name>.js in the workspace, else <data-dir>/workflows/<name>.js; lowercase kebab-case, at most 64 characters",
   },
 } as const;
 const SOURCE_CONSTRAINT = {
@@ -356,6 +366,7 @@ export function registerWorkflowCli(
                 projectId: context.projectId,
                 originThreadId: context.threadId,
                 source: prepared.source,
+                sourceOrigin: prepared.origin,
                 args: parseJsonOption(input.options.args),
                 resumedFromRunId: input.options.resume ?? null,
               });

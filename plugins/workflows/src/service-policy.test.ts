@@ -175,7 +175,9 @@ function setup(
         read: async ({ path }) => {
           const content = files[path];
           if (content === undefined)
-            throw new Error(`Missing test file ${path}`);
+            throw Object.assign(new Error(`Missing test file ${path}`), {
+              status: 404,
+            });
           return {
             content,
             contentEncoding: "utf8",
@@ -193,6 +195,7 @@ function setup(
     return service.start({
       projectId: "project-test",
       originThreadId: "origin",
+      sourceOrigin: { kind: "script" },
       source: workflowSource,
       args: null,
       resumedFromRunId: null,
@@ -354,9 +357,11 @@ describe("workflow service policy integration", () => {
   it("resolves named and path children on the origin host", async () => {
     const named = source("return { kind: 'named', args };", "named-child");
     const path = source("return { kind: 'path', args };", "path-child");
+    const shared = source("return { kind: 'shared', args };", "shared-child");
     const test = setup(DEFAULT_WORKFLOW_SETTINGS, {
       "/workspace/.bb/workflows/named-child.js": named,
       "/workspace/child.js": path,
+      "/tmp/bb-fake-data-dir/workflows/shared-child.js": shared,
     });
     harnesses.push(test.harness);
     const run = await test.start(
@@ -364,6 +369,7 @@ describe("workflow service policy integration", () => {
         `return [
           await workflow("named-child", { value: 1 }),
           await workflow({ scriptPath: "child.js" }, { value: 2 }),
+          await workflow("shared-child", { value: 3 }),
         ];`,
         "nested-source-modes",
       ),
@@ -374,7 +380,7 @@ describe("workflow service policy integration", () => {
       expect(getRunRequired(test.db, run.id)).toMatchObject({
         status: "succeeded",
         resultJson:
-          '[{"kind":"named","args":{"value":1}},{"kind":"path","args":{"value":2}}]',
+          '[{"kind":"named","args":{"value":1}},{"kind":"path","args":{"value":2}},{"kind":"shared","args":{"value":3}}]',
       }),
     );
     expect(test.harness.sdk.callsTo("files.read")).toEqual([
@@ -390,6 +396,20 @@ describe("workflow service policy integration", () => {
           hostId: "host-1",
           path: "/workspace/child.js",
           rootPath: "/workspace",
+        },
+      ],
+      [
+        {
+          hostId: "host-1",
+          path: "/workspace/.bb/workflows/shared-child.js",
+          rootPath: "/workspace",
+        },
+      ],
+      [
+        {
+          hostId: "host-1",
+          path: "/tmp/bb-fake-data-dir/workflows/shared-child.js",
+          rootPath: "/tmp/bb-fake-data-dir/workflows",
         },
       ],
     ]);
@@ -1065,6 +1085,7 @@ describe("workflow service policy integration", () => {
       test.service.start({
         projectId: "project-test",
         originThreadId: "origin-2",
+        sourceOrigin: { kind: "script" },
         source: source(`return "resume";`),
         args: null,
         resumedFromRunId: ancestor.id,
@@ -1080,6 +1101,7 @@ describe("workflow service policy integration", () => {
       test.service.start({
         projectId: "project-test",
         originThreadId: "origin-2",
+        sourceOrigin: { kind: "script" },
         source: source(`return "resume";`),
         args: null,
         resumedFromRunId: ancestor.id,
@@ -1095,6 +1117,7 @@ describe("workflow service policy integration", () => {
       test.service.start({
         projectId: "project-test",
         originThreadId: "origin-2",
+        sourceOrigin: { kind: "script" },
         source: source(`return "resume";`),
         args: null,
         resumedFromRunId: ancestor.id,

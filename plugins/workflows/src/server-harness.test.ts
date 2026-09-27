@@ -739,6 +739,7 @@ describe("workflows plugin", () => {
     const base = {
       projectId: "project-test",
       originThreadId: "thread-test",
+      sourceOrigin: { kind: "script" as const },
       source,
       resumedFromRunId: null,
     };
@@ -853,6 +854,7 @@ describe("workflow resume cache integration", () => {
       return service.start({
         projectId: "project-test",
         originThreadId: "origin",
+        sourceOrigin: { kind: "script" },
         source,
         args: null,
         resumedFromRunId,
@@ -1668,6 +1670,7 @@ describe("workflow resume cache integration", () => {
     const run = await service.start({
       projectId: "project-test",
       originThreadId: "origin",
+      sourceOrigin: { kind: "script" },
       source: workflowSource(`
         try { return await ask("Ship it?"); }
         catch (error) { return "caught: " + error.message; }`),

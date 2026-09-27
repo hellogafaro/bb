@@ -37,7 +37,7 @@ const sourceInputFields = {
     .string()
     .min(1)
     .describe(
-      "Name of a saved workflow from the current workspace's .bb/workflows/ directory. Resolves to a self-contained script.",
+      "Name of a saved workflow from the current workspace's .bb/workflows/ directory, falling back to the shared workflows/ directory in the BB data dir. Resolves to a self-contained script.",
     )
     .optional(),
 } as const;
@@ -149,6 +149,7 @@ export default async function plugin(bb: BbPluginApi) {
           projectId: ctx.projectId,
           originThreadId: ctx.threadId,
           source: prepared.source,
+          sourceOrigin: prepared.origin,
           args: toJsonValue(input.args, "args"),
           resumedFromRunId: input.resumeRunId,
         });

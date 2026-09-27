@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import {
   resolveWorkflowSource,
@@ -20,6 +21,7 @@ export async function prepareWorkflowSource(
   input: WorkflowSourceInput,
 ): Promise<PreparedWorkflowSource> {
   const resolved = await resolveWorkflowSource(input, context, {
+    sharedWorkflowsPath: path.join(bb.server.experimental_dataDir, "workflows"),
     async getThreadEnvironmentId(threadId) {
       const thread = await bb.sdk.threads.get({ threadId });
       return thread.environmentId;

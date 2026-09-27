@@ -63,7 +63,10 @@ import {
   parseStoredWorkflowSettings,
   type WorkflowSettings,
 } from "./settings.js";
-import { workflowReferenceToSourceInput } from "./source-resolution.js";
+import {
+  workflowReferenceToSourceInput,
+  type ResolvedWorkflowSource,
+} from "./source-resolution.js";
 import type {
   JsonSchema,
   JsonValue,
@@ -360,6 +363,7 @@ interface StartWorkflowInput {
   projectId: string;
   originThreadId: string;
   source: string;
+  sourceOrigin: ResolvedWorkflowSource["origin"];
   args: JsonValue;
   resumedFromRunId: string | null;
 }
@@ -643,6 +647,7 @@ export function createWorkflowService(
       name: parsed.metadata.name,
       source: input.source,
       sourceHash: createHash("sha256").update(input.source).digest("hex"),
+      sourceOriginJson: JSON.stringify(input.sourceOrigin),
       argsJson: JSON.stringify(input.args),
       settingsJson: JSON.stringify(currentSettings),
       resumedFromRunId: input.resumedFromRunId,

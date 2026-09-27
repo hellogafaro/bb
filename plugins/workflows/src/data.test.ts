@@ -57,6 +57,7 @@ describe("workflow durable data", () => {
       name: "test-workflow",
       source: "return null",
       sourceHash: "hash",
+      sourceOriginJson: '{"kind":"script"}',
       argsJson: "null",
       settingsJson:
         '{"maxActiveRuns":4,"maxConcurrentAgents":8,"maxAgentCalls":100,"totalRunTimeoutMs":86400000,"retentionDays":30,"maxNotificationBytes":16384}',
@@ -110,7 +111,7 @@ describe("workflow durable data", () => {
     db.close();
     db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
-    db.exec(migrations.slice(0, -2).join("\n"));
+    db.exec([...migrations.slice(0, -3), ...migrations.slice(-1)].join("\n"));
     const run = newRun();
     markRunning(run.id);
     const call = startCall(db, {
@@ -131,7 +132,7 @@ describe("workflow durable data", () => {
     db.prepare(
       `UPDATE workflow_calls SET child_thread_id = 'legacy-worker', status = 'failed' WHERE id = ?`,
     ).run(call.id);
-    db.exec(migrations.slice(-2).join("\n"));
+    db.exec(migrations.slice(-3, -1).join("\n"));
     expect(retiredWorkers(db, Date.now())).toEqual([
       { threadId: "legacy-worker", callId: call.id },
     ]);
@@ -144,7 +145,7 @@ describe("workflow durable data", () => {
     db.close();
     db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
-    db.exec(migrations.slice(0, -2).join("\n"));
+    db.exec([...migrations.slice(0, -3), ...migrations.slice(-1)].join("\n"));
     const run = newRun();
     const insertCall = db.prepare(
       `INSERT INTO workflow_calls(id, run_id, call_index, cache_key, prompt,
@@ -161,7 +162,7 @@ describe("workflow durable data", () => {
         `worker-${String(index).padStart(3, "0")}`,
       );
     const migratedAt = Date.now();
-    db.exec(migrations.slice(-2).join("\n"));
+    db.exec(migrations.slice(-3, -1).join("\n"));
 
     const buckets = db
       .prepare(
@@ -440,6 +441,7 @@ describe("workflow durable data", () => {
       name: "test-workflow",
       source: "return null",
       sourceHash: "hash-2",
+      sourceOriginJson: '{"kind":"script"}',
       argsJson: "null",
       settingsJson:
         '{"maxActiveRuns":4,"maxConcurrentAgents":8,"maxAgentCalls":100,"totalRunTimeoutMs":86400000,"retentionDays":30,"maxNotificationBytes":16384}',
@@ -701,6 +703,7 @@ describe("workflow durable data", () => {
       name: "retained-child",
       source: "return null",
       sourceHash: "child-hash",
+      sourceOriginJson: '{"kind":"script"}',
       argsJson: "null",
       settingsJson:
         '{"maxActiveRuns":4,"maxConcurrentAgents":8,"maxAgentCalls":100,"totalRunTimeoutMs":86400000,"retentionDays":1,"maxNotificationBytes":16384}',
@@ -735,6 +738,7 @@ describe("workflow durable data", () => {
       name: "expired-child",
       source: "return null",
       sourceHash: "expired-child-hash",
+      sourceOriginJson: '{"kind":"script"}',
       argsJson: "null",
       settingsJson:
         '{"maxActiveRuns":4,"maxConcurrentAgents":8,"maxAgentCalls":100,"totalRunTimeoutMs":86400000,"retentionDays":1,"maxNotificationBytes":16384}',

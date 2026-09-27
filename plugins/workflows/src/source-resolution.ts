@@ -20,6 +20,7 @@ interface WorkflowSourceEnvironment {
 export interface WorkflowSourceResolverDependencies {
   getThreadEnvironmentId(threadId: string): Promise<string | null>;
   getEnvironment(environmentId: string): Promise<WorkflowSourceEnvironment>;
+  sharedWorkflowsPath: string;
   readFile(input: { hostId: string; path: string; rootPath: string }): Promise<{
     content: string;
     contentEncoding: "utf8" | "base64";
@@ -37,7 +38,12 @@ export interface ResolvedWorkflowSource {
   origin:
     | { kind: "script" }
     | { kind: "scriptPath"; path: string }
-    | { kind: "name"; name: string; path: string };
+    | {
+        kind: "name";
+        name: string;
+        path: string;
+        location: "workspace" | "shared";
+      };
 }
 
 export function workflowReferenceToSourceInput(
@@ -133,7 +139,11 @@ export function resolveConfinedWorkflowPath(
   return candidate;
 }
 
-function workflowNamePath(rootPath: string, name: string): string {
+function workflowNamePath(
+  rootPath: string,
+  directory: string[],
+  name: string,
+): string {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(name)) {
     throw new Error(
       "Workflow name must be lowercase kebab-case and at most 64 characters",
@@ -142,26 +152,38 @@ function workflowNamePath(rootPath: string, name: string): string {
   const flavor = pathFlavor(rootPath);
   return resolveConfinedWorkflowPath(
     rootPath,
-    flavor.join(".bb", "workflows", `${name}.js`),
+    flavor.join(...directory, `${name}.js`),
+  );
+}
+
+function isMissingFile(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    typeof error.cause === "object" &&
+    error.cause !== null &&
+    "status" in error.cause &&
+    error.cause.status === 404
   );
 }
 
 async function readWorkflowFile(
   dependencies: WorkflowSourceResolverDependencies,
-  environment: WorkflowSourceEnvironment,
+  hostId: string,
+  rootPath: string,
   absolutePath: string,
 ): Promise<string> {
   let file;
   try {
     file = await dependencies.readFile({
-      hostId: environment.hostId,
+      hostId,
       path: absolutePath,
-      rootPath: environment.path!,
+      rootPath,
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Failed to read workflow source ${absolutePath}: ${detail}`,
+      { cause: error },
     );
   }
   if (file.contentEncoding !== "utf8") {
@@ -204,46 +226,84 @@ export async function resolveWorkflowSource(
       "Workflow origin environment has no workspace path for file resolution",
     );
   }
-  const absolutePath =
-    mode.kind === "name"
-      ? workflowNamePath(environment.path, mode.name)
-      : (() => {
-          if (mode.scriptPathBase === null) {
-            return resolveConfinedWorkflowPath(
-              environment.path,
-              mode.scriptPath,
-            );
-          }
-          const flavor = pathFlavor(environment.path);
-          if (flavor.isAbsolute(mode.scriptPath)) {
-            return resolveConfinedWorkflowPath(
-              environment.path,
-              mode.scriptPath,
-            );
-          }
-          if (!flavor.isAbsolute(mode.scriptPathBase)) {
-            throw new Error("Workflow CLI cwd must be an absolute path");
-          }
-          const base = resolveConfinedWorkflowPath(
-            environment.path,
-            mode.scriptPathBase,
-          );
-          return resolveConfinedWorkflowPath(
-            environment.path,
-            flavor.resolve(base, mode.scriptPath),
-          );
-        })();
+  if (mode.kind === "name") {
+    const workspacePath = workflowNamePath(
+      environment.path,
+      [".bb", "workflows"],
+      mode.name,
+    );
+    const sharedPath = workflowNamePath(
+      dependencies.sharedWorkflowsPath,
+      [],
+      mode.name,
+    );
+    const candidates = [
+      {
+        location: "workspace" as const,
+        rootPath: environment.path,
+        path: workspacePath,
+      },
+      {
+        location: "shared" as const,
+        rootPath: dependencies.sharedWorkflowsPath,
+        path: sharedPath,
+      },
+    ];
+    for (const candidate of candidates) {
+      try {
+        const source = await readWorkflowFile(
+          dependencies,
+          environment.hostId,
+          candidate.rootPath,
+          candidate.path,
+        );
+        return {
+          source,
+          environmentId,
+          origin: {
+            kind: "name",
+            name: mode.name,
+            path: candidate.path,
+            location: candidate.location,
+          },
+        };
+      } catch (error) {
+        if (!isMissingFile(error)) throw error;
+      }
+    }
+    throw new Error(
+      `Workflow ${mode.name} not found in ${workspacePath} or ${sharedPath}`,
+    );
+  }
+  const absolutePath = (() => {
+    if (mode.scriptPathBase === null) {
+      return resolveConfinedWorkflowPath(environment.path, mode.scriptPath);
+    }
+    const flavor = pathFlavor(environment.path);
+    if (flavor.isAbsolute(mode.scriptPath)) {
+      return resolveConfinedWorkflowPath(environment.path, mode.scriptPath);
+    }
+    if (!flavor.isAbsolute(mode.scriptPathBase)) {
+      throw new Error("Workflow CLI cwd must be an absolute path");
+    }
+    const base = resolveConfinedWorkflowPath(
+      environment.path,
+      mode.scriptPathBase,
+    );
+    return resolveConfinedWorkflowPath(
+      environment.path,
+      flavor.resolve(base, mode.scriptPath),
+    );
+  })();
   const source = await readWorkflowFile(
     dependencies,
-    environment,
+    environment.hostId,
+    environment.path,
     absolutePath,
   );
   return {
     source,
     environmentId,
-    origin:
-      mode.kind === "name"
-        ? { kind: "name", name: mode.name, path: absolutePath }
-        : { kind: "scriptPath", path: absolutePath },
+    origin: { kind: "scriptPath", path: absolutePath },
   };
 }

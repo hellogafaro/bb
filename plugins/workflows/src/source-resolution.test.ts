@@ -7,6 +7,12 @@ import {
 } from "./source-resolution.js";
 import { MAX_WORKFLOW_SOURCE_BYTES } from "./validation.js";
 
+function missingFile(path: string): Error {
+  return Object.assign(new Error(`HTTP 404: missing ${path}`), {
+    status: 404,
+  });
+}
+
 function dependencies(
   overrides: Partial<WorkflowSourceResolverDependencies> = {},
 ): WorkflowSourceResolverDependencies {
@@ -18,6 +24,7 @@ function dependencies(
       hostId: "host-1",
       path: "/workspace/project",
     }),
+    sharedWorkflowsPath: "/data/workflows",
     readFile: async () => ({
       content: "export const meta = {}; return null;",
       contentEncoding: "utf8",
@@ -110,7 +117,98 @@ describe("workflow source resolution", () => {
       kind: "name",
       name: "review-change",
       path: "/workspace/project/.bb/workflows/review-change.js",
+      location: "workspace",
     });
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the shared data dir copy when the workspace has none", async () => {
+    const readFile = vi.fn(
+      async (input: { hostId: string; path: string; rootPath: string }) => {
+        if (input.rootPath === "/workspace/project") {
+          throw missingFile(input.path);
+        }
+        return {
+          content: "shared",
+          contentEncoding: "utf8" as const,
+          sizeBytes: 6,
+        };
+      },
+    );
+    const resolved = await resolveWorkflowSource(
+      { name: "review-change" },
+      { projectId: "project-1", environmentId: "env-1" },
+      dependencies({ readFile }),
+    );
+    expect(readFile).toHaveBeenLastCalledWith({
+      hostId: "host-1",
+      rootPath: "/data/workflows",
+      path: "/data/workflows/review-change.js",
+    });
+    expect(resolved).toMatchObject({
+      source: "shared",
+      origin: {
+        kind: "name",
+        name: "review-change",
+        path: "/data/workflows/review-change.js",
+        location: "shared",
+      },
+    });
+  });
+
+  it("reports both locations when neither has the named workflow", async () => {
+    await expect(
+      resolveWorkflowSource(
+        { name: "review-change" },
+        { projectId: "project-1", threadId: "thread-1" },
+        dependencies({
+          readFile: async ({ path }) => {
+            throw missingFile(path);
+          },
+        }),
+      ),
+    ).rejects.toThrow(
+      "Workflow review-change not found in /workspace/project/.bb/workflows/review-change.js or /data/workflows/review-change.js",
+    );
+  });
+
+  it("rejects name escapes and does not fall back past a refused read", async () => {
+    const readFile = vi.fn(dependencies().readFile);
+    for (const name of ["../secret", "a/b", "Review"]) {
+      await expect(
+        resolveWorkflowSource(
+          { name },
+          { projectId: "project-1", threadId: "thread-1" },
+          dependencies({ readFile }),
+        ),
+      ).rejects.toThrow("lowercase kebab-case");
+    }
+    expect(readFile).not.toHaveBeenCalled();
+
+    const escapes = (rootPath: string) =>
+      vi.fn(async (input: { path: string; rootPath: string }) => {
+        if (input.rootPath !== rootPath) throw missingFile(input.path);
+        throw Object.assign(
+          new Error(`HTTP 400: Path "${input.path}" escapes read root`),
+          { status: 400 },
+        );
+      });
+    const workspaceEscape = escapes("/workspace/project");
+    await expect(
+      resolveWorkflowSource(
+        { name: "review-change" },
+        { projectId: "project-1", threadId: "thread-1" },
+        dependencies({ readFile: workspaceEscape }),
+      ),
+    ).rejects.toThrow("escapes read root");
+    expect(workspaceEscape).toHaveBeenCalledTimes(1);
+    await expect(
+      resolveWorkflowSource(
+        { name: "review-change" },
+        { projectId: "project-1", threadId: "thread-1" },
+        dependencies({ readFile: escapes("/data/workflows") }),
+      ),
+    ).rejects.toThrow("escapes read root");
   });
 
   it("resolves from persisted environment identity without consulting the origin thread", async () => {

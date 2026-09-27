@@ -24,6 +24,7 @@ export interface WorkflowRunRow {
   name: string;
   source: string;
   sourceHash: string;
+  sourceOriginJson: string | null;
   argsJson: string;
   settingsJson: string;
   status: WorkflowRunStatus;
@@ -109,7 +110,8 @@ const RUN_SELECT = `
     environment_id AS environmentId, origin_provider AS originProvider,
     origin_model AS originModel, origin_reasoning_level AS originReasoningLevel,
     origin_permission_mode AS originPermissionMode,
-    name, source, source_hash AS sourceHash, args_json AS argsJson,
+    name, source, source_hash AS sourceHash,
+    source_origin_json AS sourceOriginJson, args_json AS argsJson,
     settings_json AS settingsJson, status,
     resumed_from_run_id AS resumedFromRunId, result_json AS resultJson, error,
     phase, replay_safety_version AS replaySafetyVersion,
@@ -231,6 +233,7 @@ export const migrations = [
      FROM workflow_calls calls JOIN workflow_runs runs ON runs.id = calls.run_id
      WHERE calls.child_thread_id IS NOT NULL;`,
   `ALTER TABLE workflow_workers ADD COLUMN cleanup_attempts INTEGER NOT NULL DEFAULT 0;`,
+  `ALTER TABLE workflow_runs ADD COLUMN source_origin_json TEXT;`,
 ];
 
 export function createRun(
@@ -238,6 +241,7 @@ export function createRun(
   input: Omit<
     WorkflowRunRow,
     | "id"
+    | "sourceOriginJson"
     | "status"
     | "resultJson"
     | "error"
@@ -252,7 +256,7 @@ export function createRun(
     | "createdAt"
     | "startedAt"
     | "finishedAt"
-  >,
+  > & { sourceOriginJson: string },
 ): WorkflowRunRow {
   const id = `wfr_${randomUUID()}`;
   const now = Date.now();
@@ -260,13 +264,13 @@ export function createRun(
     `INSERT INTO workflow_runs (
        id, project_id, origin_thread_id, environment_id, origin_provider,
        origin_model, origin_reasoning_level, origin_permission_mode,
-       name, source, source_hash,
+       name, source, source_hash, source_origin_json,
        args_json, settings_json, status, resumed_from_run_id,
        replay_safety_version, created_at
      ) VALUES (
        @id, @projectId, @originThreadId, @environmentId, @originProvider,
        @originModel, @originReasoningLevel, @originPermissionMode,
-       @name, @source, @sourceHash,
+       @name, @source, @sourceHash, @sourceOriginJson,
        @argsJson, @settingsJson, 'queued', @resumedFromRunId, 1, @now
      )`,
   ).run({ id, now, ...input });

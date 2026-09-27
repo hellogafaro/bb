@@ -64,6 +64,7 @@ it("removes the worker abort listener after a run finishes", async () => {
   const run = await service.start({
     projectId: "project-test",
     originThreadId: "origin",
+    sourceOrigin: { kind: "script" },
     source: `export const meta = {
       name: "listener-test",
       description: "Listener cleanup test",

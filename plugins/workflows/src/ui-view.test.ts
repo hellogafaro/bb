@@ -64,6 +64,7 @@ function run(calls: WorkflowCallInspection[]): WorkflowRunInspection {
     };
     return null;`,
     sourceHash: "source_hash",
+    sourceOriginJson: '{"kind":"script"}',
     argsJson: "null",
     settingsJson: "{}",
     status: "running",
