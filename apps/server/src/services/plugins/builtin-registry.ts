@@ -184,6 +184,11 @@ export const OFFICIAL_PLUGINS = [
     defaultEnabled: true,
   },
   {
+    name: "computer",
+    pluginId: "computer",
+    defaultEnabled: true,
+  },
+  {
     name: "github",
     pluginId: "github",
     defaultEnabled: true,
