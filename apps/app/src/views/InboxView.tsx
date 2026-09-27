@@ -523,7 +523,8 @@ function InboxCard({
           summaryPending={summaryPending}
           hasInteraction={interaction !== null}
         />
-        {interaction !== null && !selected ? (
+        {interaction !== null &&
+        (!selected || interaction.payload.kind === "plugin") ? (
           <ThreadPendingInteractionBanner
             interaction={interaction}
             threadId={thread.id}

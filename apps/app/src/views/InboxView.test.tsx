@@ -276,6 +276,31 @@ describe("InboxView", () => {
     expect(mocks.markRead).not.toHaveBeenCalled();
   });
 
+  it("keeps a plugin decision card visible while its thread is selected", () => {
+    mocks.interactions = [
+      {
+        id: "pi_plugin",
+        threadId: "thr_beta",
+        turnId: null,
+        originKind: "plugin",
+        status: "pending",
+        payload: {
+          kind: "plugin",
+          title: "Continue?",
+          data: { prompt: "Continue?", detail: null, options: ["Go", "Stop"] },
+        },
+        resolution: null,
+        createdAt: 1,
+        updatedAt: 1,
+      } as unknown as PendingInteraction,
+    ];
+    renderInbox();
+    expect(screen.getAllByTestId("banner")).toHaveLength(1);
+    fireEvent.click(screen.getByText("Beta"));
+    expect(selectedCard()?.getAttribute("data-inbox-card")).toBe("thr_beta");
+    expect(screen.getAllByTestId("banner")).toHaveLength(1);
+  });
+
   it("selects a card on click and hides the done button while an approval is pending", () => {
     mocks.interactions = [
       {
