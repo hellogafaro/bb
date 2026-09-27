@@ -4,7 +4,7 @@ Status: **2026-09-05: 2 passed, 1 partial/blocked**. See [the audit](../MAINTENA
 
 ## Setup and entry points
 
-Open a synthetic multi-page PDF via the PDF file opener on browser and relevant native client.
+Open a synthetic multi-page PDF on browser and relevant native client. Files open in BB's built-in viewer; this build does not route files to plugin file openers.
 
 Use the main skill’s isolated targets and evidence rules. A plugin can be present
 in this checkout but disabled in an installation. Enable it only in the test

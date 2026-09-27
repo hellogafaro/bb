@@ -24,7 +24,7 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 | --- | --- | --- |
 | Skill discovery and precedence | Place distinct synthetic skills in user, project, and provider-native locations; inspect skill list/show/files with project/environment scope. | Names, origins, editability, and resolved file contents match the selected workspace. |
 | Skill editing and deletion | Update an editable fixture using its revision, then try a stale revision and deletion; attempt editing a read-only bundled entry. | Version conflict/read-only boundaries are respected; only the fixture is deleted. |
-| Skill registry | Search skills.sh, open registry detail/file preview, install a trusted fixture, and inspect it locally. | Canonical source and installed contents agree; unavailable registry and invalid IDs show errors. |
+| Skill registry | With the source CLI, search skills.sh, read a registry entry, install a trusted fixture, and inspect it on Customize. | Canonical source and installed contents agree; unavailable registry and invalid IDs show errors. |
 | CLI skills installation | Inspect cli-skills-status on a disposable host; install and repeat. | Correct provider locations are updated idempotently; unavailable hosts remain explicit. |
 | Plugin browsing and details | Search plugin catalogs, inspect installed/source/history/details, and follow configuration links. | Metadata, compatibility, installed version, and enable state agree. |
 | Plugin installation and permissions | Install a trusted local fixture and a trusted catalog fixture; inspect declared capabilities and errors for incompatible manifests. | Only valid compatible plugin code becomes active; errors identify the failed stage. |

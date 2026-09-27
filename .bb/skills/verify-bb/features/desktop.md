@@ -1,6 +1,6 @@
 # Desktop application
 
-Status: **2026-09-05: 12 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
+Status: **2026-09-05: 11 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
 
 ## Setup and entry points
 
@@ -30,7 +30,6 @@ Native actions need OS/Electron automation and inspected screenshots.
 | Server URL and switching | Set a disposable local/remote server URL, cancel another edit, and switch among known test servers. | Selected server is marked and loaded; bad URLs and unavailable servers have an actionable error. |
 | Connect server discovery | Pair only with the local cloud test account; refresh the native Server menu and renew a test session. | Authorized machines are listed, selection follows identity, and unavailable/expired credentials show their reason. |
 | Owned and existing runtimes | Start with a test runtime absent, already running, and occupying an incompatible endpoint. | Desktop launches/reuses/prompts as appropriate and does not stop a runtime it does not own. |
-| Embedded browser | Open a local fixture URL in a browser tab; navigate/back/forward/reload, focus address, find, and use supported link actions. | Native browser view matches the active pane bounds and location; app shortcuts route to the focused view. |
 | Browser policy | Use local fixture links for new-window, external schemes, downloads and disallowed navigation cases from policy tests. | Each is opened or rejected by the documented policy without escaping into a privileged renderer context. |
 | Reload, zoom and editing | Use Reload/Force reload, zoom controls, undo/redo/cut/copy/paste/select-all and spelling/context-menu actions. | Actions reach the focused web/editor/native control and preserve documented state. |
 | Logs and developer tools | Open Server & Daemon Logs and devtools, change the viewed log, and test unavailable log source. | Displayed data belongs to the owned instance; unavailable actions are disabled or fail explicitly. |

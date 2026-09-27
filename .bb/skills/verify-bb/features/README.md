@@ -43,8 +43,8 @@ were excluded. See the [audit](../MAINTENANCE.md) and
 | [Active turns, queues, plans, goals, and recovery](execution-controls.md) | 14 | 3 passed, 11 partial/blocked |
 | [Approvals, questions, and permission escalation](interactions.md) | 7 | 2 passed, 5 partial/blocked |
 | [Conversation history, message actions, and rendered output](timeline.md) | 12 | 1 passed, 1 failed, 10 partial/blocked |
-| [Panels, files, terminals, splits, and embedded browser](workspace-panels.md) | 22 | 12 passed, 3 partial/blocked, 7 not run |
-| [Settings, keyboard, appearance controls, and usage](settings.md) | 13 | 6 passed, 7 partial/blocked |
+| [Panels, files, terminals, and splits](workspace-panels.md) | 21 | 12 passed, 2 partial/blocked, 7 not run |
+| [Settings, keyboard, appearance controls, and usage](settings.md) | 12 | 6 passed, 6 partial/blocked |
 | [Skills, plugins, marketplaces, and plugin development](extensions.md) | 13 | 11 passed, 2 partial/blocked |
 | [Machines, daemon lifecycle, and updates](hosts-updates.md) | 9 | 2 passed, 7 partial/blocked |
 | [Agent interfaces, route compatibility, and error contracts](compatibility-api.md) | 8 | 3 passed, 5 partial/blocked |
@@ -85,7 +85,7 @@ were excluded. See the [audit](../MAINTENANCE.md) and
 
 | Feature group | Recipes | Verification status |
 | --- | --- | --- |
-| [Desktop application](desktop.md) | 12 | 12 partial/blocked |
+| [Desktop application](desktop.md) | 11 | 11 partial/blocked |
 | [Native mobile shell](mobile.md) | 12 | 12 partial/blocked |
 | [Hosted website, dashboard, and marketplace](hosted-web.md) | 12 | 5 passed, 7 partial/blocked |
 | [Cloud gateway and tunnel behavior](cloud-gateway.md) | 7 | 4 passed, 3 partial/blocked |

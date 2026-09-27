@@ -40,11 +40,11 @@ Everything here is a fork change. Keep core edits small and behind constants so 
 Core edits, kept minimal.
 
 1. **Rename and icon.** "Skills" becomes "Customize" in `BuiltInSidebarNavigation.tsx`, `sidebarNavigationItems.ts`, `tools-navigation.ts` (`TOOLS_SECTIONS.skills.label` and `resolveSkillsWorkspaceHeaderMeta`), `AppLayout.tsx:276`, and the composer mention/actions menus (`MentionMenu.tsx:199`, `PromptBoxActionsMenu.tsx:73`) where the label means the page rather than the skills themselves. Use a sliders/tune glyph from the host icon set in place of `Zap`/`extensions`. Keep the `/skills` routes and `__bb__/skills` navigation key unchanged so upstream merges and stored sidebar preferences keep working.
-2. **Two buttons, no resource sidebar.** Add a `CustomizeTabs` segmented control (Skills | MCPs) rendered at the top of the page band. Skills routes to `/skills?view=library`; MCPs routes to the mcps plugin panel path. Skip rendering `ResourceSidebar` on the skills routes behind a fork constant (`FORK_CUSTOMIZE_PAGE = true` in one small `apps/app/src/lib/fork-flags.ts`), not by deleting the component.
-3. **Skills tab.** Keep the library list, search, provider/source filters, detail view, "New skill" (already prefills chat), and "Edit in chat". Behind the same flag, hide the Browse/registry mode (`activeMode === "browse"`, `RegistrySkillsBrowsePage`, `forkRegistrySkill`) and redirect `/skills/registry*` to `/skills?view=library`. Keep the CLI skills settings section as is.
+2. **Two buttons, no resource sidebar.** Add a `CustomizeTabs` segmented control (Skills | MCPs) rendered at the top of the page band. Skills routes to `/skills?view=library`; MCPs routes to the mcps plugin panel path. Do not render `ResourceSidebar` on the skills routes. The fork later deleted the skills sidebar and the upstream Skills view outright.
+3. **Skills tab.** Keep the library list, search, provider/source filters, detail view, "New skill" (already prefills chat), and "Edit in chat". Remove the Browse/registry mode (`RegistrySkillsBrowsePage`, `forkRegistrySkill`) and redirect `/skills/registry*` to Customize. Keep the CLI skills settings section as is.
 4. **MCPs tab.** The mcps plugin page renders the same `CustomizeTabs` at the top (exported from `@bb/shared-ui` or duplicated as a tiny component in the plugin, whichever avoids a new public plugin API). Hide the plugin's own sidebar entry by adding `mcp/mcp` to `DEFAULT_HIDDEN_SIDEBAR_NAVIGATION_KEYS` in `pluginNavSidebarOrder.ts`, so the panel route still exists but the sidebar shows only Customize.
 5. **Header.** Both tabs show the section title "Customize" with a breadcrumb for the tab and, on detail pages, the item name (the mcps plugin already publishes `HeaderCrumbs`).
-6. **Verification.** Unit tests for `CustomizeTabs` routing and the flag-gated redirect; `AppLayout.tools-breadcrumbs.test.ts` and `AppLayoutSidebar.test.tsx` updated for the new label; a `verify-bb` recipe that opens Customize, switches tabs, opens a skill detail and an MCP detail, and confirms the sidebar has one entry.
+6. **Verification.** Unit tests for `CustomizeTabs` routing and the registry redirect; `AppLayout.tools-breadcrumbs.test.ts` and `AppLayoutSidebar.test.tsx` updated for the new label; a `verify-bb` recipe that opens Customize, switches tabs, opens a skill detail and an MCP detail, and confirms the sidebar has one entry.
 
 ## Phase C: simplify the MCPs plugin UI
 
@@ -100,7 +100,7 @@ The providers must not bring their own MCP servers. The provider plugins cannot 
 
 ## Fork hygiene
 
-- Core files touched: `BuiltInSidebarNavigation.tsx`, `sidebarNavigationItems.ts`, `tools-navigation.ts`, `AppLayout.tsx`, `SkillsLibrary.tsx`, `pluginNavSidebarOrder.ts`, `App.tsx` (redirect), plus the new `fork-flags.ts` and `CustomizeTabs.tsx`. Expect conflicts in the first four on upstream merges; keep each diff to a few lines.
+- Core files touched: `BuiltInSidebarNavigation.tsx`, `sidebarNavigationItems.ts`, `tools-navigation.ts`, `AppLayout.tsx`, `SkillsLibrary.tsx`, `pluginNavSidebarOrder.ts`, `App.tsx` (redirect), plus the new `CustomizeTabs.tsx`. Expect conflicts in the first four on upstream merges; keep each diff to a few lines.
 - Plugin files are ours: `plugins/mcp/**`. No conflicts expected.
 - Do not touch `provider-claude-code`, `provider-codex`, provider bridges, connect, or tunnel. The Codex `deferLoading` change goes upstream only.
 - Bump nothing in `HOST_DAEMON_PROTOCOL_VERSION`; the mcps host contract is plugin-owned and unchanged.

@@ -4,11 +4,11 @@ Checked against fork `main` at 446f610a8. Merge base with upstream is 9b8c1d345 
 
 ## Why most of these don't apply
 
-`FORK_BUILTIN_THREAD_LIST` is `true` (`apps/app/src/lib/fork-flags.ts:3`). With no thread-list plugin installed, `PluginThreadList` renders `StatusThreadList` (`apps/app/src/components/sidebar/PluginThreadList.tsx:52`), which has:
+The status thread list is built in. With no thread-list plugin installed, `PluginThreadList` renders `StatusThreadList` (`apps/app/src/components/sidebar/PluginThreadList.tsx:52`), which has:
 
 - Only Pinned and the fixed status sections: Waiting, Ready, Working, Done, and Snoozed (`status-list/status-sections.ts:9`). There are no project groups, custom sections, environment/worktree group headers, section rename, section new-thread button, or More menu for hidden sections.
 - No thread drag and drop. `StatusThreadList` never passes `dragBindings`, `nestDrop`, or `consumeClickSuppression` to `ThreadRow`. `useSectionThreadDnd()` is defined in `components/sidebar/useSectionThreadDnd.ts:836` but has no caller, and `SectionThreadDndProvider` is never mounted.
-- "Move to section" is deliberately turned off: `enabled={!FORK_BUILTIN_THREAD_LIST && ...}` (`components/thread/ThreadSectionMoveProvider.tsx:94`).
+- No "Move to section". The fork deleted it with `ThreadSectionMoveProvider`.
 - No cross-project marker in `ThreadRow`. The project name is on the meta line instead (`ThreadRowMeta.tsx:73`).
 
 Still live, and shared with upstream core: `ThreadRow`, `SidebarChildToggleChevron`, `useReorderDnd` (used for plugin nav items, footer settings, and new-tab actions), and the split-drag session (thread rows and plugin nav items).
@@ -19,7 +19,7 @@ Still live, and shared with upstream core: `ThreadRow`, `SidebarChildToggleChevr
 |---|---|---|---|---|
 | 669fb335d | Restore mobile thread row status-area navigation | NOT PRESENT | `apps/app/src/components/sidebar/ThreadRow.tsx:493-531` | The fork dropped `relative` from the link's column span (`:494`), so the `absolute inset-0` NavLink now covers the whole row, whose container is `relative` or sticky. On coarse pointers the trailing slot (`:606`) and the meta line (`ThreadRowMeta.tsx:78`) are `pointer-events-none`, so taps there fall through to the link. Upstream still had the link inside a `relative` title span (base `ThreadRow.tsx:506`), which is what caused the dead zone. Nothing to port. |
 | b33f2a74f | Fix duplicate divider in thread list actions menu | NOT APPLICABLE | none | No section-header actions menu and no `ThreadListVisibilityMenuItems`. |
-| fb5d7af04 | Restore Move to section in sidebar thread menu | NOT APPLICABLE | `components/thread/ThreadSectionMoveProvider.tsx:94` | The provider is mounted app-wide (`AppLayout.tsx:715`) but disabled on purpose under `FORK_BUILTIN_THREAD_LIST`. The status list has no custom sections. |
+| fb5d7af04 | Restore Move to section in sidebar thread menu | NOT APPLICABLE | none | The fork deleted Move to section. The status list has no custom sections. |
 | f502e6a5d | Polish the sidebar More menu | NOT APPLICABLE | none | No More popover or hidden sections in the fork sidebar. |
 | b19304866 | Exclude Personal from project sidebar groups | NOT APPLICABLE | none | No project groups. Personal appears only as meta text (`ThreadRowMeta.tsx:73`). |
 | 853e1e9a1 | Cancel sidebar drags on Escape and reduce accidental reorders | **BUG PRESENT** | `components/ui/useReorderDnd.ts:94`; `lib/split-drag/splitDragSession.ts:42-75,196-207`; `components/sidebar/usePaneContentSplitDrag.ts:163` | All three files are unchanged from the merge base. `git show 853e1e9a1 -- apps/ \| git apply --check` passes cleanly. Port the `apps/` hunks only (drop `plugins/`): MouseSensor distance 4→8; a capture-phase `keydown` Escape listener that calls `handleCancel` and is removed on teardown; a `cancelingSidebarReorder` guard so the synthetic Escape doesn't cancel the split drag itself; `cancelSidebarReorderOnEngage: true` in `beginSidebarPaneContentSplitDrag`. The two tests come with it. |

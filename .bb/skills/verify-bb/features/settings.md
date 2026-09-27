@@ -1,6 +1,6 @@
 # Settings, keyboard, appearance controls, and usage
 
-Status: **2026-09-05: 6 passed, 7 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
+Status: **2026-09-05: 6 passed, 6 partial/blocked**. See [the audit](../MAINTENANCE.md) and [per-recipe ledger](../validation-2026-09-05.json).
 
 ## Setup and entry points
 
@@ -31,12 +31,11 @@ command’s `--help` before mutation. Use fresh browser snapshots for controls.
 | Keyboard overrides | Record a shortcut, disable it, restore it, test conflicting bindings and held-modifier hints; compare settings keyboard list/set/reset/hints. | Only the intended action fires; text input remains usable; overrides and reset survive reload. |
 | Theme and palette | Run appearance; additionally cycle every built-in palette, install a synthetic custom theme, and use theme list/dir/set/show/reset. | Theme catalog, active palette, and loaded styles agree; invalid theme selection fails cleanly. |
 | Favicon and split dimming | Change/reset favicon through UI and theme favicon; toggle Fade inactive splits with two panes. | Favicon updates without changing palette; only inactive splits dim. |
-| File openers and local editor | Configure file/directory defaults, extension-specific openers, and local editor integration; open a fixture through each. | Chosen handler and line/path are correct; reset/default fallbacks remain usable. |
 | Voice configuration | Load microphones, select one, confirm the OpenRouter transcription model in settings ai-services, and transcribe a harmless fixture. | Choice is applied to recording/transcription; missing browser permission or service is clearly reported. |
 | Usage and AI services | Inspect Usage limits, settings usage, and settings ai-services; compare provider-reported windows and the configured OpenRouter model ids. | Unavailable data remains unavailable rather than zero; configured services are resolved by their owning plugin. |
 | Experiments | Exercise changelogPreview, mobileApp, serverMove, and sidebarProgressiveDisclosure on/off in isolated data. | Only the named feature gate changes; disabled routes/actions fail or disappear as designed; state restores. |
 | Debug events | Toggle Show unhandled provider events and render a trusted unsupported-event fixture. | The diagnostic row visibility follows the toggle without changing persisted event data. |
-| Community and update surfaces | Open Community links, version/update view, changelog, and CLI skills status. | Destinations and installed/latest status are correct; viewing does not perform an update. |
+| Update surfaces | Open the version/update view, changelog, and CLI skills status. | Destinations and installed/latest status are correct; viewing does not perform an update. |
 | Configuration reload | Change an owned test configuration value and invoke settings reload. | The running app observes supported reloadable values and reports invalid configuration without losing working state. |
 
 ## Evidence and cleanup
