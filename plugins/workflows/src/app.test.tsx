@@ -777,3 +777,93 @@ describe("workflow thread panel", () => {
     expect(slot.rpcCalls).toEqual([]);
   });
 });
+
+describe("workflow ask interaction", () => {
+  function renderAsk(
+    payload: unknown,
+    handlers: {
+      submit?: (value: unknown) => Promise<void>;
+      cancel?: () => Promise<void>;
+    } = {},
+  ) {
+    return renderSlot(app.pendingInteractions[0]!, {
+      interaction: {
+        id: "pint_ask",
+        threadId: "thr_origin",
+        title: "Release gate",
+        payload: payload as never,
+        createdAt: 0,
+        expiresAt: null,
+      },
+      submit: handlers.submit ?? (async () => undefined),
+      cancel: handlers.cancel ?? (async () => undefined),
+    });
+  }
+
+  const payload = {
+    prompt: "Ship it?",
+    detail: "**bold** detail",
+    options: ["Go", "Wait", "Stop"],
+  };
+
+  it("submits one choice and disables every button while pending", async () => {
+    let settle = (): void => undefined;
+    const submit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    const slot = renderAsk(payload, { submit });
+
+    expect(slot.getByText("Ship it?")).toBeTruthy();
+    expect(slot.getByTestId("bb-markdown").textContent).toBe("**bold** detail");
+    const buttons = slot.getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Go",
+      "Wait",
+      "Stop",
+      "Dismiss",
+    ]);
+
+    fireEvent.click(slot.getByRole("button", { name: "Wait" }));
+    fireEvent.click(slot.getByRole("button", { name: "Go" }));
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith({ choice: "Wait" });
+    for (const button of slot.getAllByRole("button")) {
+      expect(button).toHaveProperty("disabled", true);
+    }
+
+    await act(async () => settle());
+    await waitFor(() =>
+      expect(slot.getByRole("button", { name: "Go" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
+    );
+  });
+
+  it("cancels on dismiss", () => {
+    const cancel = vi.fn(async () => undefined);
+    const submit = vi.fn(async () => undefined);
+    const slot = renderAsk(payload, { cancel, submit });
+
+    fireEvent.click(slot.getByRole("button", { name: "Dismiss" }));
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("shows a fallback with only Dismiss for an invalid payload", () => {
+    const cancel = vi.fn(async () => undefined);
+    const slot = renderAsk({ prompt: 1 }, { cancel });
+
+    expect(
+      slot.getByText("This decision could not be displayed."),
+    ).toBeTruthy();
+    expect(
+      slot.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual(["Dismiss"]);
+    fireEvent.click(slot.getByRole("button", { name: "Dismiss" }));
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+});
