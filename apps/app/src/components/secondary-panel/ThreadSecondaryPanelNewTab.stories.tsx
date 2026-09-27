@@ -2,7 +2,6 @@ import { useCallback, useState, type ReactNode } from "react";
 import type { Host } from "@bb/domain";
 import { makeHost } from "@bb/test-helpers/domain-fixtures";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
-import { WithDesktopBrowser } from "../../../.ladle/story-desktop";
 import { ThreadSecondaryPanel } from "./ThreadSecondaryPanel";
 import type { SecondaryPanelRenderableTab } from "./ThreadSecondaryPanel";
 import { NewTabPage } from "./NewTabPage";
@@ -48,30 +47,19 @@ interface PanelStageProps {
 }
 
 interface NewTabPanelStoryProps {
-  showOpenBrowser: boolean;
   presentation?: "card" | "sidebar";
   terminalHosts?: readonly Host[];
 }
 
-type NewTabStoryOutcome =
-  | { kind: "browser" }
-  | { kind: "terminal"; hostName: string | null };
+interface NewTabStoryOutcome {
+  hostName: string | null;
+}
 
 function createStoryActiveTab(
   outcome: NewTabStoryOutcome | null,
 ): SecondaryFileFixedPanelTab {
   if (outcome === null) {
     return createNewTabFixedPanelTab();
-  }
-
-  if (outcome.kind === "browser") {
-    return {
-      environmentId: null,
-      id: "browser:story:none",
-      kind: "browser",
-      title: null,
-      url: "",
-    };
   }
 
   return createTerminalFixedPanelTab({ terminalId: STORY_TERMINAL_ID });
@@ -92,7 +80,6 @@ function PanelStage({ children, presentation = "card" }: PanelStageProps) {
 }
 
 function NewTabPanelStory({
-  showOpenBrowser,
   presentation,
   terminalHosts,
 }: NewTabPanelStoryProps) {
@@ -105,14 +92,8 @@ function NewTabPanelStory({
     preferredHostId: preferredTerminalHostId,
     primaryHostId: terminalHosts?.[0]?.id ?? null,
   });
-  const handleOpenBrowser = useCallback(() => {
-    setOutcome({ kind: "browser" });
-  }, []);
   const handleStartTerminal = useCallback(() => {
-    setOutcome({
-      kind: "terminal",
-      hostName: selectedTerminalHost?.name ?? null,
-    });
+    setOutcome({ hostName: selectedTerminalHost?.name ?? null });
   }, [selectedTerminalHost]);
   const handleOpenNewTab = useCallback(() => {
     setOutcome(null);
@@ -121,7 +102,6 @@ function NewTabPanelStory({
   const content =
     outcome === null ? (
       <NewTabPage
-        onOpenBrowser={showOpenBrowser ? handleOpenBrowser : undefined}
         onStartTerminal={handleStartTerminal}
         startTerminalDisabled={
           terminalHosts !== undefined &&
@@ -139,14 +119,6 @@ function NewTabPanelStory({
           )
         }
       />
-    ) : outcome.kind === "browser" ? (
-      <div className="flex min-h-full flex-col justify-center px-4 text-sm">
-        <p className="font-medium text-foreground">Opened browser tab</p>
-        <p className="pt-1 text-xs text-muted-foreground">
-          A new in-panel web browser tab opens here (see the
-          &ldquo;right-panel/Browser tab&rdquo; story).
-        </p>
-      </div>
     ) : (
       <div className="flex min-h-full flex-col justify-center bg-neutral-950 px-4 font-mono text-xs text-emerald-100">
         <p>$ bb terminal start</p>
@@ -157,18 +129,11 @@ function NewTabPanelStory({
       </div>
     );
   const panelTab: SecondaryPanelRenderableTab = {
-    contentFillsRegion: outcome?.kind === "terminal",
-    label:
-      outcome === null
-        ? "New tab"
-        : outcome.kind === "browser"
-          ? "Browser"
-          : "Terminal",
+    contentFillsRegion: outcome !== null,
+    label: outcome === null ? "New tab" : "Terminal",
     leadingVisual:
       outcome === null ? (
         <Icon name="NewTab" className="size-3.5" aria-hidden />
-      ) : outcome.kind === "browser" ? (
-        <Icon name="Globe" className="size-3.5" aria-hidden />
       ) : (
         <Icon name="Terminal" className="size-3.5" aria-hidden />
       ),
@@ -205,37 +170,32 @@ function NewTabPanelStory({
 
 export function CollapseControl() {
   return (
-    <WithDesktopBrowser>
-      <div className="flex min-h-screen w-full justify-end bg-background">
-        <NewTabPanelStory showOpenBrowser presentation="sidebar" />
-      </div>
-    </WithDesktopBrowser>
+    <div className="flex min-h-screen w-full justify-end bg-background">
+      <NewTabPanelStory presentation="sidebar" />
+    </div>
   );
 }
 
 export function NewTab() {
   return (
-    <WithDesktopBrowser>
-      <StoryCard>
-        <StoryRow label="default" hint="stable launcher: Actions only">
-          <NewTabPanelStory showOpenBrowser />
-        </StoryRow>
-        <StoryRow
-          label="one machine"
-          hint="the terminal action shows its only machine as a quiet value"
-        >
-          <NewTabPanelStory showOpenBrowser terminalHosts={[MAC_STUDIO]} />
-        </StoryRow>
-        <StoryRow
-          label="multiple machines"
-          hint="the terminal action includes a compact machine selector"
-        >
-          <NewTabPanelStory
-            showOpenBrowser
-            terminalHosts={[MAC_STUDIO, MACBOOK_PRO, BUILD_SERVER]}
-          />
-        </StoryRow>
-      </StoryCard>
-    </WithDesktopBrowser>
+    <StoryCard>
+      <StoryRow label="default" hint="stable launcher: Actions only">
+        <NewTabPanelStory />
+      </StoryRow>
+      <StoryRow
+        label="one machine"
+        hint="the terminal action shows its only machine as a quiet value"
+      >
+        <NewTabPanelStory terminalHosts={[MAC_STUDIO]} />
+      </StoryRow>
+      <StoryRow
+        label="multiple machines"
+        hint="the terminal action includes a compact machine selector"
+      >
+        <NewTabPanelStory
+          terminalHosts={[MAC_STUDIO, MACBOOK_PRO, BUILD_SERVER]}
+        />
+      </StoryRow>
+    </StoryCard>
   );
 }

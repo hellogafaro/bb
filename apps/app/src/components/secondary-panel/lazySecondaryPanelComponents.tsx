@@ -9,7 +9,6 @@ import { useAtomValue } from "jotai";
 import { Panel } from "react-resizable-panels";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { FORK_HIDE_BROWSER } from "@/lib/fork-flags";
 import { PANEL_COLLAPSE_TRANSITION_CLASS } from "./panelTransitionTokens";
 import {
   CONVERSATION_COLLAPSED_PANEL_SIZE_PERCENT,
@@ -43,15 +42,6 @@ const ThreadTerminalPanelChunk = lazy(() =>
   import("@/components/thread/terminal/ThreadTerminalPanel").then(
     ({ ThreadTerminalPanel }) => ({ default: ThreadTerminalPanel }),
   ),
-);
-const BrowserTabDeckChunk = lazy(() =>
-  FORK_HIDE_BROWSER
-    ? import("./BrowserDisabledPanel").then(({ BrowserDisabledDeck }) => ({
-        default: BrowserDisabledDeck,
-      }))
-    : import("./BrowserTabDeck").then(({ BrowserTabDeck }) => ({
-        default: BrowserTabDeck,
-      })),
 );
 const FilesPanelChunk = lazy(() =>
   import("@/components/files/FilesPanel").then(({ FilesPanel }) => ({
@@ -208,8 +198,6 @@ export const LazyThreadTerminalPanel = withSuspense(
   ThreadTerminalPanelChunk,
   <SecondaryPanelContentSkeleton />,
 );
-
-export const LazyBrowserTabDeck = withSuspense(BrowserTabDeckChunk, null);
 
 export const LazyFilesPanel = withSuspense(
   FilesPanelChunk,

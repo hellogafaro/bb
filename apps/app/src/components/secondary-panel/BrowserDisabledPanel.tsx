@@ -1,6 +1,5 @@
-import type { ComponentProps } from "react";
 import { Icon } from "@bb/shared-ui/icon";
-import type { BrowserTabDeck } from "./BrowserTabDeck";
+import type { BrowserFixedPanelTab } from "@/lib/fixed-panel-tabs-state";
 
 export function BrowserDisabledPanel() {
   return (
@@ -18,7 +17,10 @@ export function BrowserDisabledPanel() {
 export function BrowserDisabledDeck({
   browserTabs,
   activeBrowserTabId,
-}: ComponentProps<typeof BrowserTabDeck>) {
+}: {
+  browserTabs: readonly BrowserFixedPanelTab[];
+  activeBrowserTabId: string | null;
+}) {
   return browserTabs.some((tab) => tab.id === activeBrowserTabId) ? (
     <BrowserDisabledPanel />
   ) : null;

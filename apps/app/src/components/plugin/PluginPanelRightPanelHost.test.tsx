@@ -68,7 +68,6 @@ interface TestNewThreadPanelActionRegistration {
   generation: number;
 }
 
-const browserState = vi.hoisted(() => ({ available: false }));
 const viewportState = vi.hoisted(() => ({ isCompactViewport: false }));
 const createTerminal = vi.hoisted(() => vi.fn());
 const catalogQueryState = vi.hoisted(() => ({ queries: [] as string[] }));
@@ -167,7 +166,6 @@ vi.mock("@/hooks/queries/plugin-catalog-queries", () => ({
 
 vi.mock("@/lib/fork-flags", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/fork-flags")>()),
-  FORK_HIDE_BROWSER: false,
   FORK_BUILTIN_FILE_OPENER: false,
 }));
 vi.mock("@/lib/split-layout/openPaneContentInSplit", () => ({
@@ -230,11 +228,6 @@ vi.mock("@/lib/plugin-slots", () => ({
 
 vi.mock("@/lib/file-opener-preference", () => ({
   useFileOpenerPreferenceValue: () => ({ kind: "automatic" }),
-}));
-
-vi.mock("@/lib/bb-desktop", () => ({
-  getDesktopBrowserApi: () => null,
-  isDesktopBrowserAvailable: () => browserState.available,
 }));
 
 vi.mock("@/hooks/queries/thread-terminal-queries", () => ({
@@ -455,22 +448,15 @@ vi.mock("@/components/secondary-panel/ThreadSecondaryPanel", () => ({
 
 vi.mock("@/components/secondary-panel/NewTabPage", () => ({
   NewTabPage: ({
-    onOpenBrowser,
     onStartTerminal,
     startTerminalDisabled,
     startTerminalTrailing,
   }: {
-    onOpenBrowser?: () => void;
     onStartTerminal?: () => void;
     startTerminalDisabled?: boolean;
     startTerminalTrailing?: ReactNode;
   }) => (
     <div data-testid="plugin-page-new-tab">
-      {onOpenBrowser ? (
-        <button type="button" onClick={onOpenBrowser}>
-          Open browser
-        </button>
-      ) : null}
       {onStartTerminal ? (
         <>
           <button
@@ -485,17 +471,6 @@ vi.mock("@/components/secondary-panel/NewTabPage", () => ({
       ) : null}
     </div>
   ),
-}));
-
-vi.mock("@/components/secondary-panel/BrowserTabDeck", () => ({
-  BrowserTabDeck: ({
-    activeBrowserTabId,
-  }: {
-    activeBrowserTabId: string | null;
-  }) =>
-    activeBrowserTabId === null ? null : (
-      <div data-testid="plugin-page-browser" />
-    ),
 }));
 
 vi.mock("@/components/thread/terminal/ThreadTerminalPanel", async () => {
@@ -693,7 +668,6 @@ function renderHost(panelPath = "board", subPath = "", store = createStore()) {
 
 describe("PluginPanelRightPanelHost", () => {
   beforeEach(() => {
-    browserState.available = false;
     viewportState.isCompactViewport = false;
     createTerminal.mockReset();
     createTerminal.mockResolvedValue({ id: "terminal-1" });
@@ -1000,7 +974,6 @@ describe("PluginPanelRightPanelHost", () => {
         },
       },
     ];
-    browserState.available = true;
 
     const store = createStore();
     const initialRender = renderHost("board", "", store);
@@ -1022,8 +995,6 @@ describe("PluginPanelRightPanelHost", () => {
 
     fireEvent.click(screen.getByText("Add tab"));
     expect(await screen.findByTestId("plugin-page-new-tab")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Open browser" }));
-    expect(await screen.findByTestId("plugin-page-browser")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(
       await screen.findByText('{"kind":"record","recordId":"issue-42"}'),
@@ -1252,26 +1223,6 @@ describe("PluginPanelRightPanelHost", () => {
     expect(
       await screen.findByRole("button", { name: "Show right panel" }),
     ).toBeTruthy();
-  });
-
-  it("opens Browser without a plugin allowlist", async () => {
-    browserState.available = true;
-    renderHost();
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Show right panel" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Open browser" }),
-    );
-
-    expect(await screen.findByTestId("plugin-page-browser")).toBeTruthy();
-    expect(secondaryPanelState.tabKinds).toContain("browser");
-    fireEvent.click(screen.getByRole("button", { name: "Close Browser" }));
-    expect(
-      await screen.findByRole("button", { name: "Show right panel" }),
-    ).toBeTruthy();
-    expect(screen.queryByTestId("plugin-page-new-tab")).toBeNull();
-    expect(screen.queryByTestId("plugin-page-browser")).toBeNull();
   });
 
   it("closes an open panel when refresh leaves no persisted tabs", async () => {

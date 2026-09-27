@@ -22,8 +22,8 @@ import { PluginIcon } from "@/components/plugin/PluginIcon";
 import { PluginSlotMount } from "@/components/plugin/PluginSlotMount";
 import { RIGHT_PANEL_TOGGLE_ICON_NAME } from "@/components/secondary-panel/panelToggleControlState";
 import { SecondaryPanelLayout } from "@/components/secondary-panel/SecondaryPanelLayout";
+import { BrowserDisabledDeck } from "@/components/secondary-panel/BrowserDisabledPanel";
 import {
-  LazyBrowserTabDeck,
   LazyHostScopedFilePreviewTabContent,
   LazyNewTabPage,
   LazyThreadSecondaryPanel,
@@ -58,13 +58,7 @@ import {
 } from "@/hooks/queries/thread-terminal-queries";
 import { useHosts } from "@/hooks/queries/host-queries";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
-import {
-  getDesktopBrowserApi,
-  isDesktopBrowserAvailable,
-} from "@/lib/bb-desktop";
 import { getBrowserUrlHost } from "@/lib/browser-url";
-import { isRoutePath } from "@/lib/route-paths";
-import { UrlOpenRoutingProvider } from "@/lib/url-open-routing";
 import { usePluginSlots } from "@/lib/plugin-slots";
 import {
   AppNavigationHostProvider,
@@ -350,7 +344,6 @@ export function PluginPanelRightPanelHost({
     orderedSecondaryFileTabs,
     reopenClosedTab,
     reorderTab,
-    updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId,
     syncThreadId: null,
@@ -595,33 +588,6 @@ export function PluginPanelRightPanelHost({
     setTogglePortalTarget(findPluginRightPanelTogglePortal(panelStateId));
   }, [panel, panelStateId]);
 
-  const openBrowser = useCallback(
-    (url = "") => {
-      if (!isDesktopBrowserAvailable()) return;
-      selectPersistedPanelTab();
-      openTab({ kind: "browser", url });
-      revealPanel();
-    },
-    [openTab, revealPanel, selectPersistedPanelTab],
-  );
-  const browserTabIds = useMemo(
-    () => new Set(browserTabs.map((tab) => tab.id)),
-    [browserTabs],
-  );
-  useEffect(() => {
-    const browserApi = getDesktopBrowserApi();
-    if (browserApi === null) return;
-    if (browserApi.onScopedOpenTab) {
-      return browserApi.onScopedOpenTab(({ tabId, url }) => {
-        if (browserTabIds.has(tabId)) openBrowser(url);
-      });
-    }
-    if (activeBrowserTab === null || !isFocused) return;
-    return browserApi.onOpenTab(({ url }) => {
-      if (!isRoutePath({ path: url })) openBrowser(url);
-    });
-  }, [activeBrowserTab, browserTabIds, isFocused, openBrowser]);
-
   const startTerminal = useCallback(
     (target: TerminalCreateTarget, replaceNewTabId?: string) => {
       if (createTerminal.isPending) return;
@@ -863,14 +829,6 @@ export function PluginPanelRightPanelHost({
         case "new-tab":
           return (
             <LazyNewTabPage
-              onOpenBrowser={
-                isDesktopBrowserAvailable()
-                  ? () => {
-                      activateTab(tab.id);
-                      openBrowser();
-                    }
-                  : undefined
-              }
               onStartTerminal={() => {
                 activateTab(tab.id);
                 startSelectedTerminal(tab.id);
@@ -938,7 +896,6 @@ export function PluginPanelRightPanelHost({
       createTerminal.isPending,
       hostsQuery.isLoading,
       isOpen,
-      openBrowser,
       panelState.secondary.isOpen,
       panelStateId,
       selectedTerminalHost,
@@ -1058,7 +1015,6 @@ export function PluginPanelRightPanelHost({
   const renderPanel = useCallback(
     ({
       presentation,
-      canShowNativeBrowserView,
       isMainCollapsed,
       onToggleMainCollapse,
       resizablePanelId,
@@ -1069,27 +1025,14 @@ export function PluginPanelRightPanelHost({
       onToggleMainCollapse: () => void;
       resizablePanelId?: string;
     }) => {
-      const renderDeck = (
-        activeBrowserTabId: string | null,
-        canHandleBrowserCommands: boolean,
-        onNativeFocus?: () => void,
-      ) =>
+      const renderDeck = (activeBrowserTabId: string | null) =>
         browserTabs.length === 0 ? null : (
-          <LazyBrowserTabDeck
+          <BrowserDisabledDeck
             browserTabs={browserTabs}
             activeBrowserTabId={activeBrowserTabId}
-            environmentId={null}
-            canShowNativeBrowserView={canShowNativeBrowserView}
-            canHandleBrowserCommands={canHandleBrowserCommands}
-            onNativeFocus={onNativeFocus}
-            threadId={panelStateId}
-            onUpdate={updateBrowserTab}
           />
         );
-      const drawerFallback = renderDeck(
-        activeBrowserTab?.id ?? null,
-        canShowNativeBrowserView,
-      );
+      const drawerFallback = renderDeck(activeBrowserTab?.id ?? null);
       return (
         <LazyThreadSecondaryPanel
           drawerFallback={drawerFallback}
@@ -1101,12 +1044,8 @@ export function PluginPanelRightPanelHost({
             activePluginDetailId === null ? panelStateId : undefined
           }
           onTabReorder={reorderTab}
-          renderBrowserDeck={(activeBrowserTabId, pane) =>
-            renderDeck(
-              activeBrowserTabId,
-              canShowNativeBrowserView && pane.isFocused,
-              pane.onFocusPane,
-            )
+          renderBrowserDeck={(activeBrowserTabId) =>
+            renderDeck(activeBrowserTabId)
           }
           isOpen={isOpen}
           fixedTabs={fixedTabs}
@@ -1135,7 +1074,6 @@ export function PluginPanelRightPanelHost({
       panelStateId,
       reorderTab,
       tabs,
-      updateBrowserTab,
     ],
   );
 
@@ -1207,16 +1145,12 @@ export function PluginPanelRightPanelHost({
   );
 
   return (
-    <UrlOpenRoutingProvider
-      openInAppBrowser={isDesktopBrowserAvailable() ? openBrowser : null}
-    >
-      <AppNavigationHostProvider capabilities={navigationCapabilities}>
-        <PluginDetailRouteNavigationProvider
-          onOpenPluginDetail={openPluginDetail}
-        >
-          {routedPage}
-        </PluginDetailRouteNavigationProvider>
-      </AppNavigationHostProvider>
-    </UrlOpenRoutingProvider>
+    <AppNavigationHostProvider capabilities={navigationCapabilities}>
+      <PluginDetailRouteNavigationProvider
+        onOpenPluginDetail={openPluginDetail}
+      >
+        {routedPage}
+      </PluginDetailRouteNavigationProvider>
+    </AppNavigationHostProvider>
   );
 }

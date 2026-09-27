@@ -178,9 +178,9 @@ import {
   useThreadStorageViewer,
 } from "@/components/secondary-panel/useThreadStorageViewer";
 import { getThreadConversationCollapsedAtom } from "@/components/secondary-panel/threadSecondaryPanelAtoms";
-import { BrowserTabLifecycleObserver } from "@/components/secondary-panel/BrowserTabDeck";
+import { BrowserTabLifecycleObserver } from "@/components/secondary-panel/BrowserTabLifecycleObserver";
+import { BrowserDisabledDeck } from "@/components/secondary-panel/BrowserDisabledPanel";
 import {
-  LazyBrowserTabDeck,
   LazyFilesPanel,
   LazyHostFilePreviewTabContent,
   LazyNewTabPage,
@@ -190,7 +190,6 @@ import {
 } from "@/components/secondary-panel/lazySecondaryPanelComponents";
 import { opensInEditor } from "@/components/files/editor-routing";
 import { FILES_PANEL_TITLE } from "@/components/files/files-title";
-import type { BrowserAddressFocusRequest } from "@/components/secondary-panel/BrowserTabContent";
 import {
   SIDE_CHAT_PLUGIN_ID,
   SIDE_CHAT_PLUGIN_PANEL_ACTION_ID,
@@ -212,19 +211,8 @@ import { usePluginSlots } from "@/lib/plugin-slots";
 import { getFileExtension } from "@/lib/plugin-slot-resolvers";
 import { FORK_BUILTIN_FILE_OPENER } from "@/lib/fork-flags";
 import { Icon } from "@bb/shared-ui/icon";
-import {
-  getBbDesktopInfo,
-  getDesktopBrowserApi,
-  isDesktopBrowserAvailable,
-} from "@/lib/bb-desktop";
-import {
-  openUrlByPreference,
-  useOpenLinksInAppBrowserPreference,
-} from "@/lib/in-app-browser-link-preference";
-import {
-  openUrlInExternalBrowser,
-  UrlOpenRoutingProvider,
-} from "@/lib/url-open-routing";
+import { getBbDesktopInfo, getDesktopBrowserApi } from "@/lib/bb-desktop";
+import { openHttpUrlInExternalBrowser } from "@/lib/url-open-routing";
 import {
   AppNavigationHostProvider,
   type AppFilePreviewIntent,
@@ -679,8 +667,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     () => setShouldAutoFocusNewTab(false),
     [],
   );
-  const [browserAddressFocusRequest, setBrowserAddressFocusRequest] =
-    useState<BrowserAddressFocusRequest | null>(null);
   const shouldLoadThreadStorageFiles = shouldLoadThreadStorageFileList({
     hasThread: thread !== undefined,
     isSecondaryPanelOpen,
@@ -715,7 +701,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     orderedSecondaryFileTabs,
     reopenClosedTab,
     reorderTab,
-    updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId: threadId,
     syncThreadId: threadId,
@@ -739,60 +724,20 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     environmentId: thread?.environmentId,
     openTab,
   });
-  const browserDeckThreadId = thread?.id ?? null;
-  const browserDeckEnvironmentId = thread?.environmentId ?? null;
-  const handleBrowserAddressFocusRequestConsumed = useCallback(
-    (request: BrowserAddressFocusRequest) => {
-      setBrowserAddressFocusRequest((current) =>
-        current?.requestId === request.requestId &&
-        current.tabId === request.tabId
-          ? null
-          : current,
-      );
-    },
-    [],
-  );
+  const hasThread = thread !== undefined;
   const renderBrowserDeck = useCallback(
     ({
-      canHandleBrowserCommands,
-      canShowNativeBrowserView,
-      onNativeFocus,
       activeBrowserTabId = activeBrowserTab?.id ?? null,
     }: {
-      canHandleBrowserCommands?: boolean;
-      canShowNativeBrowserView: boolean;
-      onNativeFocus?: () => void;
       activeBrowserTabId?: string | null;
-    }) => {
-      if (browserDeckThreadId === null) {
-        return null;
-      }
-      return (
-        <LazyBrowserTabDeck
+    }) =>
+      hasThread ? (
+        <BrowserDisabledDeck
           browserTabs={browserTabs}
           activeBrowserTabId={activeBrowserTabId}
-          addressFocusRequest={browserAddressFocusRequest}
-          onAddressFocusRequestConsumed={
-            handleBrowserAddressFocusRequestConsumed
-          }
-          environmentId={browserDeckEnvironmentId}
-          canShowNativeBrowserView={canShowNativeBrowserView}
-          canHandleBrowserCommands={canHandleBrowserCommands}
-          onNativeFocus={onNativeFocus}
-          threadId={browserDeckThreadId}
-          onUpdate={updateBrowserTab}
         />
-      );
-    },
-    [
-      activeBrowserTab?.id,
-      browserAddressFocusRequest,
-      browserTabs,
-      browserDeckEnvironmentId,
-      browserDeckThreadId,
-      handleBrowserAddressFocusRequestConsumed,
-      updateBrowserTab,
-    ],
+      ) : null,
+    [activeBrowserTab?.id, browserTabs, hasThread],
   );
   const openPersistedWorkspaceFile =
     useCallback<ThreadSecondaryPanelWorkspaceFileOpenHandler>(
@@ -812,25 +757,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         openTab({ kind: "host-file-preview", tab: file }, options),
       [openTab],
     );
-  const openBrowserTab = useCallback(
-    (url?: string) => {
-      const browserUrl = url ?? "";
-      const tab = openTab({ kind: "browser", url: browserUrl });
-      if (browserUrl.length === 0 && tab?.kind === "browser") {
-        setBrowserAddressFocusRequest((current) => ({
-          requestId: (current?.requestId ?? 0) + 1,
-          tabId: tab.id,
-        }));
-      }
-    },
-    [openTab],
-  );
   const openNewTab = useCallback(() => {
     openTab({ kind: "new-tab" });
   }, [openTab]);
-  const [openLinksInAppBrowser] = useOpenLinksInAppBrowserPreference();
-  const desktopBrowserAvailable = isDesktopBrowserAvailable();
-  const canOpenUrlsInAppBrowser = desktopBrowserAvailable;
   const browserTabIds = useMemo(
     () => new Set(browserTabs.map((tab) => tab.id)),
     [browserTabs],
@@ -1423,24 +1352,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       },
       [openCompactDrawer, openPluginPanel, pluginThreadPanelActions],
     );
-  const openBrowserTabAndReveal = useCallback(
-    (url?: string) => {
-      openBrowserTab(url);
-      openCompactDrawer();
-    },
-    [openBrowserTab, openCompactDrawer],
-  );
-  const handleOpenUrlByPreference = useCallback(
-    (url: string) =>
-      openUrlByPreference({
-        desktopBrowserAvailable: canOpenUrlsInAppBrowser,
-        openExternalBrowser: openUrlInExternalBrowser,
-        openInAppBrowser: openBrowserTabAndReveal,
-        openLinksInAppBrowser,
-        url,
-      }),
-    [canOpenUrlsInAppBrowser, openBrowserTabAndReveal, openLinksInAppBrowser],
-  );
   const openFilesTab = useCallback(() => {
     openTab({ kind: "files" });
     openCompactDrawer();
@@ -1481,7 +1392,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     if (browserApi.onScopedOpenTab) {
       return browserApi.onScopedOpenTab(({ tabId, url }) => {
         if (browserTabIds.has(tabId)) {
-          handleOpenUrlByPreference(url);
+          openHttpUrlInExternalBrowser(url);
         }
       });
     }
@@ -1489,9 +1400,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       if (isRoutePath({ path: url })) {
         return;
       }
-      handleOpenUrlByPreference(url);
+      openHttpUrlInExternalBrowser(url);
     });
-  }, [browserTabIds, handleOpenUrlByPreference]);
+  }, [browserTabIds]);
   const handleSelectStorageBrowserPath =
     useCallback<ThreadStoragePathSelectHandler>(
       (path) => {
@@ -2170,8 +2081,8 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     ],
   );
   const handleOpenTimelineLink = useCallback<ThreadTimelineLinkHandler>(
-    ({ href }) => handleOpenUrlByPreference(href),
-    [handleOpenUrlByPreference],
+    ({ href }) => openHttpUrlInExternalBrowser(href),
+    [],
   );
   const handleTimelineTitleAction = useCallback<TimelineTitleActionResolver>(
     (action) => {
@@ -2636,10 +2547,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
               tab.id === activeFixedSecondaryTabId && shouldAutoFocusNewTab
             }
             onAutoFocusHandled={handleNewTabAutoFocusHandled}
-            onOpenBrowser={() => {
-              activateTab(tab.id);
-              openBrowserTabAndReveal();
-            }}
             onOpenFiles={
               thread.environmentId === null ? undefined : openFilesTab
             }
@@ -2933,163 +2840,151 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
         browserTabs={browserTabs}
         threadId={thread.id}
       />
-      <UrlOpenRoutingProvider
-        openInAppBrowser={
-          canOpenUrlsInAppBrowser ? openBrowserTabAndReveal : null
-        }
-      >
-        <AppNavigationHostProvider capabilities={appNavigationCapabilities}>
-          <ThreadDetailSecondaryContent
-            footer={composerFooter}
-            header={timelineHeader}
-            isMetadataLoading={environmentQuery.isLoading}
-            isSecondaryPanelOpen={isSecondaryPanelOpen}
-            isSecondaryPanelStateSettled={isFixedPanelStateSettled}
-            isConversationCollapsed={isConversationCollapsed}
-            isBoundedPane={isBoundedPane}
-            onToggleSecondaryPanel={toggleSecondaryPanel}
-            onToggleConversationCollapse={toggleConversationCollapse}
-            renderHostedPanel={(panel) => (
-              <MarkdownLocalFileContextMenuContext.Provider
-                value={getLocalFileContextMenuItems}
-              >
-                <UrlOpenRoutingProvider
-                  openInAppBrowser={
-                    canOpenUrlsInAppBrowser ? openBrowserTabAndReveal : null
-                  }
-                >
-                  {panel}
-                </UrlOpenRoutingProvider>
-              </MarkdownLocalFileContextMenuContext.Provider>
-            )}
-            metadata={{
-              thread,
-              projectId,
-              parentThreadProjectId: parentThread?.projectId ?? null,
-              parentThreadDisplayName: parentThreadDisplayName ?? null,
-              parentThreads,
-              canAssignToParent,
-              canTakeOverThread,
-              isLoadingParentThreads: parentThreadSubsetQuery.isLoading,
-              isParentThreadsError: parentThreadSubsetQuery.isError,
-              environment: environment ?? null,
-              environmentProvisioningFailure,
-              environmentDisplayHost: environmentDisplayHostContext,
-              workspaceStatus,
-              workspaceStatusError: workspaceStatusError ?? null,
-              workspaceUnavailable,
-              pullRequest,
-              selectedMergeBaseBranch,
-              mergeBaseBranchRef: selectedMergeBaseBranchRef,
-              mergeBaseBranchOptions,
-              mergeBaseRemoteBranchOptions,
-              isLoadingMergeBaseBranchOptions,
-              updateThreadPending:
-                updateThread.isPending || updateEnvironment.isPending,
-              storage: metadataStorage,
-              onAssignParent: handleAssignParent,
-              onParentSelectorOpenChange: handleParentSelectorOpenChange,
-              onRetryParentThreads: handleRetryParentThreads,
-              onMergeBaseBranchChange: handleMergeBaseBranchChange,
-              onMergeBasePickerOpenChange: handleMergeBasePickerOpenChange,
-              onMergeBaseBranchSearchQueryChange: setMergeBaseBranchSearchQuery,
-              onChangedFileClick: canUseGitUi
-                ? handleChangedFileClick
+      <AppNavigationHostProvider capabilities={appNavigationCapabilities}>
+        <ThreadDetailSecondaryContent
+          footer={composerFooter}
+          header={timelineHeader}
+          isMetadataLoading={environmentQuery.isLoading}
+          isSecondaryPanelOpen={isSecondaryPanelOpen}
+          isSecondaryPanelStateSettled={isFixedPanelStateSettled}
+          isConversationCollapsed={isConversationCollapsed}
+          isBoundedPane={isBoundedPane}
+          onToggleSecondaryPanel={toggleSecondaryPanel}
+          onToggleConversationCollapse={toggleConversationCollapse}
+          renderHostedPanel={(panel) => (
+            <MarkdownLocalFileContextMenuContext.Provider
+              value={getLocalFileContextMenuItems}
+            >
+              {panel}
+            </MarkdownLocalFileContextMenuContext.Provider>
+          )}
+          metadata={{
+            thread,
+            projectId,
+            parentThreadProjectId: parentThread?.projectId ?? null,
+            parentThreadDisplayName: parentThreadDisplayName ?? null,
+            parentThreads,
+            canAssignToParent,
+            canTakeOverThread,
+            isLoadingParentThreads: parentThreadSubsetQuery.isLoading,
+            isParentThreadsError: parentThreadSubsetQuery.isError,
+            environment: environment ?? null,
+            environmentProvisioningFailure,
+            environmentDisplayHost: environmentDisplayHostContext,
+            workspaceStatus,
+            workspaceStatusError: workspaceStatusError ?? null,
+            workspaceUnavailable,
+            pullRequest,
+            selectedMergeBaseBranch,
+            mergeBaseBranchRef: selectedMergeBaseBranchRef,
+            mergeBaseBranchOptions,
+            mergeBaseRemoteBranchOptions,
+            isLoadingMergeBaseBranchOptions,
+            updateThreadPending:
+              updateThread.isPending || updateEnvironment.isPending,
+            storage: metadataStorage,
+            onAssignParent: handleAssignParent,
+            onParentSelectorOpenChange: handleParentSelectorOpenChange,
+            onRetryParentThreads: handleRetryParentThreads,
+            onMergeBaseBranchChange: handleMergeBaseBranchChange,
+            onMergeBasePickerOpenChange: handleMergeBasePickerOpenChange,
+            onMergeBaseBranchSearchQueryChange: setMergeBaseBranchSearchQuery,
+            onChangedFileClick: canUseGitUi
+              ? handleChangedFileClick
+              : undefined,
+            onCommitClick: canUseGitUi
+              ? openSecondaryPanelCommitDiff
+              : undefined,
+          }}
+          secondaryPanel={{
+            canNavigateTabs: isFocused,
+            activeTab: activeFixedSecondaryTab,
+            canUseGitUi,
+            gitDiffTabStatus,
+            environmentId: thread.environmentId ?? undefined,
+            workspaceRootPath: environment?.path,
+            tabs: panelTabs,
+            fixedTabs: secondaryPanelFixedTabs,
+            splitPanelStateId: thread.id,
+            renderBrowserDeck,
+            isOpen: isSecondaryPanelOpen,
+            onClose: closeSecondaryPanel,
+            onCollapse: closeSecondaryPanel,
+            onClearPendingGitDiffIntent: clearPendingGitDiffIntent,
+            onOpenFileInEditor: handleOpenFileInEditor,
+            onTabReorder: reorderTab,
+            onOpenNewTab: handleOpenNewTab,
+            onRetryGitDiffEligibility: () => {
+              void environmentQuery.refetch();
+            },
+            onOpenFilePreview: handleOpenFilePreview,
+            onSelectionAddToChat: handleSelectionAddToChat,
+            pendingGitDiffCommitSha,
+            pendingGitDiffScrollPath,
+            requestedMergeBaseBranch,
+            onPanelFocus: touchFixedPanelTabsState,
+          }}
+          timeline={{
+            activeThinking,
+            canSpawnChild: thread.canSpawnChild,
+            contextBoundarySeq,
+            threadOriginKind,
+            hasOlderTimelineRows,
+            hostConnectionNotice,
+            isLoadingOlderTimelineRows,
+            isThreadTimelinePending,
+            timelineError: Boolean(timelineError),
+            onForkMessage: isForkAvailable ? handleForkMessage : undefined,
+            onEditMessage: canEditSentMessages
+              ? handleEditSentMessage
+              : undefined,
+            inlineMessageEditor,
+            onMessageAddToChat: handleSelectionAddToChat,
+            onSendToMainMessage: handleSendToMainMessage,
+            onSelectionAddToChat: handleSelectionAddToChat,
+            onLoadOlderRows: loadOlderTimelineRows,
+            onOpenLink: handleOpenTimelineLink,
+            onOpenLocalFileLink: handleOpenTimelineLocalFileLink,
+            onOpenPluginPanel: handleOpenTimelinePluginPanel,
+            onTitleAction: handleTimelineTitleAction,
+            projectId,
+            resolveMentionLink,
+            showOngoingIndicator:
+              thread.status !== "stopping" &&
+              !hasPendingInteraction &&
+              isRunningThreadRuntimeDisplayStatus(
+                thread.runtime.displayStatus,
+              ) &&
+              !isThreadTimelinePending,
+            ongoingIndicatorLabel:
+              thread.runtime.displayStatus === "host-reconnecting"
+                ? "Waiting for reconnection"
                 : undefined,
-              onCommitClick: canUseGitUi
-                ? openSecondaryPanelCommitDiff
-                : undefined,
+            timelineRows,
+            isStopping: thread.status === "stopping",
+            stoppingAnchorAt: thread.updatedAt,
+            threadId: thread.id,
+            threadRuntimeDisplayStatus: thread.runtime.displayStatus,
+            unreadDividerAutoScroll: unreadDividerState.autoScroll,
+            unreadDividerPlacement: unreadDividerState.placement,
+            workspaceRootPath: environment?.path ?? undefined,
+          }}
+        />
+        {canUseGitUi ? (
+          <ThreadGitActionDialog
+            target={gitActions.threadGitActionDialog.target}
+            branchName={threadBranchName}
+            gitStatusDisplay={threadGitStatusDisplay}
+            changedFilesSection={workingTreeChangedFilesSection}
+            onOpenChange={(open) => {
+              if (!open) {
+                gitActions.threadGitActionDialog.onClose();
+              }
             }}
-            secondaryPanel={{
-              canNavigateTabs: isFocused,
-              activeTab: activeFixedSecondaryTab,
-              canUseGitUi,
-              gitDiffTabStatus,
-              environmentId: thread.environmentId ?? undefined,
-              workspaceRootPath: environment?.path,
-              tabs: panelTabs,
-              fixedTabs: secondaryPanelFixedTabs,
-              splitPanelStateId: thread.id,
-              renderBrowserDeck,
-              isOpen: isSecondaryPanelOpen,
-              onClose: closeSecondaryPanel,
-              onCollapse: closeSecondaryPanel,
-              onClearPendingGitDiffIntent: clearPendingGitDiffIntent,
-              onOpenFileInEditor: handleOpenFileInEditor,
-              onTabReorder: reorderTab,
-              onOpenNewTab: handleOpenNewTab,
-              onRetryGitDiffEligibility: () => {
-                void environmentQuery.refetch();
-              },
-              onOpenFilePreview: handleOpenFilePreview,
-              onSelectionAddToChat: handleSelectionAddToChat,
-              pendingGitDiffCommitSha,
-              pendingGitDiffScrollPath,
-              requestedMergeBaseBranch,
-              onPanelFocus: touchFixedPanelTabsState,
-            }}
-            timeline={{
-              activeThinking,
-              canSpawnChild: thread.canSpawnChild,
-              contextBoundarySeq,
-              threadOriginKind,
-              hasOlderTimelineRows,
-              hostConnectionNotice,
-              isLoadingOlderTimelineRows,
-              isThreadTimelinePending,
-              timelineError: Boolean(timelineError),
-              onForkMessage: isForkAvailable ? handleForkMessage : undefined,
-              onEditMessage: canEditSentMessages
-                ? handleEditSentMessage
-                : undefined,
-              inlineMessageEditor,
-              onMessageAddToChat: handleSelectionAddToChat,
-              onSendToMainMessage: handleSendToMainMessage,
-              onSelectionAddToChat: handleSelectionAddToChat,
-              onLoadOlderRows: loadOlderTimelineRows,
-              onOpenLink: handleOpenTimelineLink,
-              onOpenLocalFileLink: handleOpenTimelineLocalFileLink,
-              onOpenPluginPanel: handleOpenTimelinePluginPanel,
-              onTitleAction: handleTimelineTitleAction,
-              projectId,
-              resolveMentionLink,
-              showOngoingIndicator:
-                thread.status !== "stopping" &&
-                !hasPendingInteraction &&
-                isRunningThreadRuntimeDisplayStatus(
-                  thread.runtime.displayStatus,
-                ) &&
-                !isThreadTimelinePending,
-              ongoingIndicatorLabel:
-                thread.runtime.displayStatus === "host-reconnecting"
-                  ? "Waiting for reconnection"
-                  : undefined,
-              timelineRows,
-              isStopping: thread.status === "stopping",
-              stoppingAnchorAt: thread.updatedAt,
-              threadId: thread.id,
-              threadRuntimeDisplayStatus: thread.runtime.displayStatus,
-              unreadDividerAutoScroll: unreadDividerState.autoScroll,
-              unreadDividerPlacement: unreadDividerState.placement,
-              workspaceRootPath: environment?.path ?? undefined,
-            }}
+            onCommit={gitActions.handleCommitThread}
           />
-          {canUseGitUi ? (
-            <ThreadGitActionDialog
-              target={gitActions.threadGitActionDialog.target}
-              branchName={threadBranchName}
-              gitStatusDisplay={threadGitStatusDisplay}
-              changedFilesSection={workingTreeChangedFilesSection}
-              onOpenChange={(open) => {
-                if (!open) {
-                  gitActions.threadGitActionDialog.onClose();
-                }
-              }}
-              onCommit={gitActions.handleCommitThread}
-            />
-          ) : null}
-        </AppNavigationHostProvider>
-      </UrlOpenRoutingProvider>
+        ) : null}
+      </AppNavigationHostProvider>
     </MarkdownLocalFileContextMenuContext.Provider>
   );
   return (
