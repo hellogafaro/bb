@@ -1,23 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   resolveAutomationBreadcrumbs,
   resolvePluginsWorkspaceHeaderMeta,
-  resolveSkillsWorkspaceHeaderMeta,
   resolveToolsBreadcrumbs,
 } from "@/components/tools/tools-navigation";
 
-vi.mock("@/lib/fork-flags", () => ({ FORK_CUSTOMIZE_PAGE: false }));
-
 describe("resolveToolsBreadcrumbs", () => {
   it("includes the selected collection tab", () => {
-    expect(resolveToolsBreadcrumbs("/skills")).toEqual([
-      { label: "Skills", to: "/skills" },
-      { label: "Browse" },
-    ]);
-    expect(resolveToolsBreadcrumbs("/skills", "?view=library")).toEqual([
-      { label: "Skills", to: "/skills" },
-      { label: "My skills" },
-    ]);
     expect(resolveToolsBreadcrumbs("/plugins")).toEqual([
       { label: "Plugins", to: "/plugins" },
       { label: "Browse" },
@@ -32,34 +21,7 @@ describe("resolveToolsBreadcrumbs", () => {
     ]);
   });
 
-  it("resolves the Skills registry path as Browse", () => {
-    expect(resolveToolsBreadcrumbs("/skills/registry")).toEqual([
-      { label: "Skills", to: "/skills" },
-      { label: "Browse" },
-    ]);
-  });
-
   it("makes every detail ancestor clickable and keeps the resource passive", () => {
-    expect(
-      resolveToolsBreadcrumbs(
-        "/skills/library/skill_abc123",
-        "",
-        "Example Skill",
-      ),
-    ).toEqual([
-      { label: "Skills", to: "/skills" },
-      { label: "My skills", to: "/skills?view=library" },
-      { label: "Example Skill" },
-    ]);
-    expect(
-      resolveToolsBreadcrumbs(
-        "/skills/registry/vercel-labs%2Fskills%2Ffind-skills",
-      ),
-    ).toEqual([
-      { label: "Skills", to: "/skills" },
-      { label: "Browse", to: "/skills/registry" },
-      { label: "find-skills" },
-    ]);
     expect(resolveToolsBreadcrumbs("/plugins/ui-patterns")).toEqual([
       { label: "Plugins", to: "/plugins" },
       { label: "Browse", to: "/plugins" },
@@ -172,14 +134,6 @@ describe("resource workspace headers", () => {
     expect(resolvePluginsWorkspaceHeaderMeta("/skills/registry")).toBeNull();
   });
 
-  it("gives Skills ownership of only the Skills header", () => {
-    expect(resolveSkillsWorkspaceHeaderMeta("/skills/registry")).toEqual({
-      kind: "section-title",
-      title: "Skills",
-    });
-    expect(resolveSkillsWorkspaceHeaderMeta("/plugins")).toBeNull();
-  });
-
   it("keeps plugin creation inside the Plugins header", () => {
     expect(
       resolvePluginsWorkspaceHeaderMeta("/plugins", "?view=create"),
@@ -192,8 +146,7 @@ describe("resource workspace headers", () => {
     });
   });
 
-  it("claims nothing outside either resource workspace", () => {
+  it("claims nothing outside the Plugins workspace", () => {
     expect(resolvePluginsWorkspaceHeaderMeta("/")).toBeNull();
-    expect(resolveSkillsWorkspaceHeaderMeta("/")).toBeNull();
   });
 });

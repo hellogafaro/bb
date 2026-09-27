@@ -91,7 +91,6 @@ import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provi
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
 import { AppUpdateHost } from "./components/app-update/AppUpdateHost";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
-import { FORK_CUSTOMIZE_PAGE } from "./lib/fork-flags";
 
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((m) => ({
@@ -101,11 +100,6 @@ const SettingsView = lazy(() =>
 const PluginsView = lazy(() =>
   import("./views/ToolsView").then((m) => ({
     default: m.PluginsView,
-  })),
-);
-const SkillsView = lazy(() =>
-  import("./views/ToolsView").then((m) => ({
-    default: m.SkillsView,
   })),
 );
 const AgentsView = lazy(() =>
@@ -231,11 +225,7 @@ function normalizeLegacySkillSuffix(suffix: string): string {
   return suffix;
 }
 
-const skillsCollectionElement = FORK_CUSTOMIZE_PAGE ? (
-  <Navigate to={getSkillsRoutePath()} replace />
-) : (
-  <SkillsView />
-);
+const skillsCollectionElement = <Navigate to={getSkillsRoutePath()} replace />;
 
 function decodeRouteSegment(segment: string): string {
   try {
@@ -485,31 +475,24 @@ export function AppRoutes() {
             path={LEGACY_TOOLS_SPLAT_ROUTE_PATH}
             element={<LegacyToolsPathRedirect />}
           />
-          {FORK_CUSTOMIZE_PAGE ? (
-            <>
-              <Route
-                path={SETTINGS_SKILLS_ROUTE_PATH}
-                element={<CustomizeSkillsView />}
-              />
-              <Route
-                path={SETTINGS_SKILL_DETAIL_ROUTE_PATH}
-                element={<CustomizeSkillsView />}
-              />
-              <Route path={MCPS_ROUTE_PATH} element={<CustomizeMcpsView />} />
-              <Route
-                path={MCP_DETAIL_ROUTE_PATH}
-                element={<CustomizeMcpsView />}
-              />
-              <Route
-                path={LEGACY_CUSTOMIZE_ROUTE_PATH}
-                element={<LegacyCustomizeRedirect />}
-              />
-              <Route
-                path={LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH}
-                element={<LegacyCustomizeRedirect />}
-              />
-            </>
-          ) : null}
+          <Route
+            path={SETTINGS_SKILLS_ROUTE_PATH}
+            element={<CustomizeSkillsView />}
+          />
+          <Route
+            path={SETTINGS_SKILL_DETAIL_ROUTE_PATH}
+            element={<CustomizeSkillsView />}
+          />
+          <Route path={MCPS_ROUTE_PATH} element={<CustomizeMcpsView />} />
+          <Route path={MCP_DETAIL_ROUTE_PATH} element={<CustomizeMcpsView />} />
+          <Route
+            path={LEGACY_CUSTOMIZE_ROUTE_PATH}
+            element={<LegacyCustomizeRedirect />}
+          />
+          <Route
+            path={LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH}
+            element={<LegacyCustomizeRedirect />}
+          />
           <Route path={AGENTS_ROUTE_PATH} element={<AgentsView />} />
           <Route path={AGENT_DETAIL_ROUTE_PATH} element={<AgentsView />} />
           <Route
@@ -525,13 +508,7 @@ export function AppRoutes() {
           <Route path={SKILLS_ROUTE_PATH} element={skillsCollectionElement} />
           <Route
             path={SKILL_DETAIL_ROUTE_PATH}
-            element={
-              FORK_CUSTOMIZE_PAGE ? (
-                <LegacySkillDetailRedirect />
-              ) : (
-                <SkillsView />
-              )
-            }
+            element={<LegacySkillDetailRedirect />}
           />
           <Route
             path={REGISTRY_SKILLS_ROUTE_PATH}

@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { matchPath, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "@bb/shared-ui/icon-extended";
 import { useMutation } from "@tanstack/react-query";
 import { buildPluginEditThreadPrompt } from "@bb/shared-ui/resource-edit-prompt";
@@ -52,8 +52,6 @@ import {
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { pluginAdminErrorMessage } from "@/lib/plugin-admin-error";
 import {
-  REGISTRY_SKILLS_ROUTE_PATH,
-  SKILLS_ROUTE_PATH,
   getPluginConfigurationRoutePath,
   getPluginDetailRoutePath,
   getPluginsRoutePath,
@@ -61,7 +59,6 @@ import {
 } from "@/lib/route-paths";
 import { getToolsOwnedCollectionRoutePath } from "@/components/tools/tools-navigation";
 import { cn } from "@bb/shared-ui/lib/utils";
-import { SkillsLibrary } from "@/components/tools/SkillsLibrary";
 import { PluginIcon } from "@/components/plugin/PluginIcon";
 import { pluginToast } from "@/components/plugin/PluginNotificationDescription";
 import {
@@ -666,25 +663,6 @@ export function PluginsView({ pluginId }: { pluginId?: string } = {}) {
         composerHost={null}
         compactPresentation="full"
       />
-    </div>
-  );
-}
-
-export function SkillsView() {
-  const location = useLocation();
-  const isCollection =
-    matchPath(SKILLS_ROUTE_PATH, location.pathname) !== null ||
-    location.pathname === REGISTRY_SKILLS_ROUTE_PATH;
-
-  return (
-    <div className="-mx-4 -mb-4 -mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:-mx-5 md:-mb-5 md:-mt-5">
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <Suspense fallback={<ResourceBodyFallback />}>
-          <ResourceScrollPage fillViewport={isCollection}>
-            <SkillsLibrary />
-          </ResourceScrollPage>
-        </Suspense>
-      </div>
     </div>
   );
 }

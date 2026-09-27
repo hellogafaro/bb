@@ -1,5 +1,4 @@
 import type { SkillSummary } from "@bb/server-contract";
-import { FORK_CUSTOMIZE_PAGE } from "./fork-flags";
 
 const CUSTOMIZE_SKILL_SCOPES: ReadonlySet<SkillSummary["scope"]> = new Set([
   "bb-user",
@@ -17,5 +16,5 @@ export function isCustomizeSkill(skill: SkillSummary): boolean {
 export function customizeSkills(
   skills: readonly SkillSummary[],
 ): readonly SkillSummary[] {
-  return FORK_CUSTOMIZE_PAGE ? skills.filter(isCustomizeSkill) : skills;
+  return skills.filter(isCustomizeSkill);
 }

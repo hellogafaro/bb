@@ -2,20 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SkillProvider, SkillSummary } from "@bb/server-contract";
 import {
-  ResourceInfiniteScrollSentinel,
-  useResourceInfiniteItems,
-  useResourceViewportPageSize,
-} from "@bb/shared-ui/resource-pagination";
-import {
-  ResourceCollectionPage,
   ResourceCollectionViewport,
-  ResourceCreateButton,
   ResourceIconFrame,
-  ResourceListPanel,
   ResourceListState,
   ResourceOverflowMenu,
-  ResourceRow,
-  ResourceRowDetailChevron,
   ResourceToolbar,
 } from "@bb/shared-ui/resource-list";
 import { cn } from "@bb/shared-ui/lib/utils";
@@ -176,23 +166,6 @@ function skillMutationDisabledReason(
   return `Bundled with ${providerLabel(skill.provider, providerRoster)}`;
 }
 
-const SKILLS_BROWSE_DESCRIPTION = (
-  <>
-    Trending agent skills from{" "}
-    <a
-      href="https://skills.sh"
-      target="_blank"
-      rel="noreferrer"
-      className="rounded-sm underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-    >
-      skills.sh
-    </a>
-    . Install one and every agent you use in bb can run it.
-  </>
-);
-const SKILLS_LIBRARY_DESCRIPTION =
-  "The skills on this bb host — yours, your providers', and those bundled with plugins. They work with every agent you use in bb.";
-
 const PREFETCH_HOVER_INTENT_MS = 150;
 
 function useSkillPrefetchIntent(
@@ -311,33 +284,6 @@ function useVisibleSkills(
   }, [normalizedQuery, providerRoster, skills]);
 }
 
-function SkillRow({
-  skill,
-  providerRoster,
-  onSelect,
-  onPrefetch,
-}: {
-  skill: SkillSummary;
-  providerRoster: ProviderRoster;
-  onSelect: () => void;
-  onPrefetch?: (skill: SkillSummary) => void;
-}) {
-  const description = skillDescription(skill, providerRoster);
-  const prefetchHandlers = useSkillPrefetchIntent(skill, onPrefetch);
-  return (
-    <div {...prefetchHandlers}>
-      <ResourceRow
-        leading={<SkillLeading skill={skill} providerRoster={providerRoster} />}
-        title={skill.name}
-        titleMeta={skillProvenance(skill, providerRoster)}
-        description={description}
-        onOpen={onSelect}
-        trailingVisual={<ResourceRowDetailChevron />}
-      />
-    </div>
-  );
-}
-
 interface SkillsLibraryResultsProps {
   skills: readonly SkillSummary[];
   providerRoster: ProviderRoster;
@@ -349,91 +295,6 @@ interface SkillsLibraryResultsProps {
   onPrefetchSkill?: (skill: SkillSummary) => void;
   onQueryChange: (query: string) => void;
   onRetry?: () => void;
-}
-
-export function SkillsLibraryResults({
-  skills,
-  providerRoster,
-  isLoading,
-  hasError,
-  query,
-  action,
-  onSelectSkill,
-  onPrefetchSkill,
-  onQueryChange,
-  onRetry,
-}: SkillsLibraryResultsProps) {
-  const [libraryViewport, setLibraryViewport] = useState<HTMLDivElement | null>(
-    null,
-  );
-  const normalizedQuery = query.trim().toLowerCase();
-  const libraryPageSize = useResourceViewportPageSize(libraryViewport, {
-    resetKey: normalizedQuery,
-  });
-  const visibleSkills = useVisibleSkills(
-    skills,
-    providerRoster,
-    normalizedQuery,
-  );
-  const libraryList = useResourceInfiniteItems(visibleSkills, {
-    pageSize: libraryPageSize,
-    resetKey: normalizedQuery,
-  });
-  const libraryBody = hasError ? (
-    <ResourceListState
-      state="error"
-      message="Couldn't load skills."
-      onRetry={onRetry}
-    />
-  ) : isLoading ? (
-    <ResourceListState state="loading" message="Loading skills" />
-  ) : visibleSkills.length === 0 ? (
-    <ResourceListState
-      state="empty"
-      message={
-        normalizedQuery === ""
-          ? "No skills in your library."
-          : `No skills match "${query}"`
-      }
-    />
-  ) : (
-    <>
-      <ResourceListPanel>
-        {libraryList.items.map((skill) => (
-          <SkillRow
-            key={`${skill.scope}-${skill.provider ?? "bb"}-${skill.name}-${skill.filePath}`}
-            skill={skill}
-            providerRoster={providerRoster}
-            onSelect={() => onSelectSkill(skill)}
-            onPrefetch={onPrefetchSkill}
-          />
-        ))}
-      </ResourceListPanel>
-      <ResourceInfiniteScrollSentinel
-        itemCount={libraryList.items.length}
-        hasMore={libraryList.hasMore}
-        onLoadMore={libraryList.loadMore}
-      />
-    </>
-  );
-
-  return (
-    <ResourceCollectionViewport
-      scrollId="skills-library-results"
-      viewportRef={setLibraryViewport}
-      bandClassName={TOOLS_PAGE_BAND_CLASSES}
-      toolbar={
-        <ResourceToolbar
-          searchValue={query}
-          searchPlaceholder="Search skills"
-          onSearchChange={onQueryChange}
-          action={action}
-        />
-      }
-    >
-      <div className={TOOLS_PAGE_BAND_CLASSES}>{libraryBody}</div>
-    </ResourceCollectionViewport>
-  );
 }
 
 export function SkillsCardResults({
@@ -500,72 +361,6 @@ export function SkillsCardResults({
     >
       <div className={TOOLS_PAGE_BAND_CLASSES}>{body}</div>
     </ResourceCollectionViewport>
-  );
-}
-
-interface SkillsOverviewProps {
-  skills: readonly SkillSummary[];
-  providerRoster: ProviderRoster;
-  isLoading: boolean;
-  hasError: boolean;
-  query?: string;
-  activeMode?: SkillsCollectionMode;
-  browseContent?: ReactNode;
-  onCreateSkill: () => void;
-  onSelectSkill: (skill: SkillSummary) => void;
-  onPrefetchSkill?: (skill: SkillSummary) => void;
-  onQueryChange?: (query: string) => void;
-  onRetry?: () => void;
-}
-
-type SkillsCollectionMode = "library" | "browse";
-
-export function SkillsOverview({
-  skills,
-  providerRoster,
-  isLoading,
-  hasError,
-  query = "",
-  activeMode = "library",
-  browseContent,
-  onCreateSkill,
-  onSelectSkill,
-  onPrefetchSkill,
-  onQueryChange = () => {},
-  onRetry,
-}: SkillsOverviewProps) {
-  return (
-    <ResourceCollectionPage
-      id="skills-collection"
-      description={
-        activeMode === "browse"
-          ? SKILLS_BROWSE_DESCRIPTION
-          : SKILLS_LIBRARY_DESCRIPTION
-      }
-      bandClassName={TOOLS_PAGE_BAND_CLASSES}
-    >
-      {activeMode === "browse" ? (
-        browseContent
-      ) : (
-        <SkillsLibraryResults
-          skills={skills}
-          providerRoster={providerRoster}
-          isLoading={isLoading}
-          hasError={hasError}
-          query={query}
-          action={
-            <ResourceCreateButton
-              label="New bb skill"
-              onCreate={onCreateSkill}
-            />
-          }
-          onSelectSkill={onSelectSkill}
-          onPrefetchSkill={onPrefetchSkill}
-          onQueryChange={onQueryChange}
-          onRetry={onRetry}
-        />
-      )}
-    </ResourceCollectionPage>
   );
 }
 

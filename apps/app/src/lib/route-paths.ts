@@ -11,10 +11,8 @@ import {
   SKILL_DETAIL_ROUTE_PATH,
   SKILLS_ROUTE_PATH,
   TOOLS_ROUTE_PATH,
-  getSkillDetailRoutePath as getUpstreamSkillDetailRoutePath,
   stripRoutePathSuffix,
 } from "@bb/client-core";
-import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 
 export {
   APP_ROOT_ROUTE_PATH,
@@ -101,13 +99,11 @@ export {
 export type { ThreadRoutePathArgs, ThreadsListTab } from "@bb/client-core";
 
 export function getSkillsRoutePath(): string {
-  return FORK_CUSTOMIZE_PAGE ? SETTINGS_SKILLS_ROUTE_PATH : SKILLS_ROUTE_PATH;
+  return SETTINGS_SKILLS_ROUTE_PATH;
 }
 
 export function getSkillDetailRoutePath(args: { skillId: string }): string {
-  return FORK_CUSTOMIZE_PAGE
-    ? `${SETTINGS_SKILLS_ROUTE_PATH}/${encodeURIComponent(args.skillId)}`
-    : getUpstreamSkillDetailRoutePath(args);
+  return `${SETTINGS_SKILLS_ROUTE_PATH}/${encodeURIComponent(args.skillId)}`;
 }
 
 export function getPluginPanelRoutePluginId(pathname: string): string | null {
@@ -145,8 +141,7 @@ export function isPluginsRoutePath(pathname: string): boolean {
 
 export function isSkillsRoutePath(pathname: string): boolean {
   return (
-    (FORK_CUSTOMIZE_PAGE &&
-      matchPath(LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH, pathname) !== null) ||
+    matchPath(LEGACY_CUSTOMIZE_SPLAT_ROUTE_PATH, pathname) !== null ||
     matchPath(SKILLS_ROUTE_PATH, pathname) !== null ||
     matchPath(REGISTRY_SKILLS_ROUTE_PATH, pathname) !== null ||
     matchPath(SKILL_DETAIL_ROUTE_PATH, pathname) !== null ||

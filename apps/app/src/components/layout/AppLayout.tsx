@@ -31,7 +31,6 @@ import { NotificationCenter } from "@/components/notifications/NotificationCente
 import {
   resolveAutomationBreadcrumbs,
   resolvePluginsWorkspaceHeaderMeta,
-  resolveSkillsWorkspaceHeaderMeta,
   resolveToolsBreadcrumbs,
 } from "@/components/tools/tools-navigation";
 import { AppBreadcrumbs } from "./AppBreadcrumbs";
@@ -91,7 +90,6 @@ import {
   getThreadRoutePath,
   isPluginsRoutePath,
   isProjectlessProjectId,
-  isSkillsRoutePath,
   PLUGIN_PANEL_ROUTE_PATH,
   SETTINGS_ROUTE_PATH,
 } from "@/lib/route-paths";
@@ -117,7 +115,6 @@ import { applyThreadOpenToLayout } from "@/views/thread-detail/splitThreadNaviga
 import { useAppSettingsRouteMemory } from "@/hooks/useAppSettingsRouteMemory";
 import { useSetRootComposeProjectId } from "@/lib/root-compose-selection";
 import { BackToAppCommandHandler } from "./BackToAppCommandHandler";
-import { FORK_CUSTOMIZE_PAGE } from "@/lib/fork-flags";
 import { resolveThreadsListHeaderMeta } from "@/components/threads-page/threads-page-navigation";
 
 const SIDEBAR_WIDTH_KEY = "bb.sidebar.width";
@@ -465,11 +462,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isGlobalSettingsView =
     matchPath(`${SETTINGS_ROUTE_PATH}/*`, location.pathname) !== null;
   const isPluginsWorkspace = isPluginsRoutePath(location.pathname);
-  const isSkillsWorkspace =
-    !FORK_CUSTOMIZE_PAGE && isSkillsRoutePath(location.pathname);
   const backToAppRoutePath = isGlobalSettingsView
     ? appRoutePath
-    : isPluginsWorkspace || isSkillsWorkspace
+    : isPluginsWorkspace
       ? toolsBackRoutePath
       : null;
   const pluginPanelMatch = matchPath(
@@ -569,8 +564,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const documentTitleBreadcrumbs = toolsBreadcrumbs ?? automationBreadcrumbs;
   const resourceWorkspaceHeaderMeta =
     resolveThreadsListHeaderMeta(location.pathname) ??
-    resolvePluginsWorkspaceHeaderMeta(location.pathname, location.search) ??
-    resolveSkillsWorkspaceHeaderMeta(location.pathname);
+    resolvePluginsWorkspaceHeaderMeta(location.pathname, location.search);
   const meta =
     resourceWorkspaceHeaderMeta?.kind === "section-title"
       ? { title: resourceWorkspaceHeaderMeta.title }
@@ -728,9 +722,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     ? "settings"
                     : isPluginsWorkspace
                       ? "plugins"
-                      : isSkillsWorkspace
-                        ? "skills"
-                        : "app"
+                      : "app"
                 }
                 onResizeMouseDown={handleResizeMouseDown}
                 isResizing={isSidebarResizing}

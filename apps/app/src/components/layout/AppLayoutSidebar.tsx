@@ -5,7 +5,7 @@ import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { ResourceSidebar } from "@/components/tools/ResourceSidebar";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar.js";
 
-export type AppLayoutSidebarMode = "app" | "settings" | "plugins" | "skills";
+export type AppLayoutSidebarMode = "app" | "settings" | "plugins";
 
 interface AppLayoutSidebarProps {
   mode: AppLayoutSidebarMode;
@@ -50,10 +50,8 @@ export function AppLayoutSidebar({
             mobileHosted
           />
         ) : null}
-        {renderedMode === "plugins" || renderedMode === "skills" ? (
+        {renderedMode === "plugins" ? (
           <ResourceSidebar
-            key={renderedMode}
-            workspace={renderedMode}
             onResizeMouseDown={onResizeMouseDown}
             isResizing={isResizing}
             appRoutePath={toolsBackRoutePath}
@@ -74,11 +72,9 @@ export function AppLayoutSidebar({
     );
   }
 
-  if (renderedMode === "plugins" || renderedMode === "skills") {
+  if (renderedMode === "plugins") {
     return (
       <ResourceSidebar
-        key={renderedMode}
-        workspace={renderedMode}
         onResizeMouseDown={onResizeMouseDown}
         isResizing={isResizing}
         appRoutePath={toolsBackRoutePath}
