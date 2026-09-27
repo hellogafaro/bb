@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.44.1
+
+Upstream bb 0.44.0 changes merged into the fork.
+
+### From upstream 0.44.0
+
+- **Claude Code fast mode.** Turn on fast mode for Claude Code threads.
+- **Desktop app.** Cmd+F finds text in the window. Zoom is limited to 50–300% in 10% steps and shows a brief indicator. The Server menu moved to bb → Desktop Settings, and startup recovers better.
+- **Machines and workspaces.** Remove a machine and keep its threads as read-only history. An offline machine reconnects without changing its host ID. A thread whose workspace was destroyed can ask for it to be restored.
+- **Diffs and providers.** Filter diff-panel files with path globs. The diff view mode and line wrap persist across reloads. A new thread whose provider CLI is missing shows an Install banner.
+- **In-app updates (opt-in).** `bb-app start --in-app-updates` adds an update button to Settings → Updates. Its npm install path downloads upstream's `bb-app`, so fork servers should keep updating with `bb-reload`.
+
+### Fork
+
+- Sidebar drags cancel on Escape and need a longer movement before they start, which cuts down accidental reorders.
+- The sidebar collapse caret has a larger touch target on phones.
+
 ## 0.43.5
 
 Fork updates now come from hellogafaro/bb GitHub releases.

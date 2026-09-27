@@ -4,6 +4,10 @@ type ReleaseMeta = {
 };
 
 export const RELEASE_META: Record<string, ReleaseMeta> = {
+  "0.44.1": {
+    date: "September 27, 2026",
+    headline: "Upstream 0.44.0 changes merged into the fork",
+  },
   "0.43.5": {
     date: "September 27, 2026",
     headline: "Fork updates now come from hellogafaro/bb GitHub releases",
