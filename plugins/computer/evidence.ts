@@ -1,3 +1,4 @@
+import { posix } from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 
 export interface EvidenceLocation {
@@ -21,7 +22,7 @@ export async function writeEvidence(
   const relativePath = `computer/${runId}/${name}`;
   await bb.sdk.files.write({
     hostId: location.hostId,
-    path: relativePath,
+    path: posix.join(location.storageRootPath, relativePath),
     rootPath: location.storageRootPath,
     content: contentBase64,
     contentEncoding: "base64",
@@ -43,7 +44,7 @@ export async function copyIntoEvidence(
   const relativePath = `computer/${runId}/${name}`;
   await bb.sdk.files.write({
     hostId: location.hostId,
-    path: relativePath,
+    path: posix.join(location.storageRootPath, relativePath),
     rootPath: location.storageRootPath,
     content: source.content,
     contentEncoding: source.contentEncoding === "base64" ? "base64" : "utf8",

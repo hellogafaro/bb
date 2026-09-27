@@ -327,7 +327,9 @@ export default async function computerPlugin(bb: BbPluginApi) {
     "  bb computer machines [--json]",
     "  bb computer doctor --host <id> [--json]",
     "  bb computer observe --host <id> [--app <name>] [--json]",
+    "  bb computer act --host <id> --action <json> [--json]",
     "  bb computer screenshot --host <id> [--app <name>] --thread <id> [--json]",
+    "  bb computer record --host <id> --thread <id> --action start|stop --run <id> [--json]",
     "  bb computer start --host <id> --goal <text> [--mode agent|jev] [--json]",
     "  bb computer status --run <id> [--json]",
     "  bb computer cancel --run <id> [--json]",
@@ -343,7 +345,9 @@ export default async function computerPlugin(bb: BbPluginApi) {
       { name: "machines", summary: "List machines", usage: "bb computer machines [--json]" },
       { name: "doctor", summary: "Check Cua Driver readiness", usage: "bb computer doctor --host <id>" },
       { name: "observe", summary: "Read the target table", usage: "bb computer observe --host <id> [--app <name>]" },
+      { name: "act", summary: "Perform one operation", usage: "bb computer act --host <id> --action <json>" },
       { name: "screenshot", summary: "Capture a screenshot into thread storage", usage: "bb computer screenshot --host <id> --thread <id>" },
+      { name: "record", summary: "Start or stop a recording", usage: "bb computer record --host <id> --thread <id> --action start|stop --run <id>" },
       { name: "start", summary: "Start a goal-driven run", usage: "bb computer start --host <id> --goal <text>" },
       { name: "status", summary: "Read a run's status", usage: "bb computer status --run <id>" },
       { name: "cancel", summary: "Cancel a run", usage: "bb computer cancel --run <id>" },
@@ -370,9 +374,23 @@ export default async function computerPlugin(bb: BbPluginApi) {
           case "observe":
             if (hostId === undefined) return { exitCode: 1, stderr: "computer observe requires --host <id>" };
             return reply(await observe(hostId, flag(args, "app"), signal));
+          case "act": {
+            if (hostId === undefined) return { exitCode: 1, stderr: "computer act requires --host <id>" };
+            const raw = flag(args, "action");
+            if (raw === undefined) return { exitCode: 1, stderr: "computer act requires --action <json>" };
+            const action = rpcContract.act.input.shape.action.parse(JSON.parse(raw));
+            return reply(await act(hostId, action, signal));
+          }
           case "screenshot":
             if (hostId === undefined || threadId === undefined) return { exitCode: 1, stderr: "computer screenshot requires --host <id> and a thread (--thread <id> outside a thread)" };
             return reply(await screenshot(hostId, threadId, flag(args, "app"), signal));
+          case "record": {
+            if (hostId === undefined || threadId === undefined) return { exitCode: 1, stderr: "computer record requires --host <id> and a thread (--thread <id> outside a thread)" };
+            const recordAction = flag(args, "action") === "stop" ? "stop" : "start";
+            const runId = flag(args, "run");
+            if (runId === undefined) return { exitCode: 1, stderr: "computer record requires --run <id>" };
+            return reply(await record(hostId, threadId, recordAction, runId, signal));
+          }
           case "start": {
             if (hostId === undefined) return { exitCode: 1, stderr: "computer start requires --host <id>" };
             const goal = flag(args, "goal");
