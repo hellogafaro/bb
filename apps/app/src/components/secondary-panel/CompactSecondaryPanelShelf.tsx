@@ -191,7 +191,7 @@ export function CompactSecondaryPanelShelf({
         <span id={labelId} className="sr-only">
           {srLabel}
         </span>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden [&_[data-icon-root]:not(.size-3)]:scale-[0.875]">
           {children}
         </div>
       </div>
