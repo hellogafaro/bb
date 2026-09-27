@@ -626,19 +626,6 @@
         "plugin-slot: plugins/connect/app.tsx: settingsSection"
       ]
     },
-    "plugin:custom-instructions": {
-      "recipes": [
-        "features/plugin-custom-instructions.md"
-      ],
-      "sourceFiles": 4,
-      "sourceDigest": "214bd50b473b65f672a4e26f112a09ace33d0d61816cf31fc117f2fe7cc304ed",
-      "declarations": [
-        "cli-name-candidate: plugins/custom-instructions/server.ts: clear",
-        "cli-name-candidate: plugins/custom-instructions/server.ts: get",
-        "cli-name-candidate: plugins/custom-instructions/server.ts: instructions",
-        "cli-name-candidate: plugins/custom-instructions/server.ts: set"
-      ]
-    },
     "plugin:docs": {
       "recipes": [
         "features/plugin-docs.md"

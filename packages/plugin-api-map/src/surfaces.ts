@@ -608,7 +608,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginSettingsState",
         ],
         firstParty: [
-          "Custom instructions",
           "GitHub",
           "Provider retry",
           "Workflows",
@@ -719,7 +718,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         ],
         firstParty: [
           "Automations",
-          "Custom instructions",
           "Docs",
           "GitHub",
           "Keep Awake",
@@ -751,7 +749,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         ],
         firstParty: [
           "Ask User Question",
-          "Custom instructions",
           "Memory",
           "Remote access",
           "Workflows",
@@ -811,7 +808,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         ],
         firstParty: [
           "Automations",
-          "Custom instructions",
           "Docs",
           "GitHub",
           "Inline visualizations",
@@ -1079,7 +1075,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         apiSymbols: ["PluginStorage"],
         firstParty: [
           "Automations",
-          "Custom instructions",
           "Docs",
           "GitHub",
           "Keep Awake",
@@ -1245,7 +1240,6 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         firstParty: [
           "Ask User Question",
           "Automations",
-          "Custom instructions",
           "Docs",
           "GitHub",
           "Inline visualizations",

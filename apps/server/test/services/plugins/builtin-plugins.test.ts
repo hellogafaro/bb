@@ -291,7 +291,6 @@ describe("builtin plugin reconciliation", () => {
       ["automations", "Repeat"],
       ["concurrency-limit", "Limitation"],
       ["connect", "Smartphone"],
-      ["custom-instructions", "EditFile"],
       ["plugin-api-tester", "Beaker"],
       ["inline-vis", "AppWindow"],
       ["keep-awake", "Coffee"],

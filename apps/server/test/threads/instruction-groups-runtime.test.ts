@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { setPluginAgentContributions } from "../../src/services/plugins/plugin-agent-contributions.js";
 import { resolveThreadRuntimeCommandConfig } from "../../src/services/threads/thread-runtime-config.js";
 import { UNATTENDED_RUN_INSTRUCTIONS } from "../../src/services/threads/instruction-sections.js";
-import { FORK_NATIVE_WORKSPACE_INSTRUCTIONS } from "../../src/fork-config.js";
+import { renderTemplate } from "@bb/templates";
 import {
   seedEnvironment,
   seedHostSession,
@@ -60,8 +60,7 @@ function resolve(
 }
 
 describe("instruction groups in thread runtime config", () => {
-  it("skips the workspace .bb/AGENTS.md under the native-instructions flag", async () => {
-    expect(FORK_NATIVE_WORKSPACE_INSTRUCTIONS).toBe(true);
+  it("leaves the workspace .bb/AGENTS.md to the provider", async () => {
     await withTestHarness(async (harness) => {
       const hostId = "host-fork-native-agents";
       seedHostSession(harness.deps, { id: hostId });
@@ -90,6 +89,7 @@ describe("instruction groups in thread runtime config", () => {
       expect(config.instructionGroups.map((group) => group.tag)).toEqual([
         "bb_tools",
         "bb_rules",
+        "bb_operating_model",
       ]);
     });
   });
@@ -107,7 +107,11 @@ describe("instruction groups in thread runtime config", () => {
       expect(rootConfig.instructions).not.toContain("<bb_run");
       expect(rootConfig.instructionGroups.map((group) => group.tag)).toEqual([
         "bb_tools",
+        "bb_operating_model",
       ]);
+      expect(rootConfig.instructions).toContain(
+        `<bb_operating_model>\n${renderTemplate("operatingModel", {})}\n</bb_operating_model>`,
+      );
 
       const child = await seedRuntimeThread(harness, {
         hostId,
@@ -117,6 +121,7 @@ describe("instruction groups in thread runtime config", () => {
       const childConfig = await resolve(harness, child);
       expect(childConfig.instructionGroups.map((group) => group.tag)).toEqual([
         "bb_tools",
+        "bb_operating_model",
         "bb_run",
       ]);
       expect(childConfig.instructions.endsWith(
@@ -129,7 +134,11 @@ describe("instruction groups in thread runtime config", () => {
         originPluginId: "automations",
       });
       const automationConfig = await resolve(harness, automation);
-      expect(automationConfig.instructions).toContain('<bb_run mode="unattended">');
+      expect(automationConfig.instructionGroups.map((group) => group.tag)).toEqual([
+        "bb_tools",
+        "bb_operating_model",
+        "bb_run",
+      ]);
     });
   });
 
@@ -170,6 +179,7 @@ describe("instruction groups in thread runtime config", () => {
         expect(config.instructionGroups.map((group) => group.tag)).toEqual([
           "bb_tools",
           "bb_plugin",
+          "bb_operating_model",
         ]);
         expect(config.instructions).toContain(
           '<tool plugin="tooldemo" name="demo_lookup">\nCall demo_lookup before guessing.\n</tool>\n</bb_tools>',

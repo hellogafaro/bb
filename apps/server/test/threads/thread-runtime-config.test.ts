@@ -1349,47 +1349,6 @@ describe("thread runtime config", () => {
     });
   });
 
-  it("treats a missing remote workspace .bb/AGENTS.md as null", async () => {
-    await withTestHarness(async (harness) => {
-      const { host: primary } = seedHostSession(harness.deps, {
-        id: "host-runtime-missing-agents-primary",
-      });
-      const { host, session } = seedHostSession(harness.deps, {
-        id: "host-runtime-missing-agents-remote",
-      });
-      seedPrimaryHost(harness.deps, primary.id);
-      setExperiments(harness.db, {
-        ...defaultExperiments,
-      });
-      const workspacePath = "/remote/runtime-missing-agents-workspace";
-      registerRemoteRuntimeFileResponder(harness, {
-        hostId: host.id,
-        sessionId: session.id,
-        files: new Map(),
-      });
-      const { project } = seedProjectWithSource(harness.deps, {
-        hostId: host.id,
-        path: workspacePath,
-      });
-      const environment = seedEnvironment(harness.deps, {
-        hostId: host.id,
-        projectId: project.id,
-        path: workspacePath,
-      });
-      const thread = seedThread(harness.deps, {
-        environmentId: environment.id,
-        projectId: project.id,
-      });
-
-      const runtimeConfig = await resolveThreadRuntimeCommandConfig(
-        harness.deps,
-        { thread, environment, model: "test-model" },
-      );
-
-      expect(runtimeConfig.instructions).not.toContain(".bb/AGENTS.md");
-    });
-  });
-
   it("enumerates project skills through a non-primary host", async () => {
     await withTestHarness(async (harness) => {
       const { host: primary } = seedHostSession(harness.deps, {

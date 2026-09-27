@@ -39,12 +39,11 @@
 - Add `AGENTS.md` to the bb data dir (usually `~/.bb/AGENTS.md`) to inject
   user-level default instructions for every provider-backed thread across all
   projects.
-- Add `.bb/AGENTS.md` at a workspace root to inject repo-specific instructions
-  into every thread that runs there. Track the workspace file with git so fresh
-  managed worktrees include it.
-- bb appends data-dir instructions first, then workspace instructions, to the
-  thread system prompt for all providers when a provider session starts.
-- Only the plural `AGENTS.md` is read, only from those exact locations (no
+- bb appends data-dir instructions to the thread system prompt for all
+  providers when a provider session starts.
+- bb does not inject workspace instructions; providers read a repo-root
+  `AGENTS.md` (or `CLAUDE.md`) natively.
+- Only the plural `AGENTS.md` is read, only from the data dir (no
   parent-directory walk); an empty file is ignored. Run
   `bb guide agent-configuration` for details (it also covers project
   `.bb/skills/`).

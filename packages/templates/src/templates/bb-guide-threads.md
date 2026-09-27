@@ -498,11 +498,13 @@ continue to expose their available totals.
 `bb thread context [id] --instructions` prints the BB instruction text the
 thread's next turn appends to the provider's system prompt, exactly as sent,
 then a table of its XML groups (`bb_tools`, `connected_mcps`, `bb_plugin`,
-`bb_rules`, `bb_agent`, `bb_run`) with characters and estimated tokens
+`bb_rules`, `bb_operating_model`, `bb_agent`, `bb_run`) with characters and
+estimated tokens
 (chars/4), the injected skill roots with file counts and bytes, the dynamic
 tool names, the contributed environment variable names (never values), and the
 recorded usage breakdown when one exists. `--json` returns the same fields plus
-`usage`. The workspace AGENTS.md is not part of this text: Claude Code and
+`usage`. Every thread gets the `bb_operating_model` group, bb's core operating
+rules, which the `bb_agent` group refines. The workspace AGENTS.md is not part of this text: Claude Code and
 Codex read it natively from the working directory. The `bb_run` block marks an
 unattended thread and is keyed on the thread, not the turn: a thread with a
 parent thread or a plugin origin (automations, workflows, agent-spawned

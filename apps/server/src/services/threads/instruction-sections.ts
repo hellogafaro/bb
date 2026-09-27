@@ -36,6 +36,7 @@ export interface BuildInstructionGroupsArgs {
   pluginInstructions: readonly InstructionPluginContribution[];
   dynamicInstructions: readonly InstructionPluginContribution[];
   rules: readonly InstructionRulesSource[];
+  operatingModel: string;
   agent: InstructionAgentSection | null;
   runMode: ThreadRunMode;
 }
@@ -112,6 +113,10 @@ function rulesGroups(
     );
 }
 
+function operatingModelGroup(text: string): InstructionGroup | null {
+  return text.trim().length === 0 ? null : group("bb_operating_model", "", text);
+}
+
 function agentGroup(agent: InstructionAgentSection | null): InstructionGroup | null {
   if (agent === null) return null;
   const instructions = agent.instructions.trim();
@@ -140,6 +145,7 @@ export function buildInstructionGroups(
     ...pluginGroups(args.pluginInstructions),
     ...pluginGroups(args.dynamicInstructions),
     ...rulesGroups(args.rules),
+    operatingModelGroup(args.operatingModel),
     agentGroup(args.agent),
     runGroup(args.runMode),
   ].filter((entry): entry is InstructionGroup => entry !== null);

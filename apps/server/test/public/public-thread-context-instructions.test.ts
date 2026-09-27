@@ -76,6 +76,7 @@ describe("thread context instructions API", () => {
       expect(body.groups.map((group: { tag: string }) => group.tag)).toEqual([
         "bb_tools",
         "bb_rules",
+        "bb_operating_model",
       ]);
       expect(
         body.groups.reduce(

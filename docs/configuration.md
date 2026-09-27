@@ -639,34 +639,23 @@ OpenCode agents; set the default agent in the OpenCode config instead.
 
 ## Agent Instructions
 
-bb can inject user-level and workspace-level agent instructions into every
-provider-backed thread's system prompt, alongside the skills convention.
-
-For user-level defaults across projects, create `AGENTS.md` in the bb data dir:
+bb can inject user-level agent instructions into every provider-backed
+thread's system prompt, alongside the skills convention. For user-level
+defaults across projects, create `AGENTS.md` in the bb data dir:
 
 ```
 <dataDir>/AGENTS.md
 ```
 
-For repo-specific guidance, create `.bb/AGENTS.md` at the workspace root:
-
-```
-<workspace>/.bb/AGENTS.md
-```
-
 The file contents are appended alongside enabled plugin instructions when a
 provider session starts, so the guidance applies regardless of which provider
-runs. When both files exist, `<dataDir>/AGENTS.md` is appended first and
-`<workspace>/.bb/AGENTS.md` second. An empty or whitespace-only file is treated
-as absent.
+runs. An empty or whitespace-only file is treated as absent.
 
-No agent loads `.bb/AGENTS.md` natively. Provider-native instruction files
-remain separate. Codex reads a repo-root `AGENTS.md`. Claude Code 2.1.277 and
-later also reads `AGENTS.md` when no project or ancestor `CLAUDE.md` or
-`CLAUDE.local.md` takes precedence. Older Claude Code versions and sessions
-without its built-in `AGENTS.md` support still require `CLAUDE.md`. bb reads
-the files above itself and injects them, so use them for guidance you want every
-bb thread to receive regardless of provider.
+bb does not inject workspace instruction files. Providers read them natively:
+Codex reads a repo-root `AGENTS.md`. Claude Code 2.1.277 and later also reads
+`AGENTS.md` when no project or ancestor `CLAUDE.md` or `CLAUDE.local.md` takes
+precedence. Older Claude Code versions and sessions without its built-in
+`AGENTS.md` support still require `CLAUDE.md`.
 
 ## Skills
 
@@ -1388,8 +1377,8 @@ plugins use `builtin:<name>` and ship with bb unless removed. Managed
 refuse plugins whose optional `engines.bb` or `engines.bbPluginSdk` ranges
 do not match the running bb/SDK, or whose `dist/*.meta.json` plugin identity
 does not match the package manifest; installing a non-builtin source whose
-derived id collides with a builtin name (automations, connect,
-custom-instructions, inline-vis, secrets, workflows) is also refused.
+derived id collides with a builtin name (automations, connect, inline-vis,
+secrets, workflows) is also refused.
 
 `engines.bbPluginSdk` is a floor, not a ceiling. bb reads the lowest version
 the range allows and runs the plugin on any SDK at or above it within the same

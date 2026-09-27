@@ -73,11 +73,6 @@ export const BUILTIN_PLUGINS = [
     defaultEnabled: true,
   },
   {
-    name: "custom-instructions",
-    pluginId: "custom-instructions",
-    defaultEnabled: true,
-  },
-  {
     name: "plugin-api-tester",
     pluginId: "plugin-api-tester",
     defaultEnabled: false,

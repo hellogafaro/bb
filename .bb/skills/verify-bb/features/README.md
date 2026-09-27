@@ -59,7 +59,6 @@ were excluded. See the [audit](../MAINTENANCE.md) and
 | [Scheduled agent and script automations](plugin-automations.md) | 8 | 8 passed |
 | [Agent concurrency limits](plugin-concurrency-limit.md) | 5 | 4 passed, 1 partial/blocked |
 | [Remote Connect and port sharing](plugin-connect.md) | 7 | 5 passed, 2 partial/blocked |
-| [Custom agent instructions](plugin-custom-instructions.md) | 3 | 2 passed, 1 partial/blocked |
 | [Docs vaults and editing](plugin-docs.md) | 9 | 7 passed, 2 partial/blocked |
 | [GitHub issues and pull requests](plugin-github.md) | 8 | 2 passed, 6 partial/blocked |
 | [Inline HTML visualizations](plugin-inline-vis.md) | 5 | 5 passed |

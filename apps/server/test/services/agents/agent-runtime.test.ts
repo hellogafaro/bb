@@ -290,7 +290,7 @@ describe("thread runtime config from an agent", () => {
       expect(
         getThreadPluginMetadata(harness.db, thread.id, "mcp").metadata,
       ).toEqual({});
-      expect(config.instructions).not.toContain("BB agent");
+      expect(config.instructions).not.toContain("<bb_agent");
     });
   });
 });

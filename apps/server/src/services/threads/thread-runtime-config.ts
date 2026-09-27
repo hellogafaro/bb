@@ -20,6 +20,7 @@ import type {
   HostDaemonContributedEnvEntry,
   HostDaemonInjectedSkillSource,
 } from "@bb/host-daemon-contract";
+import { renderTemplate } from "@bb/templates";
 import { ApiError } from "../../errors.js";
 import type { LoggedWorkSessionDeps } from "../../types.js";
 import { throwEnvironmentNotReady } from "../lib/lifecycle-api-errors.js";
@@ -41,16 +42,13 @@ import { currentMcpService } from "../mcp/mcp-service-registry.js";
 import { MCP_TOOLS_GUIDANCE, threadServerSelection } from "../mcp/context.js";
 import {
   DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH,
-  WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
   readDataDirAgentInstructions,
-  readWorkspaceAgentInstructions,
 } from "./workspace-agent-instructions.js";
 import { resolveDeprecatedWorkspaceProvisionType } from "../environments/environment-response.js";
 import {
   agentHomeEnvEntry,
   syncThreadAgentMcpScope,
 } from "../agents/agent-runtime.js";
-import { FORK_NATIVE_WORKSPACE_INSTRUCTIONS } from "../../fork-config.js";
 import {
   buildInstructionGroups,
   joinInstructionGroups,
@@ -167,23 +165,16 @@ export async function resolveThreadRuntimeCommandConfig(
     throw new ApiError(404, "host_not_found", "Host not found");
   }
 
-  const [projectSkillSources, sharedSkills, workspaceAgentInstructions] =
-    await Promise.all([
-      resolveWorkspaceProjectSkills(deps, {
-        hostId: args.environment.hostId,
-        workspacePath,
-      }),
-      resolveSharedSkills(deps, {
-        hostId: args.environment.hostId,
-        cwd: workspacePath,
-      }),
-      FORK_NATIVE_WORKSPACE_INSTRUCTIONS
-        ? null
-        : readWorkspaceAgentInstructions(deps, {
-            hostId: args.environment.hostId,
-            workspacePath,
-          }),
-    ]);
+  const [projectSkillSources, sharedSkills] = await Promise.all([
+    resolveWorkspaceProjectSkills(deps, {
+      hostId: args.environment.hostId,
+      workspacePath,
+    }),
+    resolveSharedSkills(deps, {
+      hostId: args.environment.hostId,
+      cwd: workspacePath,
+    }),
+  ]);
   const pluginSkillRoots = getPluginSkillRootContributions();
   const skillIdsByPlugin = discoverPluginSkillIds(deps.logger, {
     pluginSkillRoots,
@@ -315,12 +306,6 @@ export async function resolveThreadRuntimeCommandConfig(
       text: dataDirAgentInstructions,
     });
   }
-  if (workspaceAgentInstructions) {
-    rules.push({
-      source: WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
-      text: workspaceAgentInstructions,
-    });
-  }
   const instructionGroups = buildInstructionGroups({
     tools: dynamicToolContributions.map((contribution) => ({
       pluginId: contribution.pluginId,
@@ -332,6 +317,7 @@ export async function resolveThreadRuntimeCommandConfig(
     pluginInstructions,
     dynamicInstructions: conditionalConfiguration.dynamicInstructions,
     rules,
+    operatingModel: renderTemplate("operatingModel", {}),
     agent:
       agent === null
         ? null

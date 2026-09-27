@@ -463,15 +463,6 @@ has been exercised or that every behavior has been understood.
 - `cli-name-candidate: plugins/connect/src/cli.ts: unexpose`
 - `plugin-slot: plugins/connect/app.tsx: settingsSection`
 
-## plugin:custom-instructions
-
-4 source files. Recipes: [plugin-custom-instructions](features/plugin-custom-instructions.md).
-
-- `cli-name-candidate: plugins/custom-instructions/server.ts: clear`
-- `cli-name-candidate: plugins/custom-instructions/server.ts: get`
-- `cli-name-candidate: plugins/custom-instructions/server.ts: instructions`
-- `cli-name-candidate: plugins/custom-instructions/server.ts: set`
-
 ## plugin:docs
 
 6 source files. Recipes: [plugin-docs](features/plugin-docs.md).

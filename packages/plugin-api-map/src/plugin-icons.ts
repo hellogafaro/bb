@@ -17,7 +17,6 @@ import askUserQuestionManifest from "../../../plugins/ask-user-question/package.
 import automationsManifest from "../../../plugins/automations/package.json";
 import browserAutomationManifest from "../../../plugins/browser-automation/package.json";
 import concurrencyLimitManifest from "../../../plugins/concurrency-limit/package.json";
-import customInstructionsManifest from "../../../plugins/custom-instructions/package.json";
 import docsManifest from "../../../plugins/docs/package.json";
 import draftsManifest from "../../../plugins/drafts/package.json";
 import githubManifest from "../../../plugins/github/package.json";
@@ -48,7 +47,6 @@ const FIRST_PARTY_PLUGINS = [
   automationsManifest,
   browserAutomationManifest,
   concurrencyLimitManifest,
-  customInstructionsManifest,
   docsManifest,
   draftsManifest,
   githubManifest,

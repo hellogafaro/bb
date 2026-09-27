@@ -16,6 +16,7 @@ const empty: BuildInstructionGroupsArgs = {
   pluginInstructions: [],
   dynamicInstructions: [],
   rules: [],
+  operatingModel: "",
   agent: null,
   runMode: "attended",
 };
@@ -135,7 +136,24 @@ describe("buildInstructionGroups", () => {
     );
   });
 
-  it("orders groups tools, mcps, plugins, dynamic, rules, agent, run and joins with blank lines", () => {
+  it("wraps the operating model without attributes and skips it when blank", () => {
+    expect(
+      buildInstructionGroups({
+        ...empty,
+        operatingModel: "<safety>\nAsk first.\n</safety>\n",
+      }),
+    ).toEqual([
+      {
+        tag: "bb_operating_model",
+        text: "<bb_operating_model>\n<safety>\nAsk first.\n</safety>\n</bb_operating_model>",
+      },
+    ]);
+    expect(buildInstructionGroups({ ...empty, operatingModel: " \n" })).toEqual(
+      [],
+    );
+  });
+
+  it("orders groups tools, mcps, plugins, dynamic, rules, operating model, agent, run and joins with blank lines", () => {
     const groups = buildInstructionGroups({
       tools: [{ pluginId: null, toolName: "t", instructions: "tool" }],
       toolGuidance: [],
@@ -143,6 +161,7 @@ describe("buildInstructionGroups", () => {
       pluginInstructions: [{ pluginId: "p", text: "plugin" }],
       dynamicInstructions: [{ pluginId: "d", text: "dynamic" }],
       rules: [{ source: "r", text: "rules" }],
+      operatingModel: "model",
       agent: { name: "a", instructions: "agent", homePath: null },
       runMode: "unattended",
     });
@@ -152,6 +171,7 @@ describe("buildInstructionGroups", () => {
       "bb_plugin",
       "bb_plugin",
       "bb_rules",
+      "bb_operating_model",
       "bb_agent",
       "bb_run",
     ]);

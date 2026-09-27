@@ -85,7 +85,7 @@ Making your repo work with bb:
   dependencies in .bb-env-setup.sh instead of listing them here.
 
   For files that customize agent instructions and skills (AGENTS.md,
-  .bb/AGENTS.md, .bb/skills/), run `bb guide agent-configuration`.
+  .bb/skills/), run `bb guide agent-configuration`.
 
   bb environment providers                List registered environment providers in picker order:
                                           Project checkout, Worktree, then other installed providers

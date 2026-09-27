@@ -1754,7 +1754,7 @@ describe("@bb/sdk", () => {
 
     await expect(
       sdk.plugins.callRpc({
-        pluginId: "custom-instructions",
+        pluginId: "notes",
         method: "getInstructions",
         input: null,
         outputSchema: z.object({ instructions: z.string() }),
@@ -1763,7 +1763,7 @@ describe("@bb/sdk", () => {
     expect(queue.requests[0]).toEqual({
       bodyText: "null",
       method: "POST",
-      url: "http://bb.test/api/v1/plugins/custom-instructions/rpc/getInstructions",
+      url: "http://bb.test/api/v1/plugins/notes/rpc/getInstructions",
     });
   });
 

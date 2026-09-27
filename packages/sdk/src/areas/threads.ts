@@ -641,7 +641,7 @@ export interface ThreadsArea {
    * the provider's system prompt, with per-group sizes, injected skill roots,
    * dynamic tool names, and contributed environment variable names (never
    * values). Groups are XML: bb_tools, connected_mcps, bb_plugin, bb_rules,
-   * bb_agent, and bb_run. The bb_run block marks unattended threads and is
+   * bb_operating_model, bb_agent, and bb_run. The bb_run block marks unattended threads and is
    * keyed on the thread, not the turn: a thread with a parent thread or a
    * plugin origin (automations, workflows, agent-spawned children) is
    * unattended; a root chat thread never gets it, even on retries or

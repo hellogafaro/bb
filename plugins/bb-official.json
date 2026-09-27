@@ -22,10 +22,6 @@
     "category": "cloud-and-remote",
     "screenshots": []
   },
-  "custom-instructions": {
-    "category": "memory-and-context",
-    "screenshots": []
-  },
   "plugin-api-tester": {
     "category": "plugin-development",
     "screenshots": []
