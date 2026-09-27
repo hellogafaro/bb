@@ -23,7 +23,6 @@ import {
 } from "../queries/query-keys";
 import {
   useGenerateThreadTitle,
-  useMoveThreadToSection,
   useUnpinAndMoveThread,
   useUpdateThread,
 } from "./thread-state-mutations";
@@ -166,38 +165,6 @@ describe("thread state mutations", () => {
       await result.current.generateTitle("thread-1");
     });
     expect(sdk.threads.generateTitle).toHaveBeenCalledTimes(2);
-  });
-
-  it.each([
-    ["leaves the current section unchanged", null, "sec_work", 0, 0],
-    ["moves an unpinned thread to Threads", null, null, 0, 1],
-    ["unpins into the stored section", 10, "sec_work", 1, 0],
-    ["unpins and moves to another section", 10, "sec_personal", 1, 1],
-  ] as const)("%s", async (_name, pinnedAt, sectionId, unpins, updates) => {
-    const { queryClient, wrapper } = createQueryClientTestHarness();
-    const thread = makeThreadListEntry({ pinnedAt, sectionId: "sec_work" });
-    vi.mocked(sdk.threads.unpin).mockResolvedValue(
-      makeThreadResponse({ pinnedAt: null, sectionId: "sec_work" }),
-    );
-    vi.mocked(sdk.threads.update).mockResolvedValue(
-      makeThreadResponse({ pinnedAt: null, sectionId }),
-    );
-    const { result } = renderHook(() => useMoveThreadToSection(), { wrapper });
-
-    act(() => result.current({ thread, sectionId }));
-
-    await waitFor(() => expect(queryClient.isMutating()).toBe(0));
-    expect(sdk.threads.unpin).toHaveBeenCalledTimes(unpins);
-    expect(sdk.threads.update).toHaveBeenCalledTimes(updates);
-    if (unpins) {
-      expect(sdk.threads.unpin).toHaveBeenCalledWith({ threadId: thread.id });
-    }
-    if (updates) {
-      expect(sdk.threads.update).toHaveBeenCalledWith({
-        threadId: thread.id,
-        sectionId,
-      });
-    }
   });
 
   it("optimistically renames a thread while the update request is pending", async () => {

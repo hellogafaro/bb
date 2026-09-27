@@ -4,7 +4,6 @@ import { cn } from "@bb/shared-ui/lib/utils";
 
 export type ThreadListPlaceholderState =
   | { kind: "loading" }
-  | { kind: "missing" }
   | { kind: "crashed"; pluginTitle: string; onReload: () => void };
 
 function LoadingRow({ textWidthClassName }: { textWidthClassName: string }) {
@@ -53,17 +52,6 @@ export function ThreadListPlaceholder({
       >
         <LoadingSection rowWidths={["w-3/4", "w-1/2"]} />
         <LoadingSection rowWidths={["w-3/4", "w-1/2", "w-2/3", "w-3/4"]} />
-      </div>
-    );
-  }
-  if (state.kind === "missing") {
-    return (
-      <div
-        role="status"
-        data-thread-list-placeholder="missing"
-        className="flex flex-col gap-2 px-3 py-2 text-sm text-muted-foreground"
-      >
-        <span>No thread list plugin is enabled.</span>
       </div>
     );
   }

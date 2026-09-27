@@ -12,15 +12,6 @@ describe("ThreadListPlaceholder", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("shows a status without actions when no list plugin is enabled", () => {
-    render(<ThreadListPlaceholder state={{ kind: "missing" }} />);
-    expect(screen.getByRole("status").textContent).toContain(
-      "No thread list plugin is enabled",
-    );
-    expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.queryByRole("button")).toBeNull();
-  });
-
   it("names the crashed plugin and offers a reload", () => {
     const onReload = vi.fn();
     render(

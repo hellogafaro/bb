@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Thread } from "@bb/domain";
 import type {
   ReorderPinnedThreadRequest,
   ThreadArchiveAllResponse,
@@ -52,11 +51,6 @@ type ReorderPinnedThreadMutationRequest = ThreadMutationRequest &
 type UnpinAndMoveThreadMutationRequest = ThreadMutationRequest & {
   sectionId: string | null;
 };
-
-interface MoveThreadToSectionRequest {
-  sectionId: string | null;
-  thread: Pick<Thread, "id" | "pinnedAt" | "sectionId">;
-}
 
 interface UpdateThreadMutationOptions {
   errorMessage?: string | undefined;
@@ -307,27 +301,6 @@ export function useUnpinAndMoveThread() {
       });
     },
   });
-}
-
-export function useMoveThreadToSection() {
-  const { mutate: updateThread } = useUpdateThread();
-  const { mutate: unpinThread } = useUnpinThread();
-  const { mutate: unpinAndMoveThread } = useUnpinAndMoveThread();
-
-  return useCallback(
-    ({ thread, sectionId }: MoveThreadToSectionRequest) => {
-      if (thread.pinnedAt !== null) {
-        if (thread.sectionId === sectionId) {
-          unpinThread({ id: thread.id });
-        } else {
-          unpinAndMoveThread({ id: thread.id, sectionId });
-        }
-      } else if (thread.sectionId !== sectionId) {
-        updateThread({ id: thread.id, sectionId });
-      }
-    },
-    [unpinAndMoveThread, unpinThread, updateThread],
-  );
 }
 
 export function useReorderPinnedThread() {
