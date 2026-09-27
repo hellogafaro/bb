@@ -83,7 +83,9 @@ bb workflows run --file .bb/workflows/review-change.js --args '{"items":[]}'
 ```
 
 The agent tool accepts script, scriptPath, or name. The CLI accepts --script,
---file, or --name.
+--file, or --name. A name resolves to .bb/workflows/<name>.js in the workspace
+first, then to the shared workflows/<name>.js in the BB data dir, so one shared
+copy serves every project and a project copy overrides it.
 
 After a successful agent-tool call, copy its previewDirective into the
 assistant response as one standalone line. Do not edit or repeat it.

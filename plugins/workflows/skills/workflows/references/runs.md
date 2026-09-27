@@ -8,7 +8,8 @@
 - `scriptPath`: a relative path or an absolute path confined to the workflow
   origin environment's workspace.
 - `name`: a lowercase kebab-case name resolved as
-  `.bb/workflows/<name>.js` in the current project workspace.
+  `.bb/workflows/<name>.js` in the current project workspace, else
+  `<data-dir>/workflows/<name>.js`.
 
 The existing `source` field remains a supported alias for inline `script`, but
 do not provide both. File and name resolution happens through the origin
@@ -16,6 +17,16 @@ environment's `hostId` and workspace root. Traversal, outside absolute/UNC
 paths, missing workspace roots, non-UTF-8 files, and sources over 512 KiB are
 rejected. QuickJS receives source text only; it never gets filesystem access.
 Plugin-bundled workflow discovery is not supported.
+
+Named workflows resolve in order: the origin workspace's
+`.bb/workflows/<name>.js` first, then the shared `workflows/<name>.js` in the
+BB server data dir (`~/.bb/workflows` on a default install). A project copy
+always wins. The shared file is read through the same host-side read, confined
+to the shared folder, so it must exist on the origin environment's host. Only a
+missing file falls through; any other read error stops resolution. Nested
+`workflow(name)` calls follow the same order. `validate` reports the chosen
+file as `origin.location` (`workspace` or `shared`), and `list` and `history`
+record it as `sourceOrigin`.
 
 `bb_workflow_run` also accepts optional JSON `args` and optional `resumeRunId`.
 It returns a durable run ID immediately. Use the compact `bb workflows status`

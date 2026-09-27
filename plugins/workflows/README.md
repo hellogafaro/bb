@@ -71,8 +71,9 @@ phase.
 Workflow input follows the native Claude source modes: provide exactly one of
 an inline `script`, a workspace `scriptPath`, or a workflow `name`. The older
 `source` field remains an explicit alias for inline `script`; `script` and
-`source` cannot be supplied together. Name lookup is project-local at
-`.bb/workflows/<name>.js`. There is no plugin-bundled workflow discovery.
+`source` cannot be supplied together. Name lookup tries
+`.bb/workflows/<name>.js` in the workspace, then `<data-dir>/workflows/<name>.js`.
+There is no plugin-bundled workflow discovery.
 
 File and name sources are resolved on the workflow origin environment's host,
 not on the bb server machine. BB reads them through the environment `hostId`
@@ -115,8 +116,8 @@ still reports its turns and blockers to it. Workflows does not create a
 temporary Workflow folder.
 
 Workflows may invoke one child workflow level with
-`workflow(nameOrRef, args)`. A string and `{ name }` resolve under
-`.bb/workflows`, `{ scriptPath }` uses the same origin-workspace confinement as
+`workflow(nameOrRef, args)`. A string and `{ name }` resolve like top-level
+names, `{ scriptPath }` uses the same origin-workspace confinement as
 top-level runs, and `{ script }` is inline source. Each child is parsed,
 schema-validated, and evaluated in a separate QuickJS VM. Parent and child VMs
 share one FIFO agent scheduler, call budget, cancellation signal, replay order,
