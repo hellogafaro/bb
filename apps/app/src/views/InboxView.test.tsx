@@ -192,6 +192,57 @@ describe("InboxView", () => {
     expect(screen.queryByTestId("wallpaper")).toBeNull();
   });
 
+  it("leaves child threads to their listed parent and keeps children whose parent is gone", () => {
+    const blockedChild = makeThreadListEntry({
+      id: "thr_blocked_child",
+      title: "Blocked child",
+      projectId: PERSONAL_PROJECT_ID,
+      parentThreadId: "thr_read",
+      lastReadAt: 100,
+      latestAttentionAt: 100,
+      updatedAt: 100,
+    });
+    const failedChild = makeThreadListEntry({
+      id: "thr_failed_child",
+      title: "Failed child",
+      projectId: PERSONAL_PROJECT_ID,
+      parentThreadId: "thr_alpha",
+      status: "error",
+      lastReadAt: null,
+      latestAttentionAt: 600,
+      updatedAt: 600,
+    });
+    const orphanChild = makeThreadListEntry({
+      id: "thr_orphan_child",
+      title: "Orphan child",
+      projectId: PERSONAL_PROJECT_ID,
+      parentThreadId: "thr_archived",
+      lastReadAt: null,
+      latestAttentionAt: 250,
+      updatedAt: 250,
+    });
+    navigationThreads = [
+      alpha,
+      beta,
+      readThread,
+      blockedChild,
+      failedChild,
+      orphanChild,
+    ];
+    mocks.interactions = [
+      {
+        id: "pi_child",
+        threadId: "thr_blocked_child",
+        status: "pending",
+      } as unknown as PendingInteraction,
+    ];
+    renderInbox();
+    const cards = document.querySelectorAll("[data-inbox-card]");
+    expect(
+      [...cards].map((card) => card.getAttribute("data-inbox-card")),
+    ).toEqual(["thr_alpha", "thr_orphan_child", "thr_beta"]);
+  });
+
   it("moves the selection with the arrow keys and marks the selected thread done with undo", () => {
     renderInbox();
     fireEvent.keyDown(window, { key: "ArrowDown" });

@@ -226,13 +226,18 @@ function InboxSections({
       }
     }
     return threads
-      .filter((thread) => needsAttention(thread, interactionByThread))
+      .filter(
+        (thread) =>
+          (thread.parentThreadId === null ||
+            !byId.has(thread.parentThreadId)) &&
+          needsAttention(thread, interactionByThread),
+      )
       .sort((left, right) => right.latestAttentionAt - left.latestAttentionAt)
       .map((thread) => ({
         thread,
         interaction: interactionByThread.get(thread.id) ?? null,
       }));
-  }, [threads, waiting]);
+  }, [byId, threads, waiting]);
   const itemThreadIds = useMemo(
     () => items.map((item) => item.thread.id),
     [items],
@@ -395,11 +400,6 @@ function InboxSections({
             <InboxCard
               key={item.thread.id}
               item={item}
-              parent={
-                item.thread.parentThreadId === null
-                  ? null
-                  : (byId.get(item.thread.parentThreadId) ?? null)
-              }
               agent={agentFor(item.thread)}
               project={projects.get(item.thread.projectId)}
               now={now}
@@ -424,7 +424,6 @@ function InboxSections({
 
 function InboxCard({
   item,
-  parent,
   agent,
   project,
   now,
@@ -435,7 +434,6 @@ function InboxCard({
   onMarkDone,
 }: {
   item: InboxItem;
-  parent: ThreadListEntry | null;
   agent: Agent | null;
   project: InboxProject | undefined;
   now: number;
@@ -486,22 +484,11 @@ function InboxCard({
           </Link>
           <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-subtle-foreground">
             {agent ? <span className="truncate">{agent.name}</span> : null}
-            {parent ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="truncate">
-                  in {getThreadDisplayTitle(parent)}
-                </span>
-              </>
-            ) : (
-              <>
-                <span aria-hidden="true">·</span>
-                <ProjectColorDot color={project?.color ?? null} />
-                <span className="truncate">
-                  {project?.name ?? thread.projectId}
-                </span>
-              </>
-            )}
+            <span aria-hidden="true">·</span>
+            <ProjectColorDot color={project?.color ?? null} />
+            <span className="truncate">
+              {project?.name ?? thread.projectId}
+            </span>
             <span aria-hidden="true">·</span>
             <span className="shrink-0">
               {age === "now" ? "now" : `${age} ago`}
