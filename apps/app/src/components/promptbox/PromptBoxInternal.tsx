@@ -141,7 +141,6 @@ import {
   modifierSubmitShortcutAria,
 } from "./modifier-submit-shortcut";
 
-
 const PROMPTBOX_MIN_HEIGHT = 24;
 const PROMPTBOX_SELECTION_REVEAL_MARGIN = 12;
 const COMPACT_PROMPT_ACTION_BUTTON_CLASS =
@@ -2158,6 +2157,8 @@ export function PromptBoxInternal({
   const trimmedValue = value.trim();
   const hasAttachments = attachments.length > 0;
   const hasSubmittableInput = trimmedValue.length > 0 || hasAttachments;
+  const collapsesEditorWhileRecording =
+    showVoiceActionGroup && compact !== undefined && !hasSubmittableInput;
 
   const activeTriggerKind = activeTrigger?.kind ?? null;
   const commandHasMore = typeahead.command.hasMore;
@@ -3196,6 +3197,7 @@ export function PromptBoxInternal({
             className={cn(
               "relative",
               showCompactLayout && "min-w-0 flex-1",
+              collapsesEditorWhileRecording && "hidden",
               showCompactVoiceAction && "pr-9",
             )}
           >
@@ -3301,7 +3303,11 @@ export function PromptBoxInternal({
               data-promptbox-action-row=""
               className={cn(
                 "relative flex shrink-0 select-none flex-row items-center gap-1 pb-2 pl-3.5 pr-2 pt-1.5",
+                !showCompactLayout &&
+                  !collapsesEditorWhileRecording &&
+                  "max-md:pointer-coarse:py-1",
                 showCompactLayout && "absolute inset-y-0 right-2 gap-0 p-0",
+                collapsesEditorWhileRecording && "h-12 py-0",
               )}
             >
               {voice && isVoiceActionPresent ? (
@@ -3311,7 +3317,7 @@ export function PromptBoxInternal({
                   inert={isVoiceActionVisible ? undefined : true}
                   aria-hidden={isVoiceActionVisible ? undefined : true}
                   className={cn(
-                    "absolute inset-0 z-10 min-w-0 origin-center transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[opacity,transform] motion-reduce:transition-none",
+                    "absolute inset-0 z-10 flex min-w-0 origin-center flex-col justify-center transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[opacity,transform] motion-reduce:transition-none",
                     isVoiceActionVisible
                       ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
                       : "pointer-events-none translate-y-1 scale-[0.985] opacity-0",

@@ -2434,6 +2434,36 @@ describe("PromptBoxInternal compact layout", () => {
     expect(compactContent).toBeTruthy();
   });
 
+  it.each([
+    { value: "", hidden: true },
+    { value: "Keep this draft", hidden: false },
+  ])(
+    "hides the compact editor while recording only when the draft is empty ($value)",
+    ({ value, hidden }) => {
+      render(
+        <PromptBoxInternal
+          {...createPromptBoxProps({
+            value,
+            compact: { isCompact: true, placeholder: "Ask a follow-up" },
+            voice: {
+              state: "recording",
+              isSupported: true,
+              stream: null,
+              start: vi.fn(),
+              stop: vi.fn(),
+              cancel: vi.fn(),
+            },
+          })}
+        />,
+      );
+
+      const inputRegion = document.querySelector(
+        "[data-promptbox-input-region]",
+      );
+      expect(inputRegion?.classList.contains("hidden")).toBe(hidden);
+    },
+  );
+
   it("uses voice as the primary action for an empty coarse-pointer prompt", () => {
     const restoreMatchMedia = mockPointerCoarse(true);
     try {
