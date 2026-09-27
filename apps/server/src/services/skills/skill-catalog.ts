@@ -1,4 +1,3 @@
-import { FORK_EXCLUDED_PLUGIN_SKILLS } from "../../fork-config.js";
 import type { LoggedWorkSessionDeps } from "../../types.js";
 import { getPluginSkillRootContributions } from "../plugins/plugin-agent-contributions.js";
 import {
@@ -7,6 +6,13 @@ import {
   type ResolvedSkillCatalogEntry,
   type SharedInjectedSkillSource,
 } from "./injected-skills.js";
+
+const EXCLUDED_PLUGIN_SKILLS: readonly string[] = [
+  "claude-code-provider",
+  "codex-provider",
+  "provider-retry",
+  "concurrency-limit",
+];
 
 interface ResolveSkillCatalogSourcesArgs {
   agentSkillsRootPath?: string;
@@ -45,7 +51,7 @@ export function resolveSkillCatalog(
   return entries.filter(
     ({ provenance, runtimeSource }) =>
       (provenance.kind !== "plugin" ||
-        !FORK_EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name)) &&
+        !EXCLUDED_PLUGIN_SKILLS.includes(runtimeSource.name)) &&
       (selected === null ||
         provenance.kind === "agent" ||
         selected.has(runtimeSource.name)),
