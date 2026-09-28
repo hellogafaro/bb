@@ -355,11 +355,8 @@ describe("ThreadPromptContextBanner", () => {
     );
 
     expect(markup).toContain('aria-label="Child threads"');
-    expect(markup).toContain(
-      "1 child thread · 1 active: Investigate failing checks",
-    );
-    expect(markup).not.toContain("Active:");
-    expect(markup).toContain("Investigate failing checks");
+    expect(markup).toContain("1 subagent running");
+    expect(markup).not.toContain("Investigate failing checks");
     expect(markup).not.toContain("animate-shine font-medium");
   });
 
@@ -405,10 +402,8 @@ describe("ThreadPromptContextBanner", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain(
-      "2 child threads · 2 active: Investigate failing checks",
-    );
-    expect(markup).toContain("+1 more");
+    expect(markup).toContain("2 subagents · 2 running");
+    expect(markup).not.toContain("+1 more");
   });
 
   it("lets combined child and context cards shrink inside the composer stack", () => {
@@ -482,11 +477,7 @@ describe("ThreadPromptContextBanner", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain(
-      "1 child thread · 1 active: Waiting for build host",
-    );
-    expect(markup).not.toContain("Active:");
-    expect(markup).not.toContain("Running");
+    expect(markup).toContain("1 subagent running");
   });
 
   it("labels a child blocked on approval instead of active work", () => {
@@ -519,11 +510,8 @@ describe("ThreadPromptContextBanner", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain(
-      "1 child thread · 1 needs input: Install workspace tools",
-    );
-    expect(markup).not.toContain("Needs input:");
-    expect(markup).toContain("Install workspace tools");
+    expect(markup).toContain("1 subagent needs input");
+    expect(markup).not.toContain("Install workspace tools");
     expect(markup).not.toContain("Active:");
   });
 
@@ -563,7 +551,7 @@ describe("ThreadPromptContextBanner", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain("2 child threads · 1 active: Run the test suite");
+    expect(markup).toContain("2 subagents · 1 running");
     expect(markup.indexOf("Run the test suite")).toBeLessThan(
       markup.indexOf("Write release notes"),
     );

@@ -28,7 +28,10 @@ import {
   PROMPT_STACK_INLAY_INSET_CLASS,
   PROMPT_STACK_INLAY_SEGMENT_CLASS,
 } from "@/components/promptbox/banner/PromptStackCard";
-import { activityRowClass } from "@bb/shared-ui/activity-row-styles";
+import {
+  activityIconClass,
+  activityRowClass,
+} from "@bb/shared-ui/activity-row-styles";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
 import {
@@ -657,12 +660,17 @@ function childThreadsLabel(args: {
   pendingCount: number;
   activeCount: number;
 }): string {
-  const base = `${args.count} child ${args.count === 1 ? "thread" : "threads"}`;
+  if (args.count === 1) {
+    if (args.pendingCount > 0) return "1 subagent needs input";
+    if (args.activeCount > 0) return "1 subagent running";
+    return "1 subagent";
+  }
+  const base = `${args.count} subagents`;
   if (args.pendingCount > 0) {
     return `${base} · ${args.pendingCount} ${args.pendingCount === 1 ? "needs" : "need"} input`;
   }
   if (args.activeCount > 0) {
-    return `${base} · ${args.activeCount} active`;
+    return `${base} · ${args.activeCount} running`;
   }
   return base;
 }
@@ -677,22 +685,19 @@ function ChildThreadsCard({
   onToggle: () => void;
 }) {
   const items = sortChildThreadItems(childThreadsSection.items);
-  const primary = items[0];
-  const primaryTitle = useThreadTitleDisplayText(primary?.title ?? "");
-  if (!primary) {
+  if (items.length === 0) {
     return null;
   }
   const pendingCount = items.filter(
     (item) => item.state === "needs-input",
   ).length;
   const activeCount = items.filter((item) => item.state === "active").length;
-  const otherCount = items.length - 1;
   const groupLabel = childThreadsLabel({
     count: items.length,
     pendingCount,
     activeCount,
   });
-  const headerState = primary.state;
+  const isActive = pendingCount === 0 && activeCount > 0;
   return (
     <PromptStackCard
       ariaLabel="Child threads"
@@ -705,10 +710,10 @@ function ChildThreadsCard({
           id={SECTION_IDS.childThreads.toggle}
           aria-expanded={isExpanded}
           aria-controls={SECTION_IDS.childThreads.body}
-          aria-label={`${groupLabel}: ${primaryTitle}`}
+          aria-label={groupLabel}
           onClick={onToggle}
           className={
-            headerState === "active"
+            isActive
               ? activityRowClass(
                   "active",
                   PROMPT_STACK_CARD_HEADER_BUTTON_CLASS,
@@ -716,19 +721,18 @@ function ChildThreadsCard({
               : PROMPT_STACK_CARD_HEADER_BUTTON_CLASS
           }
         >
-          <ChildThreadMascot item={primary} />
-          <span className="min-w-0 flex-1 truncate text-left">
-            <ThreadTitle
-              title={primary.title}
-              className="font-medium text-foreground/80"
-              inline
-            />
+          <Icon
+            name="Robot"
+            className={
+              isActive
+                ? activityIconClass("active", "size-3.5 shrink-0")
+                : "size-3.5 shrink-0 text-muted-foreground"
+            }
+            aria-hidden="true"
+          />
+          <span className="min-w-0 flex-1 truncate text-left font-medium">
+            {groupLabel}
           </span>
-          {otherCount > 0 ? (
-            <span className="shrink-0 text-muted-foreground">
-              +{otherCount} more
-            </span>
-          ) : null}
           <PromptStackCardChevron
             isExpanded={isExpanded}
             className="text-muted-foreground"
