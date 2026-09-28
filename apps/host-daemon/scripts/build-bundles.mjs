@@ -65,6 +65,10 @@ async function main() {
   const outputTitleCommandPath = resolve(packageRoot, "dist", "title");
   await copyFile(titleCommandPath, outputTitleCommandPath);
   await chmod(outputTitleCommandPath, 0o755);
+  await copyFile(
+    resolve(workspaceRoot, "apps", "desktop", "assets", "icon.icns"),
+    resolve(packageRoot, "dist", "bb-computer.icns"),
+  );
 }
 
 void main().catch((error) => {

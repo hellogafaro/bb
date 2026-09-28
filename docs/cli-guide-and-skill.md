@@ -54,7 +54,7 @@ chapter's spawn options, and the bb-cli skill's `references/agents.md`,
 `references/thread-creation.md`, and command index.
 
 `bb computer` is a core command group over `sdk.computer`: observing and
-controlling a machine's desktop through Cua Driver. It has no plugin and no
+controlling a machine's desktop through the bb computer driver, a pinned Cua Driver build shipped on macOS as a bb-branded app bundle. It has no plugin and no
 plugin-config surface; TypeSafe/OpenRouter decision-loop credentials live in
 server config, not `bb plugin config`. When its commands, flags, or `--json`
 shapes change, update `bb guide computer` (`bb-guide-computer.md`) and the

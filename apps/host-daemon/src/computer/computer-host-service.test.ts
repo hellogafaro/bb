@@ -183,6 +183,80 @@ describe("ComputerHostService driver resolution order", () => {
   });
 });
 
+describe("ComputerHostService on macOS", () => {
+  let dataDir: string;
+  let previousOverride: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  it("launches the driver through LaunchServices when it lives in the bb.app bundle", async () => {
+    const bundleDir = join(dataDir, "computer", "driver", "0.30.2", "darwin-arm64", "bb.app");
+    const binaryPath = join(bundleDir, "Contents", "MacOS", "cua-driver");
+    process.env.CUA_DRIVER_PATH = binaryPath;
+    const launches: { command: string; args: readonly string[] }[] = [];
+    let daemonStarted = false;
+    const spawnProcess = ((command: string, args: readonly string[]): unknown => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdin: { end(): void };
+        stdout: { setEncoding(): void; on(event: string, callback: (chunk: string) => void): void };
+        exitCode: number | null;
+        unref(): void;
+        kill(): boolean;
+      };
+      child.stdin = { end() {} };
+      child.exitCode = null;
+      child.unref = () => {};
+      child.kill = () => true;
+      if (command === "/usr/bin/open") {
+        launches.push({ command, args });
+        daemonStarted = true;
+        child.stdout = { setEncoding() {}, on() {} };
+        queueMicrotask(() => {
+          child.exitCode = 0;
+          child.emit("close", 0);
+        });
+        return child;
+      }
+      const probe = args[0];
+      const exitCode = probe === "status" ? (daemonStarted ? 0 : 1) : 0;
+      const output = probe === "--version" ? "cua-driver 0.30.2\n" : probe === "call" ? "{\"windows\":[]}\n" : "";
+      child.stdout = {
+        setEncoding() {},
+        on(_event: string, callback: (chunk: string) => void) {
+          queueMicrotask(() => {
+            if (output.length > 0) callback(output);
+            queueMicrotask(() => child.emit("close", exitCode));
+          });
+        },
+      };
+      return child;
+    }) as SpawnFn;
+
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      transportFactory: () => new FakeTransport(),
+      spawnProcess,
+      driverFetchImpl: networkDisabledFetch,
+    });
+    const report = await service.installDriver();
+    expect(launches).toHaveLength(1);
+    expect(launches[0]?.args.slice(0, 5)).toEqual(["-n", "-g", "-a", bundleDir, "--args"]);
+    expect(launches[0]?.args).toContain("serve");
+    expect(report.probes.find((probe) => probe.label === "daemon")?.status).toBe("ok");
+    service.dispose();
+  });
+});
+
 describe("ComputerHostService recordStart", () => {
   let dataDir: string;
   let fakeHome: string;

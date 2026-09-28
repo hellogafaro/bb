@@ -3,7 +3,14 @@ import { access, chmod, mkdir, readdir, rename, rm, writeFile } from "node:fs/pr
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { sha256Hex } from "../sha256-hex.js";
+import { spawn as nodeSpawn } from "node:child_process";
 import { extractArchive, type ArchiveSpawnFn } from "./computer-driver-archive.js";
+import {
+  assembleDarwinAppBundle,
+  bundledComputerIconPath,
+  darwinBundleBinaryPath,
+  isDarwinPlatformKey,
+} from "./computer-driver-bundle.js";
 import type { HostDaemonLogger } from "../logger.js";
 
 export interface ComputerDriverPin {
@@ -70,12 +77,18 @@ interface EnsureProvisionedDriverArgs {
   readonly fetchImpl?: typeof fetch;
   readonly spawnImpl?: ArchiveSpawnFn;
   readonly pins?: Partial<Record<string, ComputerDriverPin>>;
+  readonly iconPath?: string | null;
+  readonly signBundle?: boolean;
 }
 
 const pendingInstalls = new Map<string, Promise<ComputerDriverProvisionState>>();
 
 function driverFileName(platformKey: string): string {
   return platformKey.startsWith("win32-") ? "cua-driver.exe" : "cua-driver";
+}
+
+export function installedDriverBinaryPath(root: string, platformKey: string): string {
+  return isDarwinPlatformKey(platformKey) ? darwinBundleBinaryPath(root) : join(root, driverFileName(platformKey));
 }
 
 function errorMessage(error: unknown): string {
@@ -145,17 +158,17 @@ async function downloadAndVerify(
     try {
       const response = await doFetch(url);
       if (!response.ok) {
-        return { ok: false, message: `cua-driver download failed with HTTP ${response.status}` };
+        return { ok: false, message: `The bb computer driver download failed with HTTP ${response.status}` };
       }
       bytes = new Uint8Array(await response.arrayBuffer());
     } catch (error) {
-      return { ok: false, message: `cua-driver download failed: ${errorMessage(error)}` };
+      return { ok: false, message: `The bb computer driver download failed: ${errorMessage(error)}` };
     }
     const actual = sha256Hex(bytes);
     if (actual === pinned.sha256) return { ok: true, bytes };
     lastMismatch = `expected sha256 ${pinned.sha256}, received ${actual}`;
   }
-  return { ok: false, message: `cua-driver download failed verification after retry: ${lastMismatch}` };
+  return { ok: false, message: `The bb computer driver download failed verification after retry: ${lastMismatch}` };
 }
 
 async function ensureProvisionedDriverUnlocked(
@@ -166,7 +179,7 @@ async function ensureProvisionedDriverUnlocked(
   const computerRoot = join(args.dataDir, "computer");
   const driverRoot = join(computerRoot, "driver");
   const versionDir = join(driverRoot, pinned.version, platformKey);
-  const binaryPath = join(versionDir, driverFileName(platformKey));
+  const binaryPath = installedDriverBinaryPath(versionDir, platformKey);
 
   if (await isExecutable(binaryPath)) {
     await pruneOtherVersions(driverRoot, pinned.version, args.logger);
@@ -193,16 +206,25 @@ async function ensureProvisionedDriverUnlocked(
     try {
       await extractArchive(archivePath, extractDir, args.spawnImpl);
     } catch (error) {
-      return { status: "failed", message: `cua-driver extraction failed: ${errorMessage(error)}` };
+      return { status: "failed", message: `The bb computer driver extraction failed: ${errorMessage(error)}` };
     }
 
-    const extractedBinary = join(extractDir, driverFileName(platformKey));
-    if (!(await pathExists(extractedBinary))) {
+    if (!(await pathExists(join(extractDir, driverFileName(platformKey))))) {
       return {
         status: "failed",
-        message: `cua-driver archive did not contain ${driverFileName(platformKey)}`,
+        message: `The bb computer driver archive did not contain ${driverFileName(platformKey)}`,
       };
     }
+    const extractedBinary = isDarwinPlatformKey(platformKey)
+      ? await assembleDarwinAppBundle({
+          extractDir,
+          version: pinned.version,
+          iconPath: args.iconPath === undefined ? await bundledComputerIconPath() : args.iconPath,
+          spawnImpl: args.spawnImpl ?? nodeSpawn,
+          logger: args.logger,
+          sign: args.signBundle,
+        })
+      : join(extractDir, driverFileName(platformKey));
     await chmod(extractedBinary, 0o755).catch(() => {});
 
     await mkdir(join(driverRoot, pinned.version), { recursive: true });

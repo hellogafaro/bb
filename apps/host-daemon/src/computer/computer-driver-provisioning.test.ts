@@ -165,6 +165,42 @@ describe("ensureProvisionedDriver", () => {
     }
   });
 
+  it("wraps the macOS driver in a bb-branded app bundle", async () => {
+    const buildDir = await mkdtemp(join(tmpdir(), "computer-driver-fixture-"));
+    try {
+      await writeFile(join(buildDir, "cua-driver"), "#!/bin/sh\necho fixture\n");
+      await writeFile(join(buildDir, "libcua_driver_sdk.dylib"), "lib");
+      const archivePath = join(buildDir, "archive.tar.gz");
+      await runTar(["-czf", archivePath, "-C", buildDir, "cua-driver", "libcua_driver_sdk.dylib"], buildDir);
+      const bytes = new Uint8Array(await readFile(archivePath));
+      const darwinPin: ComputerDriverPin = { ...pin, sha256: sha256Hex(bytes) };
+
+      const result = await ensureProvisionedDriver({
+        dataDir,
+        logger: testLogger,
+        platformKey: "darwin-arm64",
+        fetchImpl: fakeFetch(bytes),
+        pins: { "darwin-arm64": darwinPin },
+        iconPath: null,
+        signBundle: false,
+      });
+
+      expect(result.status).toBe("installed");
+      if (result.status !== "installed") return;
+      const bundleDir = join(dataDir, "computer", "driver", darwinPin.version, "darwin-arm64", "bb.app");
+      expect(result.path).toBe(join(bundleDir, "Contents", "MacOS", "cua-driver"));
+      await access(result.path, constants.X_OK);
+      await access(join(bundleDir, "Contents", "MacOS", "libcua_driver_sdk.dylib"));
+      const plist = await readFile(join(bundleDir, "Contents", "Info.plist"), "utf8");
+      expect(plist).toContain("<string>app.getbb.computer</string>");
+      expect(plist).toContain("<key>CFBundleDisplayName</key>\n\t<string>bb</string>");
+      expect(plist).toContain("<key>LSUIElement</key>\n\t<true/>");
+      expect(await stagingEntries(dataDir)).toEqual([]);
+    } finally {
+      await rm(buildDir, { recursive: true, force: true });
+    }
+  });
+
   it("prunes a stale version directory once a new version installs", async () => {
     await mkdir(join(dataDir, "computer", "driver", "0.0.1-stale", platformKey), { recursive: true });
 

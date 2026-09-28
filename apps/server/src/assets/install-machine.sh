@@ -303,6 +303,13 @@ run_lifecycle() {
   [ "$lifecycle_attempt" -lt 80 ] || { fail_step "Machine daemon did not stop within 20 seconds."; exit 1; }
   rm -f "$pid_file"
   if [ "$lifecycle_action" = uninstall ]; then
+    for computer_driver in "$data_dir"/computer/driver/*/*/bb.app/Contents/MacOS/cua-driver "$data_dir"/computer/driver/*/*/cua-driver; do
+      if [ -x "$computer_driver" ]; then "$computer_driver" stop >/dev/null 2>&1 || true; fi
+    done
+    if [ "$platform" = darwin ]; then
+      tccutil reset Accessibility app.getbb.computer >/dev/null 2>&1 || true
+      tccutil reset ScreenCapture app.getbb.computer >/dev/null 2>&1 || true
+    fi
     if [ -f "$service_file" ]; then rm -f "$service_file"; fi
     if [ "$platform" = linux ]; then systemctl "$systemd_scope" daemon-reload; fi
     node -e 'require("node:fs").rmSync(process.argv[1], { recursive: true })' "$data_dir"

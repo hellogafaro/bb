@@ -143,7 +143,7 @@ export function registerComputerCommands(
     computer
       .command("doctor")
       .description(
-        "Check Cua Driver readiness on a machine (binary, daemon, accessibility, windows)",
+        "Check the bb computer driver readiness on a machine (binary, daemon, accessibility, windows)",
       )
       .option("--json", "Print machine-readable JSON output"),
   ).action(
@@ -160,12 +160,12 @@ export function registerComputerCommands(
     computer
       .command("setup")
       .description(
-        "Install the pinned Cua Driver on a machine if it is missing, then report readiness",
+        "Install the bb computer driver on a machine if it is missing, then report readiness",
       )
       .option("--json", "Print machine-readable JSON output"),
   ).action(
     action(async (opts: HostOptions) => {
-      if (!opts.json) console.log("Installing Cua Driver...");
+      if (!opts.json) console.log("Installing the bb computer driver...");
       const report = await createCliBbSdk(getUrl()).computer.installDriver({
         hostId: opts.host,
       });

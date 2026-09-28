@@ -20,6 +20,7 @@ import {
   ProcessCuaTransport,
   type CuaTransport,
 } from "./computer-transport.js";
+import { appBundlePathForBinary } from "./computer-driver-bundle.js";
 import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
 import { LiveCaptureLoop } from "./computer-live.js";
 import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
@@ -167,11 +168,20 @@ class DriverController {
         ? ["serve", "--permission-mode", "bounded", "--capability-manifest", this.#manifestPath(dataDir), "--approve-capability-manifest"]
         : ["serve", "--permission-mode", PERMISSION_MODE];
     const spawnState: { failure: Error | null } = { failure: null };
-    const child = this.#spawnProcess(resolution.path, args, { stdio: "ignore", detached: true, env: daemonEnv() });
+    const bundle = appBundlePathForBinary(resolution.path);
+    const child =
+      bundle === null
+        ? this.#spawnProcess(resolution.path, args, { stdio: "ignore", detached: true, env: daemonEnv() })
+        : this.#spawnProcess("/usr/bin/open", ["-n", "-g", "-a", bundle, "--args", ...args], { stdio: "ignore", env: daemonEnv() });
     child.on("error", (error) => {
       spawnState.failure = error;
       if (this.#daemonProcess === child) this.#daemonProcess = null;
     });
+    if (bundle !== null) {
+      child.on("close", (code) => {
+        if (code !== 0) spawnState.failure = new Error(`open exited with code ${code ?? "signal"} launching ${bundle}`);
+      });
+    }
     this.#daemonProcess = child;
     child.unref();
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -179,12 +189,12 @@ class DriverController {
         const detail = resolution.missing
           ? `tried: ${resolution.tried.join(", ")}`
           : spawnState.failure.message;
-        throw new CuaError(`Cua Driver binary is unavailable: ${detail}`, "setup-required");
+        throw new CuaError(`The bb computer driver is unavailable: ${detail}`, "setup-required");
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
       if (await this.daemonRunning(dataDir)) return;
     }
-    throw new CuaError("Cua Driver daemon did not start within 5 seconds", "setup-required");
+    throw new CuaError("The bb computer driver did not start within 5 seconds", "setup-required");
   }
 
   async #stopDaemon(dataDir: string): Promise<void> {
@@ -236,17 +246,17 @@ class DriverController {
         label: "binary",
         status: resolution.permissionsMissing ? "unavailable" : version.code === 0 ? "ok" : resolution.missing ? "setup-required" : "unavailable",
         message: resolution.permissionsMissing
-          ? `cua-driver was downloaded to ${resolution.path} but is not executable; check its file permissions`
+          ? `The bb computer driver was downloaded to ${resolution.path} but is not executable; check its file permissions`
           : resolution.missing
-            ? `cua-driver binary was not found; tried: ${resolution.tried.join(", ")}`
+            ? `The bb computer driver was not found; tried: ${resolution.tried.join(", ")}`
             : version.code === 0
               ? version.stdout.trim().slice(0, 100)
-              : "cua-driver was not found on PATH",
+              : "The bb computer driver was not found on PATH",
       },
       {
         label: "daemon",
         status: running ? "ok" : "setup-required",
-        message: running ? "Cua Driver daemon is running" : "Cua Driver daemon is not running; call doctor/setup to start it",
+        message: running ? "The bb computer driver is running" : "The bb computer driver is not running; run doctor or setup to start it",
       },
     ];
     if (running) {
