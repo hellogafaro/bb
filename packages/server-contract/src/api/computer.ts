@@ -93,6 +93,15 @@ export type ComputerMachinesResponse = {
 export const computerHostRequestSchema = z.object({ hostId }).strict();
 export type ComputerHostRequest = z.infer<typeof computerHostRequestSchema>;
 
+export const computerPermissionIdSchema = z.enum(["accessibility", "screen-recording"]);
+export type ComputerPermissionId = z.infer<typeof computerPermissionIdSchema>;
+export const computerRequestPermissionsRequestSchema = z
+  .object({ hostId, permission: computerPermissionIdSchema.optional() })
+  .strict();
+export type ComputerRequestPermissionsRequest = z.infer<
+  typeof computerRequestPermissionsRequestSchema
+>;
+
 export const computerObserveRequestSchema = z
   .object({ hostId, appId: z.string().max(160).optional() })
   .strict();

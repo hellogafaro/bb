@@ -321,10 +321,14 @@ describe("ComputerHostService requestPermissions", () => {
       driverFetchImpl: networkDisabledFetch,
       platform: "darwin",
     });
-    const report = await service.requestPermissions();
+    const report = await service.requestPermissions({});
     expect(calls.some((call) => call.args[0] === "permissions" && call.args[1] === "grant")).toBe(true);
     const opened = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
     expect(opened?.args[0]).toContain("Privacy_ScreenCapture");
+    calls.length = 0;
+    await service.requestPermissions({ permission: "accessibility" });
+    const explicit = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
+    expect(explicit?.args[0]).toContain("Privacy_Accessibility");
     expect(report.probes.find((probe) => probe.id === "screen-recording")?.status).toBe("setup-required");
     expect(report.probes.find((probe) => probe.id === "accessibility")?.status).toBe("ok");
     expect(report.driverPath).toBe(binaryPath);

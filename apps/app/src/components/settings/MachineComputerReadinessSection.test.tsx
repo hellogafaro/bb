@@ -53,23 +53,25 @@ function renderSection(platformLabel: string | null = "macOS") {
 }
 
 describe("MachineComputerReadinessSection", () => {
-  it("lists each probe by label and offers Grant permissions when a permission is missing", async () => {
+  it("lists each probe by label with a Grant button only on the missing permission", async () => {
     doctorMock.mockResolvedValue(report());
     const view = renderSection();
     await view.findByText("Accessibility");
     expect(view.getByText("Not granted")).toBeTruthy();
     expect(view.getByText("Running")).toBeTruthy();
     expect(view.queryByText("Install driver")).toBeNull();
-    expect(view.getByText("Grant permissions")).toBeTruthy();
+    expect(view.getAllByText("Grant")).toHaveLength(1);
   });
 
-  it("requests permissions on the machine and shows the bundle path to add", async () => {
+  it("requests that one permission on the machine and shows the bundle path to add", async () => {
     doctorMock.mockResolvedValue(report());
     requestPermissionsMock.mockResolvedValue(report());
     const view = renderSection();
-    fireEvent.click(await view.findByText("Grant permissions"));
-    await waitFor(() => expect(requestPermissionsMock).toHaveBeenCalledWith({ hostId: "host-a" }));
-    await view.findByText("Approve on pro");
+    fireEvent.click(await view.findByText("Grant"));
+    await waitFor(() =>
+      expect(requestPermissionsMock).toHaveBeenCalledWith({ hostId: "host-a", permission: "accessibility" }),
+    );
+    await view.findByText("Allow Accessibility on pro");
     expect(
       view.getByText("/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/bb.app"),
     ).toBeTruthy();
@@ -88,13 +90,13 @@ describe("MachineComputerReadinessSection", () => {
     const view = renderSection();
     await view.findByText("Not installed");
     expect(view.getByText("Install driver")).toBeTruthy();
-    expect(view.queryByText("Grant permissions")).toBeNull();
+    expect(view.queryByText("Grant")).toBeNull();
   });
 
-  it("hides Grant permissions off macOS", async () => {
+  it("hides Grant off macOS", async () => {
     doctorMock.mockResolvedValue(report());
     const view = renderSection("Linux");
     await view.findByText("Accessibility");
-    expect(view.queryByText("Grant permissions")).toBeNull();
+    expect(view.queryByText("Grant")).toBeNull();
   });
 });

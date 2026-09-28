@@ -20,6 +20,7 @@ import {
 import { sdk } from "@/lib/sdk";
 
 type Probe = ComputerDoctorReport["probes"][number];
+type PermissionId = "accessibility" | "screen-recording";
 
 const PROBE_RING_CLASS: Record<Probe["status"], string> = {
   ok: "text-status-ready",
@@ -57,7 +58,13 @@ function bundlePath(driverPath: string | null): string | null {
   return index === -1 ? driverPath : driverPath.slice(0, index);
 }
 
-function ProbeRow({ probe }: { probe: Probe }) {
+function ProbeRow({
+  probe,
+  action,
+}: {
+  probe: Probe;
+  action: { label: string; pending: boolean; onClick: () => void } | null;
+}) {
   return (
     <SettingsRow>
       <span
@@ -80,33 +87,48 @@ function ProbeRow({ probe }: { probe: Probe }) {
       >
         {probe.message}
       </span>
+      {action !== null ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={action.pending}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </Button>
+      ) : null}
     </SettingsRow>
   );
 }
 
+const PERMISSION_TITLE: Record<PermissionId, string> = {
+  accessibility: "Accessibility",
+  "screen-recording": "Screen Recording",
+};
+
 function PermissionsDialog({
-  open,
+  permission,
   machineName,
-  missing,
   driverBundle,
   onOpenChange,
   onRecheck,
 }: {
-  open: boolean;
+  permission: PermissionId | null;
   machineName: string;
-  missing: readonly Probe[];
   driverBundle: string | null;
   onOpenChange: (open: boolean) => void;
   onRecheck: () => void;
 }) {
-  const names = missing.map((probe) => probe.label).join(" and ");
+  const title = permission === null ? "Accessibility" : PERMISSION_TITLE[permission];
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={permission !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Approve on {machineName}</DialogTitle>
+          <DialogTitle>{`Allow ${title} on ${machineName}`}</DialogTitle>
           <DialogDescription>
-            {`macOS is asking for ${names.length > 0 ? names : "Accessibility and Screen Recording"} on ${machineName}. Approve the prompt there, or switch on "bb" in the Privacy & Security pane that just opened.`}
+            {`System Settings opened on ${machineName} at Privacy & Security → ${title}. Switch on "bb" there, or approve the prompt if macOS shows one, then re-check.`}
           </DialogDescription>
         </DialogHeader>
         {driverBundle !== null ? (
@@ -143,7 +165,7 @@ export function MachineComputerReadinessSection({
   platformLabel: string | null;
 }) {
   const queryClient = useQueryClient();
-  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [dialogPermission, setDialogPermission] = useState<PermissionId | null>(null);
   const isConnected = host.status === "connected";
   const doctorQuery = useComputerDoctor(host.id, isConnected);
   const report = doctorQuery.data ?? null;
@@ -151,13 +173,6 @@ export function MachineComputerReadinessSection({
   const probes = report?.probes ?? [];
   const driverProbe = probes.find((probe) => probe.id === "driver") ?? null;
   const driverMissing = driverProbe === null || driverProbe.status !== "ok";
-  const missingPermissions = probes.filter(
-    (probe) => isPermissionProbe(probe) && probe.status !== "ok",
-  );
-  const captureBlocked = probes.some(
-    (probe) => (probe.id === "capture" || probe.id === "windows") && probe.status !== "ok",
-  );
-  const showGrant = isMacOs && !driverMissing && (missingPermissions.length > 0 || captureBlocked);
 
   const setReport = (nextReport: ComputerDoctorReport) => {
     queryClient.setQueryData(computerDoctorQueryKey(host.id), nextReport);
@@ -167,12 +182,23 @@ export function MachineComputerReadinessSection({
     onSuccess: setReport,
   });
   const permissionsMutation = useMutation({
-    mutationFn: () => sdk.computer.requestPermissions({ hostId: host.id }),
-    onSuccess: (nextReport) => {
+    mutationFn: (permission: PermissionId) =>
+      sdk.computer.requestPermissions({ hostId: host.id, permission }),
+    onSuccess: (nextReport, permission) => {
       setReport(nextReport);
-      setPermissionsDialogOpen(true);
+      setDialogPermission(permission);
     },
   });
+  const rowAction = (probe: Probe) => {
+    if (!isMacOs || driverMissing || !isPermissionProbe(probe) || probe.status === "ok") return null;
+    const permission = probe.id as PermissionId;
+    const pending = permissionsMutation.isPending && permissionsMutation.variables === permission;
+    return {
+      label: pending ? "Opening…" : "Grant",
+      pending: permissionsMutation.isPending,
+      onClick: () => permissionsMutation.mutate(permission),
+    };
+  };
   const actionError = installMutation.error ?? permissionsMutation.error;
 
   return (
@@ -198,7 +224,7 @@ export function MachineComputerReadinessSection({
             </span>
           </SettingsRow>
         ) : (
-          probes.map((probe) => <ProbeRow key={probe.id} probe={probe} />)
+          probes.map((probe) => <ProbeRow key={probe.id} probe={probe} action={rowAction(probe)} />)
         )}
         {actionError ? (
           <SettingsRow>
@@ -220,17 +246,6 @@ export function MachineComputerReadinessSection({
                 {installMutation.isPending ? "Installing…" : "Install driver"}
               </Button>
             ) : null}
-            {isConnected && showGrant ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={permissionsMutation.isPending}
-                onClick={() => permissionsMutation.mutate()}
-              >
-                {permissionsMutation.isPending ? "Requesting…" : "Grant permissions"}
-              </Button>
-            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -245,11 +260,12 @@ export function MachineComputerReadinessSection({
       </SettingsRowList>
 
       <PermissionsDialog
-        open={permissionsDialogOpen}
+        permission={dialogPermission}
         machineName={host.name}
-        missing={missingPermissions}
         driverBundle={bundlePath(report?.driverPath ?? null)}
-        onOpenChange={setPermissionsDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setDialogPermission(null);
+        }}
         onRecheck={() => void doctorQuery.refetch()}
       />
     </SettingsSection>

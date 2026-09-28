@@ -94,12 +94,13 @@ export async function installDriver(
 export async function requestPermissions(
   deps: WorkSessionDeps,
   hostId: string,
+  permission: "accessibility" | "screen-recording" | undefined,
 ): Promise<DoctorReport> {
   requireNonDestroyedHostWithStatus(deps, hostId);
   const report = await callHostOnlineRpcForWork(deps, {
     hostId,
     timeoutMs: COMMAND_TIMEOUT_MS,
-    command: { type: "computer.request_permissions" },
+    command: { type: "computer.request_permissions", permission },
   });
   return { hostId, ...report };
 }

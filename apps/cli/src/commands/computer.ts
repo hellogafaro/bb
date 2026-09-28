@@ -178,14 +178,20 @@ export function registerComputerCommands(
     computer
       .command("permissions")
       .description(
-        "Ask a macOS machine to grant Accessibility and Screen Recording to the bb computer driver, then report readiness",
+        "Ask a macOS machine to grant Accessibility or Screen Recording to the bb computer driver, then report readiness",
       )
+      .option("--permission <id>", "Which permission to open: accessibility or screen-recording (default: the first missing one)")
       .option("--json", "Print machine-readable JSON output"),
   ).action(
-    action(async (opts: HostOptions) => {
+    action(async (opts: HostOptions & { permission?: string }) => {
+      const permission = opts.permission;
+      if (permission !== undefined && permission !== "accessibility" && permission !== "screen-recording") {
+        throw new Error("--permission must be accessibility or screen-recording");
+      }
       if (!opts.json) console.log("Requesting permissions on the machine...");
       const report = await createCliBbSdk(getUrl()).computer.requestPermissions({
         hostId: opts.host,
+        permission,
       });
       if (outputJson(opts, report)) return;
       console.log(JSON.stringify(report, null, 2));

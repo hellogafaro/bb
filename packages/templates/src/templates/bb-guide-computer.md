@@ -16,7 +16,7 @@ Resolve the target machine first:
   bb computer machines [--json]
   bb computer doctor --host <id> [--json]
   bb computer setup --host <id> [--json]
-  bb computer permissions --host <id> [--json]
+  bb computer permissions --host <id> [--permission accessibility|screen-recording] [--json]
 
 `machines` lists enrolled hosts by ID and name, and marks the current thread's
 host. `doctor` reports whether the bb computer driver is ready as a list of
@@ -27,9 +27,10 @@ first observe on a machine you have not used yet. `setup` installs the pinned
 driver release on the machine if it is missing (or reports why it could not,
 e.g. no prebuilt driver for that platform), then returns the same readiness
 report. `permissions` is for macOS machines: it launches the driver's grant
-flow so the Accessibility and Screen Recording prompts appear on that Mac,
-opens the matching Privacy & Security pane for whichever permission is still
-missing, and returns the readiness report; a person must approve on the Mac.
+flow so the prompts appear on that Mac, opens the Privacy & Security pane for
+the given permission (or the first missing one), and returns the readiness
+report; a person must approve on the Mac. Once a permission works, its row
+turns ok even if the driver has not verified it itself yet.
 
 The fast loop:
 

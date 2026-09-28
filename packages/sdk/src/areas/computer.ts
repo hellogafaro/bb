@@ -7,6 +7,7 @@ import type {
   ComputerControlStatusResponse,
   ComputerDoctorReport,
   ComputerHostRequest,
+  ComputerRequestPermissionsRequest,
   ComputerMachinesRequest,
   ComputerMachinesResponse,
   ComputerObserveRequest,
@@ -55,7 +56,7 @@ export interface ComputerArea {
   machines(input: ComputerMachinesRequest): Promise<ComputerMachinesResponse>;
   doctor(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
   installDriver(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
-  requestPermissions(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
+  requestPermissions(input: ComputerRequestPermissionsRequest): Promise<ComputerDoctorReport>;
   observe(input: ComputerObserveRequest): Promise<ComputerObservation>;
   act(input: ComputerActInput): Promise<ComputerActionOutcome>;
   screenshot(

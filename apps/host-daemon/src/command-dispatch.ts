@@ -640,7 +640,8 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
   "desktop.browser.import_cookies": forwardDesktopBrowserCommand,
   "computer.doctor": (_command, options) => requireComputer(options).doctor(),
   "computer.install_driver": (_command, options) => requireComputer(options).installDriver(),
-  "computer.request_permissions": (_command, options) => requireComputer(options).requestPermissions(),
+  "computer.request_permissions": (command, options) =>
+    requireComputer(options).requestPermissions({ permission: command.permission }),
   "computer.observe": (command, options) =>
     requireComputer(options).observe({ appId: command.appId }),
   "computer.act": (command, options) => requireComputer(options).act({ action: command.action }),

@@ -915,6 +915,8 @@ const INTENTIONAL_OPTIONAL_HOST_DAEMON_FIELDS: Record<string, string> = {
     "a tool_use approval's presentation has a title only when the call has a headline (a path, a query); absence means the label stands alone.",
   "hostDaemonOnlineRpcCommandSchema.appId":
     "computer.observe and computer.capture omit appId to target whichever on-screen window is topmost; absence is not a missing app.",
+  "hostDaemonOnlineRpcCommandSchema.permission":
+    "computer.request_permissions omits permission to open the first missing macOS permission; absence is not a missing choice.",
   "hostDaemonOnlineRpcCommandSchema.cwd":
     "provider.list_models may omit cwd when only user-level provider configuration applies.",
   "hostDaemonOnlineRpcCommandSchema.query":
@@ -1249,7 +1251,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(230);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(231);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

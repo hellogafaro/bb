@@ -42,7 +42,7 @@ export function registerComputerRoutes(app: Hono, deps: AppDeps) {
     c.json(await installDriver(deps, input.hostId)),
   );
   post(routes.requestPermissions, async (c, input) =>
-    c.json(await requestPermissions(deps, input.hostId)),
+    c.json(await requestPermissions(deps, input.hostId, input.permission)),
   );
   post(routes.observe, async (c, input) =>
     c.json(await observe(deps, input.hostId, input.appId)),

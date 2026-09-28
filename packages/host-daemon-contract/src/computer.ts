@@ -144,6 +144,8 @@ export const computerActionOutcomeSchema = z
   .strict();
 export type ComputerActionOutcome = z.infer<typeof computerActionOutcomeSchema>;
 
+export const computerPermissionIdSchema = z.enum(["accessibility", "screen-recording"]);
+export type ComputerPermissionId = z.infer<typeof computerPermissionIdSchema>;
 export const computerDoctorProbeIdSchema = z.enum([
   "driver",
   "service",
@@ -205,7 +207,10 @@ export const computerCommandSchemas = {
     .object({ type: z.literal("computer.install_driver") })
     .strict(),
   "computer.request_permissions": z
-    .object({ type: z.literal("computer.request_permissions") })
+    .object({
+      type: z.literal("computer.request_permissions"),
+      permission: computerPermissionIdSchema.optional(),
+    })
     .strict(),
   "computer.observe": z
     .object({

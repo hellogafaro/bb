@@ -59,6 +59,8 @@ import {
   type ComputerMachinesRequest,
   type ComputerMachinesResponse,
   type ComputerHostRequest,
+  computerRequestPermissionsRequestSchema,
+  type ComputerRequestPermissionsRequest,
   type ComputerDoctorReport,
   type ComputerObserveRequest,
   type ComputerObservation,
@@ -901,8 +903,8 @@ export const publicApiRoutes = {
     requestPermissions: defineRoute({
       path: "/computer/request-permissions",
       method: "post",
-      request: jsonRequest<EmptyInput, ComputerHostRequest>(
-        computerHostRequestSchema,
+      request: jsonRequest<EmptyInput, ComputerRequestPermissionsRequest>(
+        computerRequestPermissionsRequestSchema,
       ),
       response: jsonResponse<ComputerDoctorReport>(),
     }),
