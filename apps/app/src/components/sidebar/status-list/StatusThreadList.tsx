@@ -139,7 +139,16 @@ const ThreadTreeNode = memo(function ThreadTreeNode({
   const isCollapsed = collapsedThreadIds.has(node.thread.id);
   const options = useMemo<ThreadRowOptions>(() => {
     const base = { depth: node.depth, isCompact: node.depth > 0 };
-    if (!hasChildren) return { ...base, kind: "default" };
+    if (!hasChildren) {
+      if (node.stats.childCount === 0) return { ...base, kind: "default" };
+      return {
+        ...base,
+        kind: "parent",
+        isCollapsed: true,
+        childCount: node.stats.childCount,
+        childActivity: node.stats.childActivity,
+      };
+    }
     return {
       ...base,
       kind: "parent",

@@ -60,24 +60,36 @@ const childThreadsFixture: ThreadPromptChildThreadsSection = {
       id: "thr_a",
       title: "Investigate Safari auth flake on staging",
       href: "/projects/proj-1/threads/thr_a",
+      projectId: "proj-1",
+      providerId: "codex",
+      state: "active",
       hasPendingInteraction: false,
     },
     {
       id: "thr_b",
       title: "Review PR #4521 reviewer comments",
       href: "/projects/proj-1/threads/thr_b",
+      projectId: "proj-1",
+      providerId: "codex",
+      state: "active",
       hasPendingInteraction: false,
     },
     {
       id: "thr_c",
       title: "Refactor email pipeline retry logic",
       href: "/projects/proj-1/threads/thr_c",
+      projectId: "proj-1",
+      providerId: "codex",
+      state: "active",
       hasPendingInteraction: false,
     },
     {
       id: "thr_d",
       title: "Backfill workspace-status invalidation cache",
       href: "/projects/proj-1/threads/thr_d",
+      projectId: "proj-1",
+      providerId: "codex",
+      state: "active",
       hasPendingInteraction: false,
     },
   ],
@@ -89,6 +101,9 @@ const childThreadsPendingFixture: ThreadPromptChildThreadsSection = {
       id: "thr_blocked",
       title: "Install workspace tools",
       href: "/projects/proj-1/threads/thr_blocked",
+      projectId: "proj-1",
+      providerId: "codex",
+      state: "needs-input",
       hasPendingInteraction: true,
     },
   ],
@@ -96,7 +111,9 @@ const childThreadsPendingFixture: ThreadPromptChildThreadsSection = {
 
 const childThreadsMixedFixture: ThreadPromptChildThreadsSection = {
   items: childThreadsFixture.items.map((item, index) =>
-    index === 1 ? { ...item, hasPendingInteraction: true } : item,
+    index === 1
+      ? { ...item, state: "needs-input", hasPendingInteraction: true }
+      : item,
   ),
 };
 
@@ -105,6 +122,9 @@ const childThreadsLargeFixture: ThreadPromptChildThreadsSection = {
     id: `thr_large_${i}`,
     title: `Child work item ${i + 1} that is busy doing thing-${i}`,
     href: `/projects/proj-1/threads/thr_large_${i}`,
+    projectId: "proj-1",
+    providerId: "codex",
+    state: i === 1 ? "needs-input" : i % 3 === 0 ? "done" : "active",
     hasPendingInteraction: i === 1,
   })),
 };

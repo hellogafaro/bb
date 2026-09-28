@@ -67,6 +67,7 @@ function createThread(overrides: Partial<ThreadListEntry>): ThreadListEntry {
     latestAttentionAt: 2,
     createdAt: 1,
     updatedAt: 2,
+    ...(overrides.parentThreadId ? { originKind: "fork" } : {}),
     ...overrides,
   });
 }

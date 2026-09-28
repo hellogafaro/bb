@@ -55,8 +55,15 @@ function createThread(
     latestAttentionAt: 2,
     createdAt: 1,
     updatedAt: 2,
+    ...(overrides.parentThreadId ? { originKind: "fork" } : {}),
     ...overrides,
   });
+}
+
+function createDelegatedChild(
+  overrides: ThreadListEntryOverrides & { parentThreadId: string },
+): ThreadListEntry {
+  return createThread({ ...overrides, originKind: null });
 }
 
 function summarizeNode(node: ProjectThreadNode): TreeSummary {
@@ -118,6 +125,86 @@ function findNode(
 }
 
 describe("buildProjectThreadGroups", () => {
+  it("hides agent-delegated children from the tree and rolls their activity into the parent", () => {
+    const rootItems = buildProjectThreadGroups([
+      createThread({ id: "parent", createdAt: 10 }),
+      createDelegatedChild({
+        id: "worker",
+        parentThreadId: "parent",
+        createdAt: 20,
+        status: "active",
+        runtime: {
+          displayStatus: "active",
+          hostReconnectGraceExpiresAt: null,
+        },
+      }),
+      createDelegatedChild({
+        id: "blocked-worker",
+        parentThreadId: "parent",
+        createdAt: 30,
+        hasPendingInteraction: true,
+      }),
+      createDelegatedChild({
+        id: "nested-worker",
+        parentThreadId: "worker",
+        createdAt: 40,
+      }),
+      createThread({ id: "other-root", createdAt: 5 }),
+    ]);
+
+    expect(summarizeItems(rootItems)).toEqual(["parent", "other-root"]);
+    expect(findNode(rootItems, "worker")).toBeNull();
+    expect(findNode(rootItems, "nested-worker")).toBeNull();
+    expect(findNode(rootItems, "parent")?.stats).toEqual({
+      childActivity: {
+        pending: true,
+        working: true,
+        hasUnsubmittedDraft: false,
+        runtimeWorking: true,
+        workflow: false,
+        backgroundAgent: false,
+        backgroundCommand: false,
+        planMode: false,
+        goal: false,
+        unread: false,
+        unreadError: false,
+      },
+      childCount: 3,
+    });
+  });
+
+  it("keeps fork children nested while hiding delegated siblings", () => {
+    const rootItems = buildProjectThreadGroups([
+      createThread({ id: "parent", createdAt: 10 }),
+      createThread({
+        id: "side-chat",
+        parentThreadId: "parent",
+        createdAt: 20,
+      }),
+      createDelegatedChild({
+        id: "worker",
+        parentThreadId: "parent",
+        createdAt: 30,
+      }),
+    ]);
+
+    expect(summarizeItems(rootItems)).toEqual([
+      { id: "parent", children: ["side-chat"] },
+    ]);
+    expect(findNode(rootItems, "parent")?.stats.childCount).toBe(2);
+  });
+
+  it("lists a delegated child as a root when its parent is not in the list", () => {
+    const rootItems = buildProjectThreadGroups([
+      createDelegatedChild({
+        id: "orphan-worker",
+        parentThreadId: "missing-parent",
+      }),
+    ]);
+
+    expect(summarizeItems(rootItems)).toEqual(["orphan-worker"]);
+  });
+
   it("nests threads recursively from parentThreadId regardless of thread type", () => {
     const rootItems = buildProjectThreadGroups([
       createThread({

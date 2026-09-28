@@ -1985,13 +1985,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   const childThreadsSection: ThreadPromptChildThreadsSection | null =
     useMemo(() => {
       const list = childThreadSubsetQuery.data ?? [];
-      const activeItems = list
-        .filter(
-          (entry) =>
-            entry.originKind === null &&
-            (isThreadDisplayStatusBannerActive(entry.runtime.displayStatus) ||
-              entry.hasPendingInteraction),
-        )
+      const items = list
+        .filter((entry) => entry.originKind === null)
+        .sort((left, right) => right.createdAt - left.createdAt)
         .map((entry) => ({
           id: entry.id,
           title: getThreadDisplayTitle(entry),
@@ -1999,18 +1995,18 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             projectId: entry.projectId,
             threadId: entry.id,
           }),
+          projectId: entry.projectId,
+          providerId: entry.providerId,
+          state: entry.hasPendingInteraction
+            ? ("needs-input" as const)
+            : isThreadDisplayStatusBannerActive(entry.runtime.displayStatus)
+              ? ("active" as const)
+              : ("done" as const),
           hasPendingInteraction: entry.hasPendingInteraction,
-        }))
-        .sort((left, right) =>
-          left.hasPendingInteraction === right.hasPendingInteraction
-            ? 0
-            : left.hasPendingInteraction
-              ? -1
-              : 1,
-        );
-      if (activeItems.length === 0) return null;
-      return { items: activeItems };
-    }, [childThreadSubsetQuery.data]);
+        }));
+      if (items.length === 0) return null;
+      return { items, resolveMentionLink };
+    }, [childThreadSubsetQuery.data, resolveMentionLink]);
   const childPendingInteractions = useChildThreadPendingAttention(
     childThreadsSection?.items ?? EMPTY_CHILD_THREAD_ITEMS,
   );

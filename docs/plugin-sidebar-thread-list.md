@@ -336,6 +336,14 @@ engages once the pointer leaves the sidebar.
 A replaced sidebar often hides something the old sidebar showed. A flat
 inbox-style list hides child threads, because it has no place to nest them. Those children still need a home, and the thread header is it.
 
+The built-in sidebar already makes this choice for agent-delegated children:
+a child with no `originKind` never gets its own row. Its activity rolls up
+into the parent row's indicators, and the parent thread's composer banner
+lists every such child as an expandable read-only view with a link to the
+full thread. Forks and side chats still nest under their source. The
+hierarchy is capped at two levels, so a delegated child cannot spawn its own
+children.
+
 bb already has a backend version of this. `bb.ui.registerThreadAction` puts a
 host-rendered button in the thread header and runs `run` on the server. That
 is right for "do a thing". It cannot draw a live cluster of child threads.
