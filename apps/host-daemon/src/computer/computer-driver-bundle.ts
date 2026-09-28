@@ -1,10 +1,10 @@
-import { access, copyFile, mkdir, readdir, rename, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ArchiveSpawnFn } from "./computer-driver-archive.js";
 import type { HostDaemonLogger } from "../logger.js";
 
-export const COMPUTER_APP_BUNDLE_ID = "app.getbb.computer";
+export const COMPUTER_APP_BUNDLE_ID = "com.trycua.driver";
 export const COMPUTER_APP_BUNDLE_NAME = "bb.app";
 export const COMPUTER_APP_ICON_FILE = "bb-computer.icns";
 const BUNDLE_EXECUTABLE = "cua-driver";
@@ -67,28 +67,40 @@ function runCommand(spawnImpl: ArchiveSpawnFn, command: string, args: string[]):
   });
 }
 
-export async function ensureDarwinBundleIcon(args: {
+export async function repairDarwinBundle(args: {
   readonly binaryPath: string;
+  readonly version: string;
   readonly iconPath: string | null;
   readonly spawnImpl: ArchiveSpawnFn;
   readonly logger: Pick<HostDaemonLogger, "warn">;
   readonly sign?: boolean;
-}): Promise<void> {
+}): Promise<boolean> {
   const bundleDir = appBundlePathForBinary(args.binaryPath);
-  if (bundleDir === null || args.iconPath === null) return;
-  const iconTarget = join(bundleDir, "Contents", "Resources", "bb.icns");
-  try {
-    await access(iconTarget);
-    return;
-  } catch {}
-  await mkdir(dirname(iconTarget), { recursive: true });
-  await copyFile(args.iconPath, iconTarget);
-  if (args.sign ?? true) {
+  if (bundleDir === null) return false;
+  let changed = false;
+  const plistPath = join(bundleDir, "Contents", "Info.plist");
+  const expectedPlist = computerAppInfoPlist(args.version);
+  const currentPlist = await readFile(plistPath, "utf8").catch(() => null);
+  if (currentPlist !== expectedPlist) {
+    await writeFile(plistPath, expectedPlist);
+    changed = true;
+  }
+  if (args.iconPath !== null) {
+    const iconTarget = join(bundleDir, "Contents", "Resources", "bb.icns");
+    const hasIcon = await access(iconTarget).then(() => true, () => false);
+    if (!hasIcon) {
+      await mkdir(dirname(iconTarget), { recursive: true });
+      await copyFile(args.iconPath, iconTarget);
+      changed = true;
+    }
+  }
+  if (changed && (args.sign ?? true)) {
     const signed = await runCommand(args.spawnImpl, "codesign", ["--force", "--deep", "--sign", "-", bundleDir]);
     if (signed.code !== 0) {
       args.logger.warn({ code: signed.code, stderr: signed.stderr }, "Ad-hoc signing of the computer driver bundle failed");
     }
   }
+  return changed;
 }
 
 export async function assembleDarwinAppBundle(args: {

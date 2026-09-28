@@ -307,8 +307,10 @@ run_lifecycle() {
       if [ -x "$computer_driver" ]; then "$computer_driver" stop >/dev/null 2>&1 || true; fi
     done
     if [ "$platform" = darwin ]; then
-      tccutil reset Accessibility app.getbb.computer >/dev/null 2>&1 || true
-      tccutil reset ScreenCapture app.getbb.computer >/dev/null 2>&1 || true
+      for computer_bundle_id in com.trycua.driver app.getbb.computer; do
+        tccutil reset Accessibility "$computer_bundle_id" >/dev/null 2>&1 || true
+        tccutil reset ScreenCapture "$computer_bundle_id" >/dev/null 2>&1 || true
+      done
     fi
     if [ -f "$service_file" ]; then rm -f "$service_file"; fi
     if [ "$platform" = linux ]; then systemctl "$systemd_scope" daemon-reload; fi

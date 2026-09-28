@@ -70,6 +70,7 @@ function permissionProbe(
   id: "accessibility" | "screen-recording",
   label: string,
   state: ComputerPermissionState,
+  detail: string,
 ): ComputerDoctorProbe {
   return {
     id,
@@ -80,7 +81,9 @@ function permissionProbe(
         ? "Granted"
         : state === "denied"
           ? "Not granted"
-          : "Unknown until the driver has been launched once",
+          : detail.length > 0
+            ? `Unknown; the driver reported: ${detail}`
+            : "Unknown; the driver gave no status",
   };
 }
 
@@ -93,6 +96,7 @@ class DriverController {
   #windowGrants = new WindowGrantSet();
   #runDirGrants = new PathGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
+  #restartRequired = false;
 
   constructor(
     spawnProcess: SpawnFn,
@@ -128,6 +132,7 @@ class DriverController {
           fetchImpl: this.#fetchImpl,
         });
         if (provisioned.status === "installed") {
+          if (provisioned.changed === true) this.#restartRequired = true;
           return { path: provisioned.path, tried: [provisioned.path], missing: false, permissionsMissing: false };
         }
         if (provisioned.status === "permissions-missing") {
@@ -156,17 +161,22 @@ class DriverController {
     await this.#resolveBinaryPath(dataDir);
   }
 
-  async runProbe(dataDir: string, args: string[], stdin?: string): Promise<{ code: number | null; stdout: string }> {
+  async runProbe(dataDir: string, args: string[], stdin?: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
     const resolution = await this.#resolveBinaryPath(dataDir);
     return new Promise((resolve) => {
-      const child = this.#spawnProcess(resolution.path, args, { stdio: ["pipe", "pipe", "ignore"], env: daemonEnv() });
+      const child = this.#spawnProcess(resolution.path, args, { stdio: ["pipe", "pipe", "pipe"], env: daemonEnv() });
       let stdout = "";
+      let stderr = "";
       child.stdout?.setEncoding("utf8");
       child.stdout?.on("data", (chunk: string) => {
         stdout = (stdout + chunk).slice(0, 200_000);
       });
-      child.on("error", () => resolve({ code: null, stdout: "" }));
-      child.on("close", (code) => resolve({ code, stdout }));
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", (chunk: string) => {
+        stderr = (stderr + chunk).slice(0, 4_000);
+      });
+      child.on("error", () => resolve({ code: null, stdout: "", stderr: "" }));
+      child.on("close", (code) => resolve({ code, stdout, stderr }));
       child.stdin?.end(stdin ?? "");
     });
   }
@@ -235,6 +245,10 @@ class DriverController {
   }
 
   async ensureDaemon(dataDir: string): Promise<void> {
+    if (this.#restartRequired) {
+      this.#restartRequired = false;
+      await this.#stopDaemon(dataDir).catch(() => {});
+    }
     if (await this.daemonRunning(dataDir)) return;
     if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) return;
     await mkdir(dataDir, { recursive: true });
@@ -265,9 +279,10 @@ class DriverController {
   async #permissionProbes(dataDir: string): Promise<ComputerDoctorProbe[]> {
     const status = await this.runProbe(dataDir, ["permissions", "status", "--json"]);
     const parsed = parseComputerPermissionStatus(status.stdout);
+    const detail = `${status.stdout} ${status.stderr}`.replace(/\s+/g, " ").trim().slice(0, 160);
     return [
-      permissionProbe("accessibility", "Accessibility", parsed.accessibility),
-      permissionProbe("screen-recording", "Screen recording", parsed.screenRecording),
+      permissionProbe("accessibility", "Accessibility", parsed.accessibility, detail),
+      permissionProbe("screen-recording", "Screen recording", parsed.screenRecording, detail),
     ];
   }
 

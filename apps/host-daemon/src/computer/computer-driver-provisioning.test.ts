@@ -192,7 +192,7 @@ describe("ensureProvisionedDriver", () => {
       await access(result.path, constants.X_OK);
       await access(join(bundleDir, "Contents", "MacOS", "libcua_driver_sdk.dylib"));
       const plist = await readFile(join(bundleDir, "Contents", "Info.plist"), "utf8");
-      expect(plist).toContain("<string>app.getbb.computer</string>");
+      expect(plist).toContain("<string>com.trycua.driver</string>");
       expect(plist).toContain("<key>CFBundleDisplayName</key>\n\t<string>bb</string>");
       expect(plist).toContain("<key>LSUIElement</key>\n\t<true/>");
       expect(await stagingEntries(dataDir)).toEqual([]);

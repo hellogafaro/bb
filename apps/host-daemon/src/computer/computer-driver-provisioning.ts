@@ -9,8 +9,8 @@ import {
   assembleDarwinAppBundle,
   bundledComputerIconPath,
   darwinBundleBinaryPath,
-  ensureDarwinBundleIcon,
   isDarwinPlatformKey,
+  repairDarwinBundle,
 } from "./computer-driver-bundle.js";
 import type { HostDaemonLogger } from "../logger.js";
 
@@ -67,7 +67,7 @@ export function computerDriverPlatformKey(
 
 export type ComputerDriverProvisionState =
   | { readonly status: "unpinned" }
-  | { readonly status: "installed"; readonly path: string }
+  | { readonly status: "installed"; readonly path: string; readonly changed?: boolean }
   | { readonly status: "permissions-missing"; readonly path: string }
   | { readonly status: "failed"; readonly message: string };
 
@@ -183,19 +183,22 @@ async function ensureProvisionedDriverUnlocked(
   const binaryPath = installedDriverBinaryPath(versionDir, platformKey);
 
   if (await isExecutable(binaryPath)) {
+    let changed = false;
     if (isDarwinPlatformKey(platformKey)) {
-      await ensureDarwinBundleIcon({
+      changed = await repairDarwinBundle({
         binaryPath,
+        version: pinned.version,
         iconPath: args.iconPath === undefined ? await bundledComputerIconPath() : args.iconPath,
         spawnImpl: args.spawnImpl ?? nodeSpawn,
         logger: args.logger,
         sign: args.signBundle,
       }).catch((error: unknown) => {
-        args.logger.warn({ err: error }, "Could not add the bb icon to the computer driver bundle");
+        args.logger.warn({ err: error }, "Could not repair the computer driver bundle");
+        return false;
       });
     }
     await pruneOtherVersions(driverRoot, pinned.version, args.logger);
-    return { status: "installed", path: binaryPath };
+    return { status: "installed", path: binaryPath, changed };
   }
 
   args.logger.debug(

@@ -21,10 +21,10 @@ import { sdk } from "@/lib/sdk";
 
 type Probe = ComputerDoctorReport["probes"][number];
 
-const PROBE_DOT_CLASS: Record<Probe["status"], string> = {
-  ok: "bg-status-ready",
-  "setup-required": "bg-status-waiting",
-  unavailable: "bg-status-failed",
+const PROBE_RING_CLASS: Record<Probe["status"], string> = {
+  ok: "text-status-ready",
+  "setup-required": "text-status-waiting",
+  unavailable: "text-status-failed",
 };
 
 const PROBE_TEXT_CLASS: Record<Probe["status"], string> = {
@@ -62,8 +62,15 @@ function ProbeRow({ probe }: { probe: Probe }) {
     <SettingsRow>
       <span
         aria-hidden
-        className={cn("size-2 shrink-0 rounded-full", PROBE_DOT_CLASS[probe.status])}
-      />
+        className={cn(
+          "flex size-3 shrink-0 items-center justify-center",
+          PROBE_RING_CLASS[probe.status],
+        )}
+      >
+        <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden>
+          <circle cx="5" cy="5" r="4.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </span>
       <span className="shrink-0 text-foreground">{probe.label}</span>
       <span
         className={cn(
