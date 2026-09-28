@@ -5,9 +5,9 @@ import type { ArchiveSpawnFn } from "./computer-driver-archive.js";
 import type { HostDaemonLogger } from "../logger.js";
 
 export const COMPUTER_APP_BUNDLE_ID = "com.trycua.driver";
-export const COMPUTER_APP_BUNDLE_NAME = "CuaDriver.app";
 export const COMPUTER_APP_DISPLAY_NAME = "bb Computer";
-const LEGACY_BUNDLE_NAMES = ["bb.app"];
+export const COMPUTER_APP_BUNDLE_NAME = `${COMPUTER_APP_DISPLAY_NAME}.app`;
+const LEGACY_BUNDLE_NAMES = ["bb.app", "CuaDriver.app"];
 export const COMPUTER_APP_ICON_FILE = "bb-computer.icns";
 const BUNDLE_EXECUTABLE = "cua-driver";
 
@@ -35,11 +35,10 @@ export function computerAppInfoPlist(version: string): string {
     ["CFBundleIconFile", "<string>bb</string>"],
     ["CFBundleIdentifier", `<string>${COMPUTER_APP_BUNDLE_ID}</string>`],
     ["CFBundleInfoDictionaryVersion", "<string>6.0</string>"],
-    ["CFBundleName", "<string>CuaDriver</string>"],
+    ["CFBundleName", `<string>${COMPUTER_APP_DISPLAY_NAME}</string>`],
     ["CFBundlePackageType", "<string>APPL</string>"],
     ["CFBundleShortVersionString", `<string>${version}</string>`],
     ["CFBundleVersion", `<string>${version}</string>`],
-    ["LSHasLocalizedDisplayName", "<true/>"],
     ["LSMinimumSystemVersion", "<string>12.0</string>"],
     ["LSUIElement", "<true/>"],
     ["NSHighResolutionCapable", "<true/>"],

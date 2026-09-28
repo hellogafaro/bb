@@ -26,7 +26,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const bundleBinary = "/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/CuaDriver.app/Contents/MacOS/cua-driver";
+const bundleBinary = "/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/bb Computer.app/Contents/MacOS/cua-driver";
 
 function report(overrides: Partial<ComputerDoctorReport> = {}): ComputerDoctorReport {
   return {
@@ -72,7 +72,7 @@ describe("MachineComputerReadinessSection", () => {
     );
     await view.findByText("Allow Accessibility on pro");
     expect(
-      view.getByText("/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/CuaDriver.app"),
+      view.getByText("/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/bb Computer.app"),
     ).toBeTruthy();
   });
 

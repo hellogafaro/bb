@@ -199,7 +199,7 @@ describe("ComputerHostService on macOS", () => {
   });
 
   it("launches the driver through LaunchServices when it lives in the bb.app bundle", async () => {
-    const bundleDir = join(dataDir, "computer", "driver", "0.30.2", "darwin-arm64", "CuaDriver.app");
+    const bundleDir = join(dataDir, "computer", "driver", "0.30.2", "darwin-arm64", "bb Computer.app");
     const binaryPath = join(bundleDir, "Contents", "MacOS", "cua-driver");
     process.env.CUA_DRIVER_PATH = binaryPath;
     const launches: { command: string; args: readonly string[] }[] = [];
@@ -273,7 +273,7 @@ describe("ComputerHostService requestPermissions", () => {
   });
 
   it("runs the driver grant flow and opens the pane for the missing permission on macOS", async () => {
-    const binaryPath = join(dataDir, "CuaDriver.app", "Contents", "MacOS", "cua-driver");
+    const binaryPath = join(dataDir, "bb Computer.app", "Contents", "MacOS", "cua-driver");
     process.env.CUA_DRIVER_PATH = binaryPath;
     const calls: { command: string; args: readonly string[] }[] = [];
     const spawnProcess = ((command: string, args: readonly string[]): unknown => {
