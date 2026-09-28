@@ -67,6 +67,30 @@ function runCommand(spawnImpl: ArchiveSpawnFn, command: string, args: string[]):
   });
 }
 
+export async function ensureDarwinBundleIcon(args: {
+  readonly binaryPath: string;
+  readonly iconPath: string | null;
+  readonly spawnImpl: ArchiveSpawnFn;
+  readonly logger: Pick<HostDaemonLogger, "warn">;
+  readonly sign?: boolean;
+}): Promise<void> {
+  const bundleDir = appBundlePathForBinary(args.binaryPath);
+  if (bundleDir === null || args.iconPath === null) return;
+  const iconTarget = join(bundleDir, "Contents", "Resources", "bb.icns");
+  try {
+    await access(iconTarget);
+    return;
+  } catch {}
+  await mkdir(dirname(iconTarget), { recursive: true });
+  await copyFile(args.iconPath, iconTarget);
+  if (args.sign ?? true) {
+    const signed = await runCommand(args.spawnImpl, "codesign", ["--force", "--deep", "--sign", "-", bundleDir]);
+    if (signed.code !== 0) {
+      args.logger.warn({ code: signed.code, stderr: signed.stderr }, "Ad-hoc signing of the computer driver bundle failed");
+    }
+  }
+}
+
 export async function assembleDarwinAppBundle(args: {
   readonly extractDir: string;
   readonly version: string;

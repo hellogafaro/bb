@@ -201,6 +201,47 @@ describe("ensureProvisionedDriver", () => {
     }
   });
 
+  it("adds the bb icon to an already installed macOS bundle", async () => {
+    const buildDir = await mkdtemp(join(tmpdir(), "computer-driver-fixture-"));
+    try {
+      await writeFile(join(buildDir, "cua-driver"), "#!/bin/sh\necho fixture\n");
+      const archivePath = join(buildDir, "archive.tar.gz");
+      await runTar(["-czf", archivePath, "-C", buildDir, "cua-driver"], buildDir);
+      const bytes = new Uint8Array(await readFile(archivePath));
+      const darwinPin: ComputerDriverPin = { ...pin, sha256: sha256Hex(bytes) };
+      const iconPath = join(buildDir, "bb.icns");
+      await writeFile(iconPath, "icon");
+
+      const installed = await ensureProvisionedDriver({
+        dataDir,
+        logger: testLogger,
+        platformKey: "darwin-arm64",
+        fetchImpl: fakeFetch(bytes),
+        pins: { "darwin-arm64": darwinPin },
+        iconPath: null,
+        signBundle: false,
+      });
+      expect(installed.status).toBe("installed");
+      if (installed.status !== "installed") return;
+      const iconTarget = join(installed.path, "..", "..", "Resources", "bb.icns");
+      await expect(access(iconTarget)).rejects.toThrow();
+
+      const repaired = await ensureProvisionedDriver({
+        dataDir,
+        logger: testLogger,
+        platformKey: "darwin-arm64",
+        fetchImpl: fakeFetch(new Uint8Array(), false, 500),
+        pins: { "darwin-arm64": darwinPin },
+        iconPath,
+        signBundle: false,
+      });
+      expect(repaired.status).toBe("installed");
+      expect(await readFile(iconTarget, "utf8")).toBe("icon");
+    } finally {
+      await rm(buildDir, { recursive: true, force: true });
+    }
+  });
+
   it("prunes a stale version directory once a new version installs", async () => {
     await mkdir(join(dataDir, "computer", "driver", "0.0.1-stale", platformKey), { recursive: true });
 

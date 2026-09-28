@@ -9,6 +9,7 @@ import {
   assembleDarwinAppBundle,
   bundledComputerIconPath,
   darwinBundleBinaryPath,
+  ensureDarwinBundleIcon,
   isDarwinPlatformKey,
 } from "./computer-driver-bundle.js";
 import type { HostDaemonLogger } from "../logger.js";
@@ -182,6 +183,17 @@ async function ensureProvisionedDriverUnlocked(
   const binaryPath = installedDriverBinaryPath(versionDir, platformKey);
 
   if (await isExecutable(binaryPath)) {
+    if (isDarwinPlatformKey(platformKey)) {
+      await ensureDarwinBundleIcon({
+        binaryPath,
+        iconPath: args.iconPath === undefined ? await bundledComputerIconPath() : args.iconPath,
+        spawnImpl: args.spawnImpl ?? nodeSpawn,
+        logger: args.logger,
+        sign: args.signBundle,
+      }).catch((error: unknown) => {
+        args.logger.warn({ err: error }, "Could not add the bb icon to the computer driver bundle");
+      });
+    }
     await pruneOtherVersions(driverRoot, pinned.version, args.logger);
     return { status: "installed", path: binaryPath };
   }

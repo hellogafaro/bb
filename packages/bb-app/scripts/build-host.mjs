@@ -29,6 +29,7 @@ const dependencyNames = [
   "pino-roll",
 ];
 const hostDaemonFiles = [
+  "bb-computer.icns",
   "bb-parcel-watcher-child.mjs",
   "bb-plugin-host-worker.mjs",
   "bb-provider-bridge-worker.mjs",

@@ -250,7 +250,7 @@ class DriverController {
           : resolution.missing
             ? `The bb computer driver was not found; tried: ${resolution.tried.join(", ")}`
             : version.code === 0
-              ? version.stdout.trim().slice(0, 100)
+              ? `${version.stdout.trim().slice(0, 100)} at ${resolution.path}`
               : "The bb computer driver was not found on PATH",
       },
       {
