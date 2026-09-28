@@ -2,11 +2,16 @@ import { useEffect, useId, useState } from "react";
 import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import type {
+  ComputerControlOwner,
   ComputerDoctorReport,
   ComputerMachineSummary,
 } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
-import { useComputerLiveFrame } from "./ComputerLiveView";
+import {
+  isDocumentVisible,
+  useDocumentVisibilityRevision,
+} from "@/lib/document-visibility";
+import { ComputerLiveStage, useComputerLive } from "./ComputerLiveView";
 
 function formatLastSeen(lastSeenAt: number | null): string {
   if (lastSeenAt === null) return "never seen";
@@ -78,93 +83,80 @@ function useDoctorReport(hostId: string) {
   return report;
 }
 
-function useActiveRun(hostId: string) {
-  const [runId, setRunId] = useState<string | null>(null);
-  useEffect(() => {
-    let stopped = false;
-    const poll = () => {
-      sdk.computer
-        .activeRun({ hostId })
-        .then((result) => {
-          if (!stopped) setRunId(result.runId);
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!stopped) timer = setTimeout(poll, 1500);
-        });
-    };
-    let timer: ReturnType<typeof setTimeout>;
-    poll();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [hostId]);
-  return runId;
-}
-
-function useControlStatus(hostId: string, clientId: string) {
-  const [owner, setOwner] = useState<"you" | "other" | "agent">("agent");
-  useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = () => {
-      sdk.computer
-        .controlStatus({ hostId, clientId })
-        .then((result) => {
-          if (!stopped) setOwner(result.owner);
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!stopped) timer = setTimeout(poll, 1200);
-        });
-    };
-    poll();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [hostId, clientId]);
-  return [owner, setOwner] as const;
-}
-
 function ControlBanner({
   hostId,
-  activeRunId,
+  clientId,
+  control,
+  runId,
+  readClipboard,
+  writeClipboard,
 }: {
   hostId: string;
-  activeRunId: string | null;
+  clientId: string;
+  control: ComputerControlOwner;
+  runId: string | null;
+  readClipboard: () => Promise<string | null>;
+  writeClipboard: (text: string, paste: boolean) => Promise<void>;
 }) {
-  const clientId = useId();
-  const [owner, setOwner] = useControlStatus(hostId, clientId);
+  const [clipboardError, setClipboardError] = useState<string | null>(null);
   const takeControl = () => {
-    sdk.computer
-      .takeControl({ hostId, clientId })
-      .then((result) => setOwner(result.owner === "human" ? "you" : "other"))
-      .catch(() => {});
+    sdk.computer.takeControl({ hostId, clientId }).catch(() => {});
   };
   const release = () => {
-    sdk.computer
-      .releaseControl({ hostId, clientId })
-      .then(() => setOwner("agent"))
-      .catch(() => {});
+    sdk.computer.releaseControl({ hostId, clientId }).catch(() => {});
   };
   const stop = () => {
-    if (activeRunId !== null) sdk.computer.cancel({ runId: activeRunId }).catch(() => {});
+    if (runId !== null) sdk.computer.cancel({ runId }).catch(() => {});
+  };
+  const copyFromMachine = async () => {
+    setClipboardError(null);
+    try {
+      const text = await readClipboard();
+      if (text !== null) await navigator.clipboard.writeText(text);
+    } catch (error) {
+      setClipboardError(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const pasteToMachine = async () => {
+    setClipboardError(null);
+    try {
+      const text = await navigator.clipboard.readText();
+      await writeClipboard(text, true);
+    } catch (error) {
+      setClipboardError(error instanceof Error ? error.message : String(error));
+    }
   };
   const label =
-    owner === "you"
+    control === "you"
       ? "Controlled by you"
-      : owner === "other"
+      : control === "other"
         ? "Controlled by another session"
-        : activeRunId !== null
+        : runId !== null
           ? "Controlled by the agent — a run is active"
           : "Controlled by the agent when a run is active";
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <div className="flex gap-2">
-        {activeRunId !== null ? (
+      <span className="truncate text-muted-foreground">{clipboardError ?? label}</span>
+      <div className="flex shrink-0 gap-2">
+        {control === "you" ? (
+          <>
+            <button
+              type="button"
+              onClick={copyFromMachine}
+              className="rounded border border-border px-2 py-1 hover:bg-background"
+            >
+              Copy from machine
+            </button>
+            <button
+              type="button"
+              onClick={pasteToMachine}
+              className="rounded border border-border px-2 py-1 hover:bg-background"
+            >
+              Paste to machine
+            </button>
+          </>
+        ) : null}
+        {runId !== null ? (
           <button
             type="button"
             onClick={stop}
@@ -173,7 +165,7 @@ function ControlBanner({
             Stop
           </button>
         ) : null}
-        {owner === "you" ? (
+        {control === "you" ? (
           <button
             type="button"
             onClick={release}
@@ -185,7 +177,7 @@ function ControlBanner({
           <button
             type="button"
             onClick={takeControl}
-            disabled={owner === "other"}
+            disabled={control === "other"}
             className="rounded border border-border px-2 py-1 hover:bg-background disabled:opacity-50"
           >
             Take control
@@ -305,33 +297,51 @@ function DoctorFailure({
   );
 }
 
+function useLiveActive(isActive: boolean): boolean {
+  useDocumentVisibilityRevision();
+  return isActive && isDocumentVisible();
+}
+
 function MachineWorkspace({
   hostId,
   machineName,
+  isActive,
 }: {
   hostId: string;
   machineName: string;
+  isActive: boolean;
 }) {
+  const clientId = useId();
   const report = useDoctorReport(hostId);
-  const activeRunId = useActiveRun(hostId);
-  const frame = useComputerLiveFrame(hostId, report !== null && report.state === "ready", "full");
+  const liveActive = useLiveActive(isActive) && report !== null && report.state === "ready";
+  const live = useComputerLive(hostId, { active: liveActive, profile: "full", clientId });
 
   if (report === null) return <CenteredSpinner />;
   if (report.state !== "ready") {
     return <DoctorFailure machineName={machineName} report={report} />;
   }
-  if (frame === null) return <CenteredSpinner />;
   return (
     <>
-      <ControlBanner hostId={hostId} activeRunId={activeRunId} />
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-black/90">
-        <img src={frame.src} alt="Live machine view" className="max-h-full max-w-full object-contain" />
-      </div>
+      <ControlBanner
+        hostId={hostId}
+        clientId={clientId}
+        control={live.control}
+        runId={live.runId}
+        readClipboard={live.readClipboard}
+        writeClipboard={live.writeClipboard}
+      />
+      <ComputerLiveStage live={live} interactive />
     </>
   );
 }
 
-export function ComputerPanel({ threadId }: { threadId: string }) {
+export function ComputerPanel({
+  threadId,
+  isActive,
+}: {
+  threadId: string;
+  isActive: boolean;
+}) {
   const [hostId, setHostId] = useState<string | null>(null);
   const { machines, currentHostId } = useMachines(threadId);
   const selectedMachine = machines.find((machine) => machine.hostId === hostId) ?? null;
@@ -341,7 +351,11 @@ export function ComputerPanel({ threadId }: { threadId: string }) {
       {hostId === null ? (
         <MachinePickerCards machines={machines} currentHostId={currentHostId} onSelect={setHostId} />
       ) : (
-        <MachineWorkspace hostId={hostId} machineName={selectedMachine?.name ?? hostId} />
+        <MachineWorkspace
+          hostId={hostId}
+          machineName={selectedMachine?.name ?? hostId}
+          isActive={isActive}
+        />
       )}
     </div>
   );

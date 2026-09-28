@@ -2,7 +2,12 @@ import { spawn } from "node:child_process";
 
 export interface CuaToolResult {
   readonly structuredContent?: Record<string, unknown>;
-  readonly content?: ReadonlyArray<{ readonly type?: string; readonly text?: string }>;
+  readonly content?: ReadonlyArray<{
+    readonly type?: string;
+    readonly text?: string;
+    readonly data?: string;
+    readonly mimeType?: string;
+  }>;
   readonly isError?: boolean;
 }
 
@@ -74,6 +79,14 @@ export function parseCuaResult(stdout: string): CuaToolResult {
   };
 }
 
+export function cuaResultError(tool: string, result: CuaToolResult): CuaError | null {
+  if (result.isError !== true) return null;
+  const message =
+    result.content?.find((part) => part.type === "text")?.text ?? `Cua tool ${tool} returned an error`;
+  const stale = /stale|no longer visible|not found/iu.test(message);
+  return new CuaError(message.slice(0, 1_000), stale ? "stale-observation" : "provider-unavailable", stale);
+}
+
 export class ProcessCuaTransport implements CuaTransport {
   readonly #options: Required<ProcessCuaTransportOptions>;
 
@@ -141,13 +154,9 @@ export class ProcessCuaTransport implements CuaTransport {
           }
           try {
             const result = parseCuaResult(stdout);
-            if (result.isError === true) {
-              const message =
-                result.content?.find((part) => part.type === "text")?.text ??
-                `Cua tool ${tool} returned an error`;
-              const stale = /stale|no longer visible|not found/iu.test(message);
-              reject(new CuaError(message.slice(0, 1_000), stale ? "stale-observation" : "provider-unavailable", stale));
-            } else resolve(result);
+            const error = cuaResultError(tool, result);
+            if (error !== null) reject(error);
+            else resolve(result);
           } catch (error) {
             reject(
               new CuaError(

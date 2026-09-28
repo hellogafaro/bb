@@ -1,5 +1,6 @@
 import ReconnectingWebSocket from "partysocket/ws";
 import {
+  type ComputerLiveDemandMessage,
   type HostDaemonActiveThread,
   type HostDaemonLoadedEnvironment,
   type HostDaemonConnectSharesReplaceMessage,
@@ -20,7 +21,7 @@ export interface ReconnectingWebSocketLike {
   onmessage: ((event: any) => void) | null;
   onclose: ((event: any) => void) | null;
   onerror: ((event: any) => void) | null;
-  send(data: string): void;
+  send(data: string | Uint8Array<ArrayBuffer>): void;
   close(code?: number, reason?: string): void;
   reconnect(code?: number, reason?: string): void;
 }
@@ -50,6 +51,7 @@ export type HostDaemonServerTerminalMessage = Exclude<
   | HostDaemonOnlineRpcRequestMessage
   | HostDaemonWatchSetReplaceMessage
   | HostDaemonConnectSharesReplaceMessage
+  | ComputerLiveDemandMessage
 >;
 
 export type ServerMovedNotice =
@@ -95,6 +97,7 @@ export interface ServerConnectionOptions {
   onWatchSetReplace?: (
     message: HostDaemonWatchSetReplaceMessage,
   ) => void | Promise<void>;
+  onComputerLiveDemand?: (message: ComputerLiveDemandMessage | null) => void;
   onConnectSharesReplace?: (
     message: HostDaemonConnectSharesReplaceMessage,
   ) => void | Promise<void>;

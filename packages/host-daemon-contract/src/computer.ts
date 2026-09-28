@@ -186,21 +186,130 @@ export const computerCaptureImageSchema = z
   .strict();
 export type ComputerCaptureImage = z.infer<typeof computerCaptureImageSchema>;
 
-export const computerPreviewSizeSchema = z.enum(["thumbnail", "full"]);
-export type ComputerPreviewSize = z.infer<typeof computerPreviewSizeSchema>;
+export const computerLiveProfileSchema = z.enum(["full", "thumbnail"]);
+export type ComputerLiveProfile = z.infer<typeof computerLiveProfileSchema>;
 
-export const computerPreviewFrameSchema = z
+export const computerFrameSizeSchema = z
   .object({
-    sequence: z.number().int().nonnegative(),
-    state: z.enum(["live", "paused", "redacted", "disconnected", "none"]),
-    mimeType: computerImageMimeTypeSchema.nullable(),
-    dataBase64: z.string().nullable(),
-    width: z.number().int().nonnegative(),
-    height: z.number().int().nonnegative(),
-    capturedAt: z.number().int().nonnegative().nullable(),
+    width: z.number().int().positive().max(16_384),
+    height: z.number().int().positive().max(16_384),
   })
   .strict();
-export type ComputerPreviewFrame = z.infer<typeof computerPreviewFrameSchema>;
+export type ComputerFrameSize = z.infer<typeof computerFrameSizeSchema>;
+
+const frameCoordinateSchema = z.number().finite().min(0).max(16_384);
+export const computerPointerButtonSchema = z.enum(["left", "right", "middle"]);
+export type ComputerPointerButton = z.infer<typeof computerPointerButtonSchema>;
+export const computerKeyModifierSchema = z.enum(["ctrl", "shift", "alt", "meta"]);
+export type ComputerKeyModifier = z.infer<typeof computerKeyModifierSchema>;
+const keyModifiersSchema = z.array(computerKeyModifierSchema).max(4);
+
+export const computerHumanInputSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("click"),
+      frame: computerFrameSizeSchema,
+      x: frameCoordinateSchema,
+      y: frameCoordinateSchema,
+      button: computerPointerButtonSchema,
+      count: z.number().int().min(1).max(3),
+      modifiers: keyModifiersSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("drag"),
+      frame: computerFrameSizeSchema,
+      fromX: frameCoordinateSchema,
+      fromY: frameCoordinateSchema,
+      toX: frameCoordinateSchema,
+      toY: frameCoordinateSchema,
+      button: computerPointerButtonSchema,
+      durationMs: z.number().int().min(0).max(10_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("scroll"),
+      frame: computerFrameSizeSchema,
+      x: frameCoordinateSchema,
+      y: frameCoordinateSchema,
+      direction: z.enum(["up", "down", "left", "right"]),
+      amount: z.number().int().min(1).max(50),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("move"),
+      frame: computerFrameSizeSchema,
+      x: frameCoordinateSchema,
+      y: frameCoordinateSchema,
+    })
+    .strict(),
+  z.object({ kind: z.literal("type"), text: z.string().min(1).max(10_000) }).strict(),
+  z
+    .object({
+      kind: z.literal("key"),
+      key: z.string().min(1).max(40),
+      modifiers: keyModifiersSchema,
+    })
+    .strict(),
+]);
+export type ComputerHumanInput = z.infer<typeof computerHumanInputSchema>;
+
+export const COMPUTER_CLIPBOARD_MAX_CHARS = 1_000_000;
+
+export const computerLiveStateSchema = z.enum(["starting", "live", "stopped", "error"]);
+export type ComputerLiveState = z.infer<typeof computerLiveStateSchema>;
+
+export const computerFrameHeaderSchema = z
+  .object({
+    sequence: z.number().int().nonnegative(),
+    capturedAt: z.number().int().nonnegative(),
+    mimeType: computerImageMimeTypeSchema,
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    originalWidth: z.number().int().positive(),
+    originalHeight: z.number().int().positive(),
+  })
+  .strict();
+export type ComputerFrameHeader = z.infer<typeof computerFrameHeaderSchema>;
+
+export interface ComputerFrame {
+  readonly header: ComputerFrameHeader;
+  readonly body: Uint8Array;
+}
+
+const COMPUTER_FRAME_MAGIC = [0x42, 0x42, 0x46, 0x31] as const;
+const COMPUTER_FRAME_PREFIX_BYTES = 8;
+const COMPUTER_FRAME_MAX_HEADER_BYTES = 4_096;
+
+export function encodeComputerFrame(frame: ComputerFrame): Uint8Array<ArrayBuffer> {
+  const header = new TextEncoder().encode(JSON.stringify(frame.header));
+  const bytes = new Uint8Array(COMPUTER_FRAME_PREFIX_BYTES + header.length + frame.body.length);
+  bytes.set(COMPUTER_FRAME_MAGIC, 0);
+  new DataView(bytes.buffer).setUint32(4, header.length);
+  bytes.set(header, COMPUTER_FRAME_PREFIX_BYTES);
+  bytes.set(frame.body, COMPUTER_FRAME_PREFIX_BYTES + header.length);
+  return bytes;
+}
+
+export function decodeComputerFrame(bytes: Uint8Array): ComputerFrame | null {
+  if (bytes.length < COMPUTER_FRAME_PREFIX_BYTES) return null;
+  if (COMPUTER_FRAME_MAGIC.some((value, index) => bytes[index] !== value)) return null;
+  const headerLength = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4);
+  const bodyStart = COMPUTER_FRAME_PREFIX_BYTES + headerLength;
+  if (headerLength > COMPUTER_FRAME_MAX_HEADER_BYTES || bodyStart >= bytes.length) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(new TextDecoder().decode(bytes.subarray(COMPUTER_FRAME_PREFIX_BYTES, bodyStart)));
+  } catch {
+    return null;
+  }
+  const header = computerFrameHeaderSchema.safeParse(raw);
+  if (!header.success) return null;
+  return { header: header.data, body: bytes.subarray(bodyStart) };
+}
 
 export const computerCommandSchemas = {
   "computer.doctor": z.object({ type: z.literal("computer.doctor") }).strict(),
@@ -244,17 +353,20 @@ export const computerCommandSchemas = {
       runId: computerRunIdSchema,
     })
     .strict(),
-  "computer.preview_touch": z
+  "computer.input": z
     .object({
-      type: z.literal("computer.preview_touch"),
-      viewerId: z.string().min(1).max(80),
-      size: computerPreviewSizeSchema.default("thumbnail"),
+      type: z.literal("computer.input"),
+      input: computerHumanInputSchema,
     })
     .strict(),
-  "computer.preview_latest": z
+  "computer.clipboard_read": z
+    .object({ type: z.literal("computer.clipboard_read") })
+    .strict(),
+  "computer.clipboard_write": z
     .object({
-      type: z.literal("computer.preview_latest"),
-      afterSequence: z.number().int().nonnegative().nullable(),
+      type: z.literal("computer.clipboard_write"),
+      text: z.string().max(COMPUTER_CLIPBOARD_MAX_CHARS),
+      paste: z.boolean(),
     })
     .strict(),
 };
@@ -266,8 +378,9 @@ export const computerCommandSchema = z.discriminatedUnion("type", [
   computerCommandSchemas["computer.capture"],
   computerCommandSchemas["computer.record_start"],
   computerCommandSchemas["computer.record_stop"],
-  computerCommandSchemas["computer.preview_touch"],
-  computerCommandSchemas["computer.preview_latest"],
+  computerCommandSchemas["computer.input"],
+  computerCommandSchemas["computer.clipboard_read"],
+  computerCommandSchemas["computer.clipboard_write"],
 ]);
 export const computerResultSchemas = {
   "computer.doctor": computerDoctorReportSchema,
@@ -283,10 +396,30 @@ export const computerResultSchemas = {
       trajectoryPath: z.string().nullable(),
     })
     .strict(),
-  "computer.preview_touch": z.object({ ok: z.boolean() }).strict(),
-  "computer.preview_latest": computerPreviewFrameSchema,
+  "computer.input": z.object({ summary: z.string().max(2_000) }).strict(),
+  "computer.clipboard_read": z
+    .object({ text: z.string().max(COMPUTER_CLIPBOARD_MAX_CHARS).nullable() })
+    .strict(),
+  "computer.clipboard_write": z.object({ written: z.boolean() }).strict(),
 };
 export type ComputerCommand = z.infer<typeof computerCommandSchema>;
 export type ComputerCommandType = ComputerCommand["type"];
 export type ComputerResult<T extends ComputerCommandType = ComputerCommandType> =
   z.infer<(typeof computerResultSchemas)[T]>;
+
+export const computerLiveDemandMessageSchema = z
+  .object({
+    type: z.literal("computer.live.demand"),
+    profile: computerLiveProfileSchema.nullable(),
+  })
+  .strict();
+export type ComputerLiveDemandMessage = z.infer<typeof computerLiveDemandMessageSchema>;
+
+export const computerLiveStatusMessageSchema = z
+  .object({
+    type: z.literal("computer.live.status"),
+    state: computerLiveStateSchema,
+    message: z.string().max(1_000).nullable(),
+  })
+  .strict();
+export type ComputerLiveStatusMessage = z.infer<typeof computerLiveStatusMessageSchema>;

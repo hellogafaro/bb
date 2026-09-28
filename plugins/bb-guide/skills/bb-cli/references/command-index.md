@@ -370,6 +370,7 @@ move and downloads the new server's bb-app package for its service.
 - `bb computer machines`
 - `bb computer doctor`
 - `bb computer setup`
+- `bb computer permissions`
 - `bb computer observe`
 - `bb computer act`
 - `bb computer screenshot`
@@ -381,7 +382,8 @@ move and downloads the new server's bb-app package for its service.
 - `bb computer take-control`
 - `bb computer release-control`
 - `bb computer control-status`
-- `bb computer preview`
+- `bb computer input`
+- `bb computer clipboard`
 
 `bb computer` observes and controls a machine's desktop through Cua Driver. Read `bb guide computer` before you observe, act, or start a run.
 

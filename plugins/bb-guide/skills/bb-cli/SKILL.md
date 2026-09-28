@@ -210,6 +210,10 @@ begins a goal-driven run tracked with `bb computer status --run <id>` and
 ended with `bb computer cancel --run <id>`; without a configured TypeSafe key
 it always escalates immediately to manual `observe`/`act`. `bb computer
 take-control`/`control-status`/`release-control --host <id> --client <id>`
-hand control between a person and automation. See `bb guide computer` for the
-full chapter; there is no plugin and no `bb plugin config computer` — its
-decision-loop credentials live in server config.
+hand control between a person and automation. The Computer tab streams a live
+view over a WebSocket while it's open; `bb computer input --host <id>
+--client <id> --input <json>` and `bb computer clipboard --host <id> --client
+<id> --action read|write [--text <value>] [--paste]` script that same channel
+(hold control first). See `bb guide computer` for the full chapter; there is
+no plugin and no `bb plugin config computer` — its decision-loop credentials
+live in server config.

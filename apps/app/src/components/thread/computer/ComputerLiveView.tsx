@@ -1,72 +1,410 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  ComputerFrameHeader,
+  ComputerHumanInput,
+  ComputerKeyModifier,
+  ComputerLiveProfile,
+  ComputerPointerButton,
+} from "@bb/host-daemon-contract";
+import type { ComputerControlOwner } from "@bb/server-contract";
+import { cn } from "@bb/shared-ui/lib/utils";
 import { sdk } from "@/lib/sdk";
 
-export function useComputerLiveFrame(
+type ComputerLiveConnection = ReturnType<typeof sdk.computer.live>;
+export type ComputerLiveViewState = "connecting" | "starting" | "live" | "stopped" | "error";
+
+export interface ComputerLiveHandle {
+  readonly connected: boolean;
+  readonly state: ComputerLiveViewState;
+  readonly message: string | null;
+  readonly control: ComputerControlOwner;
+  readonly runId: string | null;
+  readonly fps: number;
+  readonly frameUrl: string | null;
+  readonly frameHeader: ComputerFrameHeader | null;
+  send(input: ComputerHumanInput): void;
+  perform(input: ComputerHumanInput): Promise<void>;
+  readClipboard(): Promise<string | null>;
+  writeClipboard(text: string, paste: boolean): Promise<void>;
+}
+
+const RECONNECT_DELAY_MS = 1_500;
+
+export function useComputerLive(
   hostId: string | null,
-  active: boolean,
-  size: "thumbnail" | "full" = "thumbnail",
-) {
-  const viewerId = useId();
-  const [frame, setFrame] = useState<{
-    src: string;
-    state: string;
-    capturedAt: number | null;
-    displayedAt: number;
-  } | null>(null);
-  const sequence = useRef<number | null>(null);
-  const pollIntervalMs = size === "full" ? 80 : 160;
+  options: { active: boolean; profile: ComputerLiveProfile; clientId: string },
+): ComputerLiveHandle {
+  const { active, profile, clientId } = options;
+  const [connected, setConnected] = useState(false);
+  const [state, setState] = useState<ComputerLiveViewState>("connecting");
+  const [message, setMessage] = useState<string | null>(null);
+  const [control, setControl] = useState<ComputerControlOwner>("agent");
+  const [runId, setRunId] = useState<string | null>(null);
+  const [fps, setFps] = useState(0);
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const [frameHeader, setFrameHeader] = useState<ComputerFrameHeader | null>(null);
+  const connectionRef = useRef<ComputerLiveConnection | null>(null);
+
   useEffect(() => {
     if (hostId === null || !active) return;
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const poll = () => {
-      sdk.computer
-        .preview({ hostId, viewerId, size, afterSequence: sequence.current })
-        .then((result) => {
-          if (stopped) return;
-          if (result.dataBase64 !== null && result.mimeType !== null) {
-            sequence.current = result.sequence;
-            setFrame({
-              src: `data:${result.mimeType};base64,${result.dataBase64}`,
-              state: result.state,
-              capturedAt: result.capturedAt,
-              displayedAt: Date.now(),
-            });
-          } else if (result.state !== "none") {
-            setFrame((prev) => (prev === null ? null : { ...prev, state: result.state }));
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!stopped) timer = setTimeout(poll, pollIntervalMs);
-        });
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let currentFrameUrl: string | null = null;
+
+    const connectOnce = () => {
+      if (stopped) return;
+      setState("connecting");
+      const connection = sdk.computer.live({ hostId, clientId, profile });
+      connectionRef.current = connection;
+      connection.onFrame((frame) => {
+        if (stopped) return;
+        const blob = new Blob([new Uint8Array(frame.body)], { type: frame.header.mimeType });
+        const url = URL.createObjectURL(blob);
+        const previous = currentFrameUrl;
+        currentFrameUrl = url;
+        setFrameUrl(url);
+        setFrameHeader(frame.header);
+        if (previous !== null) URL.revokeObjectURL(previous);
+      });
+      connection.onStatus((status) => {
+        if (stopped) return;
+        setState(status.state);
+        setMessage(status.message);
+        setControl(status.control);
+        setRunId(status.runId);
+        setFps(status.fps);
+        setConnected(true);
+      });
+      connection.onClose(() => {
+        if (stopped) return;
+        setConnected(false);
+        connectionRef.current = null;
+        retryTimer = setTimeout(connectOnce, RECONNECT_DELAY_MS);
+      });
     };
-    poll();
+    connectOnce();
+
     return () => {
       stopped = true;
-      if (timer !== null) clearTimeout(timer);
+      if (retryTimer !== null) clearTimeout(retryTimer);
+      connectionRef.current?.close();
+      connectionRef.current = null;
+      if (currentFrameUrl !== null) URL.revokeObjectURL(currentFrameUrl);
+      setConnected(false);
+      setState("connecting");
+      setFrameUrl(null);
+      setFrameHeader(null);
     };
-  }, [hostId, active, viewerId, size, pollIntervalMs]);
-  return frame;
+  }, [hostId, active, profile, clientId]);
+
+  return {
+    connected,
+    state,
+    message,
+    control,
+    runId,
+    fps,
+    frameUrl,
+    frameHeader,
+    send: (input) => connectionRef.current?.input(input),
+    perform: (input) => connectionRef.current?.perform(input) ?? Promise.resolve(),
+    readClipboard: () => connectionRef.current?.readClipboard() ?? Promise.resolve(null),
+    writeClipboard: (text, paste) =>
+      connectionRef.current?.writeClipboard(text, { paste }) ?? Promise.resolve(),
+  };
+}
+
+const SPECIAL_KEYS: Readonly<Record<string, string>> = {
+  Enter: "enter",
+  Backspace: "backspace",
+  Delete: "delete",
+  Tab: "tab",
+  Escape: "escape",
+  " ": "space",
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  Home: "home",
+  End: "end",
+  PageUp: "pageup",
+  PageDown: "pagedown",
+};
+
+function keyModifiers(event: {
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): ComputerKeyModifier[] {
+  const modifiers: ComputerKeyModifier[] = [];
+  if (event.ctrlKey) modifiers.push("ctrl");
+  if (event.shiftKey) modifiers.push("shift");
+  if (event.altKey) modifiers.push("alt");
+  if (event.metaKey) modifiers.push("meta");
+  return modifiers;
+}
+
+function resolveKeyName(key: string): string | null {
+  const special = SPECIAL_KEYS[key];
+  if (special !== undefined) return special;
+  if (/^F\d{1,2}$/u.test(key)) return key.toLowerCase();
+  return null;
+}
+
+function pointerButtonFor(button: number): ComputerPointerButton | null {
+  if (button === 0) return "left";
+  if (button === 1) return "middle";
+  if (button === 2) return "right";
+  return null;
+}
+
+interface FramePoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+function pointInFrame(
+  clientX: number,
+  clientY: number,
+  container: HTMLElement,
+  header: ComputerFrameHeader,
+): FramePoint {
+  const rect = container.getBoundingClientRect();
+  const containerAspect = rect.width / rect.height;
+  const frameAspect = header.width / header.height;
+  let displayWidth = rect.width;
+  let displayHeight = rect.height;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (containerAspect > frameAspect) {
+    displayWidth = rect.height * frameAspect;
+    offsetX = (rect.width - displayWidth) / 2;
+  } else {
+    displayHeight = rect.width / frameAspect;
+    offsetY = (rect.height - displayHeight) / 2;
+  }
+  const fracX = clamp((clientX - rect.left - offsetX) / displayWidth, 0, 1);
+  const fracY = clamp((clientY - rect.top - offsetY) / displayHeight, 0, 1);
+  return { x: fracX * header.width, y: fracY * header.height };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+const MOVE_THROTTLE_MS = 33;
+const WHEEL_THROTTLE_MS = 40;
+const DRAG_THRESHOLD_PX = 4;
+const DOUBLE_CLICK_WINDOW_MS = 400;
+const DOUBLE_CLICK_DISTANCE_PX = 6;
+
+export function ComputerLiveStage({
+  live,
+  interactive = false,
+}: {
+  live: ComputerLiveHandle;
+  interactive?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const keyCaptureRef = useRef<HTMLTextAreaElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    button: ComputerPointerButton;
+    start: FramePoint;
+    startAt: number;
+  } | null>(null);
+  const lastMoveAtRef = useRef(0);
+  const lastWheelAtRef = useRef(0);
+  const lastClickRef = useRef<{ at: number; point: FramePoint; button: ComputerPointerButton } | null>(null);
+
+  const canControl = interactive && live.control === "you" && live.frameHeader !== null;
+
+  const frameOf = useCallback((header: ComputerFrameHeader) => ({ width: header.width, height: header.height }), []);
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!canControl || live.frameHeader === null || containerRef.current === null) return;
+      const button = pointerButtonFor(event.button);
+      if (button === null) return;
+      event.preventDefault();
+      containerRef.current.setPointerCapture(event.pointerId);
+      keyCaptureRef.current?.focus({ preventScroll: true });
+      dragRef.current = {
+        pointerId: event.pointerId,
+        button,
+        start: pointInFrame(event.clientX, event.clientY, containerRef.current, live.frameHeader),
+        startAt: performance.now(),
+      };
+    },
+    [canControl, live.frameHeader],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!canControl || live.frameHeader === null || containerRef.current === null) return;
+      if (dragRef.current !== null) return;
+      const now = performance.now();
+      if (now - lastMoveAtRef.current < MOVE_THROTTLE_MS) return;
+      lastMoveAtRef.current = now;
+      const point = pointInFrame(event.clientX, event.clientY, containerRef.current, live.frameHeader);
+      live.send({ kind: "move", frame: frameOf(live.frameHeader), x: point.x, y: point.y });
+    },
+    [canControl, live, frameOf],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      dragRef.current = null;
+      if (!canControl || drag === null || drag.pointerId !== event.pointerId) return;
+      if (live.frameHeader === null || containerRef.current === null) return;
+      const point = pointInFrame(event.clientX, event.clientY, containerRef.current, live.frameHeader);
+      const frame = frameOf(live.frameHeader);
+      const distance = Math.hypot(point.x - drag.start.x, point.y - drag.start.y);
+      if (distance > DRAG_THRESHOLD_PX) {
+        void live.perform({
+          kind: "drag",
+          frame,
+          fromX: drag.start.x,
+          fromY: drag.start.y,
+          toX: point.x,
+          toY: point.y,
+          button: drag.button,
+          durationMs: clamp(Math.round(performance.now() - drag.startAt), 0, 10_000),
+        });
+        lastClickRef.current = null;
+        return;
+      }
+      const now = performance.now();
+      const last = lastClickRef.current;
+      const isDouble =
+        last !== null &&
+        last.button === drag.button &&
+        now - last.at < DOUBLE_CLICK_WINDOW_MS &&
+        Math.hypot(point.x - last.point.x, point.y - last.point.y) < DOUBLE_CLICK_DISTANCE_PX;
+      const count = isDouble ? 2 : 1;
+      lastClickRef.current = { at: now, point, button: drag.button };
+      void live.perform({
+        kind: "click",
+        frame,
+        x: point.x,
+        y: point.y,
+        button: drag.button,
+        count,
+        modifiers: keyModifiers(event),
+      });
+    },
+    [canControl, live, frameOf],
+  );
+
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (canControl) event.preventDefault();
+    },
+    [canControl],
+  );
+
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!canControl || live.frameHeader === null || containerRef.current === null) return;
+      event.preventDefault();
+      const now = performance.now();
+      if (now - lastWheelAtRef.current < WHEEL_THROTTLE_MS) return;
+      lastWheelAtRef.current = now;
+      const point = pointInFrame(event.clientX, event.clientY, containerRef.current, live.frameHeader);
+      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      const magnitude = horizontal ? Math.abs(event.deltaX) : Math.abs(event.deltaY);
+      const amount = clamp(Math.round(magnitude / 20), 1, 50);
+      const direction = horizontal
+        ? event.deltaX > 0
+          ? "right"
+          : "left"
+        : event.deltaY > 0
+          ? "down"
+          : "up";
+      live.send({ kind: "scroll", frame: frameOf(live.frameHeader), x: point.x, y: point.y, direction, amount });
+    },
+    [canControl, live, frameOf],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!canControl) return;
+      const special = resolveKeyName(event.key);
+      const modifiers = keyModifiers(event);
+      const isShortcut = event.ctrlKey || event.metaKey || event.altKey;
+      if (special === null && !isShortcut) return;
+      event.preventDefault();
+      void live.perform({ kind: "key", key: special ?? event.key.toLowerCase(), modifiers });
+    },
+    [canControl, live],
+  );
+
+  const handleInput = useCallback(
+    (event: React.FormEvent<HTMLTextAreaElement>) => {
+      const target = event.currentTarget;
+      const text = target.value;
+      target.value = "";
+      if (!canControl || text.length === 0) return;
+      void live.perform({ kind: "type", text });
+    },
+    [canControl, live],
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/90"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={handleContextMenu}
+      onWheel={handleWheel}
+    >
+      {live.frameUrl === null ? (
+        <p className="text-xs text-muted-foreground">
+          {live.state === "error" ? (live.message ?? "The live view failed") : "Waiting for a frame…"}
+        </p>
+      ) : (
+        <img
+          src={live.frameUrl}
+          alt="Live machine view"
+          draggable={false}
+          className={cn("max-h-full max-w-full object-contain", canControl && "cursor-none")}
+        />
+      )}
+      {interactive ? (
+        <textarea
+          ref={keyCaptureRef}
+          aria-label="Computer keyboard input"
+          className="absolute inset-0 h-full w-full resize-none opacity-0"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          disabled={!canControl}
+          onKeyDown={handleKeyDown}
+          onInput={handleInput}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 export function ComputerLiveView({
   hostId,
   active,
-  size = "thumbnail",
+  profile = "thumbnail",
+  clientId,
+  interactive = false,
 }: {
   hostId: string;
   active: boolean;
-  size?: "thumbnail" | "full";
+  profile?: ComputerLiveProfile;
+  clientId: string;
+  interactive?: boolean;
 }) {
-  const frame = useComputerLiveFrame(hostId, active, size);
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-black/90">
-      {frame === null ? (
-        <p className="text-xs text-muted-foreground">Waiting for a frame…</p>
-      ) : (
-        <img src={frame.src} alt="Live machine view" className="max-h-full max-w-full object-contain" />
-      )}
-    </div>
-  );
+  const live = useComputerLive(hostId, { active, profile, clientId });
+  return <ComputerLiveStage live={live} interactive={interactive} />;
 }

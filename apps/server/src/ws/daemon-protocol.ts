@@ -27,6 +27,7 @@ import { requestQueuedMessageDispatch } from "../services/threads/queued-message
 import { runEventLoopWorkSync } from "../services/system/event-loop-work.js";
 import { parseSocketMessage } from "./decode-payload.js";
 import type { PluginService } from "../services/plugins/plugin-service.js";
+import type { ComputerLiveHub } from "../services/computer/live.js";
 import type { ServerMoveCoordinator } from "../services/server-move/coordinator.js";
 import {
   isServerMoveFrozen,
@@ -145,6 +146,7 @@ export function onDaemonSocketMessage(
   plugins?: Pick<PluginService, "handleHostSignal" | "handleHostWorkerExit">,
   serverMove?: Pick<ServerMoveCoordinator, "handleProgress">,
   mcp?: Pick<McpService, "handleDaemonMessage">,
+  computerLive?: Pick<ComputerLiveHub, "handleDaemonStatus">,
 ): void {
   const message = parseSocketMessage(
     args.socket,
@@ -295,6 +297,10 @@ export function onDaemonSocketMessage(
         return;
       }
       if (message.type === "machine.shutdown-ack") {
+        return;
+      }
+      if (message.type === "computer.live.status") {
+        computerLive?.handleDaemonStatus(args.hostId, message);
         return;
       }
       deps.terminalSessions.handleDaemonTerminalMessage({

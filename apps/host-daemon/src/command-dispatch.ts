@@ -651,10 +651,11 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
     requireComputer(options).recordStart({ runId: command.runId }),
   "computer.record_stop": (command, options) =>
     requireComputer(options).recordStop({ runId: command.runId }),
-  "computer.preview_touch": (command, options) =>
-    Promise.resolve(requireComputer(options).previewTouch({ viewerId: command.viewerId, size: command.size })),
-  "computer.preview_latest": (command, options) =>
-    Promise.resolve(requireComputer(options).previewLatest({ afterSequence: command.afterSequence })),
+  "computer.input": (command, options) =>
+    requireComputer(options).input({ input: command.input }),
+  "computer.clipboard_read": (_command, options) => requireComputer(options).clipboardRead(),
+  "computer.clipboard_write": (command, options) =>
+    requireComputer(options).clipboardWrite({ text: command.text, paste: command.paste }),
   "connect-tunnel.ensure-identity": async (_command, options) => {
     if (!options.ensureConnectTunnelIdentity) {
       throw new Error("bb connect tunnel identity is unavailable");

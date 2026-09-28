@@ -55,7 +55,6 @@ import {
   computerRunRequestSchema,
   computerActiveRunRequestSchema,
   computerControlRequestSchema,
-  computerPreviewRequestSchema,
   type ComputerMachinesRequest,
   type ComputerMachinesResponse,
   type ComputerHostRequest,
@@ -79,8 +78,6 @@ import {
   type ComputerTakeControlResponse,
   type ComputerReleaseControlResponse,
   type ComputerControlStatusResponse,
-  type ComputerPreviewInput,
-  type ComputerPreviewFrame,
 } from "./api/computer.js";
 import type { Hono } from "hono";
 import {
@@ -995,14 +992,6 @@ export const publicApiRoutes = {
         computerControlRequestSchema,
       ),
       response: jsonResponse<ComputerControlStatusResponse>(),
-    }),
-    preview: defineRoute({
-      path: "/computer/preview",
-      method: "post",
-      request: jsonRequest<EmptyInput, ComputerPreviewInput>(
-        computerPreviewRequestSchema,
-      ),
-      response: jsonResponse<ComputerPreviewFrame>(),
     }),
   },
 

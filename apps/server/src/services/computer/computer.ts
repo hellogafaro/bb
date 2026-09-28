@@ -9,6 +9,7 @@ import {
 } from "../lib/entity-lookup.js";
 import { callHostOnlineRpcForWork } from "../hosts/online-rpc.js";
 import { controlGateForHost } from "./control-gate.js";
+import { ComputerLiveHub } from "./live.js";
 import { copyIntoEvidence, writeEvidence } from "./evidence.js";
 import {
   JevDecisionProvider,
@@ -26,7 +27,10 @@ import type {
   ComputerRunStatus as RunStatus,
   ComputerStartRequest as StartInput,
 } from "@bb/server-contract";
-import type { ComputerOperation as Operation } from "@bb/host-daemon-contract";
+import type {
+  ComputerHumanInput,
+  ComputerOperation as Operation,
+} from "@bb/host-daemon-contract";
 
 interface RunRecord {
   status: RunStatus;
@@ -36,6 +40,16 @@ interface RunRecord {
 const runs = new Map<string, RunRecord>();
 const activeRunByHost = new Map<string, string>();
 const TERMINAL_STATES = new Set(["done", "cancelled", "error"]);
+const activeRunListeners = new Set<(hostId: string) => void>();
+
+export function onActiveRunChange(listener: (hostId: string) => void): () => void {
+  activeRunListeners.add(listener);
+  return () => activeRunListeners.delete(listener);
+}
+
+function emitActiveRunChange(hostId: string): void {
+  for (const listener of [...activeRunListeners]) listener(hostId);
+}
 
 function currentHostIdForThread(
   deps: WorkSessionDeps,
@@ -226,6 +240,7 @@ function touchRun(run: RunRecord, patch: Partial<RunStatus>): void {
     activeRunByHost.get(run.status.hostId) === run.status.runId
   ) {
     activeRunByHost.delete(run.status.hostId);
+    emitActiveRunChange(run.status.hostId);
   }
 }
 
@@ -356,6 +371,7 @@ export async function start(
   const run: RunRecord = { status: base, abort };
   runs.set(runId, run);
   activeRunByHost.set(input.hostId, runId);
+  emitActiveRunChange(input.hostId);
   if (input.mode === "agent") {
     touchRun(run, {
       state: "escalated",
@@ -435,22 +451,31 @@ export function controlStatus(
   return { owner: controlGateForHost(hostId).statusFor(clientId) };
 }
 
-export async function preview(
-  deps: WorkSessionDeps,
-  hostId: string,
-  viewerId: string,
-  size: "thumbnail" | "full",
-  afterSequence: number | null,
-) {
-  requireNonDestroyedHostWithStatus(deps, hostId);
-  await callHostOnlineRpcForWork(deps, {
-    hostId,
-    timeoutMs: COMMAND_TIMEOUT_MS,
-    command: { type: "computer.preview_touch", viewerId, size },
+export function createComputerLiveHub(deps: WorkSessionDeps): ComputerLiveHub {
+  const hub = new ComputerLiveHub({
+    sendDemand: (hostId, profile) =>
+      deps.hub.sendDaemonMessage(hostId, { type: "computer.live.demand", profile }),
+    input: (hostId, input: ComputerHumanInput) =>
+      callHostOnlineRpcForWork(deps, {
+        hostId,
+        timeoutMs: COMMAND_TIMEOUT_MS,
+        command: { type: "computer.input", input },
+      }),
+    clipboardRead: (hostId) =>
+      callHostOnlineRpcForWork(deps, {
+        hostId,
+        timeoutMs: COMMAND_TIMEOUT_MS,
+        command: { type: "computer.clipboard_read" },
+      }),
+    clipboardWrite: (hostId, text, paste) =>
+      callHostOnlineRpcForWork(deps, {
+        hostId,
+        timeoutMs: COMMAND_TIMEOUT_MS,
+        command: { type: "computer.clipboard_write", text, paste },
+      }),
+    controlGate: controlGateForHost,
+    activeRunId: (hostId) => activeRunByHost.get(hostId) ?? null,
   });
-  return callHostOnlineRpcForWork(deps, {
-    hostId,
-    timeoutMs: COMMAND_TIMEOUT_MS,
-    command: { type: "computer.preview_latest", afterSequence },
-  });
+  onActiveRunChange((hostId) => hub.broadcastStatus(hostId));
+  return hub;
 }

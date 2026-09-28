@@ -1,145 +1,246 @@
-export type LiveFrameState = "live" | "paused" | "redacted" | "disconnected";
+import type {
+  ComputerFrame,
+  ComputerImageMimeType,
+  ComputerLiveProfile,
+  ComputerLiveState,
+} from "@bb/host-daemon-contract";
+import { content, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
 
-export interface LiveFrame {
-  readonly sequence: number;
-  readonly capturedAt: number;
-  readonly mimeType: "image/jpeg" | "image/png";
-  readonly width: number;
-  readonly height: number;
-  readonly bytes: Uint8Array | null;
-  readonly state: LiveFrameState;
-}
-
-export interface CapturedImage {
+export interface CapturedFrame {
   readonly bytes: Uint8Array;
-  readonly mimeType: "image/jpeg" | "image/png";
+  readonly mimeType: ComputerImageMimeType;
   readonly width: number;
   readonly height: number;
+  readonly originalWidth: number;
+  readonly originalHeight: number;
+  readonly capturedAt: number;
 }
 
-export type LivePreviewSize = "thumbnail" | "full";
+export interface ComputerFrameSource {
+  stream(
+    profile: ComputerLiveProfile,
+    onFrame: (frame: CapturedFrame) => void,
+    signal: AbortSignal,
+  ): Promise<void>;
+}
 
-export interface LiveCaptureOptions {
-  readonly capture: (signal: AbortSignal) => Promise<CapturedImage>;
-  readonly thumbnailFps: number;
-  readonly fullFps: number;
-  readonly maxFrameBytes: number;
-  readonly isProtected: () => boolean;
-  readonly viewerTtlMs?: number;
+export interface LiveProfileSettings {
+  readonly maxDimension: number;
+  readonly maxFps: number;
+}
+
+export const LIVE_PROFILES: Readonly<Record<ComputerLiveProfile, LiveProfileSettings>> = {
+  full: { maxDimension: 1280, maxFps: 12 },
+  thumbnail: { maxDimension: 480, maxFps: 1 },
+};
+
+export const LIVE_CAPTURE_SESSION = "bb-live";
+
+export function desktopCapture(result: CuaToolResult, capturedAt: number): CapturedFrame {
+  const data = content(result);
+  const image = result.content?.find((part) => part.type === "image" && typeof part.data === "string");
+  const base64 = image?.data ?? (typeof data.screenshot_png_b64 === "string" ? data.screenshot_png_b64 : "");
+  const width = Number(data.screenshot_width ?? 0);
+  const height = Number(data.screenshot_height ?? 0);
+  if (base64.length === 0 || !(width > 0) || !(height > 0)) {
+    throw new Error("The driver returned a desktop capture without an image");
+  }
+  const mimeType = (image?.mimeType ?? data.screenshot_mime_type) === "image/jpeg" ? "image/jpeg" : "image/png";
+  return {
+    bytes: Buffer.from(base64, "base64"),
+    mimeType,
+    width,
+    height,
+    originalWidth: Number(data.screenshot_original_width ?? width),
+    originalHeight: Number(data.screenshot_original_height ?? height),
+    capturedAt,
+  };
+}
+
+export interface DriverCaptureFrameSourceOptions {
+  readonly transport: CuaTransport;
+  readonly profiles?: Readonly<Record<ComputerLiveProfile, LiveProfileSettings>>;
+  readonly inFlight?: number;
   readonly now?: () => number;
 }
 
-interface Viewer {
-  expiresAt: number;
-  size: LivePreviewSize;
+export class DriverCaptureFrameSource implements ComputerFrameSource {
+  readonly #transport: CuaTransport;
+  readonly #profiles: Readonly<Record<ComputerLiveProfile, LiveProfileSettings>>;
+  readonly #inFlight: number;
+  readonly #now: () => number;
+
+  constructor(options: DriverCaptureFrameSourceOptions) {
+    this.#transport = options.transport;
+    this.#profiles = options.profiles ?? LIVE_PROFILES;
+    this.#inFlight = options.inFlight ?? 2;
+    this.#now = options.now ?? Date.now;
+  }
+
+  async stream(
+    profile: ComputerLiveProfile,
+    onFrame: (frame: CapturedFrame) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const settings = this.#profiles[profile];
+    const intervalMs = 1_000 / settings.maxFps;
+    const workers = new AbortController();
+    const stop = () => workers.abort();
+    signal.addEventListener("abort", stop, { once: true });
+    let nextSlot = this.#now();
+    let lastDelivered = -1;
+    const worker = async () => {
+      while (!workers.signal.aborted) {
+        const slot = Math.max(this.#now(), nextSlot);
+        nextSlot = slot + intervalMs;
+        await sleep(slot - this.#now(), workers.signal);
+        if (workers.signal.aborted) return;
+        const capturedAt = this.#now();
+        const result = await this.#transport.call(
+          "get_desktop_state",
+          { max_image_dimension: settings.maxDimension, session: LIVE_CAPTURE_SESSION },
+          workers.signal,
+        );
+        if (workers.signal.aborted || capturedAt <= lastDelivered) continue;
+        lastDelivered = capturedAt;
+        onFrame(desktopCapture(result, capturedAt));
+      }
+    };
+    try {
+      await Promise.all(
+        Array.from({ length: this.#inFlight }, () =>
+          worker().catch((error: unknown) => {
+            workers.abort();
+            throw error;
+          }),
+        ),
+      );
+    } catch (error) {
+      if (!signal.aborted) throw error;
+    } finally {
+      signal.removeEventListener("abort", stop);
+    }
+  }
 }
 
-export class LiveCaptureLoop {
-  readonly #options: LiveCaptureOptions;
-  readonly #now: () => number;
-  readonly #viewerTtlMs: number;
-  readonly #viewers = new Map<string, Viewer>();
-  #latest: LiveFrame | null = null;
+export interface LiveStreamOptions {
+  readonly source: ComputerFrameSource;
+  readonly prepare: () => Promise<void>;
+  readonly sendFrame: (frame: ComputerFrame) => void;
+  readonly sendStatus: (state: ComputerLiveState, message: string | null) => void;
+  readonly onFrame?: (frame: CapturedFrame) => void;
+  readonly demandTtlMs?: number;
+  readonly retryDelayMs?: number;
+}
+
+interface ActiveStream {
+  readonly profile: ComputerLiveProfile;
+  readonly controller: AbortController;
+}
+
+export class LiveStream {
+  readonly #options: LiveStreamOptions;
+  #active: ActiveStream | null = null;
+  #expiry: ReturnType<typeof setTimeout> | null = null;
   #sequence = 0;
-  #wake: (() => void) | null = null;
-  #paused = false;
+  #lastBytes: Uint8Array | null = null;
 
-  constructor(options: LiveCaptureOptions) {
+  constructor(options: LiveStreamOptions) {
     this.#options = options;
-    this.#now = options.now ?? Date.now;
-    this.#viewerTtlMs = options.viewerTtlMs ?? 8_000;
   }
 
-  touchViewer(viewerId: string, size: LivePreviewSize): void {
-    this.#viewers.set(viewerId, { expiresAt: this.#now() + this.#viewerTtlMs, size });
-    this.#wake?.();
+  get profile(): ComputerLiveProfile | null {
+    return this.#active?.profile ?? null;
   }
 
-  setPaused(paused: boolean): void {
-    this.#paused = paused;
-  }
-
-  activeViewerCount(): number {
-    const now = this.#now();
-    for (const [id, viewer] of this.#viewers) if (viewer.expiresAt <= now) this.#viewers.delete(id);
-    return this.#viewers.size;
-  }
-
-  #targetFps(): number {
-    let fps = this.#options.thumbnailFps;
-    for (const viewer of this.#viewers.values()) {
-      if (viewer.size === "full") fps = Math.max(fps, this.#options.fullFps);
+  setDemand(profile: ComputerLiveProfile | null): void {
+    if (this.#expiry !== null) clearTimeout(this.#expiry);
+    this.#expiry = null;
+    if (profile === null) {
+      this.#stop();
+      return;
     }
-    return fps;
+    this.#expiry = setTimeout(() => this.setDemand(null), this.#options.demandTtlMs ?? 15_000);
+    this.#expiry.unref?.();
+    if (this.#active?.profile === profile) return;
+    this.#stop();
+    const active: ActiveStream = { profile, controller: new AbortController() };
+    this.#active = active;
+    void this.#run(active);
   }
 
-  latest(afterSequence: number | null): LiveFrame | null {
-    const frame = this.#latest;
-    if (frame === null || (afterSequence !== null && frame.sequence <= afterSequence)) return null;
-    return frame;
+  dispose(): void {
+    this.setDemand(null);
   }
 
-  async run(signal: AbortSignal): Promise<void> {
-    try {
-      while (!signal.aborted) {
-        if (this.#paused) {
-          this.#publishState("paused");
-          await this.#waitForDemand(signal);
-          continue;
-        }
-        if (this.activeViewerCount() === 0) {
-          await this.#waitForDemand(signal);
-          continue;
-        }
-        const intervalMs = 1_000 / Math.min(12, Math.max(0.2, this.#targetFps()));
-        const started = this.#now();
-        if (this.#options.isProtected()) {
-          this.#publishState("redacted");
-        } else {
-          try {
-            const image = await this.#options.capture(signal);
-            if (image.bytes.length <= this.#options.maxFrameBytes) {
-              this.#publish({ ...image, state: "live", capturedAt: started });
+  #stop(): void {
+    if (this.#active === null) return;
+    this.#active.controller.abort();
+    this.#active = null;
+    this.#lastBytes = null;
+    this.#options.sendStatus("stopped", null);
+  }
+
+  async #run(active: ActiveStream): Promise<void> {
+    const signal = active.controller.signal;
+    let announced = false;
+    while (!signal.aborted) {
+      this.#options.sendStatus("starting", null);
+      try {
+        await this.#options.prepare();
+        if (signal.aborted) return;
+        await this.#options.source.stream(
+          active.profile,
+          (frame) => {
+            if (signal.aborted) return;
+            if (!announced) {
+              announced = true;
+              this.#options.sendStatus("live", null);
             }
-          } catch {
-            if (signal.aborted) break;
-            this.#publishState("disconnected");
-          }
-        }
-        await sleep(Math.max(0, intervalMs - (this.#now() - started)), signal);
+            this.#publish(frame);
+          },
+          signal,
+        );
+      } catch (error) {
+        if (signal.aborted) return;
+        announced = false;
+        this.#options.sendStatus("error", error instanceof Error ? error.message.slice(0, 1_000) : String(error));
       }
-    } finally {
-      this.#publishState("disconnected");
+      await sleep(this.#options.retryDelayMs ?? 2_000, signal);
     }
   }
 
-  #publishState(state: Exclude<LiveFrameState, "live">): void {
-    if (this.#latest?.state === state) return;
-    this.#publish({ bytes: null, mimeType: "image/jpeg", width: 1, height: 1, state, capturedAt: this.#now() });
-  }
-
-  #publish(frame: Omit<LiveFrame, "sequence">): void {
+  #publish(frame: CapturedFrame): void {
+    this.#options.onFrame?.(frame);
+    const previous = this.#lastBytes;
+    if (previous !== null && sameBytes(previous, frame.bytes)) return;
+    this.#lastBytes = frame.bytes;
     this.#sequence += 1;
-    this.#latest = { ...frame, sequence: this.#sequence };
-  }
-
-  #waitForDemand(signal: AbortSignal): Promise<void> {
-    return new Promise((resolve) => {
-      const done = () => {
-        this.#wake = null;
-        signal.removeEventListener("abort", done);
-        resolve();
-      };
-      this.#wake = done;
-      signal.addEventListener("abort", done, { once: true });
-      setTimeout(done, 2_000).unref?.();
+    this.#options.sendFrame({
+      header: {
+        sequence: this.#sequence,
+        capturedAt: frame.capturedAt,
+        mimeType: frame.mimeType,
+        width: frame.width,
+        height: frame.height,
+        originalWidth: frame.originalWidth,
+        originalHeight: frame.originalHeight,
+      },
+      body: frame.bytes,
     });
   }
 }
 
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return (
+    left.byteLength === right.byteLength &&
+    Buffer.from(left.buffer, left.byteOffset, left.byteLength).equals(right)
+  );
+}
+
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    if (signal.aborted) return resolve();
+    if (signal.aborted || ms <= 0) return resolve();
     const timer = setTimeout(done, ms);
     function done() {
       clearTimeout(timer);

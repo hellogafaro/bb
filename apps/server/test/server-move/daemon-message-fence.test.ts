@@ -11,6 +11,7 @@ const SNAPSHOT_FENCE_CLASSIFICATION: Record<
   DaemonMessageType,
   "fenced" | "unfenced"
 > = {
+  "computer.live.status": "unfenced",
   "connect-tunnel.identity": "unfenced",
   "desktop-browser.changed": "fenced",
   "environment-change": "unfenced",

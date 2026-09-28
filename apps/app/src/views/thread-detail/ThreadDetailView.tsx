@@ -2580,7 +2580,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           />
         );
       case "computer":
-        return <LazyComputerPanel threadId={thread.id} />;
+        return (
+          <LazyComputerPanel threadId={thread.id} isActive={isSecondaryPanelOpen} />
+        );
       case "workspace-file-preview": {
         const copyPath = resolveAbsoluteFilePath({
           path: tab.path,

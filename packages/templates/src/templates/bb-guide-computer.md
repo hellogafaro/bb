@@ -101,14 +101,24 @@ identifying the caller across these three calls. Do not act against a machine
 someone is actively controlling — check `control-status` or `doctor`, or
 simply retry after a short wait if `act` stalls.
 
-Live preview:
+Live view and human input:
 
-  bb computer preview --host <id> --viewer <id> [--size thumbnail|full]
-      [--after-sequence <n>] [--json]
+  bb computer input --host <id> --client <id> --input <json> [--json]
+  bb computer clipboard --host <id> --client <id> --action read|write
+      [--text <value>] [--paste] [--json]
 
-Polls the machine's live frame stream; pass the previous response's sequence
-number as `--after-sequence` to wait for the next frame instead of getting
-the latest one immediately.
+The Computer tab in the thread's side panel shows a pushed live view over a
+WebSocket (not polled) and streams only while someone has it open; the app
+captures pointer and keyboard events there and maps them into human input
+for you. `bb computer input` sends one human input (`click`, `drag`, `scroll`,
+`move`, `type`, `key`) over that same live channel for scripting — hold
+control with `take-control` first, using the same `--client` ID, or it is
+rejected. `--input`'s `frame` field is the pixel size you are reasoning in
+(e.g. the desktop's real resolution); coordinates are mapped to the actual
+screen from it. `bb computer clipboard` reads or writes the machine's text
+clipboard over the same channel; `--action write --paste` also presses the
+platform paste shortcut after writing. Both close the live connection after
+one call — they are not for continuous streaming.
 
 Browser windows are observed and acted on through the same commands; the
 browser binding is not yet implemented, so treat non-desktop targets as
@@ -126,5 +136,7 @@ SDK and API:
 
   sdk.computer.{machines, doctor, installDriver, requestPermissions, observe, act, screenshot,
     record, start, status, cancel, activeRun, takeControl, releaseControl,
-    controlStatus, preview}
+    controlStatus, live}
   REST: POST /api/v1/computer/<method>
+  WS: /ws/computer/<hostId>?clientId=<id>&profile=full|thumbnail (frames push as
+    binary messages; sdk.computer.live() wraps input, clipboard, and status)

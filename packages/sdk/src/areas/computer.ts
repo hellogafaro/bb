@@ -12,8 +12,6 @@ import type {
   ComputerMachinesResponse,
   ComputerObserveRequest,
   ComputerObservation,
-  ComputerPreviewFrame,
-  ComputerPreviewInput,
   ComputerReleaseControlResponse,
   ComputerRecordRequest,
   ComputerRecordResponse,
@@ -24,6 +22,19 @@ import type {
   ComputerStartInput,
   ComputerTakeControlResponse,
 } from "@bb/server-contract";
+import {
+  buildComputerLiveWebSocketPath,
+  computerLiveServerMessageSchema,
+  type ComputerLiveServerMessage,
+  type ComputerLiveSocketQuery,
+} from "@bb/server-contract";
+import {
+  decodeComputerFrame,
+  type ComputerFrame,
+  type ComputerHumanInput,
+} from "@bb/host-daemon-contract";
+import { resolveRealtimeUrl } from "../realtime-url.js";
+import type { BbSdkTransport } from "../transport.js";
 import type { CreateSdkAreaArgs } from "./common.js";
 
 export type {
@@ -39,8 +50,6 @@ export type {
   ComputerMachinesResponse,
   ComputerObserveRequest,
   ComputerObservation,
-  ComputerPreviewFrame,
-  ComputerPreviewInput,
   ComputerReleaseControlResponse,
   ComputerRecordRequest,
   ComputerRecordResponse,
@@ -50,7 +59,36 @@ export type {
   ComputerScreenshotResponse,
   ComputerStartInput,
   ComputerTakeControlResponse,
+  ComputerControlOwner,
+  ComputerLiveServerMessage,
 } from "@bb/server-contract";
+export type {
+  ComputerFrame,
+  ComputerFrameHeader,
+  ComputerHumanInput,
+  ComputerLiveProfile,
+} from "@bb/host-daemon-contract";
+
+export type ComputerLiveStatus = Extract<ComputerLiveServerMessage, { type: "status" }>;
+export type ComputerLiveError = Extract<ComputerLiveServerMessage, { type: "error" }>;
+
+export interface ComputerLiveInput extends ComputerLiveSocketQuery {
+  hostId: string;
+  url?: string;
+}
+
+export interface ComputerLiveConnection {
+  readonly opened: Promise<void>;
+  onFrame(listener: (frame: ComputerFrame) => void): () => void;
+  onStatus(listener: (status: ComputerLiveStatus) => void): () => void;
+  onError(listener: (error: ComputerLiveError) => void): () => void;
+  onClose(listener: () => void): () => void;
+  input(input: ComputerHumanInput): void;
+  perform(input: ComputerHumanInput): Promise<void>;
+  readClipboard(): Promise<string | null>;
+  writeClipboard(text: string, options: { paste: boolean }): Promise<void>;
+  close(): void;
+}
 
 export interface ComputerArea {
   machines(input: ComputerMachinesRequest): Promise<ComputerMachinesResponse>;
@@ -78,7 +116,7 @@ export interface ComputerArea {
   controlStatus(
     input: ComputerControlRequest,
   ): Promise<ComputerControlStatusResponse>;
-  preview(input: ComputerPreviewInput): Promise<ComputerPreviewFrame>;
+  live(input: ComputerLiveInput): ComputerLiveConnection;
 }
 
 export function createComputerArea({ transport }: CreateSdkAreaArgs): ComputerArea {
@@ -106,6 +144,122 @@ export function createComputerArea({ transport }: CreateSdkAreaArgs): ComputerAr
       transport.readJson(api()["release-control"].$post({ json: input })),
     controlStatus: (input) =>
       transport.readJson(api()["control-status"].$post({ json: input })),
-    preview: (input) => transport.readJson(api().preview.$post({ json: input })),
+    live: (input) => connectComputerLive(transport, input),
+  };
+}
+
+function computerLiveUrl(transport: BbSdkTransport, input: ComputerLiveInput): string {
+  if (input.url !== undefined) return input.url;
+  const path = new URL(
+    buildComputerLiveWebSocketPath(input),
+    "http://placeholder",
+  );
+  const url = new URL(resolveRealtimeUrl({ transport }));
+  url.pathname = `${url.pathname.replace(/\/ws\/?$/u, "")}${path.pathname}`;
+  url.search = path.search;
+  return url.href;
+}
+
+function connectComputerLive(
+  transport: BbSdkTransport,
+  input: ComputerLiveInput,
+): ComputerLiveConnection {
+  if (typeof WebSocket === "undefined") {
+    throw new Error("The computer live view needs a runtime with a global WebSocket");
+  }
+  const socket = new WebSocket(computerLiveUrl(transport, input));
+  socket.binaryType = "arraybuffer";
+  const frameListeners = new Set<(frame: ComputerFrame) => void>();
+  const statusListeners = new Set<(status: ComputerLiveStatus) => void>();
+  const errorListeners = new Set<(error: ComputerLiveError) => void>();
+  const closeListeners = new Set<() => void>();
+  const pending = new Map<
+    string,
+    { resolve: (message: ComputerLiveServerMessage) => void; reject: (error: Error) => void }
+  >();
+  let nextRequestId = 0;
+  const opened = new Promise<void>((resolve, reject) => {
+    socket.addEventListener("open", () => resolve(), { once: true });
+    socket.addEventListener("close", () => reject(new Error("The computer live view closed before it opened")), {
+      once: true,
+    });
+  });
+  opened.catch(() => {});
+  socket.addEventListener("message", (event: MessageEvent) => {
+    if (event.data instanceof ArrayBuffer) {
+      const frame = decodeComputerFrame(new Uint8Array(event.data));
+      if (frame !== null) for (const listener of frameListeners) listener(frame);
+      return;
+    }
+    if (typeof event.data !== "string") return;
+    let raw: unknown;
+    try {
+      raw = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    const parsed = computerLiveServerMessageSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const message = parsed.data;
+    if (message.type === "status") {
+      for (const listener of statusListeners) listener(message);
+      return;
+    }
+    const waiter = message.requestId === null ? undefined : pending.get(message.requestId);
+    if (waiter !== undefined && message.requestId !== null) {
+      pending.delete(message.requestId);
+      if (message.type === "error") waiter.reject(new Error(message.message));
+      else waiter.resolve(message);
+      return;
+    }
+    if (message.type === "error") for (const listener of errorListeners) listener(message);
+  });
+  socket.addEventListener("close", () => {
+    for (const waiter of pending.values()) waiter.reject(new Error("The computer live view closed"));
+    pending.clear();
+    for (const listener of closeListeners) listener();
+  });
+  const listen = <T>(listeners: Set<T>, listener: T) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+  const request = async (
+    message:
+      | { type: "clipboard.read" }
+      | { type: "clipboard.write"; text: string; paste: boolean }
+      | { type: "input"; input: ComputerHumanInput },
+  ): Promise<ComputerLiveServerMessage> => {
+    await opened;
+    nextRequestId += 1;
+    const requestId = `r${nextRequestId}`;
+    return new Promise((resolve, reject) => {
+      pending.set(requestId, { resolve, reject });
+      socket.send(JSON.stringify({ ...message, requestId }));
+    });
+  };
+  return {
+    opened,
+    onFrame: (listener) => listen(frameListeners, listener),
+    onStatus: (listener) => listen(statusListeners, listener),
+    onError: (listener) => listen(errorListeners, listener),
+    onClose: (listener) => listen(closeListeners, listener),
+    input: (humanInput) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "input", requestId: null, input: humanInput }));
+      }
+    },
+    perform: async (humanInput) => {
+      await request({ type: "input", input: humanInput });
+    },
+    readClipboard: async () => {
+      const reply = await request({ type: "clipboard.read" });
+      return reply.type === "clipboard" ? reply.text : null;
+    },
+    writeClipboard: async (text, options) => {
+      await request({ type: "clipboard.write", text, paste: options.paste });
+    },
+    close: () => socket.close(),
   };
 }

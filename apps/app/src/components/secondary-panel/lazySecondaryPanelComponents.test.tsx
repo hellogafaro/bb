@@ -82,7 +82,7 @@ describe("LazyComputerPanel", () => {
   it("resolves the real dynamic import and renders the machine picker", async () => {
     machinesMock.mockResolvedValue({ machines: [], currentHostId: null });
 
-    render(<LazyComputerPanel threadId="thread-1" />);
+    render(<LazyComputerPanel threadId="thread-1" isActive={true} />);
 
     await screen.findByText("Choose a machine");
   });

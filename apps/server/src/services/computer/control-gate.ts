@@ -6,6 +6,7 @@ export class ControlGate {
   #expiresAt = 0;
   #agentActive = false;
   #waiters = new Set<() => void>();
+  #listeners = new Set<() => void>();
   #expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(leaseMs = DEFAULT_LEASE_MS) {
@@ -34,11 +35,23 @@ export class ControlGate {
     if (this.#activeHuman() !== null) return this.#humanClientId === clientId ? "human" : "busy";
     this.#humanClientId = clientId;
     this.#renew();
+    this.#emitChange();
     return "human";
   }
 
   owns(clientId: string): boolean {
     return this.#activeHuman() === clientId;
+  }
+
+  touch(clientId: string): boolean {
+    if (this.#activeHuman() !== clientId) return false;
+    this.#renew();
+    return true;
+  }
+
+  onChange(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   statusFor(clientId: string): "you" | "other" | "agent" {
@@ -74,9 +87,15 @@ export class ControlGate {
   #clearHuman(): void {
     if (this.#expiryTimer !== null) clearTimeout(this.#expiryTimer);
     this.#expiryTimer = null;
+    const hadHuman = this.#humanClientId !== null;
     this.#humanClientId = null;
     this.#expiresAt = 0;
     this.#notify();
+    if (hadHuman) this.#emitChange();
+  }
+
+  #emitChange(): void {
+    for (const listener of [...this.#listeners]) listener();
   }
 
   #notify(): void {

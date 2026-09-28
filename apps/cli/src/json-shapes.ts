@@ -83,8 +83,8 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "computer take-control": '{owner: "human" | "busy"}',
   "computer release-control": "{released}",
   "computer control-status": '{owner: "you" | "other" | "agent"}',
-  "computer preview":
-    "{sequence, state, mimeType, dataBase64, width, height, capturedAt}",
+  "computer input": "{sent: true}",
+  "computer clipboard": "{text} for --action read, {written: true} for --action write",
 };
 
 export function jsonShapeHelp(commandPath: string): string | null {

@@ -220,8 +220,11 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb computer control-status --host <id> --client <id> --json
     {owner: "you" | "other" | "agent"}
 
-  bb computer preview --host <id> --viewer <id> --json
-    {sequence, state, mimeType, dataBase64, width, height, capturedAt}
+  bb computer input --host <id> --client <id> --input <json> --json
+    {sent: true}
+
+  bb computer clipboard --host <id> --client <id> --action read|write --json
+    {text} for --action read, {written: true} for --action write
 
   bb marketplace list --json
     bare array

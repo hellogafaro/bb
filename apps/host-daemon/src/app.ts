@@ -22,7 +22,10 @@ import { startHostDaemonHealthMonitor } from "./host-daemon-health-monitor.js";
 import { startLocalApiServer, type LocalApiServer } from "./local-api.js";
 import type { HostDaemonLocalApiConfig } from "./local-api-config.js";
 import type { HostDaemonLogger } from "./logger.js";
-import type { HostDaemonDaemonWsMessage } from "@bb/host-daemon-contract";
+import {
+  encodeComputerFrame,
+  type HostDaemonDaemonWsMessage,
+} from "@bb/host-daemon-contract";
 import {
   RuntimeManager,
   type RuntimeManagerReapIdleProviderSessionsArgs,
@@ -406,6 +409,7 @@ export async function createHostDaemonApp(
   });
 
   let sendServerMessage = (_message: HostDaemonDaemonWsMessage) => false;
+  let sendComputerFrame = (_frame: Uint8Array<ArrayBuffer>) => false;
   function logHostWatchError(fields: Record<string, string>): void {
     options.logger.warn(
       fields,
@@ -704,6 +708,14 @@ export async function createHostDaemonApp(
   const computer = new ComputerHostService({
     dataDir: join(options.dataDir, "computer"),
     logger: options.logger,
+    live: {
+      sendFrame: (frame) => {
+        sendComputerFrame(encodeComputerFrame(frame));
+      },
+      sendStatus: (state, message) => {
+        sendServerMessage({ type: "computer.live.status", state, message });
+      },
+    },
   });
 
   const desktopBrowserBroker = await startDesktopBrowserBroker({
@@ -833,6 +845,7 @@ export async function createHostDaemonApp(
       });
     },
     onTerminalMessage: (message) => terminalManager.handleMessage(message),
+    onComputerLiveDemand: (message) => computer.setLiveDemand(message?.profile ?? null),
     onSessionOpened: async (session) => {
       sessionState.value = session.sessionId;
       connectTunnel.replaceAuthoritativeShareSet(session.connectShares);
@@ -874,6 +887,7 @@ export async function createHostDaemonApp(
     },
   });
   sendServerMessage = (message) => connection.sendMessage(message);
+  sendComputerFrame = (frame) => connection.sendComputerFrame(frame);
   handleServerSessionInvalidated = (args) =>
     connection.handleSessionInvalidated(args);
 

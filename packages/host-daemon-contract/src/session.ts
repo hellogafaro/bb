@@ -1,4 +1,8 @@
 import { hostDaemonContributedEnvEntrySchema } from "./commands.js";
+import {
+  computerLiveDemandMessageSchema,
+  computerLiveStatusMessageSchema,
+} from "./computer.js";
 import { desktopBrowserChangedSchema } from "./desktop-browser.js";
 import {
   mcpCatalogChangedMessageSchema,
@@ -427,8 +431,9 @@ const hostDaemonOnlineRpcResponseSuccessSchema = z.discriminatedUnion(
     onlineRpcResponseSuccessSchemaFor("computer.capture"),
     onlineRpcResponseSuccessSchemaFor("computer.record_start"),
     onlineRpcResponseSuccessSchemaFor("computer.record_stop"),
-    onlineRpcResponseSuccessSchemaFor("computer.preview_touch"),
-    onlineRpcResponseSuccessSchemaFor("computer.preview_latest"),
+    onlineRpcResponseSuccessSchemaFor("computer.input"),
+    onlineRpcResponseSuccessSchemaFor("computer.clipboard_read"),
+    onlineRpcResponseSuccessSchemaFor("computer.clipboard_write"),
     onlineRpcResponseSuccessSchemaFor("host.list_files"),
     onlineRpcResponseSuccessSchemaFor("host.list_paths"),
     onlineRpcResponseSuccessSchemaFor("host.mkdir"),
@@ -647,6 +652,7 @@ export const hostDaemonServerWsMessageSchema = z.discriminatedUnion("type", [
   hostDaemonTerminalInputMessageSchema,
   hostDaemonTerminalResizeMessageSchema,
   hostDaemonTerminalCloseMessageSchema,
+  computerLiveDemandMessageSchema,
 ]);
 export type HostDaemonServerWsMessage = z.infer<
   typeof hostDaemonServerWsMessageSchema
@@ -791,6 +797,7 @@ export const hostDaemonDaemonWsMessageSchema = z.union([
   hostDaemonTerminalExitedMessageSchema,
   hostDaemonTerminalErrorMessageSchema,
   hostDaemonOnlineRpcResponseMessageSchema,
+  computerLiveStatusMessageSchema,
 ]);
 export type HostDaemonDaemonWsMessage = z.infer<
   typeof hostDaemonDaemonWsMessageSchema

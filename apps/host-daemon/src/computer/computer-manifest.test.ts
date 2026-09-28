@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
 
 describe("buildCapabilityManifest", () => {
-  it("never allows kill_app, clipboard, or launch_app", () => {
+  it("never allows kill_app or launch_app", () => {
     const manifest = buildCapabilityManifest({ writablePaths: [], windows: [] });
     const tools = (manifest.allow as { tools: string[] }).tools;
     expect(tools).not.toContain("kill_app");
-    expect(tools).not.toContain("clipboard_read");
-    expect(tools).not.toContain("clipboard_write");
     expect(tools).not.toContain("launch_app");
+  });
+
+  it("allows the desktop input and text clipboard tools the human live view drives", () => {
+    const manifest = buildCapabilityManifest({ writablePaths: [], windows: [] });
+    const tools = (manifest.allow as { tools: string[] }).tools;
+    for (const tool of ["click", "drag", "scroll", "move_cursor", "type_text", "press_key", "clipboard_read", "clipboard_write"]) {
+      expect(tools).toContain(tool);
+    }
   });
 
   it("grants exactly the requested windows and writable paths", () => {

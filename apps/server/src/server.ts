@@ -12,7 +12,10 @@ import { readFile, stat } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { extname, join, resolve } from "node:path";
 import { Hono } from "hono";
-import { terminalWebSocketQuerySchema } from "@bb/server-contract";
+import {
+  computerLiveSocketQuerySchema,
+  terminalWebSocketQuerySchema,
+} from "@bb/server-contract";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import type { ServerAppDeps } from "./types.js";
@@ -93,6 +96,9 @@ import {
   validateDaemonWebSocket,
 } from "./ws/daemon-protocol.js";
 import { roundDurationMs } from "@bb/process-utils";
+import { onComputerSocketMessage } from "./ws/computer-protocol.js";
+import { createComputerLiveHub } from "./services/computer/computer.js";
+import { requireNonDestroyedHostWithStatus } from "./services/lib/entity-lookup.js";
 import {
   onTerminalSocketClose,
   onTerminalSocketMessage,
@@ -938,6 +944,38 @@ export function createApp(
     }),
   );
 
+  const computerLive = createComputerLiveHub(deps);
+  app.get(
+    "/ws/computer/:hostId",
+    upgradeWebSocket((context) => {
+      assertBrowserWebSocketAllowed(context);
+      const hostId = context.req.param("hostId");
+      const query = computerLiveSocketQuerySchema.safeParse({
+        clientId: context.req.query("clientId"),
+        profile: context.req.query("profile"),
+      });
+      if (!query.success) {
+        throw new ApiError(
+          400,
+          "invalid_computer_socket_query",
+          "Computer websocket needs a clientId and a profile of full or thumbnail",
+        );
+      }
+      requireNonDestroyedHostWithStatus(deps, hostId);
+      return {
+        onOpen: (_event, socket) =>
+          computerLive.attach(hostId, socket, query.data),
+        onMessage: (event, socket) =>
+          onComputerSocketMessage(computerLive, {
+            hostId,
+            raw: event.data,
+            socket,
+          }),
+        onClose: (_event, socket) => computerLive.detach(hostId, socket),
+      };
+    }),
+  );
+
   app.get(
     "/internal/ws",
     upgradeWebSocket(async (context) => {
@@ -947,13 +985,20 @@ export function createApp(
         sessionId: context.req.query("sessionId") ?? null,
       });
       return {
-        onOpen: (_event, socket) =>
+        onOpen: (_event, socket) => {
           onDaemonSocketOpen(deps, {
             ...websocketContext,
             socket,
-          }),
+          });
+          computerLive.handleDaemonConnected(websocketContext.hostId);
+        },
         onMessage: (event, socket) =>
-          onDaemonSocketMessage(
+          event.data instanceof ArrayBuffer
+            ? computerLive.handleDaemonFrame(
+                websocketContext.hostId,
+                new Uint8Array(event.data),
+              )
+            : onDaemonSocketMessage(
             deps,
             {
               hostId: websocketContext.hostId,
@@ -964,6 +1009,7 @@ export function createApp(
             pluginService,
             serverMove,
             mcpService,
+            computerLive,
           ),
         onClose: () => {
           onDaemonSocketClose(deps, websocketContext.sessionId);

@@ -1,7 +1,6 @@
 import type { Hono } from "hono";
 import {
   computerActRequestSchema,
-  computerPreviewRequestSchema,
   computerStartRequestSchema,
   publicApiRoutes,
   typedRoutes,
@@ -18,7 +17,6 @@ import {
   installDriver,
   listMachines,
   observe,
-  preview,
   record,
   releaseControl,
   requestPermissions,
@@ -91,17 +89,4 @@ export function registerComputerRoutes(app: Hono, deps: AppDeps) {
   post(routes.controlStatus, async (c, input) =>
     c.json(controlStatus(input.hostId, input.clientId)),
   );
-  post(routes.preview, async (c, input) => {
-    c.header("Cache-Control", "no-store");
-    const parsed = computerPreviewRequestSchema.parse(input);
-    return c.json(
-      await preview(
-        deps,
-        parsed.hostId,
-        parsed.viewerId,
-        parsed.size,
-        parsed.afterSequence,
-      ),
-    );
-  });
 }

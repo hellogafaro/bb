@@ -9,9 +9,12 @@ import type {
   ComputerDoctorProbe,
   ComputerDoctorReport,
   ComputerObservation,
+  ComputerFrame,
+  ComputerHumanInput,
+  ComputerKeyModifier,
+  ComputerLiveProfile,
+  ComputerLiveState,
   ComputerOperation,
-  ComputerPreviewFrame,
-  ComputerPreviewSize,
 } from "@bb/host-daemon-contract";
 import type { HostDaemonLogger } from "../logger.js";
 import {
@@ -31,7 +34,8 @@ import {
   type ComputerPermissionStatus,
 } from "./computer-permissions.js";
 import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
-import { LiveCaptureLoop } from "./computer-live.js";
+import { PersistentCuaTransport } from "./computer-driver-session.js";
+import { DriverCaptureFrameSource, desktopCapture, LiveStream, type ComputerFrameSource } from "./computer-live.js";
 import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
 import { findWindow, TargetTable } from "./computer-target-table.js";
 
@@ -97,6 +101,7 @@ class DriverController {
   #runDirGrants = new PathGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
   #restartRequired = true;
+  #stoppedListeners = new Set<() => void>();
 
   constructor(
     spawnProcess: SpawnFn,
@@ -242,7 +247,21 @@ class DriverController {
     throw new CuaError("The bb computer driver did not start within 5 seconds", "setup-required");
   }
 
+  onStopped(listener: () => void): void {
+    this.#stoppedListeners.add(listener);
+  }
+
+  async socketPath(dataDir: string): Promise<string> {
+    const status = await this.runProbe(dataDir, ["status"]);
+    const match = /^\s*socket:\s*(\S.*?)\s*$/mu.exec(status.stdout);
+    if (status.code !== 0 || match?.[1] === undefined) {
+      throw new CuaError("The bb computer driver service is not running", "setup-required", true);
+    }
+    return match[1];
+  }
+
   async #stopDaemon(dataDir: string): Promise<void> {
+    for (const listener of this.#stoppedListeners) listener();
     await this.runProbe(dataDir, ["stop"]);
     if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) this.#daemonProcess.kill("SIGTERM");
     this.#daemonProcess = null;
@@ -424,7 +443,20 @@ export interface ComputerHostServiceOptions {
   readonly spawnProcess?: SpawnFn;
   readonly transportFactory?: () => CuaTransport;
   readonly driverFetchImpl?: typeof fetch;
+  readonly liveTransportFactory?: () => CuaTransport & { close(): void };
+  readonly liveFrameSourceFactory?: (transport: CuaTransport) => ComputerFrameSource;
+  readonly live: {
+    readonly sendFrame: (frame: ComputerFrame) => void;
+    readonly sendStatus: (state: ComputerLiveState, message: string | null) => void;
+  };
   platform?: NodeJS.Platform;
+}
+
+const HUMAN_INPUT_SESSION = "bb-human";
+
+interface DesktopSize {
+  readonly width: number;
+  readonly height: number;
 }
 
 export class ComputerHostService {
@@ -432,11 +464,15 @@ export class ComputerHostService {
   readonly #driver: DriverController;
   readonly #transport: CuaTransport;
   readonly #table = new TargetTable();
-  readonly #liveLoop: LiveCaptureLoop;
-  #liveController: AbortController | null = null;
+  readonly #platform: NodeJS.Platform;
+  readonly #liveTransport: CuaTransport & { close(): void };
+  readonly #live: LiveStream;
+  #desktopSize: DesktopSize | null = null;
+  #inputQueue: Promise<unknown> = Promise.resolve();
 
   constructor(options: ComputerHostServiceOptions) {
     this.#dataDir = options.dataDir;
+    this.#platform = options.platform ?? process.platform;
     this.#driver = new DriverController(
       options.spawnProcess ?? nodeSpawn,
       options.logger,
@@ -449,29 +485,138 @@ export class ComputerHostService {
         binaryPath: () => this.#driver.binaryPath(this.#dataDir),
         env: daemonEnv(),
       });
-    this.#liveLoop = new LiveCaptureLoop({
-      thumbnailFps: 6,
-      fullFps: 12,
-      maxFrameBytes: 1_500_000,
-      isProtected: () => false,
-      capture: async (signal) => {
-        const result = await this.#transport.call("get_desktop_state", {}, signal);
-        const data = content(result);
-        const base64 = String(data.screenshot_png_b64 ?? "");
-        return {
-          bytes: Buffer.from(base64, "base64"),
-          mimeType: (data.screenshot_mime_type as "image/jpeg" | "image/png" | undefined) ?? "image/png",
-          width: Number(data.screenshot_width ?? 0),
-          height: Number(data.screenshot_height ?? 0),
-        };
+    this.#liveTransport =
+      options.liveTransportFactory?.() ??
+      new PersistentCuaTransport({
+        launch: async () => {
+          await this.#driver.ensureDaemon(this.#dataDir);
+          return {
+            command: await this.#driver.binaryPath(this.#dataDir),
+            args: ["mcp", "--socket", await this.#driver.socketPath(this.#dataDir)],
+            env: daemonEnv(),
+          };
+        },
+      });
+    this.#driver.onStopped(() => this.#liveTransport.close());
+    this.#live = new LiveStream({
+      source: options.liveFrameSourceFactory?.(this.#liveTransport) ?? new DriverCaptureFrameSource({ transport: this.#liveTransport }),
+      prepare: () => this.#driver.ensureDaemon(this.#dataDir),
+      sendFrame: options.live.sendFrame,
+      sendStatus: options.live.sendStatus,
+      onFrame: (frame) => {
+        this.#desktopSize = { width: frame.originalWidth, height: frame.originalHeight };
       },
     });
   }
 
-  #ensureLiveLoop(): void {
-    if (this.#liveController !== null) return;
-    this.#liveController = new AbortController();
-    void this.#liveLoop.run(this.#liveController.signal);
+  setLiveDemand(profile: ComputerLiveProfile | null): void {
+    this.#live.setDemand(profile);
+  }
+
+  input(input: { input: ComputerHumanInput }): Promise<{ summary: string }> {
+    const run = this.#inputQueue.then(() => this.#performInput(input.input));
+    this.#inputQueue = run.catch(() => {});
+    return run;
+  }
+
+  async clipboardRead(): Promise<{ text: string | null }> {
+    const signal = AbortSignal.timeout(15_000);
+    const result = await this.#liveTransport.call(
+      "clipboard_read",
+      { include_text: true, session: HUMAN_INPUT_SESSION },
+      signal,
+    );
+    const text = content(result).text;
+    return { text: typeof text === "string" ? text : null };
+  }
+
+  async clipboardWrite(input: { text: string; paste: boolean }): Promise<{ written: boolean }> {
+    const signal = AbortSignal.timeout(15_000);
+    await this.#liveTransport.call("clipboard_write", { text: input.text, session: HUMAN_INPUT_SESSION }, signal);
+    if (input.paste) {
+      await this.#liveTransport.call(
+        "press_key",
+        { scope: "desktop", key: "v", modifiers: [this.#platform === "darwin" ? "cmd" : "ctrl"], session: HUMAN_INPUT_SESSION },
+        signal,
+      );
+    }
+    return { written: true };
+  }
+
+  async #performInput(input: ComputerHumanInput): Promise<{ summary: string }> {
+    const signal = AbortSignal.timeout(15_000);
+    const call = async (tool: string, args: Record<string, unknown>) => {
+      const result = await this.#liveTransport.call(
+        tool,
+        { ...args, scope: "desktop", session: HUMAN_INPUT_SESSION },
+        signal,
+      );
+      const text = result.content?.find((part) => part.type === "text")?.text;
+      return { summary: (text ?? `Sent ${input.kind}`).slice(0, 2_000) };
+    };
+    switch (input.kind) {
+      case "click": {
+        const point = await this.#toDesktop(input.frame, input.x, input.y, signal);
+        return call("click", {
+          ...point,
+          button: input.button,
+          count: input.count,
+          ...(input.modifiers.length > 0 ? { modifier: input.modifiers.map((modifier) => this.#modifierName(modifier)) } : {}),
+        });
+      }
+      case "drag": {
+        const from = await this.#toDesktop(input.frame, input.fromX, input.fromY, signal);
+        const to = await this.#toDesktop(input.frame, input.toX, input.toY, signal);
+        return call("drag", {
+          from_x: from.x,
+          from_y: from.y,
+          to_x: to.x,
+          to_y: to.y,
+          button: input.button,
+          duration_ms: input.durationMs,
+        });
+      }
+      case "scroll": {
+        const point = await this.#toDesktop(input.frame, input.x, input.y, signal);
+        return call("scroll", { ...point, direction: input.direction, amount: input.amount });
+      }
+      case "move": {
+        const point = await this.#toDesktop(input.frame, input.x, input.y, signal);
+        return call("move_cursor", point);
+      }
+      case "type":
+        return call("type_text", { text: input.text });
+      case "key":
+        return call("press_key", {
+          key: input.key,
+          ...(input.modifiers.length > 0 ? { modifiers: input.modifiers.map((modifier) => this.#modifierName(modifier)) } : {}),
+        });
+    }
+  }
+
+  #modifierName(modifier: ComputerKeyModifier): string {
+    if (modifier !== "meta") return modifier;
+    return this.#platform === "darwin" ? "cmd" : "super";
+  }
+
+  async #toDesktop(
+    frame: { width: number; height: number },
+    x: number,
+    y: number,
+    signal: AbortSignal,
+  ): Promise<{ x: number; y: number }> {
+    const desktop = this.#desktopSize ?? (await this.#probeDesktopSize(signal));
+    return mapFramePoint(frame, desktop, x, y);
+  }
+
+  async #probeDesktopSize(signal: AbortSignal): Promise<DesktopSize> {
+    await this.#driver.ensureDaemon(this.#dataDir);
+    const capture = desktopCapture(
+      await this.#liveTransport.call("get_desktop_state", { max_image_dimension: 64, session: HUMAN_INPUT_SESSION }, signal),
+      Date.now(),
+    );
+    this.#desktopSize = { width: capture.originalWidth, height: capture.originalHeight };
+    return this.#desktopSize;
   }
 
   async doctor(): Promise<ComputerDoctorReport> {
@@ -570,33 +715,24 @@ export class ComputerHostService {
     return { videoPath, trajectoryPath };
   }
 
-  previewTouch(input: { viewerId: string; size: ComputerPreviewSize }): { ok: boolean } {
-    this.#ensureLiveLoop();
-    this.#liveLoop.touchViewer(input.viewerId, input.size);
-    return { ok: true };
-  }
-
-  previewLatest(input: { afterSequence: number | null }): ComputerPreviewFrame {
-    this.#ensureLiveLoop();
-    const frame = this.#liveLoop.latest(input.afterSequence);
-    if (frame === null) {
-      return { sequence: input.afterSequence ?? 0, state: "none" as const, mimeType: null, dataBase64: null, width: 0, height: 0, capturedAt: null };
-    }
-    return {
-      sequence: frame.sequence,
-      state: frame.state,
-      mimeType: frame.bytes === null ? null : frame.mimeType,
-      dataBase64: frame.bytes === null ? null : Buffer.from(frame.bytes).toString("base64"),
-      width: frame.width,
-      height: frame.height,
-      capturedAt: frame.capturedAt,
-    };
-  }
-
   dispose(): void {
-    this.#liveController?.abort();
+    this.#live.dispose();
+    this.#liveTransport.close();
     this.#driver.dispose();
   }
+}
+
+export function mapFramePoint(
+  frame: { width: number; height: number },
+  desktop: DesktopSize,
+  x: number,
+  y: number,
+): { x: number; y: number } {
+  const clamp = (value: number, max: number) => Math.min(Math.max(Math.round(value), 0), max - 1);
+  return {
+    x: clamp((x * desktop.width) / frame.width, desktop.width),
+    y: clamp((y * desktop.height) / frame.height, desktop.height),
+  };
 }
 
 async function performAction(

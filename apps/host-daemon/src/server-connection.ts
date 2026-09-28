@@ -73,6 +73,7 @@ const SERVER_MESSAGE_PAYLOAD_PREVIEW_CHARS = 512;
 const TERMINAL_SOCKET_HIGH_WATER_BYTES = 1024 * 1024;
 const TERMINAL_SOCKET_MAX_QUEUE_BYTES = 32 * 1024 * 1024;
 const TERMINAL_SOCKET_DRAIN_POLL_MS = 10;
+const COMPUTER_FRAME_HIGH_WATER_BYTES = 2 * 1024 * 1024;
 
 interface PendingTerminalSocketPayload {
   bytes: number;
@@ -225,6 +226,27 @@ export class ServerConnection {
     }
     if (recoverableKey !== null) {
       this.pendingRecoverableMessages.delete(recoverableKey);
+    }
+    return true;
+  }
+
+  sendComputerFrame(frame: Uint8Array<ArrayBuffer>): boolean {
+    const websocket = this.websocket;
+    if (
+      !websocket ||
+      websocket.readyState !== OPEN_READY_STATE ||
+      (websocket.bufferedAmount ?? 0) > COMPUTER_FRAME_HIGH_WATER_BYTES
+    ) {
+      return false;
+    }
+    try {
+      websocket.send(frame);
+    } catch (error) {
+      this.options.logger.warn(
+        { ...runtimeErrorLogFields(error) },
+        "Failed to send a computer frame",
+      );
+      return false;
     }
     return true;
   }
@@ -529,6 +551,7 @@ export class ServerConnection {
       websocket.onclose = (event) => {
         this.clearHeartbeat();
         this.clearSession();
+        this.options.onComputerLiveDemand?.(null);
         if (!hasOpened) {
           this.options.logger.warn(
             { code: event.code, reason: event.reason },
@@ -706,6 +729,11 @@ export class ServerConnection {
           "Connect shares handler failed",
         );
       });
+      return;
+    }
+
+    if (message.data.type === "computer.live.demand") {
+      this.options.onComputerLiveDemand?.(message.data);
       return;
     }
 

@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { Command } from "commander";
+import type { BbSdk } from "@bb/sdk/node";
 import type { ComputerRunMode } from "@bb/server-contract";
-import { computerOperationSchema } from "@bb/host-daemon-contract";
+import {
+  computerHumanInputSchema,
+  computerOperationSchema,
+  type ComputerHumanInput,
+} from "@bb/host-daemon-contract";
 import { action } from "../action.js";
 import { CliUsageError } from "../cli-usage-error.js";
 import { createCliBbSdk } from "../client.js";
 import { resolveContextThreadId } from "../context-env.js";
 import { outputJson, type JsonOutputOptions } from "./helpers.js";
+
+type ComputerLiveConnection = ReturnType<BbSdk["computer"]["live"]>;
 
 interface HostOptions extends JsonOutputOptions {
   host: string;
@@ -46,10 +53,14 @@ interface ControlOptions extends HostOptions {
   client: string;
 }
 
-interface PreviewOptions extends HostOptions {
-  viewer: string;
-  size: string;
-  afterSequence?: string;
+interface InputOptions extends ControlOptions {
+  input: string;
+}
+
+interface ClipboardOptions extends ControlOptions {
+  action: string;
+  text?: string;
+  paste?: boolean;
 }
 
 function usageError(message: string, hint: string | null = null): never {
@@ -93,13 +104,36 @@ function parseMaxSteps(value: string): number {
   return parsed;
 }
 
-function parseAfterSequence(value: string | undefined): number | null {
-  if (value === undefined) return null;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    usageError("--after-sequence must be a non-negative integer");
+function parseHumanInput(raw: string): ComputerHumanInput {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    usageError("--input must be a JSON object");
   }
-  return parsed;
+  const result = computerHumanInputSchema.safeParse(parsed);
+  if (!result.success) {
+    usageError(`--input does not match a human input: ${result.error.message}`);
+  }
+  return result.data;
+}
+
+async function withLiveConnection<T>(
+  url: string,
+  args: { hostId: string; clientId: string },
+  run: (connection: ComputerLiveConnection) => Promise<T>,
+): Promise<T> {
+  const connection = createCliBbSdk(url).computer.live({
+    hostId: args.hostId,
+    clientId: args.clientId,
+    profile: "thumbnail",
+  });
+  try {
+    await connection.opened;
+    return await run(connection);
+  } finally {
+    connection.close();
+  }
 }
 
 function hostOption(command: Command): Command {
@@ -414,26 +448,57 @@ export function registerComputerCommands(
 
   hostOption(
     computer
-      .command("preview")
-      .description("Poll the machine's live preview stream for a frame after a given sequence")
-      .requiredOption("--viewer <id>", "Stable viewer ID for this preview session")
-      .option("--size <thumbnail|full>", "Frame size", "thumbnail")
-      .option(
-        "--after-sequence <n>",
-        "Only return a frame newer than this sequence (omit for the latest)",
+      .command("input")
+      .description(
+        "Send one human input (click, drag, scroll, move, type, key) to a machine over its live view; requires holding control via take-control first",
+      )
+      .requiredOption("--client <id>", "Same client ID passed to take-control")
+      .requiredOption(
+        "--input <json>",
+        'The input as JSON, e.g. \'{"kind":"click","frame":{"width":1280,"height":800},"x":100,"y":200,"button":"left","count":1,"modifiers":[]}\'',
       )
       .option("--json", "Print machine-readable JSON output"),
   ).action(
-    action(async (opts: PreviewOptions) => {
-      const size = opts.size === "full" ? "full" : "thumbnail";
-      const frame = await createCliBbSdk(getUrl()).computer.preview({
-        hostId: opts.host,
-        viewerId: opts.viewer,
-        size,
-        afterSequence: parseAfterSequence(opts.afterSequence),
-      });
-      if (outputJson(opts, frame)) return;
-      console.log(JSON.stringify(frame, null, 2));
+    action(async (opts: InputOptions) => {
+      const input = parseHumanInput(opts.input);
+      await withLiveConnection(getUrl(), { hostId: opts.host, clientId: opts.client }, (connection) =>
+        connection.perform(input),
+      );
+      if (outputJson(opts, { sent: true })) return;
+      console.log("Sent.");
+    }),
+  );
+
+  hostOption(
+    computer
+      .command("clipboard")
+      .description("Read or write the machine's clipboard over its live view; requires holding control via take-control first")
+      .requiredOption("--client <id>", "Same client ID passed to take-control")
+      .requiredOption("--action <read|write>", "read or write the machine clipboard")
+      .option("--text <value>", "Text to write (required for --action write)")
+      .option("--paste", "Also press the platform paste shortcut after writing")
+      .option("--json", "Print machine-readable JSON output"),
+  ).action(
+    action(async (opts: ClipboardOptions) => {
+      if (opts.action !== "read" && opts.action !== "write") {
+        usageError("--action must be read or write");
+      }
+      if (opts.action === "write" && opts.text === undefined) {
+        usageError("--text is required for --action write");
+      }
+      const result = await withLiveConnection(
+        getUrl(),
+        { hostId: opts.host, clientId: opts.client },
+        async (connection) => {
+          if (opts.action === "read") {
+            return { text: await connection.readClipboard() };
+          }
+          await connection.writeClipboard(opts.text ?? "", { paste: opts.paste === true });
+          return { written: true };
+        },
+      );
+      if (outputJson(opts, result)) return;
+      console.log(JSON.stringify(result, null, 2));
     }),
   );
 }

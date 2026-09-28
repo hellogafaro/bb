@@ -4,9 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CuaToolResult, CuaTransport } from "./computer-transport.js";
-import { ComputerHostService, type SpawnFn } from "./computer-host-service.js";
+import { ComputerHostService, mapFramePoint, type SpawnFn } from "./computer-host-service.js";
 
 const testLogger = { debug: () => {}, warn: () => {} };
+const noLive = { sendFrame: () => {}, sendStatus: () => {} };
 
 const networkDisabledFetch: typeof fetch = (async () => {
   throw new Error("network disabled in test");
@@ -93,6 +94,7 @@ describe("ComputerHostService when the cua-driver binary cannot be spawned", () 
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess: enoentSpawn(),
       driverFetchImpl: networkDisabledFetch,
@@ -110,6 +112,7 @@ describe("ComputerHostService when the cua-driver binary cannot be spawned", () 
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess: enoentSpawn(),
       driverFetchImpl: networkDisabledFetch,
@@ -152,6 +155,7 @@ describe("ComputerHostService driver resolution order", () => {
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess: succeedingSpawn(),
       driverFetchImpl: networkDisabledFetch,
@@ -172,6 +176,7 @@ describe("ComputerHostService driver resolution order", () => {
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess: succeedingSpawn(),
       driverFetchImpl: networkDisabledFetch,
@@ -244,6 +249,7 @@ describe("ComputerHostService on macOS", () => {
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess,
       driverFetchImpl: networkDisabledFetch,
@@ -316,6 +322,7 @@ describe("ComputerHostService requestPermissions", () => {
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new FakeTransport(),
       spawnProcess,
       driverFetchImpl: networkDisabledFetch,
@@ -377,6 +384,7 @@ describe("ComputerHostService recordStart", () => {
     const service = new ComputerHostService({
       dataDir,
       logger: testLogger,
+      live: noLive,
       transportFactory: () => new RecordingTransport(),
       spawnProcess: succeedingSpawn(),
       driverFetchImpl: networkDisabledFetch,
@@ -397,5 +405,30 @@ describe("ComputerHostService recordStart", () => {
     expect(manifest.resources.files.write).not.toContain(join(dataDir, "runs"));
 
     service.dispose();
+  });
+});
+
+describe("mapFramePoint", () => {
+  it("scales a point from a downscaled capture frame to the real desktop resolution", () => {
+    const frame = { width: 1280, height: 800 };
+    const desktop = { width: 2560, height: 1600 };
+    expect(mapFramePoint(frame, desktop, 640, 400)).toEqual({ x: 1280, y: 800 });
+    expect(mapFramePoint(frame, desktop, 0, 0)).toEqual({ x: 0, y: 0 });
+  });
+
+  it("clamps out-of-range coordinates to the desktop bounds", () => {
+    const frame = { width: 1280, height: 800 };
+    const desktop = { width: 1920, height: 1080 };
+    expect(mapFramePoint(frame, desktop, -50, -50)).toEqual({ x: 0, y: 0 });
+    expect(mapFramePoint(frame, desktop, 10_000, 10_000)).toEqual({
+      x: desktop.width - 1,
+      y: desktop.height - 1,
+    });
+  });
+
+  it("is a no-op when the frame already matches the desktop resolution", () => {
+    const frame = { width: 1920, height: 1080 };
+    const desktop = { width: 1920, height: 1080 };
+    expect(mapFramePoint(frame, desktop, 123, 456)).toEqual({ x: 123, y: 456 });
   });
 });

@@ -308,16 +308,9 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   },
   "computer.record_start": { started: true },
   "computer.record_stop": { videoPath: null, trajectoryPath: null },
-  "computer.preview_touch": { ok: true },
-  "computer.preview_latest": {
-    sequence: 0,
-    state: "none",
-    mimeType: null,
-    dataBase64: null,
-    width: 0,
-    height: 0,
-    capturedAt: null,
-  },
+  "computer.input": { summary: "Clicked" },
+  "computer.clipboard_read": { text: null },
+  "computer.clipboard_write": { written: true },
   "plugin.host.call": { output: { ok: true } },
   "plugin.host.cancel": { cancelled: true },
   "plugin.host.dispose": { disposed: true },
@@ -1254,7 +1247,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(234);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(235);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

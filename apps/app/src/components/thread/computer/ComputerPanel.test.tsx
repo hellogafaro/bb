@@ -7,21 +7,47 @@ import { ComputerPanel } from "./ComputerPanel";
 
 const machinesMock = vi.hoisted(() => vi.fn());
 const doctorMock = vi.hoisted(() => vi.fn());
-const previewMock = vi.hoisted(() => vi.fn());
-const controlStatusMock = vi.hoisted(() => vi.fn());
-const activeRunMock = vi.hoisted(() => vi.fn());
+const liveMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/sdk", () => ({
   sdk: {
     computer: {
       machines: machinesMock,
       doctor: doctorMock,
-      preview: previewMock,
-      controlStatus: controlStatusMock,
-      activeRun: activeRunMock,
+      live: liveMock,
     },
   },
 }));
+
+function fakeLiveConnection() {
+  const frameListeners = new Set<(frame: unknown) => void>();
+  const statusListeners = new Set<(status: unknown) => void>();
+  const closeListeners = new Set<() => void>();
+  return {
+    opened: Promise.resolve(),
+    onFrame: (listener: (frame: unknown) => void) => {
+      frameListeners.add(listener);
+      return () => frameListeners.delete(listener);
+    },
+    onStatus: (listener: (status: unknown) => void) => {
+      statusListeners.add(listener);
+      return () => statusListeners.delete(listener);
+    },
+    onError: () => () => {},
+    onClose: (listener: () => void) => {
+      closeListeners.add(listener);
+      return () => closeListeners.delete(listener);
+    },
+    input: vi.fn(),
+    perform: vi.fn().mockResolvedValue(undefined),
+    readClipboard: vi.fn().mockResolvedValue(null),
+    writeClipboard: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn(),
+    emitStatus: (status: unknown) => {
+      for (const listener of statusListeners) listener(status);
+    },
+  };
+}
 
 afterEach(() => {
   cleanup();
@@ -48,16 +74,6 @@ const readyDoctor = () => ({
   probes: [],
 });
 
-const livePreview = () => ({
-  sequence: 1,
-  state: "live" as const,
-  mimeType: "image/png" as const,
-  dataBase64: "AAAA",
-  width: 10,
-  height: 10,
-  capturedAt: Date.now(),
-});
-
 describe("computer panel machine picker", () => {
   it("lists machines as cards with this thread's machine first and a status dot", async () => {
     machinesMock.mockResolvedValue({
@@ -65,7 +81,7 @@ describe("computer panel machine picker", () => {
       currentHostId: "host-a",
     });
 
-    const view = render(<ComputerPanel threadId="thread-1" />);
+    const view = render(<ComputerPanel threadId="thread-1" isActive={true} />);
 
     await view.findByText("Choose a machine");
     const cards = view.getAllByRole("button");
@@ -73,19 +89,20 @@ describe("computer panel machine picker", () => {
     expect(cards[1]?.textContent).toContain("Other Box");
   });
 
-  it("selecting a card shows a spinner until the machine is ready and live", async () => {
+  it("selecting a card shows the control banner once the machine is ready", async () => {
     machinesMock.mockResolvedValue({ machines: [machine()], currentHostId: "host-a" });
     doctorMock.mockResolvedValue(readyDoctor());
-    previewMock.mockResolvedValue(livePreview());
-    controlStatusMock.mockResolvedValue({ owner: "agent" });
-    activeRunMock.mockResolvedValue({ runId: null });
+    const connection = fakeLiveConnection();
+    liveMock.mockReturnValue(connection);
 
-    const view = render(<ComputerPanel threadId="thread-1" />);
+    const view = render(<ComputerPanel threadId="thread-1" isActive={true} />);
 
     fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
 
-    await view.findByRole("img", { name: "Live machine view" });
-    view.getByText(/Controlled by/);
+    await view.findByText(/Controlled by/);
+    expect(liveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hostId: "host-a", profile: "full" }),
+    );
     expect(view.queryByText("Workstation")).toBeNull();
   });
 
@@ -100,12 +117,25 @@ describe("computer panel machine picker", () => {
       probes: [{ id: "driver" as const, label: "Driver", status: "unavailable" as const, message: "driver not found" }],
     });
 
-    const view = render(<ComputerPanel threadId="thread-1" />);
+    const view = render(<ComputerPanel threadId="thread-1" isActive={true} />);
 
     fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
 
     await view.findByText("driver not found");
     view.getByText("Driver");
     view.getByText("Workstation");
+  });
+
+  it("does not connect the live view while the tab is inactive", async () => {
+    machinesMock.mockResolvedValue({ machines: [machine()], currentHostId: "host-a" });
+    doctorMock.mockResolvedValue(readyDoctor());
+    liveMock.mockReturnValue(fakeLiveConnection());
+
+    const view = render(<ComputerPanel threadId="thread-1" isActive={false} />);
+
+    fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
+
+    await view.findByText("Waiting for a frame…");
+    expect(liveMock).not.toHaveBeenCalled();
   });
 });

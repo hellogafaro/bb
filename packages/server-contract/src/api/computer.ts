@@ -5,9 +5,11 @@ import {
   computerObservationSchema,
   computerOperationKindSchema,
   computerOperationSchema,
-  computerPreviewFrameSchema,
-  computerPreviewSizeSchema,
+  computerHumanInputSchema,
+  computerLiveProfileSchema,
+  computerLiveStateSchema,
   computerRunIdSchema,
+  COMPUTER_CLIPBOARD_MAX_CHARS,
 } from "@bb/host-daemon-contract";
 import { z } from "zod";
 
@@ -179,18 +181,75 @@ export type ComputerTakeControlResponse = { owner: "human" | "busy" };
 export type ComputerReleaseControlResponse = { released: boolean };
 export type ComputerControlStatusResponse = { owner: "you" | "other" | "agent" };
 
-export const computerPreviewRequestSchema = z
+export const computerLiveSocketQuerySchema = z
   .object({
-    hostId,
-    viewerId: z.string().min(1).max(80),
-    size: computerPreviewSizeSchema.default("thumbnail"),
-    afterSequence: z.number().int().nonnegative().nullable(),
+    clientId: z.string().min(1).max(200),
+    profile: computerLiveProfileSchema,
   })
   .strict();
-export type ComputerPreviewRequest = z.infer<
-  typeof computerPreviewRequestSchema
->;
-export type ComputerPreviewInput = z.input<typeof computerPreviewRequestSchema>;
-export type ComputerPreviewFrame = z.infer<typeof computerPreviewFrameSchema>;
+export type ComputerLiveSocketQuery = z.infer<typeof computerLiveSocketQuerySchema>;
+
+export function buildComputerLiveWebSocketPath(
+  args: { hostId: string } & ComputerLiveSocketQuery,
+): string {
+  const query = new URLSearchParams({ clientId: args.clientId, profile: args.profile });
+  return `/ws/computer/${encodeURIComponent(args.hostId)}?${query.toString()}`;
+}
+
+const liveRequestId = z.string().min(1).max(80);
+
+export const computerLiveClientMessageSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("input"),
+      requestId: liveRequestId.nullable(),
+      input: computerHumanInputSchema,
+    })
+    .strict(),
+  z.object({ type: z.literal("clipboard.read"), requestId: liveRequestId }).strict(),
+  z
+    .object({
+      type: z.literal("clipboard.write"),
+      requestId: liveRequestId,
+      text: z.string().max(COMPUTER_CLIPBOARD_MAX_CHARS),
+      paste: z.boolean(),
+    })
+    .strict(),
+]);
+export type ComputerLiveClientMessage = z.infer<typeof computerLiveClientMessageSchema>;
+
+export const computerControlOwnerSchema = z.enum(["you", "other", "agent"]);
+export type ComputerControlOwner = z.infer<typeof computerControlOwnerSchema>;
+
+export const computerLiveServerMessageSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("status"),
+      state: computerLiveStateSchema,
+      message: z.string().nullable(),
+      control: computerControlOwnerSchema,
+      runId: z.string().nullable(),
+      fps: z.number().nonnegative(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("clipboard"),
+      requestId: liveRequestId,
+      text: z.string().nullable(),
+    })
+    .strict(),
+  z.object({ type: z.literal("clipboard.written"), requestId: liveRequestId }).strict(),
+  z.object({ type: z.literal("input.done"), requestId: liveRequestId }).strict(),
+  z
+    .object({
+      type: z.literal("error"),
+      requestId: liveRequestId.nullable(),
+      code: z.string(),
+      message: z.string(),
+    })
+    .strict(),
+]);
+export type ComputerLiveServerMessage = z.infer<typeof computerLiveServerMessageSchema>;
 
 export type ComputerCaptureImage = z.infer<typeof computerCaptureImageSchema>;
