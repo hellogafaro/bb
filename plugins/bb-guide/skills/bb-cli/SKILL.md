@@ -194,3 +194,22 @@ and no open terminals; empty machines can use an opted-in provider idle policy.
 suspended state through the provider and waits for completion. It leaves active
 machines and in-progress lifecycle operations alone. Use `machine suspend` to
 request a new pause. Core does not schedule reconciliation polling.
+
+## Built-in computer control
+
+`bb computer` observes and controls a machine's desktop through Cua Driver:
+`bb computer machines [--json]` lists enrolled hosts, `bb computer doctor
+--host <id>` checks readiness and starts the daemon on first use. Drive one
+step at a time with `bb computer observe --host <id> [--app <name>]` (returns
+a target table and a `snapshotId`) and `bb computer act --host <id> --action
+<json>` against a `targetId` from the latest observe — never coordinates or
+shell commands, and never a stale `snapshotId`. `bb computer screenshot` and
+`bb computer record` write evidence into thread storage (`--thread <id>`
+defaults to BB_THREAD_ID). `bb computer start --host <id> --goal <text>`
+begins a goal-driven run tracked with `bb computer status --run <id>` and
+ended with `bb computer cancel --run <id>`; without a configured TypeSafe key
+it always escalates immediately to manual `observe`/`act`. `bb computer
+take-control`/`control-status`/`release-control --host <id> --client <id>`
+hand control between a person and automation. See `bb guide computer` for the
+full chapter; there is no plugin and no `bb plugin config computer` — its
+decision-loop credentials live in server config.

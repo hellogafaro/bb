@@ -138,6 +138,7 @@ import {
   buildMessageDirectiveRegistry,
   MessageDirectiveRegistryProvider,
 } from "@/components/ui/markdown-message-directives.js";
+import { CORE_COMPUTER_PREVIEW_DIRECTIVE_SLOT } from "@/components/thread/computer/ComputerPreviewDirective.js";
 import {
   TimelineWindowedItemsLoader,
   TimelineWindowingMeasurementsContext,
@@ -1984,7 +1985,11 @@ function ThreadTimelineRowsForTimelineView(props: ThreadTimelineRowsProps) {
     () => EMPTY_PLUGIN_SLOT_SNAPSHOT.messageActions,
   );
   const messageDirectiveRegistry = useMemo(
-    () => buildMessageDirectiveRegistry(messageDirectiveSlots),
+    () =>
+      buildMessageDirectiveRegistry([
+        ...messageDirectiveSlots,
+        CORE_COMPUTER_PREVIEW_DIRECTIVE_SLOT,
+      ]),
     [messageDirectiveSlots],
   );
   const resolveSegmentLinkHref = useMemo<TimelineTitleLinkResolver>(() => {

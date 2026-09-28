@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { compactToolFromCatalog } from "../../../src/services/mcp/catalog.js";
 import { McpGateway } from "../../../src/services/mcp/gateway.js";
 import { resolveThreadRuntimeCommandConfig } from "../../../src/services/threads/thread-runtime-config.js";
+import { COMPUTER_TOOL_NAMES } from "../../../src/services/computer/computer-tools.js";
 import {
   MCP_TOOL_NAMES,
   mcpDynamicToolContributions,
@@ -322,6 +323,7 @@ describe("MCP thread runtime configuration", () => {
       const empty = await resolveConfig();
       expect(empty.dynamicTools.map((tool) => tool.name)).toEqual([
         "update_environment_directory",
+        ...COMPUTER_TOOL_NAMES,
       ]);
       expect(empty.instructions).not.toContain("<connected_mcps>");
 
@@ -334,6 +336,7 @@ describe("MCP thread runtime configuration", () => {
       const configured = await resolveConfig();
       expect(configured.dynamicTools.map((tool) => tool.name)).toEqual([
         "update_environment_directory",
+        ...COMPUTER_TOOL_NAMES,
         ...MCP_TOOL_NAMES,
       ]);
       expect(configured.instructions).toContain(
@@ -368,6 +371,7 @@ describe("MCP thread runtime configuration", () => {
       const disabled = await resolveConfig();
       expect(disabled.dynamicTools.map((tool) => tool.name)).toEqual([
         "update_environment_directory",
+        ...COMPUTER_TOOL_NAMES,
       ]);
       expect(disabled.instructions).not.toContain("<connected_mcps>");
     });

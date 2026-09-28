@@ -26,7 +26,7 @@
     "category": "plugin-development",
     "screenshots": []
   },
-  "inline-vis": {
+  "canvas": {
     "category": "thread-content",
     "screenshots": []
   },
@@ -126,10 +126,6 @@
     "screenshots": []
   },
   "browser-automation": {
-    "category": "agents-and-providers",
-    "screenshots": []
-  },
-  "computer": {
     "category": "agents-and-providers",
     "screenshots": []
   },

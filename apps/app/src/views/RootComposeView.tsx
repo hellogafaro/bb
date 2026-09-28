@@ -1674,6 +1674,20 @@ function RootComposeSurface({
               statusLabel: null,
               onSelect: () => handleActivateFileTab(tab.id),
             };
+          case "computer":
+            return {
+              ...shared,
+              label: "Computer",
+              leadingVisual: (
+                <Icon
+                  name="Laptop"
+                  className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
+                  aria-hidden
+                />
+              ),
+              statusLabel: null,
+              onSelect: () => handleActivateFileTab(tab.id),
+            };
           case "plugin-panel":
             return {
               ...shared,

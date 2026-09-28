@@ -24,6 +24,7 @@ import { renderTemplate } from "@bb/templates";
 import { ApiError } from "../../errors.js";
 import type { LoggedWorkSessionDeps } from "../../types.js";
 import { throwEnvironmentNotReady } from "../lib/lifecycle-api-errors.js";
+import { listPublicHostsWithStatus } from "../lib/entity-lookup.js";
 import { requireLiveThreadStoragePath } from "./thread-storage.js";
 import {
   listPluginAgentTools,
@@ -37,6 +38,7 @@ import { discoverPluginSkillIds } from "../skills/injected-skills.js";
 import { resolveWorkspaceProjectSkills } from "../skills/workspace-skills.js";
 import { resolveSharedSkills } from "../skills/shared-skills.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL } from "./thread-environment-directory.js";
+import { computerDynamicTools } from "../computer/computer-tools.js";
 import { mcpDynamicToolContributions } from "./mcp-tools.js";
 import { currentMcpService } from "../mcp/mcp-service-registry.js";
 import { MCP_TOOLS_GUIDANCE, threadServerSelection } from "../mcp/context.js";
@@ -116,6 +118,7 @@ interface DynamicToolContribution {
 function resolveDynamicTools(
   pluginTools: ReturnType<typeof listPluginAgentTools>,
   includeMcpTools: boolean,
+  includeComputerTools: boolean,
 ): DynamicToolContribution[] {
   return [
     {
@@ -123,6 +126,13 @@ function resolveDynamicTools(
       instructions: UPDATE_ENVIRONMENT_DIRECTORY_INSTRUCTIONS,
       pluginId: null,
     },
+    ...(includeComputerTools
+      ? computerDynamicTools().map((tool) => ({
+          tool,
+          instructions: null,
+          pluginId: null,
+        }))
+      : []),
     ...(includeMcpTools
       ? mcpDynamicToolContributions().map((contribution) => ({
           ...contribution,
@@ -260,9 +270,11 @@ export async function resolveThreadRuntimeCommandConfig(
   );
   const mcpService = currentMcpService();
   const includeMcpTools = mcpService?.hasEnabledServers() ?? false;
+  const includeComputerTools = listPublicHostsWithStatus(deps).length > 0;
   const dynamicToolContributions = resolveDynamicTools(
     conditionalConfiguration.tools,
     includeMcpTools,
+    includeComputerTools,
   );
   const dynamicTools = dynamicToolContributions.map(
     (contribution) => contribution.tool,

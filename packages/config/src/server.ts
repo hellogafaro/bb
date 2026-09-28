@@ -27,6 +27,11 @@ import {
   BB_APP_UPDATE_MODE_ENV,
   BB_TELEMETRY_ENV,
   BB_TRANSCRIPTION_ENV,
+  COMPUTER_OPENROUTER_API_KEY_ENV,
+  COMPUTER_OPENROUTER_MODEL_ENV,
+  COMPUTER_TYPESAFE_API_KEY_ENV,
+  COMPUTER_TYPESAFE_ENDPOINT_ENV,
+  COMPUTER_TYPESAFE_MODEL_ENV,
   DEFAULT_BB_APP_URL,
   DEFAULT_BB_APP_SURFACE,
   DEFAULT_BB_APP_VERSION,
@@ -37,6 +42,11 @@ import {
   DEFAULT_BB_SERVER_BIND_HOST,
   DEFAULT_BB_TELEMETRY,
   DEFAULT_BB_TRANSCRIPTION,
+  DEFAULT_COMPUTER_OPENROUTER_API_KEY,
+  DEFAULT_COMPUTER_OPENROUTER_MODEL,
+  DEFAULT_COMPUTER_TYPESAFE_API_KEY,
+  DEFAULT_COMPUTER_TYPESAFE_ENDPOINT,
+  DEFAULT_COMPUTER_TYPESAFE_MODEL,
   DEFAULT_OPENROUTER_API_KEY,
   OPENROUTER_API_KEY_ENV,
   parseServerBindHost,
@@ -65,6 +75,11 @@ export interface ServerConfig
   BB_TELEMETRY: boolean;
   BB_TRANSCRIPTION: string;
   OPENROUTER_API_KEY: string;
+  COMPUTER_TYPESAFE_API_KEY: string;
+  COMPUTER_TYPESAFE_ENDPOINT: string;
+  COMPUTER_TYPESAFE_MODEL: string;
+  COMPUTER_OPENROUTER_API_KEY: string;
+  COMPUTER_OPENROUTER_MODEL: string;
   featureFlags: FeatureFlags;
 }
 
@@ -181,6 +196,36 @@ export function loadServerConfig(
       context: loader.context,
       defaultValue: DEFAULT_OPENROUTER_API_KEY,
       definition: OPENROUTER_API_KEY_ENV,
+      env: loader.env,
+    }),
+    COMPUTER_TYPESAFE_API_KEY: readEnvVarWithDefault({
+      context: loader.context,
+      defaultValue: DEFAULT_COMPUTER_TYPESAFE_API_KEY,
+      definition: COMPUTER_TYPESAFE_API_KEY_ENV,
+      env: loader.env,
+    }),
+    COMPUTER_TYPESAFE_ENDPOINT: readEnvVarWithDefault({
+      context: loader.context,
+      defaultValue: DEFAULT_COMPUTER_TYPESAFE_ENDPOINT,
+      definition: COMPUTER_TYPESAFE_ENDPOINT_ENV,
+      env: loader.env,
+    }),
+    COMPUTER_TYPESAFE_MODEL: readEnvVarWithDefault({
+      context: loader.context,
+      defaultValue: DEFAULT_COMPUTER_TYPESAFE_MODEL,
+      definition: COMPUTER_TYPESAFE_MODEL_ENV,
+      env: loader.env,
+    }),
+    COMPUTER_OPENROUTER_API_KEY: readEnvVarWithDefault({
+      context: loader.context,
+      defaultValue: DEFAULT_COMPUTER_OPENROUTER_API_KEY,
+      definition: COMPUTER_OPENROUTER_API_KEY_ENV,
+      env: loader.env,
+    }),
+    COMPUTER_OPENROUTER_MODEL: readEnvVarWithDefault({
+      context: loader.context,
+      defaultValue: DEFAULT_COMPUTER_OPENROUTER_MODEL,
+      definition: COMPUTER_OPENROUTER_MODEL_ENV,
       env: loader.env,
     }),
     featureFlags: loadFeatureFlags({

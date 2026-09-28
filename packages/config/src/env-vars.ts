@@ -250,6 +250,39 @@ export const OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
   parse: parseStringEnvValue,
 });
 
+export const COMPUTER_TYPESAFE_API_KEY_ENV = defineEnvVar<string>({
+  description:
+    "TypeSafe System One API key used by Computer's jev-mode decision loop. Empty disables jev mode.",
+  name: "COMPUTER_TYPESAFE_API_KEY",
+  parse: parseStringEnvValue,
+});
+
+export const COMPUTER_TYPESAFE_ENDPOINT_ENV = defineEnvVar<string>({
+  description: "TypeSafe System One endpoint used by Computer's jev-mode decision loop",
+  name: "COMPUTER_TYPESAFE_ENDPOINT",
+  parse: parseStringEnvValue,
+});
+
+export const COMPUTER_TYPESAFE_MODEL_ENV = defineEnvVar<string>({
+  description: "TypeSafe System One model id used by Computer's jev-mode decision loop",
+  name: "COMPUTER_TYPESAFE_MODEL",
+  parse: parseStringEnvValue,
+});
+
+export const COMPUTER_OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
+  description:
+    "OpenRouter API key used to generate typed text for Computer's jev-mode decision loop",
+  name: "COMPUTER_OPENROUTER_API_KEY",
+  parse: parseStringEnvValue,
+});
+
+export const COMPUTER_OPENROUTER_MODEL_ENV = defineEnvVar<string>({
+  description:
+    "OpenRouter model id used to generate typed text for Computer's jev-mode decision loop",
+  name: "COMPUTER_OPENROUTER_MODEL",
+  parse: parseStringEnvValue,
+});
+
 export const BB_POSTHOG_API_KEY_ENV = defineEnvVar<string>({
   description:
     "PostHog project API key for anonymous usage telemetry. Telemetry is disabled when empty.",
@@ -369,6 +402,12 @@ export const DEFAULT_BB_APP_URL = "";
 export const DEFAULT_BB_SERVER_BIND_HOST: ServerBindHost = BB_LOOPBACK_HOST;
 export const DEFAULT_BB_EXTERNAL_URL = "";
 export const DEFAULT_OPENROUTER_API_KEY = "";
+export const DEFAULT_COMPUTER_TYPESAFE_API_KEY = "";
+export const DEFAULT_COMPUTER_TYPESAFE_ENDPOINT =
+  "https://api.typesafe.ai/v1/systemone";
+export const DEFAULT_COMPUTER_TYPESAFE_MODEL = "jev-1";
+export const DEFAULT_COMPUTER_OPENROUTER_API_KEY = "";
+export const DEFAULT_COMPUTER_OPENROUTER_MODEL = "openai/gpt-4o-mini";
 export const DEFAULT_BB_POSTHOG_API_KEY =
   "phc_tejoYoNLV6vG8QAd5eYXXvcsENFYnP4brpZDGqG7zvpy";
 export const DEFAULT_BB_TELEMETRY = true;

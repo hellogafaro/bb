@@ -364,6 +364,26 @@ move and downloads the new server's bb-app package for its service.
 
 `bb agent` manages the agents threads run as. Read references/agents.md before you create, edit, or delete agents or spawn a thread as one.
 
+## computer
+
+- `bb computer`
+- `bb computer machines`
+- `bb computer doctor`
+- `bb computer observe`
+- `bb computer act`
+- `bb computer screenshot`
+- `bb computer record`
+- `bb computer start`
+- `bb computer status`
+- `bb computer cancel`
+- `bb computer active-run`
+- `bb computer take-control`
+- `bb computer release-control`
+- `bb computer control-status`
+- `bb computer preview`
+
+`bb computer` observes and controls a machine's desktop through Cua Driver. Read `bb guide computer` before you observe, act, or start a run.
+
 ## guide
 
 - `bb guide`

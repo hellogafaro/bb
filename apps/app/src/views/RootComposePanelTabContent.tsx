@@ -158,6 +158,7 @@ export function RootComposePanelTabContent({
 }: RootComposePanelTabContentProps) {
   switch (tab.kind) {
     case "browser":
+    case "computer":
       return null;
     case "terminal":
       return terminalTarget === null ? null : (

@@ -61,6 +61,28 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "{hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}",
   "provider guard":
     "{hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}",
+  "computer machines":
+    "{machines: [{hostId, name, status, type, lastSeenAt}], currentHostId}",
+  "computer doctor":
+    "{hostId, state, version, probes: [{label, status, message}]}",
+  "computer observe":
+    "{hostId, surface, title, snapshotId, observedAt, targets: [{index, targetId, role, name, value, bounds, ref, allowedOperations}], hint}",
+  "computer act":
+    "{state, summary, observation: {hostId, surface, title, snapshotId, observedAt, targets, hint} | null}",
+  "computer screenshot": "{path, mimeType}",
+  "computer record": "{recording, path, trajectoryPath}",
+  "computer start":
+    "{runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}",
+  "computer status":
+    "{runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}",
+  "computer cancel":
+    "{runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}",
+  "computer active-run": "{runId}    (runId is null when no run is active)",
+  "computer take-control": '{owner: "human" | "busy"}',
+  "computer release-control": "{released}",
+  "computer control-status": '{owner: "you" | "other" | "agent"}',
+  "computer preview":
+    "{sequence, state, mimeType, dataBase64, width, height, capturedAt}",
 };
 
 export function jsonShapeHelp(commandPath: string): string | null {

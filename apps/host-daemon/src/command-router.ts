@@ -76,6 +76,7 @@ export interface CommandRouterOptions {
   ensureConnectTunnelIdentity?: CommandDispatchOptions["ensureConnectTunnelIdentity"];
   serverMove?: CommandDispatchOptions["serverMove"];
   mcpStdio?: CommandDispatchOptions["mcpStdio"];
+  computer?: CommandDispatchOptions["computer"];
   threadStorageRootPath: string;
   logger: CommandRouterLogger;
 }
@@ -284,6 +285,7 @@ export class CommandRouter {
       ensureConnectTunnelIdentity: this.options.ensureConnectTunnelIdentity,
       serverMove: this.options.serverMove,
       mcpStdio: this.options.mcpStdio,
+      computer: this.options.computer,
       threadStorageRootPath: this.options.threadStorageRootPath,
       logger: this.options.logger,
     };

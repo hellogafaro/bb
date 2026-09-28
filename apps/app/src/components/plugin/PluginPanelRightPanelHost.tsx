@@ -836,6 +836,7 @@ export function PluginPanelRightPanelHost({
     function renderTabContent(tab: SecondaryFileFixedPanelTab): ReactNode {
       switch (tab.kind) {
         case "browser":
+        case "computer":
           return null;
         case "terminal":
           if (tab.target === undefined) return null;
@@ -992,6 +993,7 @@ export function PluginPanelRightPanelHost({
               },
             ];
           case "files":
+          case "computer":
             return [];
           case "workspace-file-preview":
           case "host-file-preview":

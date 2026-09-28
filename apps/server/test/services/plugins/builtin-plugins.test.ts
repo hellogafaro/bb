@@ -292,7 +292,7 @@ describe("builtin plugin reconciliation", () => {
       ["concurrency-limit", "Limitation"],
       ["connect", "Smartphone"],
       ["plugin-api-tester", "Beaker"],
-      ["inline-vis", "AppWindow"],
+      ["canvas", "AppWindow"],
       ["keep-awake", "Coffee"],
       ["pdf-preview", "FileText"],
       ["environment-project-checkout", "Laptop"],

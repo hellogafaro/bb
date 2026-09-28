@@ -178,6 +178,48 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb mcp providers [--fix] --json
     {hostId, hostName, status: {claude: {settingsPath, connectorsDisabled, bundledSkillsDisabled, enabledPlugins, mcpServers, pluginsDir, marketplaces, knownMarketplacesFile, installedPlugins, skillsDir, extraSkills}, codex: {configPath, features: [{key, value}], systemSkills: [{name, path, disabled}], mcpServers, pluginCacheDir, pluginCache, skillsDir, extraSkills}}, issues: [{provider, message, fixable}], changes, text}
 
+  bb computer machines --json
+    {machines: [{hostId, name, status, type, lastSeenAt}], currentHostId}
+
+  bb computer doctor --host <id> --json
+    {hostId, state, version, probes: [{label, status, message}]}
+
+  bb computer observe --host <id> [--app <name>] --json
+    {hostId, surface, title, snapshotId, observedAt, targets: [{index, targetId, role, name, value, bounds, ref, allowedOperations}], hint}
+
+  bb computer act --host <id> --action <json> --json
+    {state, summary, observation: {hostId, surface, title, snapshotId, observedAt, targets, hint} | null}
+
+  bb computer screenshot --host <id> [--thread <id>] --json
+    {path, mimeType}
+
+  bb computer record --host <id> --action start|stop --run <id> --json
+    {recording, path, trajectoryPath}
+
+  bb computer start --host <id> --goal <text> --json
+    {runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}
+
+  bb computer status --run <id> --json
+    {runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}
+
+  bb computer cancel --run <id> --json
+    {runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}
+
+  bb computer active-run --host <id> --json
+    {runId}    (runId is null when no run is active)
+
+  bb computer take-control --host <id> --client <id> --json
+    {owner: "human" | "busy"}
+
+  bb computer release-control --host <id> --client <id> --json
+    {released}
+
+  bb computer control-status --host <id> --client <id> --json
+    {owner: "you" | "other" | "agent"}
+
+  bb computer preview --host <id> --viewer <id> --json
+    {sequence, state, mimeType, dataBase64, width, height, capturedAt}
+
   bb marketplace list --json
     bare array
 

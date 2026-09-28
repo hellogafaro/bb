@@ -18,6 +18,10 @@ import {
   handleUpdateEnvironmentDirectoryToolCall,
   UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
 } from "../services/threads/thread-environment-directory.js";
+import {
+  handleComputerToolCall,
+  isComputerToolName,
+} from "../services/computer/computer-tools.js";
 import { requireAuthenticatedDaemonSession } from "./session-state.js";
 import {
   executeMcpToolCall,
@@ -93,6 +97,17 @@ export function registerInternalToolCallRoutes(
             input: payload.arguments,
             thread,
             turnId: payload.turnId,
+          }),
+        );
+      }
+
+      if (isComputerToolName(payload.tool)) {
+        return context.json(
+          await handleComputerToolCall(deps, {
+            tool: payload.tool,
+            input: payload.arguments,
+            threadId: thread.id,
+            signal: context.req.raw.signal,
           }),
         );
       }

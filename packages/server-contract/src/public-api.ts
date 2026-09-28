@@ -44,6 +44,42 @@ import {
   type ExperimentalDesktopBrowserImportSources,
   type ExperimentalDesktopBrowserImportOutcome,
 } from "./api/desktop-browsers.js";
+import {
+  computerMachinesRequestSchema,
+  computerHostRequestSchema,
+  computerObserveRequestSchema,
+  computerActRequestSchema,
+  computerScreenshotRequestSchema,
+  computerRecordRequestSchema,
+  computerStartRequestSchema,
+  computerRunRequestSchema,
+  computerActiveRunRequestSchema,
+  computerControlRequestSchema,
+  computerPreviewRequestSchema,
+  type ComputerMachinesRequest,
+  type ComputerMachinesResponse,
+  type ComputerHostRequest,
+  type ComputerDoctorReport,
+  type ComputerObserveRequest,
+  type ComputerObservation,
+  type ComputerActInput,
+  type ComputerActionOutcome,
+  type ComputerScreenshotRequest,
+  type ComputerScreenshotResponse,
+  type ComputerRecordRequest,
+  type ComputerRecordResponse,
+  type ComputerStartInput,
+  type ComputerRunStatus,
+  type ComputerRunRequest,
+  type ComputerActiveRunRequest,
+  type ComputerActiveRunResponse,
+  type ComputerControlRequest,
+  type ComputerTakeControlResponse,
+  type ComputerReleaseControlResponse,
+  type ComputerControlStatusResponse,
+  type ComputerPreviewInput,
+  type ComputerPreviewFrame,
+} from "./api/computer.js";
 import type { Hono } from "hono";
 import {
   searchQuerySchema,
@@ -834,6 +870,121 @@ export const publicApiRoutes = {
         ExperimentalDesktopBrowserImportCookiesInput
       >(desktopBrowserImportCookiesRequestSchema),
       response: jsonResponse<ExperimentalDesktopBrowserImportOutcome>(),
+    }),
+  },
+
+  computer: {
+    machines: defineRoute({
+      path: "/computer/machines",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerMachinesRequest>(
+        computerMachinesRequestSchema,
+      ),
+      response: jsonResponse<ComputerMachinesResponse>(),
+    }),
+    doctor: defineRoute({
+      path: "/computer/doctor",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerHostRequest>(
+        computerHostRequestSchema,
+      ),
+      response: jsonResponse<ComputerDoctorReport>(),
+    }),
+    observe: defineRoute({
+      path: "/computer/observe",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerObserveRequest>(
+        computerObserveRequestSchema,
+      ),
+      response: jsonResponse<ComputerObservation>(),
+    }),
+    act: defineRoute({
+      path: "/computer/act",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerActInput>(
+        computerActRequestSchema,
+      ),
+      response: jsonResponse<ComputerActionOutcome>(),
+    }),
+    screenshot: defineRoute({
+      path: "/computer/screenshot",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerScreenshotRequest>(
+        computerScreenshotRequestSchema,
+      ),
+      response: jsonResponse<ComputerScreenshotResponse>(),
+    }),
+    record: defineRoute({
+      path: "/computer/record",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerRecordRequest>(
+        computerRecordRequestSchema,
+      ),
+      response: jsonResponse<ComputerRecordResponse>(),
+    }),
+    start: defineRoute({
+      path: "/computer/start",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerStartInput>(
+        computerStartRequestSchema,
+      ),
+      response: jsonResponse<ComputerRunStatus>(),
+    }),
+    status: defineRoute({
+      path: "/computer/status",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerRunRequest>(
+        computerRunRequestSchema,
+      ),
+      response: jsonResponse<ComputerRunStatus>(),
+    }),
+    cancel: defineRoute({
+      path: "/computer/cancel",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerRunRequest>(
+        computerRunRequestSchema,
+      ),
+      response: jsonResponse<ComputerRunStatus>(),
+    }),
+    activeRun: defineRoute({
+      path: "/computer/active-run",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerActiveRunRequest>(
+        computerActiveRunRequestSchema,
+      ),
+      response: jsonResponse<ComputerActiveRunResponse>(),
+    }),
+    takeControl: defineRoute({
+      path: "/computer/take-control",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerControlRequest>(
+        computerControlRequestSchema,
+      ),
+      response: jsonResponse<ComputerTakeControlResponse>(),
+    }),
+    releaseControl: defineRoute({
+      path: "/computer/release-control",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerControlRequest>(
+        computerControlRequestSchema,
+      ),
+      response: jsonResponse<ComputerReleaseControlResponse>(),
+    }),
+    controlStatus: defineRoute({
+      path: "/computer/control-status",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerControlRequest>(
+        computerControlRequestSchema,
+      ),
+      response: jsonResponse<ComputerControlStatusResponse>(),
+    }),
+    preview: defineRoute({
+      path: "/computer/preview",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerPreviewInput>(
+        computerPreviewRequestSchema,
+      ),
+      response: jsonResponse<ComputerPreviewFrame>(),
     }),
   },
 

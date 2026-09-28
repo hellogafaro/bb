@@ -78,8 +78,8 @@ export const BUILTIN_PLUGINS = [
     defaultEnabled: false,
   },
   {
-    name: "inline-vis",
-    pluginId: "inline-vis",
+    name: "canvas",
+    pluginId: "canvas",
     defaultEnabled: true,
   },
   {
@@ -181,11 +181,6 @@ export const OFFICIAL_PLUGINS = [
   {
     name: "browser-automation",
     pluginId: "browser-automation",
-    defaultEnabled: true,
-  },
-  {
-    name: "computer",
-    pluginId: "computer",
     defaultEnabled: true,
   },
   {
