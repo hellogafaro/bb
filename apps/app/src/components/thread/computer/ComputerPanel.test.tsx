@@ -43,6 +43,7 @@ const readyDoctor = () => ({
   hostId: "host-a",
   state: "ready" as const,
   version: "1.0.0",
+  driverPath: "/opt/bb/cua-driver",
   probes: [],
 });
 
@@ -93,7 +94,8 @@ describe("computer panel machine picker", () => {
       hostId: "host-a",
       state: "unavailable" as const,
       version: null,
-      probes: [{ label: "binary", status: "unavailable" as const, message: "driver not found" }],
+      driverPath: null,
+      probes: [{ id: "driver" as const, label: "Driver", status: "unavailable" as const, message: "driver not found" }],
     });
 
     const view = render(<ComputerPanel threadId="thread-1" />);
@@ -101,7 +103,7 @@ describe("computer panel machine picker", () => {
     fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
 
     await view.findByText("driver not found");
-    view.getByText("binary");
+    view.getByText("Driver");
     view.getByText("Workstation");
   });
 });

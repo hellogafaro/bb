@@ -176,6 +176,24 @@ export function registerComputerCommands(
 
   hostOption(
     computer
+      .command("permissions")
+      .description(
+        "Ask a macOS machine to grant Accessibility and Screen Recording to the bb computer driver, then report readiness",
+      )
+      .option("--json", "Print machine-readable JSON output"),
+  ).action(
+    action(async (opts: HostOptions) => {
+      if (!opts.json) console.log("Requesting permissions on the machine...");
+      const report = await createCliBbSdk(getUrl()).computer.requestPermissions({
+        hostId: opts.host,
+      });
+      if (outputJson(opts, report)) return;
+      console.log(JSON.stringify(report, null, 2));
+    }),
+  );
+
+  hostOption(
+    computer
       .command("observe")
       .description(
         "Read the target table (clickable/typable elements) for the active window, or a named app",

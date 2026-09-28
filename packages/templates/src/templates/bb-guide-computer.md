@@ -16,14 +16,20 @@ Resolve the target machine first:
   bb computer machines [--json]
   bb computer doctor --host <id> [--json]
   bb computer setup --host <id> [--json]
+  bb computer permissions --host <id> [--json]
 
 `machines` lists enrolled hosts by ID and name, and marks the current thread's
-host. `doctor` reports whether Cua Driver is ready (binary, daemon,
-accessibility, on-screen windows) and starts the daemon on first use; call it
-once before the first observe on a machine you have not used yet. `setup`
-installs the pinned Cua Driver release on the machine if it is missing (or
-reports why it could not, e.g. no prebuilt driver for that platform), then
-returns the same readiness report as `doctor`.
+host. `doctor` reports whether the bb computer driver is ready as a list of
+probes (driver, service, accessibility, screen-recording, capture, windows),
+each with an id, a label, a status, and a message, plus the resolved driver
+path; it starts the driver service on first use, so call it once before the
+first observe on a machine you have not used yet. `setup` installs the pinned
+driver release on the machine if it is missing (or reports why it could not,
+e.g. no prebuilt driver for that platform), then returns the same readiness
+report. `permissions` is for macOS machines: it launches the driver's grant
+flow so the Accessibility and Screen Recording prompts appear on that Mac,
+opens the matching Privacy & Security pane for whichever permission is still
+missing, and returns the readiness report; a person must approve on the Mac.
 
 The fast loop:
 
@@ -117,7 +123,7 @@ the calling thread.
 
 SDK and API:
 
-  sdk.computer.{machines, doctor, installDriver, observe, act, screenshot,
+  sdk.computer.{machines, doctor, installDriver, requestPermissions, observe, act, screenshot,
     record, start, status, cancel, activeRun, takeControl, releaseControl,
     controlStatus, preview}
   REST: POST /api/v1/computer/<method>

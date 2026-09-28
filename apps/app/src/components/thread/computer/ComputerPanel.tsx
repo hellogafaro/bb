@@ -59,8 +59,10 @@ function useDoctorReport(hostId: string) {
           hostId,
           state: "unavailable",
           version: null,
+          driverPath: null,
           probes: [
             {
+              id: "doctor",
               label: "Doctor",
               status: "unavailable",
               message: error instanceof Error ? error.message : String(error),

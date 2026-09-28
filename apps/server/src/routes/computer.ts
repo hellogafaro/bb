@@ -21,6 +21,7 @@ import {
   preview,
   record,
   releaseControl,
+  requestPermissions,
   screenshot,
   start,
   status,
@@ -39,6 +40,9 @@ export function registerComputerRoutes(app: Hono, deps: AppDeps) {
   post(routes.doctor, async (c, input) => c.json(await doctor(deps, input.hostId)));
   post(routes.installDriver, async (c, input) =>
     c.json(await installDriver(deps, input.hostId)),
+  );
+  post(routes.requestPermissions, async (c, input) =>
+    c.json(await requestPermissions(deps, input.hostId)),
   );
   post(routes.observe, async (c, input) =>
     c.json(await observe(deps, input.hostId, input.appId)),

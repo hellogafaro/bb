@@ -898,6 +898,14 @@ export const publicApiRoutes = {
       ),
       response: jsonResponse<ComputerDoctorReport>(),
     }),
+    requestPermissions: defineRoute({
+      path: "/computer/request-permissions",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerHostRequest>(
+        computerHostRequestSchema,
+      ),
+      response: jsonResponse<ComputerDoctorReport>(),
+    }),
     observe: defineRoute({
       path: "/computer/observe",
       method: "post",

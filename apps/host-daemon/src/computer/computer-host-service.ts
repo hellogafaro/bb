@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type {
   ComputerActionOutcome,
   ComputerCaptureImage,
+  ComputerDoctorProbe,
   ComputerDoctorReport,
   ComputerObservation,
   ComputerOperation,
@@ -21,6 +22,11 @@ import {
   type CuaTransport,
 } from "./computer-transport.js";
 import { appBundlePathForBinary } from "./computer-driver-bundle.js";
+import {
+  MACOS_PRIVACY_PANES,
+  parseComputerPermissionStatus,
+  type ComputerPermissionState,
+} from "./computer-permissions.js";
 import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
 import { LiveCaptureLoop } from "./computer-live.js";
 import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
@@ -60,10 +66,29 @@ interface BinaryResolution {
 
 const PERMISSION_MODE = process.env.CUA_DRIVER_PERMISSION_MODE ?? "bounded";
 
+function permissionProbe(
+  id: "accessibility" | "screen-recording",
+  label: string,
+  state: ComputerPermissionState,
+): ComputerDoctorProbe {
+  return {
+    id,
+    label,
+    status: state === "granted" ? "ok" : "setup-required",
+    message:
+      state === "granted"
+        ? "Granted"
+        : state === "denied"
+          ? "Not granted"
+          : "Unknown until the driver has been launched once",
+  };
+}
+
 class DriverController {
   #spawnProcess: SpawnFn;
   #logger: Pick<HostDaemonLogger, "debug" | "warn">;
   #fetchImpl: typeof fetch | undefined;
+  #platform: NodeJS.Platform;
   #daemonProcess: ChildProcess | null = null;
   #windowGrants = new WindowGrantSet();
   #runDirGrants = new PathGrantSet();
@@ -73,10 +98,12 @@ class DriverController {
     spawnProcess: SpawnFn,
     logger: Pick<HostDaemonLogger, "debug" | "warn">,
     fetchImpl?: typeof fetch,
+    platform: NodeJS.Platform = process.platform,
   ) {
     this.#spawnProcess = spawnProcess;
     this.#logger = logger;
     this.#fetchImpl = fetchImpl;
+    this.#platform = platform;
   }
 
   get windowGrants(): WindowGrantSet {
@@ -235,37 +262,82 @@ class DriverController {
     await this.#spawnDaemon(dataDir);
   }
 
+  async #permissionProbes(dataDir: string): Promise<ComputerDoctorProbe[]> {
+    const status = await this.runProbe(dataDir, ["permissions", "status", "--json"]);
+    const parsed = parseComputerPermissionStatus(status.stdout);
+    return [
+      permissionProbe("accessibility", "Accessibility", parsed.accessibility),
+      permissionProbe("screen-recording", "Screen recording", parsed.screenRecording),
+    ];
+  }
+
+  async requestPermissions(dataDir: string): Promise<void> {
+    if (this.#platform !== "darwin") return;
+    await this.ensureDaemon(dataDir).catch(() => {});
+    const resolution = await this.#resolveBinaryPath(dataDir);
+    const usable = !resolution.missing && !resolution.permissionsMissing;
+    if (usable) {
+      const grant = this.#spawnProcess(resolution.path, ["permissions", "grant"], { stdio: "ignore", detached: true, env: daemonEnv() });
+      grant.on("error", () => {});
+      grant.unref();
+    }
+    const probes = usable && (await this.daemonRunning(dataDir)) ? await this.#permissionProbes(dataDir) : [];
+    const missing = probes.find((probe) => probe.status !== "ok");
+    const pane =
+      missing === undefined && probes.length > 0
+        ? null
+        : missing?.id === "screen-recording"
+          ? MACOS_PRIVACY_PANES.screenRecording
+          : MACOS_PRIVACY_PANES.accessibility;
+    if (pane === null) return;
+    const opener = this.#spawnProcess("/usr/bin/open", [pane], { stdio: "ignore", env: daemonEnv() });
+    opener.on("error", () => {});
+    opener.unref();
+  }
+
   async doctorReport(dataDir: string): Promise<ComputerDoctorReport> {
     const resolution = await this.#resolveBinaryPath(dataDir);
-    const version = resolution.missing || resolution.permissionsMissing
+    const binaryUnusable = resolution.missing || resolution.permissionsMissing;
+    const version = binaryUnusable
       ? { code: null as number | null, stdout: "" }
       : await this.runProbe(dataDir, ["--version"]);
-    const running = resolution.missing || resolution.permissionsMissing ? false : await this.daemonRunning(dataDir);
-    const probes: { label: string; status: "ok" | "setup-required" | "unavailable"; message: string }[] = [
+    const installed = version.code === 0;
+    const versionText = installed ? version.stdout.trim().slice(0, 100) : null;
+    const running = installed ? await this.daemonRunning(dataDir) : false;
+    const probes: ComputerDoctorProbe[] = [
       {
-        label: "binary",
-        status: resolution.permissionsMissing ? "unavailable" : version.code === 0 ? "ok" : resolution.missing ? "setup-required" : "unavailable",
+        id: "driver",
+        label: "Driver",
+        status: resolution.permissionsMissing ? "unavailable" : installed ? "ok" : resolution.missing ? "setup-required" : "unavailable",
         message: resolution.permissionsMissing
-          ? `The bb computer driver was downloaded to ${resolution.path} but is not executable; check its file permissions`
-          : resolution.missing
-            ? `The bb computer driver was not found; tried: ${resolution.tried.join(", ")}`
-            : version.code === 0
-              ? `${version.stdout.trim().slice(0, 100)} at ${resolution.path}`
-              : "The bb computer driver was not found on PATH",
+          ? `Downloaded to ${resolution.path} but not executable; check its file permissions`
+          : installed
+            ? `Installed (${versionText})`
+            : resolution.missing
+              ? `Not installed; looked in ${resolution.tried.join(", ")}`
+              : `Installed at ${resolution.path} but it could not run`,
       },
       {
-        label: "daemon",
+        id: "service",
+        label: "Driver service",
         status: running ? "ok" : "setup-required",
-        message: running ? "The bb computer driver is running" : "The bb computer driver is not running; run doctor or setup to start it",
+        message: running ? "Running" : installed ? "Not running; re-check to start it" : "Waiting for the driver",
       },
     ];
     if (running) {
+      if (this.#platform === "darwin") probes.push(...(await this.#permissionProbes(dataDir)));
       const windows = await this.runProbe(dataDir, ["call", "list_windows"], JSON.stringify({ on_screen_only: true }));
       const health = await this.runProbe(dataDir, ["call", "health_report"], "{}");
       probes.push({
-        label: "health",
+        id: "capture",
+        label: "Screen capture",
         status: health.code === 0 ? "ok" : "unavailable",
-        message: health.code === 0 ? "End-to-end health probe passed" : "The health_report probe failed",
+        message:
+          health.code === 0
+            ? "Working"
+            : this.#platform === "darwin"
+              ? "Failed; usually the Screen Recording permission is missing"
+              : "Failed; check that a display is available",
       });
       let windowCount = -1;
       let refusalMessage: string | null = null;
@@ -277,14 +349,17 @@ class DriverController {
         windowCount = -1;
       }
       probes.push({
-        label: "windows",
+        id: "windows",
+        label: "Windows",
         status: windows.code === 0 && windowCount >= 0 ? "ok" : "unavailable",
         message:
           windows.code === 0 && windowCount >= 0
             ? `${windowCount} on-screen window(s) visible`
             : refusalMessage !== null
-              ? `Could not list on-screen windows: ${refusalMessage}`
-              : "Could not list on-screen windows",
+              ? `Could not list windows: ${refusalMessage}`
+              : this.#platform === "darwin"
+                ? "Could not list windows; usually the Accessibility permission is missing"
+                : "Could not list windows",
       });
     }
     const state = probes.every((probe) => probe.status === "ok")
@@ -294,7 +369,8 @@ class DriverController {
         : "setup-required";
     return {
       state,
-      version: version.code === 0 ? version.stdout.trim().slice(0, 100) : null,
+      version: versionText,
+      driverPath: resolution.missing ? null : resolution.path,
       probes,
     };
   }
@@ -310,6 +386,7 @@ export interface ComputerHostServiceOptions {
   readonly spawnProcess?: SpawnFn;
   readonly transportFactory?: () => CuaTransport;
   readonly driverFetchImpl?: typeof fetch;
+  platform?: NodeJS.Platform;
 }
 
 export class ComputerHostService {
@@ -326,6 +403,7 @@ export class ComputerHostService {
       options.spawnProcess ?? nodeSpawn,
       options.logger,
       options.driverFetchImpl,
+      options.platform,
     );
     this.#transport =
       options.transportFactory?.() ??
@@ -360,6 +438,11 @@ export class ComputerHostService {
 
   async doctor(): Promise<ComputerDoctorReport> {
     await this.#driver.ensureDaemon(this.#dataDir).catch(() => {});
+    return this.#driver.doctorReport(this.#dataDir);
+  }
+
+  async requestPermissions(): Promise<ComputerDoctorReport> {
+    await this.#driver.requestPermissions(this.#dataDir);
     return this.#driver.doctorReport(this.#dataDir);
   }
 

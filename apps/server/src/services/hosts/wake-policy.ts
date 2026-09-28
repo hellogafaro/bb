@@ -37,6 +37,7 @@ const hostCommandWakePolicy = {
   "desktop.browser.import_cookies": "work",
   "computer.doctor": "work",
   "computer.install_driver": "work",
+  "computer.request_permissions": "work",
   "computer.observe": "work",
   "computer.act": "work",
   "computer.capture": "work",

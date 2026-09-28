@@ -91,6 +91,19 @@ export async function installDriver(
   return { hostId, ...report };
 }
 
+export async function requestPermissions(
+  deps: WorkSessionDeps,
+  hostId: string,
+): Promise<DoctorReport> {
+  requireNonDestroyedHostWithStatus(deps, hostId);
+  const report = await callHostOnlineRpcForWork(deps, {
+    hostId,
+    timeoutMs: COMMAND_TIMEOUT_MS,
+    command: { type: "computer.request_permissions" },
+  });
+  return { hostId, ...report };
+}
+
 export async function observe(
   deps: WorkSessionDeps,
   hostId: string,

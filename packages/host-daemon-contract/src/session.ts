@@ -421,6 +421,7 @@ const hostDaemonOnlineRpcResponseSuccessSchema = z.discriminatedUnion(
     onlineRpcResponseSuccessSchemaFor("desktop.browser.import_cookies"),
     onlineRpcResponseSuccessSchemaFor("computer.doctor"),
     onlineRpcResponseSuccessSchemaFor("computer.install_driver"),
+    onlineRpcResponseSuccessSchemaFor("computer.request_permissions"),
     onlineRpcResponseSuccessSchemaFor("computer.observe"),
     onlineRpcResponseSuccessSchemaFor("computer.act"),
     onlineRpcResponseSuccessSchemaFor("computer.capture"),

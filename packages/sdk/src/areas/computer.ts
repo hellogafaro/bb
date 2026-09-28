@@ -55,6 +55,7 @@ export interface ComputerArea {
   machines(input: ComputerMachinesRequest): Promise<ComputerMachinesResponse>;
   doctor(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
   installDriver(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
+  requestPermissions(input: ComputerHostRequest): Promise<ComputerDoctorReport>;
   observe(input: ComputerObserveRequest): Promise<ComputerObservation>;
   act(input: ComputerActInput): Promise<ComputerActionOutcome>;
   screenshot(
@@ -86,6 +87,8 @@ export function createComputerArea({ transport }: CreateSdkAreaArgs): ComputerAr
     doctor: (input) => transport.readJson(api().doctor.$post({ json: input })),
     installDriver: (input) =>
       transport.readJson(api()["install-driver"].$post({ json: input })),
+    requestPermissions: (input) =>
+      transport.readJson(api()["request-permissions"].$post({ json: input })),
     observe: (input) => transport.readJson(api().observe.$post({ json: input })),
     act: (input) => transport.readJson(api().act.$post({ json: input })),
     screenshot: (input) =>

@@ -269,12 +269,20 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   "computer.doctor": {
     state: "ready",
     version: "1.0.0",
-    probes: [{ label: "binary", status: "ok", message: "1.0.0" }],
+    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    probes: [{ id: "driver", label: "Driver", status: "ok", message: "Installed (1.0.0)" }],
   },
   "computer.install_driver": {
     state: "ready",
     version: "1.0.0",
-    probes: [{ label: "binary", status: "ok", message: "1.0.0" }],
+    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    probes: [{ id: "driver", label: "Driver", status: "ok", message: "Installed (1.0.0)" }],
+  },
+  "computer.request_permissions": {
+    state: "ready",
+    version: "1.0.0",
+    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    probes: [{ id: "accessibility", label: "Accessibility", status: "ok", message: "Granted" }],
   },
   "computer.observe": {
     surface: "desktop",
@@ -1241,7 +1249,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(227);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(228);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

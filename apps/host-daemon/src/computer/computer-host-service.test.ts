@@ -99,7 +99,7 @@ describe("ComputerHostService when the cua-driver binary cannot be spawned", () 
     });
     const report = await service.doctor();
     expect(report.state).not.toBe("ready");
-    const binaryProbe = report.probes.find((probe) => probe.label === "binary");
+    const binaryProbe = report.probes.find((probe) => probe.id === "driver");
     expect(binaryProbe?.status).toBe("setup-required");
     expect(binaryProbe?.message).toContain("cua-driver");
     expect(binaryProbe?.message).toContain(join(dataDir, "runtime", "cua-driver"));
@@ -157,7 +157,7 @@ describe("ComputerHostService driver resolution order", () => {
       driverFetchImpl: networkDisabledFetch,
     });
     const report = await service.doctor();
-    const binaryProbe = report.probes.find((probe) => probe.label === "binary");
+    const binaryProbe = report.probes.find((probe) => probe.id === "driver");
     expect(binaryProbe?.status).toBe("ok");
     expect(binaryProbe?.message).toContain("cua-driver");
     service.dispose();
@@ -177,7 +177,7 @@ describe("ComputerHostService driver resolution order", () => {
       driverFetchImpl: networkDisabledFetch,
     });
     const report = await service.doctor();
-    const binaryProbe = report.probes.find((probe) => probe.label === "binary");
+    const binaryProbe = report.probes.find((probe) => probe.id === "driver");
     expect(binaryProbe?.status).toBe("ok");
     service.dispose();
   });
@@ -252,7 +252,82 @@ describe("ComputerHostService on macOS", () => {
     expect(launches).toHaveLength(1);
     expect(launches[0]?.args.slice(0, 5)).toEqual(["-n", "-g", "-a", bundleDir, "--args"]);
     expect(launches[0]?.args).toContain("serve");
-    expect(report.probes.find((probe) => probe.label === "daemon")?.status).toBe("ok");
+    expect(report.probes.find((probe) => probe.id === "service")?.status).toBe("ok");
+    service.dispose();
+  });
+});
+
+describe("ComputerHostService requestPermissions", () => {
+  let dataDir: string;
+  let previousOverride: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  it("runs the driver grant flow and opens the pane for the missing permission on macOS", async () => {
+    const binaryPath = join(dataDir, "bb.app", "Contents", "MacOS", "cua-driver");
+    process.env.CUA_DRIVER_PATH = binaryPath;
+    const calls: { command: string; args: readonly string[] }[] = [];
+    const spawnProcess = ((command: string, args: readonly string[]): unknown => {
+      calls.push({ command, args });
+      const child = new EventEmitter() as EventEmitter & {
+        stdin: { end(): void };
+        stdout: { setEncoding(): void; on(event: string, callback: (chunk: string) => void): void };
+        exitCode: number | null;
+        unref(): void;
+        kill(): boolean;
+      };
+      child.stdin = { end() {} };
+      child.exitCode = null;
+      child.unref = () => {};
+      child.kill = () => true;
+      const probe = args[0];
+      const output =
+        probe === "--version"
+          ? "cua-driver 0.30.2\n"
+          : probe === "permissions" && args[1] === "status"
+            ? '{"accessibility":"granted","screen_recording":"denied"}\n'
+            : probe === "call"
+              ? '{"windows":[]}\n'
+              : "";
+      child.stdout = {
+        setEncoding() {},
+        on(_event: string, callback: (chunk: string) => void) {
+          queueMicrotask(() => {
+            if (output.length > 0) callback(output);
+            queueMicrotask(() => child.emit("close", 0));
+          });
+        },
+      };
+      if (command === "/usr/bin/open" || (probe === "permissions" && args[1] === "grant")) {
+        queueMicrotask(() => child.emit("close", 0));
+      }
+      return child;
+    }) as SpawnFn;
+
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      transportFactory: () => new FakeTransport(),
+      spawnProcess,
+      driverFetchImpl: networkDisabledFetch,
+      platform: "darwin",
+    });
+    const report = await service.requestPermissions();
+    expect(calls.some((call) => call.args[0] === "permissions" && call.args[1] === "grant")).toBe(true);
+    const opened = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
+    expect(opened?.args[0]).toContain("Privacy_ScreenCapture");
+    expect(report.probes.find((probe) => probe.id === "screen-recording")?.status).toBe("setup-required");
+    expect(report.probes.find((probe) => probe.id === "accessibility")?.status).toBe("ok");
+    expect(report.driverPath).toBe(binaryPath);
     service.dispose();
   });
 });

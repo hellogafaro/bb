@@ -1464,6 +1464,15 @@ export const hostDaemonCommandRegistry = {
     flushEventsBeforeResult: false,
     envLane: null,
   }),
+  "computer.request_permissions": defineHostDaemonCommandDescriptor({
+    type: "computer.request_permissions",
+    schema: computerCommandSchemas["computer.request_permissions"],
+    resultSchema: computerResultSchemas["computer.request_permissions"],
+    transport: "onlineRpc",
+    retryable: false,
+    flushEventsBeforeResult: false,
+    envLane: null,
+  }),
   "computer.observe": defineHostDaemonCommandDescriptor({
     type: "computer.observe",
     schema: computerCommandSchemas["computer.observe"],

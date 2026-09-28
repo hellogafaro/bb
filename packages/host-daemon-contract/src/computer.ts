@@ -144,8 +144,19 @@ export const computerActionOutcomeSchema = z
   .strict();
 export type ComputerActionOutcome = z.infer<typeof computerActionOutcomeSchema>;
 
+export const computerDoctorProbeIdSchema = z.enum([
+  "driver",
+  "service",
+  "accessibility",
+  "screen-recording",
+  "capture",
+  "windows",
+  "doctor",
+]);
+export type ComputerDoctorProbeId = z.infer<typeof computerDoctorProbeIdSchema>;
 export const computerDoctorProbeSchema = z
   .object({
+    id: computerDoctorProbeIdSchema,
     label: z.string(),
     status: z.enum(["ok", "setup-required", "unavailable"]),
     message: z.string(),
@@ -156,6 +167,7 @@ export const computerDoctorReportSchema = z
   .object({
     state: z.enum(["ready", "setup-required", "unavailable"]),
     version: z.string().nullable(),
+    driverPath: z.string().nullable(),
     probes: z.array(computerDoctorProbeSchema).max(16),
   })
   .strict();
@@ -191,6 +203,9 @@ export const computerCommandSchemas = {
   "computer.doctor": z.object({ type: z.literal("computer.doctor") }).strict(),
   "computer.install_driver": z
     .object({ type: z.literal("computer.install_driver") })
+    .strict(),
+  "computer.request_permissions": z
+    .object({ type: z.literal("computer.request_permissions") })
     .strict(),
   "computer.observe": z
     .object({
@@ -251,6 +266,7 @@ export const computerCommandSchema = z.discriminatedUnion("type", [
 export const computerResultSchemas = {
   "computer.doctor": computerDoctorReportSchema,
   "computer.install_driver": computerDoctorReportSchema,
+  "computer.request_permissions": computerDoctorReportSchema,
   "computer.observe": computerObservationSchema,
   "computer.act": computerActionOutcomeSchema,
   "computer.capture": computerCaptureImageSchema,
