@@ -118,11 +118,11 @@ export function MachineComputerReadinessSection({
           ) : report === null ? (
             <span>Status unavailable</span>
           ) : (
-            <div className="flex flex-col items-start gap-1 sm:items-end">
+            <div className="flex w-full min-w-0 flex-col items-start gap-1 sm:items-end">
               {report.probes.map((probe) => (
                 <span
                   key={probe.label}
-                  className="flex min-w-0 items-center gap-1.5"
+                  className="flex w-full min-w-0 flex-wrap items-baseline gap-x-1.5 sm:justify-end"
                 >
                   <span
                     className={cn(
@@ -132,7 +132,7 @@ export function MachineComputerReadinessSection({
                   >
                     {probe.label}
                   </span>
-                  <span className="min-w-0 truncate text-subtle-foreground">
+                  <span className="min-w-0 max-w-full break-words text-subtle-foreground">
                     {probe.message}
                   </span>
                 </span>
