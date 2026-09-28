@@ -594,6 +594,16 @@
         "plugin-slot: plugins/automations/app.tsx: navPanel"
       ]
     },
+    "plugin:canvas": {
+      "recipes": [
+        "features/plugin-canvas.md"
+      ],
+      "sourceFiles": 15,
+      "sourceDigest": "363d87b57945fd302db15359c152175f7be431d185e800f7268d4e1abdee167c",
+      "declarations": [
+        "plugin-slot: plugins/canvas/app.tsx: messageDirective"
+      ]
+    },
     "plugin:concurrency-limit": {
       "recipes": [
         "features/plugin-concurrency-limit.md"
@@ -668,16 +678,6 @@
         "cli-name-candidate: plugins/github/server.ts: sync",
         "plugin-slot: plugins/github/app.tsx: navPanel",
         "plugin-slot: plugins/github/app.tsx: threadPanelAction"
-      ]
-    },
-    "plugin:inline-vis": {
-      "recipes": [
-        "features/plugin-inline-vis.md"
-      ],
-      "sourceFiles": 5,
-      "sourceDigest": "4f87bce2ac8bcd17910c49316f15cb8e733a8f19e603be4b86866f82b6588c9d",
-      "declarations": [
-        "plugin-slot: plugins/inline-vis/app.tsx: messageDirective"
       ]
     },
     "plugin:keep-awake": {

@@ -128,7 +128,7 @@ export default definePluginApp((app) => {
     title: "Compact navigation",
     component: CompactSidebarNavigation,
   });
-  app.slots.messageDirective({ id: "inline-vis", component: InlineVis });
+  app.slots.messageDirective({ id: "canvas", component: Canvas });
   app.slots.experimental_threadList({
     id: "inbox",
     title: "Inbox",

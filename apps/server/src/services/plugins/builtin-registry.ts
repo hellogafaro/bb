@@ -78,8 +78,8 @@ export const BUILTIN_PLUGINS = [
     defaultEnabled: false,
   },
   {
-    name: "inline-vis",
-    pluginId: "inline-vis",
+    name: "canvas",
+    pluginId: "canvas",
     defaultEnabled: true,
   },
   {

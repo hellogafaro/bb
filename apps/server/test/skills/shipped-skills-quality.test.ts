@@ -54,9 +54,9 @@ describe("shipped skills", () => {
       expect(referenceFiles.every((entry) => entry.isFile())).toBe(true);
 
       const routedReferences = new Set(
-        [...skill.matchAll(/references\/([a-z0-9][a-z0-9-]*\.md)/g)].map(
-          (match) => match[1],
-        ),
+        [
+          ...skill.matchAll(/references\/([a-z0-9][a-z0-9-]*\.[a-z0-9]+)/g),
+        ].map((match) => match[1]),
       );
       expect(routedReferences).toEqual(
         new Set(referenceFiles.map((entry) => entry.name)),

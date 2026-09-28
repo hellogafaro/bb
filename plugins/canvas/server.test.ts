@@ -29,7 +29,7 @@ async function load(sdk: {
   files?: { read: (args: unknown) => unknown };
 }) {
   const host = createFakePluginHost({
-    pluginId: "inline-vis",
+    pluginId: "canvas",
     sdk,
   });
   await plugin(host.bb);
@@ -112,6 +112,7 @@ describe("preparePreview rpc", () => {
       target: { kind: "workspace", environmentId: "env_1", path: "notes.md" },
       rootPath: ROOT,
       content: "# Notes\n\nReady for review.",
+      title: "Notes",
     });
   });
 
@@ -155,6 +156,7 @@ describe("preparePreview rpc", () => {
       },
       rootPath: storageRootPath,
       content: "# Report",
+      title: "Report",
     });
     expect(harness.sdk.callsTo("threads.get")).toHaveLength(0);
   });
@@ -276,6 +278,7 @@ describe("preparePreview rpc", () => {
         environmentId: "env_1",
         path: "charts/demo.html",
       },
+      title: null,
     });
     expect(harness.sdk.callsTo("files.read")).toHaveLength(1);
   });
@@ -320,6 +323,7 @@ describe("preparePreview rpc", () => {
         threadId: "thr_1",
         path: "reports/result.html",
       },
+      title: null,
     });
     expect(harness.sdk.callsTo("threads.storageLocation")).toHaveLength(1);
     expect(harness.sdk.callsTo("threads.get")).toHaveLength(0);
@@ -405,5 +409,80 @@ describe("preparePreview rpc", () => {
         file: "big.html",
       }),
     ).rejects.toThrow(/too large/);
+  });
+
+  describe("title extraction", () => {
+    it("extracts the HTML <title> element", async () => {
+      const { harness } = await load({
+        threads: { get: () => threadWithEnv() },
+        files: {
+          read: () => ({
+            content:
+              "<html><head><title>  Klaviyo flows, week 38  </title></head><body></body></html>",
+            contentEncoding: "utf8",
+            sizeBytes: 64,
+          }),
+        },
+      });
+      const result = await harness.callRpc("preparePreview", {
+        threadId: "thr_1",
+        file: "demo.html",
+      });
+      expect(result).toMatchObject({ title: "Klaviyo flows, week 38" });
+    });
+
+    it("extracts the first Markdown heading", async () => {
+      const { harness } = await load({
+        threads: { get: () => threadWithEnv() },
+        files: {
+          read: () => ({
+            content: "Intro text.\n\n## Standup notes, 28 Sep\n\nBody.",
+            contentEncoding: "utf8",
+            sizeBytes: 64,
+          }),
+        },
+      });
+      const result = await harness.callRpc("preparePreview", {
+        threadId: "thr_1",
+        file: "notes.md",
+      });
+      expect(result).toMatchObject({ title: "Standup notes, 28 Sep" });
+    });
+
+    it("returns null when no title or heading is present", async () => {
+      const htmlHost = await load({
+        threads: { get: () => threadWithEnv() },
+        files: {
+          read: () => ({
+            content: "<html><body>no title here</body></html>",
+            contentEncoding: "utf8",
+            sizeBytes: 32,
+          }),
+        },
+      });
+      await expect(
+        htmlHost.harness.callRpc("preparePreview", {
+          threadId: "thr_1",
+          file: "demo.html",
+        }),
+      ).resolves.toMatchObject({ title: null });
+
+      const markdownHost = await load({
+        threads: { get: () => threadWithEnv() },
+        files: {
+          read: () => ({
+            content: "Just a paragraph, no heading.",
+            contentEncoding: "utf8",
+            sizeBytes: 32,
+          }),
+        },
+      });
+      await expect(
+        markdownHost.harness.callRpc("preparePreview", {
+          threadId: "thr_1",
+          file: "notes.md",
+        }),
+      ).resolves.toMatchObject({ title: null });
+    });
   });
 });

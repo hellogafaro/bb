@@ -924,10 +924,12 @@ For the complete authoring reference — exact signatures, working snippets
 for every surface, the reload lifecycle, testing tips, and gotchas — use
 the built-in `bb-plugin-authoring` skill (agents: it loads on demand;
 humans: plugins/bb-guide/skills/bb-plugin-authoring/
-in a checkout). The builtin `inline-vis` plugin renders
-`::inline-vis{file="demo.html" height="480"}` through the sidebar's
-path-shaped, sandboxed worktree HTML iframe preview; `height` is optional.
-Its card header includes an open-in-sidebar action for the source HTML file.
+in a checkout). The builtin `canvas` plugin renders
+`::canvas{file="demo.html" height="480"}` through the sidebar's
+path-shaped, sandboxed worktree HTML iframe preview; `height` is optional
+and applies only in inline display mode. Its card header includes an
+open-in-sidebar action for the source HTML file. The deprecated
+`::inline-vis{...}` directive still renders through the same component.
 The `plugins/` directory contains every bundled plugin: the auto-installed
 builtins and the store-only BB Official GitHub, Docs, Memory, and Tasks
 plugins. The `examples/plugins/` reference plugins cover slack-bot (webhook
