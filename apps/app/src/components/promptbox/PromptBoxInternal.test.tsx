@@ -2267,6 +2267,8 @@ describe("PromptBoxInternal compact layout", () => {
       });
       expect(submit.hasAttribute("disabled")).toBe(true);
       expect(submit.querySelector('[data-icon="Loading"]')).not.toBeNull();
+      expect(submit.className).toContain("shrink-0");
+      expect(submit.className).toContain("min-w-8");
       expect(
         screen.getByRole("button", { name: "Start voice input" }),
       ).toBeTruthy();

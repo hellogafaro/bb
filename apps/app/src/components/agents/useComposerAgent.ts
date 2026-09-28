@@ -29,12 +29,25 @@ export function useComposerAgent(projectId: string): ComposerAgentSelection {
   const agentsQuery = useAgents();
   const [byProject, setByProject] = useAtom(composerAgentByProjectAtom);
   const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
-  const selected = resolveComposerAgent(agents, byProject[projectId]);
+  const explicitAgentIdRef = useRef<string | null>(null);
+  const rememberedAgentId = explicitAgentIdRef.current ?? byProject[projectId];
+  const selected = resolveComposerAgent(agents, rememberedAgentId);
   const select = useCallback(
-    (agentId: string) =>
-      setByProject((current) => ({ ...current, [projectId]: agentId })),
+    (agentId: string) => {
+      explicitAgentIdRef.current = agentId;
+      setByProject((current) => ({ ...current, [projectId]: agentId }));
+    },
     [projectId, setByProject],
   );
+  useEffect(() => {
+    const explicitAgentId = explicitAgentIdRef.current;
+    if (explicitAgentId === null) return;
+    setByProject((current) =>
+      current[projectId] === explicitAgentId
+        ? current
+        : { ...current, [projectId]: explicitAgentId },
+    );
+  }, [projectId, setByProject]);
   return { agents, selected, select };
 }
 

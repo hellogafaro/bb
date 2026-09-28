@@ -16,10 +16,12 @@ export function AgentModelLabel({
   agent,
   providers,
   className,
+  showIcon = true,
 }: {
   agent: Pick<Agent, "providerId" | "model" | "reasoningLevel">;
   providers: readonly ProviderInfo[] | undefined;
   className?: string;
+  showIcon?: boolean;
 }) {
   const provider = providers?.find((entry) => entry.id === agent.providerId);
   const executionOptions = useSystemExecutionOptions({
@@ -66,7 +68,7 @@ export function AgentModelLabel({
       data-agent-model-label=""
       className={cn("flex min-w-0 items-center gap-1.5", className)}
     >
-      <ProviderIcon className="size-3.5 shrink-0" />
+      {showIcon ? <ProviderIcon className="size-3.5 shrink-0" /> : null}
       <span className="min-w-0 truncate">{base}</span>
       {tag ? (
         <span className="shrink-0 text-subtle-foreground">{tag}</span>

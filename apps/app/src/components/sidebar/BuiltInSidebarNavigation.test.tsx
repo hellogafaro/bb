@@ -83,8 +83,15 @@ describe("BuiltInSidebarNavigation", () => {
   });
 
   it("marks Threads active on its route, including the archived tab", () => {
-    renderNavigation("/threads?status=archived");
+    renderNavigation("/threads");
+    expect(
+      screen
+        .getByRole("button", { name: "Threads" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    cleanup();
 
+    renderNavigation("/threads?status=archived");
     expect(
       screen
         .getByRole("button", { name: "Threads" })
@@ -94,6 +101,16 @@ describe("BuiltInSidebarNavigation", () => {
 
   it("leaves Threads inactive on other routes", () => {
     renderNavigation("/settings/agents");
+
+    expect(
+      screen
+        .getByRole("button", { name: "Threads" })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("leaves Threads inactive on a personal thread's detail route", () => {
+    renderNavigation("/threads/thr_abc");
 
     expect(
       screen

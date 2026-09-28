@@ -270,11 +270,17 @@ export const AgentPicker = memo(function AgentPicker({
                   />
                 }
                 description={
-                  <AgentModelLabel
-                    agent={entry}
-                    providers={providers}
-                    className="max-w-full text-subtle-foreground"
-                  />
+                  <span className="flex min-w-0 items-center gap-1 text-subtle-foreground">
+                    <span aria-hidden className="shrink-0">
+                      ·
+                    </span>
+                    <AgentModelLabel
+                      agent={entry}
+                      providers={providers}
+                      className="min-w-0 flex-1"
+                      showIcon={false}
+                    />
+                  </span>
                 }
                 selected={entry.id === agent.id}
                 onClick={() => handleSelect(entry.id)}

@@ -1551,8 +1551,8 @@ export function MenuRowButton({
       {leading !== undefined || description !== undefined ? (
         <span className="flex min-w-0 items-center gap-2">
           {leading}
-          <span className="flex min-w-0 flex-col items-start">
-            <span className="max-w-full truncate" title={label}>
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 truncate" title={label}>
               {label}
             </span>
             {description}

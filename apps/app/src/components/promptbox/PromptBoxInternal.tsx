@@ -336,8 +336,8 @@ function PromptSubmitButton({
         className,
         !hasInput &&
           "ring-1 ring-inset ring-border text-muted-foreground/50 disabled:opacity-100",
-        label === undefined && !isCompact && PROMPT_SQUARE_ACTION_CLASS,
-        label !== undefined && !isCompact && "size-auto h-8 gap-1.5 px-2.5",
+        (isCompact || label === undefined) && PROMPT_SQUARE_ACTION_CLASS,
+        !isCompact && label !== undefined && "size-auto h-8 gap-1.5 px-2.5",
       )}
     >
       {isBusy ? (

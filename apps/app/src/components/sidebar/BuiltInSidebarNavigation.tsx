@@ -48,6 +48,7 @@ export function BuiltInSidebarNavigation({
           title="Threads"
           routePath={getThreadsRoutePath()}
           onNavigate={onNavigate}
+          matchNestedRoutes={false}
         />
       ),
     },

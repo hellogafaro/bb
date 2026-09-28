@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
-import { cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Agent, ReasoningLevel } from "@bb/domain";
+import { agentsQueryKey } from "@/hooks/queries/query-keys";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   resolveComposerAgent,
   useApplyComposerAgent,
+  useComposerAgent,
 } from "./useComposerAgent";
 
 function makeAgent(overrides: Partial<Agent>): Agent {
@@ -40,6 +44,7 @@ const coder = makeAgent({
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
 
 describe("resolveComposerAgent", () => {
@@ -95,5 +100,46 @@ describe("useApplyComposerAgent", () => {
     const { setters } = setup(null);
     expect(setters.setProviderModelReasoning).not.toHaveBeenCalled();
     expect(setters.setSelectedProviderId).not.toHaveBeenCalled();
+  });
+});
+
+describe("useComposerAgent", () => {
+  function setup() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { enabled: false, retry: false } },
+    });
+    queryClient.setQueryData(agentsQueryKey(), [bb, coder]);
+    const store = createStore();
+    const hook = renderHook(
+      ({ projectId }: { projectId: string }) => useComposerAgent(projectId),
+      {
+        initialProps: { projectId: "proj_a" },
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>
+            <Provider store={store}>{children}</Provider>
+          </QueryClientProvider>
+        ),
+      },
+    );
+    return { hook, store };
+  }
+
+  it("uses the per-project memory when nothing was explicitly picked", () => {
+    const { hook } = setup();
+    expect(hook.result.current.selected).toBe(bb);
+    act(() => hook.rerender({ projectId: "proj_b" }));
+    expect(hook.result.current.selected).toBe(bb);
+  });
+
+  it("carries an explicit pick across a project switch and remembers it for the new project", () => {
+    const { hook } = setup();
+    act(() => hook.result.current.select(coder.id));
+    expect(hook.result.current.selected).toBe(coder);
+
+    act(() => hook.rerender({ projectId: "proj_b" }));
+    expect(hook.result.current.selected).toBe(coder);
+
+    act(() => hook.rerender({ projectId: "proj_a" }));
+    expect(hook.result.current.selected).toBe(coder);
   });
 });

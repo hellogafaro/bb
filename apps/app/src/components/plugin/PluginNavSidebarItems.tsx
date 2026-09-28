@@ -281,16 +281,20 @@ export function ResourceNavSidebarItem({
   title,
   routePath,
   onNavigate,
+  matchNestedRoutes = true,
 }: {
   icon: IconName;
   title: string;
   routePath: string;
   onNavigate?: () => void;
+  matchNestedRoutes?: boolean;
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const path = routePath.split("?")[0] ?? routePath;
-  const isActive = pathname === path || pathname.startsWith(`${path}/`);
+  const isActive =
+    pathname === path ||
+    (matchNestedRoutes && pathname.startsWith(`${path}/`));
   return (
     <Button
       type="button"
