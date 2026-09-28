@@ -57,8 +57,8 @@ describe("computer panel machine picker", () => {
     await slot.findByText("Choose a machine");
     const cards = slot.getAllByRole("button");
     expect(cards[0]?.textContent).toContain("Workstation");
-    expect(cards[0]?.textContent).toContain("this thread");
     expect(cards[1]?.textContent).toContain("Other Box");
+    expect(slot.queryByText("Persistent")).toBeNull();
     expect(slot.queryByText("Machine")).toBeNull();
   });
 
@@ -81,12 +81,12 @@ describe("computer panel machine picker", () => {
     fireEvent.click(await slot.findByRole("button", { name: /Workstation/ }));
 
     await slot.findByRole("img", { name: "Live machine view" });
-    slot.getByText("Workstation");
-    slot.getByRole("button", { name: "Change" });
     slot.getByText(/Controlled by/);
+    expect(slot.queryByText("Workstation")).toBeNull();
+    expect(slot.queryByRole("button", { name: "Change" })).toBeNull();
   });
 
-  it("shows the doctor probes and a Back link when a machine is not ready", async () => {
+  it("shows the doctor probes with no Back link when a machine is not ready", async () => {
     const panel = app.threadPanelActions.find((action) => action.title === "Computer");
     const slot = renderSlot<PluginThreadPanelProps>(
       panel!,
@@ -108,31 +108,7 @@ describe("computer panel machine picker", () => {
 
     await slot.findByText("cua driver not found");
     slot.getByText("Binary");
-    fireEvent.click(slot.getByRole("button", { name: "Back" }));
-    await slot.findByText("Choose a machine");
-  });
-
-  it("disables Change while a run is active, with an explanatory title", async () => {
-    const panel = app.threadPanelActions.find((action) => action.title === "Computer");
-    const slot = renderSlot<PluginThreadPanelProps>(
-      panel!,
-      { threadId: "thread-1", params: null },
-      {
-        rpc: {
-          machines: () => ({ machines: [machine()], currentHostId: "host-a" }),
-          doctor: readyDoctor,
-          preview: livePreview,
-          controlStatus: () => ({ owner: "agent" }),
-          activeRun: () => ({ runId: "11111111-1111-1111-1111-111111111111" }),
-        },
-      },
-    );
-
-    fireEvent.click(await slot.findByRole("button", { name: /Workstation/ }));
-    await slot.findByRole("img", { name: "Live machine view" });
-
-    const change = slot.getByRole("button", { name: "Change" }) as HTMLButtonElement;
-    expect(change.disabled).toBe(true);
-    expect(change.title).toMatch(/active run/);
+    slot.getByText("Workstation");
+    expect(slot.queryByRole("button", { name: "Back" })).toBeNull();
   });
 });

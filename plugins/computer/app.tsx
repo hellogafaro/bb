@@ -249,7 +249,7 @@ function LiveView({ hostId, active, size = "thumbnail" }: { hostId: string; acti
 function CenteredSpinner() {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <Icon name="Loading" className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden />
+      <Icon name="Loading" className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
     </div>
   );
 }
@@ -258,37 +258,38 @@ function MachineStatusDot({ status }: { status: MachineSummary["status"] }) {
   return (
     <span
       aria-hidden
-      className={cn("size-1.5 shrink-0 rounded-full", status === "connected" ? "bg-status-ready" : "bg-muted-foreground/50")}
-    />
+      className={cn(
+        "flex size-3 shrink-0 items-center justify-center",
+        status === "connected" ? "text-status-ready" : "text-muted-foreground/50",
+      )}
+    >
+      <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden>
+        <circle cx="5" cy="5" r="4.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </span>
   );
 }
 
 function MachineCard({
   machine,
-  isCurrentThreadMachine,
   onSelect,
 }: {
   machine: MachineSummary;
-  isCurrentThreadMachine: boolean;
   onSelect: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="flex flex-col gap-0.5 rounded-lg border border-border bg-card px-3 py-2 text-left hover:bg-muted/40"
+      className="grid h-[var(--bb-sidebar-thread-row-height)] grid-rows-[20px_16px] content-center gap-y-0.5 rounded-lg border border-border bg-card px-2 py-1.5 text-left hover:bg-muted/40"
     >
       <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">
         <MachineStatusDot status={machine.status} />
         <span className="min-w-0 truncate">{machine.name}</span>
-        {isCurrentThreadMachine ? (
-          <span className="shrink-0 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 text-2xs leading-none text-subtle-foreground">
-            this thread
-          </span>
-        ) : null}
       </span>
-      <span className="text-meta text-subtle-foreground">{machine.type === "persistent" ? "Persistent" : "Ephemeral"}</span>
-      <span className="text-meta text-subtle-foreground">{formatLastSeen(machine.lastSeenAt)}</span>
+      <span className="flex min-w-0 items-center text-meta text-subtle-foreground">
+        {formatLastSeen(machine.lastSeenAt)}
+      </span>
     </button>
   );
 }
@@ -314,7 +315,6 @@ function MachinePickerCards({
             <MachineCard
               key={machine.hostId}
               machine={machine}
-              isCurrentThreadMachine={machine.hostId === currentHostId}
               onSelect={() => onSelect(machine.hostId)}
             />
           ))}
@@ -331,55 +331,20 @@ const PROBE_STATUS_CLASS: Record<DoctorReport["probes"][number]["status"], strin
   unavailable: "text-status-failed",
 };
 
-function DoctorFailure({ machineName, report, onBack }: { machineName: string; report: DoctorReport; onBack: () => void }) {
+function DoctorFailure({ machineName, report }: { machineName: string; report: DoctorReport }) {
   return (
     <div className="flex flex-1 items-center justify-center overflow-auto p-4">
-      <div className="flex w-full max-w-[360px] flex-col gap-3">
-        <div className="rounded-lg border border-border bg-card p-3">
-          <p className="truncate text-sm font-medium text-foreground">{machineName}</p>
-          <ul className="mt-2 flex flex-col gap-2">
-            {report.probes.map((probe) => (
-              <li key={probe.label} className="text-meta text-subtle-foreground">
-                <span className={cn("font-medium", PROBE_STATUS_CLASS[probe.status])}>{probe.label}</span>
-                {" — "}
-                <span>{probe.message}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="self-start text-xs text-muted-foreground hover:text-foreground hover:underline"
-        >
-          Back
-        </button>
+      <div className="w-full max-w-[360px] rounded-lg border border-border bg-card px-2 py-1.5">
+        <p className="truncate text-sm font-medium text-foreground">{machineName}</p>
+        <ul className="mt-2 flex flex-col gap-2">
+          {report.probes.map((probe) => (
+            <li key={probe.label} className="flex flex-col gap-0.5">
+              <span className={cn("text-sm font-medium", PROBE_STATUS_CLASS[probe.status])}>{probe.label}</span>
+              <span className="text-meta text-subtle-foreground">{probe.message}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
-  );
-}
-
-function MachineTopBar({
-  machineName,
-  activeRunId,
-  onChange,
-}: {
-  machineName: string;
-  activeRunId: string | null;
-  onChange: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs">
-      <span className="truncate font-medium text-foreground">{machineName}</span>
-      <button
-        type="button"
-        onClick={onChange}
-        disabled={activeRunId !== null}
-        title={activeRunId !== null ? "Stop the active run before switching machines" : undefined}
-        className="shrink-0 text-muted-foreground hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-      >
-        Change
-      </button>
     </div>
   );
 }
@@ -387,13 +352,9 @@ function MachineTopBar({
 function MachineWorkspace({
   hostId,
   machineName,
-  onBack,
-  onChange,
 }: {
   hostId: string;
   machineName: string;
-  onBack: () => void;
-  onChange: () => void;
 }) {
   const report = useDoctorReport(hostId);
   const activeRunId = useActiveRun(hostId);
@@ -401,12 +362,11 @@ function MachineWorkspace({
 
   if (report === null) return <CenteredSpinner />;
   if (report.state !== "ready") {
-    return <DoctorFailure machineName={machineName} report={report} onBack={onBack} />;
+    return <DoctorFailure machineName={machineName} report={report} />;
   }
   if (frame === null) return <CenteredSpinner />;
   return (
     <>
-      <MachineTopBar machineName={machineName} activeRunId={activeRunId} onChange={onChange} />
       <ControlBanner hostId={hostId} activeRunId={activeRunId} />
       <div className="flex min-h-0 flex-1 items-center justify-center bg-black/90">
         <img src={frame.src} alt="Live machine view" className="max-h-full max-w-full object-contain" />
@@ -422,19 +382,13 @@ function ComputerPanel({ threadId, params }: PluginThreadPanelProps) {
   const [hostId, setHostId] = useState<string | null>(parsedHostId);
   const { machines, currentHostId } = useMachines(threadId);
   const selectedMachine = machines.find((machine) => machine.hostId === hostId) ?? null;
-  const backToPicker = () => setHostId(null);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {hostId === null ? (
         <MachinePickerCards machines={machines} currentHostId={currentHostId} onSelect={setHostId} />
       ) : (
-        <MachineWorkspace
-          hostId={hostId}
-          machineName={selectedMachine?.name ?? hostId}
-          onBack={backToPicker}
-          onChange={backToPicker}
-        />
+        <MachineWorkspace hostId={hostId} machineName={selectedMachine?.name ?? hostId} />
       )}
     </div>
   );
