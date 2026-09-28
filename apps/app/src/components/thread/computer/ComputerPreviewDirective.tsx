@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@bb/shared-ui/dialog";
 import type { PluginMessageDirectiveSlot } from "@/lib/plugin-slots";
-import { ComputerLiveView } from "./ComputerPanel";
+import { ComputerLiveView } from "./ComputerLiveView";
 import {
   closeComputerLightbox,
   openComputerLightbox,

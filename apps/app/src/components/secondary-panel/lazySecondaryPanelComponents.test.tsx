@@ -3,9 +3,19 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PanelGroup } from "react-resizable-panels";
-import { LazyThreadSecondaryPanel } from "./lazySecondaryPanelComponents";
+import { LazyComputerPanel, LazyThreadSecondaryPanel } from "./lazySecondaryPanelComponents";
 
 vi.mock("./ThreadSecondaryPanel", () => new Promise(() => {}));
+
+const machinesMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/sdk", () => ({
+  sdk: {
+    computer: {
+      machines: machinesMock,
+    },
+  },
+}));
 
 afterEach(cleanup);
 
@@ -65,5 +75,15 @@ describe("LazyThreadSecondaryPanel", () => {
     expect(
       screen.getByTestId("thread-secondary-panel-placeholder").className,
     ).not.toContain("border-l");
+  });
+});
+
+describe("LazyComputerPanel", () => {
+  it("resolves the real dynamic import and renders the machine picker", async () => {
+    machinesMock.mockResolvedValue({ machines: [], currentHostId: null });
+
+    render(<LazyComputerPanel threadId="thread-1" />);
+
+    await screen.findByText("Choose a machine");
   });
 });
