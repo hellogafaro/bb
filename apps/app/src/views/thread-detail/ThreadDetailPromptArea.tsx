@@ -61,6 +61,7 @@ import {
   ThreadPromptContextBanner,
   type ThreadPromptContextBannerExpandedSection,
   type ThreadPromptParentThreadSection,
+  CHILD_THREAD_STATE_LABEL,
   type ThreadPromptChildThreadsSection,
   type ThreadPromptPullRequestSection,
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
@@ -69,6 +70,7 @@ import { ThreadTodoCard } from "@/components/promptbox/banner/ThreadTodoCard";
 import { ThreadPromptModeCard } from "@/components/promptbox/banner/ThreadPromptModeCard";
 import { ThreadWorkflowCard } from "@/components/promptbox/banner/ThreadWorkflowCard";
 import { ThreadBackgroundCommandsCard } from "@/components/promptbox/banner/ThreadBackgroundCommandsCard";
+import { ChildThreadWindow } from "@/components/promptbox/banner/ChildThreadWindow";
 import { ThreadModelFallbackCard } from "@/components/promptbox/banner/ThreadModelFallbackCard";
 import { InlineMessageEditorFrame } from "@/components/promptbox/InlineMessageEditorFrame";
 import type { ModelReasoningPickerHandoffSelection } from "@/components/pickers/ModelReasoningPicker";
@@ -584,6 +586,44 @@ export function ThreadDetailPromptArea({
   );
   const [expandedBannerSection, setExpandedBannerSection] =
     useState<ThreadPromptContextBannerExpandedSection | null>(null);
+  const [openChildThreadId, setOpenChildThreadId] = useState<string | null>(
+    null,
+  );
+  const openChildThreadItem = useMemo(
+    () =>
+      openChildThreadId === null
+        ? null
+        : (childThreadsSection?.items.find(
+            (item) => item.id === openChildThreadId,
+          ) ?? null),
+    [childThreadsSection, openChildThreadId],
+  );
+  useEffect(() => {
+    setOpenChildThreadId(null);
+  }, [thread.id]);
+  useEffect(() => {
+    if (openChildThreadId !== null && openChildThreadItem === null) {
+      setOpenChildThreadId(null);
+    }
+  }, [openChildThreadId, openChildThreadItem]);
+  const handleOpenChildThread = useCallback((threadId: string) => {
+    setOpenChildThreadId((current) => (current === threadId ? null : threadId));
+  }, []);
+  const handleCloseChildThread = useCallback(() => {
+    setOpenChildThreadId(null);
+  }, []);
+  const childThreadsBannerSection =
+    useMemo<ThreadPromptChildThreadsSection | null>(
+      () =>
+        childThreadsSection === null
+          ? null
+          : {
+              ...childThreadsSection,
+              onOpen: handleOpenChildThread,
+              openThreadId: openChildThreadId,
+            },
+      [childThreadsSection, handleOpenChildThread, openChildThreadId],
+    );
   const pullRequestSection =
     useMemo<ThreadPromptPullRequestSection | null>(() => {
       if (!pullRequest) {
@@ -1965,7 +2005,7 @@ export function ThreadDetailPromptArea({
                 }
           }
           parentThreadSection={parentThreadSection}
-          childThreadsSection={childThreadsSection}
+          childThreadsSection={childThreadsBannerSection}
           pullRequestSection={pullRequestSection}
           expandedSection={expandedBannerSection}
           onToggleSection={handleToggleBannerSection}
@@ -2033,7 +2073,7 @@ export function ThreadDetailPromptArea({
       isBackgroundCommandsExpanded,
       modelFallback,
       parentThreadSection,
-      childThreadsSection,
+      childThreadsBannerSection,
       pullRequestSection,
       pendingTodos,
       displayedProcessingQueuedMessage,
@@ -2050,6 +2090,28 @@ export function ThreadDetailPromptArea({
     ],
   );
 
+  const childThreadWindowNode = useMemo(() => {
+    if (openChildThreadItem === null || shouldHideComposer) {
+      return null;
+    }
+    return (
+      <ChildThreadWindow
+        key={openChildThreadItem.id}
+        agent={openChildThreadItem.agent}
+        href={openChildThreadItem.href}
+        onClose={handleCloseChildThread}
+        resolveMentionLink={resolveMentionLink}
+        stateLabel={CHILD_THREAD_STATE_LABEL[openChildThreadItem.state]}
+        thread={openChildThreadItem.thread}
+        title={openChildThreadItem.title}
+      />
+    );
+  }, [
+    handleCloseChildThread,
+    openChildThreadItem,
+    resolveMentionLink,
+    shouldHideComposer,
+  ]);
   const pendingInteractionNode = useMemo(() => {
     if (!activePendingInteraction || shouldHideComposer) {
       return null;
@@ -2083,7 +2145,7 @@ export function ThreadDetailPromptArea({
       id={THREAD_DETAIL_COMPOSER_TEXTAREA_ID}
       attachments={bottomAttachmentsConfig}
       stack={pendingInteractionNode ? pendingInteractionStack : promptStack}
-      pendingInteraction={pendingInteractionNode}
+      pendingInteraction={pendingInteractionNode ?? childThreadWindowNode}
       activePromptMode={isHandoffSelection ? null : activePromptMode}
       composer={shouldHideComposer ? null : bottomComposerConfig}
       pluginComposerHost={normalPluginComposerHost}

@@ -39,6 +39,7 @@ import type {
   TerminalSession,
   TimelineRow,
 } from "@bb/server-contract";
+import type { Agent } from "@bb/domain";
 import type { WorkspaceOpenTarget } from "@bb/host-daemon-contract";
 import { appToast } from "@/components/ui/app-toast";
 import { copyToClipboardWithToast } from "@/lib/clipboard";
@@ -66,6 +67,7 @@ import {
   useEnvironmentPullRequest,
   useEnvironmentWorkStatus,
 } from "../../hooks/queries/environment-queries";
+import { resolveThreadAgent, useAgents } from "@/hooks/queries/agent-queries";
 import {
   useChildThreadPendingAttention,
   type ChildThreadPendingAttentionSource,
@@ -308,6 +310,7 @@ import { ThreadArchiveCommandHandler } from "./ThreadArchiveCommandHandler";
 import { ThreadRenameCommandHandler } from "./ThreadRenameCommandHandler";
 
 const EMPTY_PARENT_THREADS: readonly ThreadListEntry[] = [];
+const EMPTY_AGENTS: readonly Agent[] = [];
 const EMPTY_CHILD_THREAD_ITEMS: readonly ChildThreadPendingAttentionSource[] =
   [];
 const EMPTY_PROJECT_THREAD_SUBSET_FILTERS =
@@ -847,6 +850,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     enabled: threadQueryState.status === "ready" && Boolean(thread?.id),
     parentThreadId: thread?.id,
   });
+  const agents = useAgents().data ?? EMPTY_AGENTS;
   const parentThreads = useMemo(
     () =>
       shouldLoadParentThreads
@@ -1995,8 +1999,8 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             projectId: entry.projectId,
             threadId: entry.id,
           }),
-          projectId: entry.projectId,
-          providerId: entry.providerId,
+          agent: resolveThreadAgent(agents, entry.agentId),
+          thread: entry,
           state: entry.hasPendingInteraction
             ? ("needs-input" as const)
             : isThreadDisplayStatusBannerActive(entry.runtime.displayStatus)
@@ -2005,8 +2009,8 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
           hasPendingInteraction: entry.hasPendingInteraction,
         }));
       if (items.length === 0) return null;
-      return { items, resolveMentionLink };
-    }, [childThreadSubsetQuery.data, resolveMentionLink]);
+      return { items };
+    }, [agents, childThreadSubsetQuery.data]);
   const childPendingInteractions = useChildThreadPendingAttention(
     childThreadsSection?.items ?? EMPTY_CHILD_THREAD_ITEMS,
   );

@@ -6,15 +6,20 @@ import { MemoryRouter } from "react-router-dom";
 import type { ThreadPullRequest } from "@bb/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/promptbox/banner/ChildThreadPanel", () => ({
-  ChildThreadPanel: ({ threadId }: { threadId: string }) => (
-    <div data-testid="child-thread-panel" data-thread-id={threadId} />
-  ),
-}));
 import {
   isThreadDisplayStatusBannerActive,
   ThreadPromptContextBanner,
 } from "./ThreadPromptContextBanner";
+import type { ThreadListEntry } from "@bb/domain";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+function childThreadFixture(id: string, title: string): ThreadListEntry {
+  return makeThreadListEntry({
+    id,
+    projectId: "proj-1",
+    title,
+    titleFallback: title,
+  });
+}
 
 const noop = () => {};
 
@@ -332,8 +337,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_child",
                 title: "Investigate failing checks",
                 href: "/threads/thr_child",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_child",
+                  "Investigate failing checks",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -352,8 +360,6 @@ describe("ThreadPromptContextBanner", () => {
     );
     expect(markup).toContain("Active:");
     expect(markup).toContain("Investigate failing checks");
-    expect(markup).toContain('data-icon="UserRound"');
-    expect(markup).toContain("animate-shine-icon");
     expect(markup).not.toContain("animate-shine font-medium");
   });
 
@@ -370,8 +376,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_primary",
                 title: "Investigate failing checks",
                 href: "/threads/thr_primary",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_primary",
+                  "Investigate failing checks",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -379,8 +388,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_other",
                 title: "Review the release notes",
                 href: "/threads/thr_other",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_other",
+                  "Review the release notes",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -412,8 +424,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_child",
                 title: "Host-owned SourceCode and Diff renderers",
                 href: "/threads/thr_child",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_child",
+                  "Host-owned SourceCode and Diff renderers",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -450,8 +465,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_waiting",
                 title: "Waiting for build host",
                 href: "/threads/thr_waiting",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_waiting",
+                  "Waiting for build host",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -484,8 +502,11 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_blocked",
                 title: "Install workspace tools",
                 href: "/threads/thr_blocked",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_blocked",
+                  "Install workspace tools",
+                ),
                 state: "needs-input",
                 hasPendingInteraction: true,
               },
@@ -503,9 +524,7 @@ describe("ThreadPromptContextBanner", () => {
     );
     expect(markup).toContain("Needs input:");
     expect(markup).toContain("Install workspace tools");
-    expect(markup).toContain('data-icon="CircleQuestion"');
     expect(markup).not.toContain("Active:");
-    expect(markup).not.toContain("animate-shine-icon");
   });
 
   it("keeps finished children listed and puts them after live ones", () => {
@@ -521,8 +540,8 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_done",
                 title: "Write release notes",
                 href: "/threads/thr_done",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture("thr_done", "Write release notes"),
                 state: "done",
                 hasPendingInteraction: false,
               },
@@ -530,8 +549,8 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_active",
                 title: "Run the test suite",
                 href: "/threads/thr_active",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture("thr_active", "Run the test suite"),
                 state: "active",
                 hasPendingInteraction: false,
               },
@@ -545,14 +564,14 @@ describe("ThreadPromptContextBanner", () => {
     );
 
     expect(markup).toContain("2 child threads · 1 active: Run the test suite");
-    expect(markup).toContain('data-icon="Check"');
     expect(markup.indexOf("Run the test suite")).toBeLessThan(
       markup.indexOf("Write release notes"),
     );
   });
 
-  it("expands a child row into its read-only panel and keeps an open link", () => {
-    render(
+  it("opens a child row through the section callback and marks it pressed", () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(
       <MemoryRouter>
         <ThreadPromptContextBanner
           archivedSection={null}
@@ -564,12 +583,17 @@ describe("ThreadPromptContextBanner", () => {
                 id: "thr_child",
                 title: "Investigate failing checks",
                 href: "/projects/proj-1/threads/thr_child",
-                projectId: "proj-1",
-                providerId: "codex",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_child",
+                  "Investigate failing checks",
+                ),
                 state: "active",
                 hasPendingInteraction: false,
               },
             ],
+            onOpen,
+            openThreadId: null,
           }}
           pullRequestSection={null}
           expandedSection="childThreads"
@@ -578,22 +602,49 @@ describe("ThreadPromptContextBanner", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByTestId("child-thread-panel")).toBeNull();
     const row = screen.getByRole("button", {
       name: "Active: Investigate failing checks",
     });
+    expect(row.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.queryByRole("link", { name: /^Open / })).toBeNull();
     fireEvent.click(row);
-    const panel = screen.getByTestId("child-thread-panel");
-    expect(panel.getAttribute("data-thread-id")).toBe("thr_child");
-    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(onOpen).toHaveBeenCalledWith("thr_child");
+
+    rerender(
+      <MemoryRouter>
+        <ThreadPromptContextBanner
+          archivedSection={null}
+          environmentGoneSection={null}
+          parentThreadSection={null}
+          childThreadsSection={{
+            items: [
+              {
+                id: "thr_child",
+                title: "Investigate failing checks",
+                href: "/projects/proj-1/threads/thr_child",
+                agent: null,
+                thread: childThreadFixture(
+                  "thr_child",
+                  "Investigate failing checks",
+                ),
+                state: "active",
+                hasPendingInteraction: false,
+              },
+            ],
+            onOpen,
+            openThreadId: "thr_child",
+          }}
+          pullRequestSection={null}
+          expandedSection="childThreads"
+          onToggleSection={noop}
+        />
+      </MemoryRouter>,
+    );
     expect(
       screen
-        .getByRole("link", { name: "Open Investigate failing checks" })
-        .getAttribute("href"),
-    ).toBe("/projects/proj-1/threads/thr_child");
-
-    fireEvent.click(row);
-    expect(screen.queryByTestId("child-thread-panel")).toBeNull();
+        .getByRole("button", { name: "Active: Investigate failing checks" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   it("labels standalone actionable pull request attention", () => {

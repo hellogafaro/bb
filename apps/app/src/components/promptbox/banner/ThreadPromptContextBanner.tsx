@@ -3,19 +3,22 @@ import {
   machineRemovalLabels,
   type MachineRemovalStatus,
 } from "@/lib/machine-removal-display";
-import {
-  forwardRef,
-  useEffect,
-  useState,
-  type ButtonHTMLAttributes,
-  type ReactNode,
-} from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import type {
+  Agent,
   EnvironmentStatus,
+  ThreadListEntry,
   ThreadPullRequest,
   ThreadRuntimeDisplayStatus,
 } from "@bb/domain";
+import { threadListIndicatorStateForThread } from "@bb/client-core";
+import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import {
+  formatRelativeAge,
+  getThreadLastActivityAt,
+  useRelativeTimeNow,
+} from "@/components/sidebar/ThreadRowMeta";
 import type { PullRequestMergeMethod } from "@bb/server-contract";
 import {
   PromptStackCard,
@@ -25,10 +28,7 @@ import {
   PROMPT_STACK_INLAY_INSET_CLASS,
   PROMPT_STACK_INLAY_SEGMENT_CLASS,
 } from "@/components/promptbox/banner/PromptStackCard";
-import {
-  activityIconClass,
-  activityRowClass,
-} from "@bb/shared-ui/activity-row-styles";
+import { activityRowClass } from "@bb/shared-ui/activity-row-styles";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
 import {
@@ -38,8 +38,6 @@ import {
 } from "@/lib/pull-request-display";
 import { PullRequestStatusPill } from "@/components/pull-request/PullRequestStatusPill";
 import { AnimatedBody } from "@/components/promptbox/banner/AnimatedBody";
-import { ChildThreadPanel } from "@/components/promptbox/banner/ChildThreadPanel";
-import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
 import {
   BannerActionSlot,
   PROMPT_BANNER_ACTION_FILL_CLASS,
@@ -71,16 +69,26 @@ export interface ThreadPromptChildThreadItem {
   id: string;
   title: string;
   href: string;
-  projectId: string;
-  providerId: string;
+  agent: Agent | null;
+  thread: ThreadListEntry;
   state: ThreadPromptChildThreadState;
   hasPendingInteraction: boolean;
 }
 
 export interface ThreadPromptChildThreadsSection {
   items: readonly ThreadPromptChildThreadItem[];
-  resolveMentionLink?: PromptMentionLinkResolver;
+  openThreadId?: string | null;
+  onOpen?: (threadId: string) => void;
 }
+
+export const CHILD_THREAD_STATE_LABEL: Record<
+  ThreadPromptChildThreadState,
+  string
+> = {
+  "needs-input": "Needs input",
+  active: "Active",
+  done: "Done",
+};
 
 export interface ThreadPromptPullRequestSection {
   pullRequest: ThreadPullRequest;
@@ -386,12 +394,6 @@ const CHILD_THREAD_STATE_ORDER: Record<ThreadPromptChildThreadState, number> = {
   done: 2,
 };
 
-const CHILD_THREAD_STATE_LABEL: Record<ThreadPromptChildThreadState, string> = {
-  "needs-input": "Needs input",
-  active: "Active",
-  done: "Done",
-};
-
 function sortChildThreadItems(
   items: readonly ThreadPromptChildThreadItem[],
 ): ThreadPromptChildThreadItem[] {
@@ -402,147 +404,70 @@ function sortChildThreadItems(
   );
 }
 
-function ChildThreadStateIcon({
-  state,
-  className,
-}: {
-  state: ThreadPromptChildThreadState;
-  className?: string;
-}) {
-  switch (state) {
-    case "needs-input":
-      return (
-        <Icon
-          name="CircleQuestion"
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground/75",
-            className,
-          )}
-          aria-hidden="true"
-        />
-      );
-    case "active":
-      return (
-        <Icon
-          name="UserRound"
-          className={activityIconClass(
-            "active",
-            cn("size-3.5 shrink-0", className),
-          )}
-          aria-hidden="true"
-        />
-      );
-    case "done":
-      return (
-        <Icon
-          name="Check"
-          className={cn("size-3.5 shrink-0 text-subtle-foreground", className)}
-          aria-hidden="true"
-        />
-      );
-    default: {
-      const exhaustiveCheck: never = state;
-      return exhaustiveCheck;
-    }
-  }
-}
-
-function childThreadRowId(threadId: string): string {
-  return `thread-prompt-banner-child-thread-${threadId}`;
+function ChildThreadMascot({ item }: { item: ThreadPromptChildThreadItem }) {
+  const indicator = threadListIndicatorStateForThread(item.thread, false);
+  return (
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      <ThreadStatusMascot {...indicator} agent={item.agent} size="compact" />
+    </span>
+  );
 }
 
 function ChildThreadRow({
   item,
-  isExpanded,
-  onToggle,
-  resolveMentionLink,
+  isOpen,
+  onOpen,
 }: {
   item: ThreadPromptChildThreadItem;
-  isExpanded: boolean;
-  onToggle: () => void;
-  resolveMentionLink: PromptMentionLinkResolver | undefined;
+  isOpen: boolean;
+  onOpen: () => void;
 }) {
+  const now = useRelativeTimeNow();
   const titleText = useThreadTitleDisplayText(item.title);
-  const panelId = `${childThreadRowId(item.id)}-panel`;
+  const stateLabel = CHILD_THREAD_STATE_LABEL[item.state];
+  const age = formatRelativeAge(getThreadLastActivityAt(item.thread), now);
   return (
-    <li className="text-xs">
-      <div className="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          id={childThreadRowId(item.id)}
-          aria-expanded={isExpanded}
-          aria-controls={panelId}
-          aria-label={`${CHILD_THREAD_STATE_LABEL[item.state]}: ${titleText}`}
-          onClick={onToggle}
-          className="flex min-h-7 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-left text-foreground/90 transition-colors hover:bg-background/80"
-        >
-          <ChildThreadStateIcon state={item.state} />
-          <ThreadTitle title={item.title} tooltip className="flex-1" />
-          <span className="shrink-0 text-muted-foreground">
-            {CHILD_THREAD_STATE_LABEL[item.state]}
-          </span>
-          <PromptStackCardChevron
-            isExpanded={isExpanded}
-            className="text-muted-foreground"
-          />
-        </button>
-        <NavLink
-          to={item.href}
-          aria-label={`Open ${titleText}`}
-          title="Open thread"
-          className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
-        >
-          <Icon name="ExternalLink" className="size-3.5" aria-hidden="true" />
-        </NavLink>
-      </div>
-      <AnimatedBody
-        collapsedBorder="none"
-        id={panelId}
-        labelledBy={childThreadRowId(item.id)}
-        isExpanded={isExpanded}
+    <li>
+      <button
+        type="button"
+        aria-label={`${stateLabel}: ${titleText}`}
+        aria-pressed={isOpen}
+        onClick={onOpen}
+        className={cn(
+          PROMPT_STACK_CARD_HEADER_BUTTON_CLASS,
+          "gap-2",
+          isOpen && "bg-background/80",
+        )}
       >
-        {isExpanded ? (
-          <ChildThreadPanel
-            projectId={item.projectId}
-            providerId={item.providerId}
-            resolveMentionLink={resolveMentionLink}
-            threadId={item.id}
-          />
-        ) : null}
-      </AnimatedBody>
+        <ThreadTitle title={item.title} className="min-w-0 flex-1" inline />
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-subtle-foreground">
+          <span>{stateLabel}</span>
+          <span aria-hidden="true">·</span>
+          <span>{age}</span>
+        </span>
+        <ChildThreadMascot item={item} />
+      </button>
     </li>
   );
 }
 
 function ChildThreadsBody({
   items,
-  resolveMentionLink,
+  openThreadId,
+  onOpen,
 }: {
   items: readonly ThreadPromptChildThreadItem[];
-  resolveMentionLink: PromptMentionLinkResolver | undefined;
+  openThreadId: string | null;
+  onOpen: ((threadId: string) => void) | undefined;
 }) {
-  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
-  useEffect(() => {
-    if (
-      expandedThreadId !== null &&
-      !items.some((item) => item.id === expandedThreadId)
-    ) {
-      setExpandedThreadId(null);
-    }
-  }, [expandedThreadId, items]);
   return (
-    <ul className="space-y-0.5 px-2 pb-2 pt-1">
+    <ul className="pb-1">
       {items.map((item) => (
         <ChildThreadRow
           key={item.id}
           item={item}
-          isExpanded={expandedThreadId === item.id}
-          onToggle={() =>
-            setExpandedThreadId((current) =>
-              current === item.id ? null : item.id,
-            )
-          }
-          resolveMentionLink={resolveMentionLink}
+          isOpen={openThreadId === item.id}
+          onOpen={() => onOpen?.(item.id)}
         />
       ))}
     </ul>
@@ -791,7 +716,7 @@ function ChildThreadsCard({
               : PROMPT_STACK_CARD_HEADER_BUTTON_CLASS
           }
         >
-          <ChildThreadStateIcon state={headerState} />
+          <ChildThreadMascot item={primary} />
           <span className="min-w-0 flex-1 truncate text-left">
             <span className="text-muted-foreground">
               {CHILD_THREAD_STATE_LABEL[headerState]}:{" "}
@@ -821,7 +746,8 @@ function ChildThreadsCard({
       >
         <ChildThreadsBody
           items={items}
-          resolveMentionLink={childThreadsSection.resolveMentionLink}
+          openThreadId={childThreadsSection.openThreadId ?? null}
+          onOpen={childThreadsSection.onOpen}
         />
       </AnimatedBody>
     </PromptStackCard>

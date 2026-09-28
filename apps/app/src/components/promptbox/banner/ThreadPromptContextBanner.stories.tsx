@@ -10,6 +10,16 @@ import {
   type ThreadPromptChildThreadsSection,
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
 import { StoryCard, StoryRow } from "../../../../.ladle/story-card";
+import type { ThreadListEntry } from "@bb/domain";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+function childThreadFixture(id: string, title: string): ThreadListEntry {
+  return makeThreadListEntry({
+    id,
+    projectId: "proj-1",
+    title,
+    titleFallback: title,
+  });
+}
 
 export default {
   title: "promptbox/banner/Context Banner",
@@ -60,8 +70,11 @@ const childThreadsFixture: ThreadPromptChildThreadsSection = {
       id: "thr_a",
       title: "Investigate Safari auth flake on staging",
       href: "/projects/proj-1/threads/thr_a",
-      projectId: "proj-1",
-      providerId: "codex",
+      agent: null,
+      thread: childThreadFixture(
+        "thr_a",
+        "Investigate Safari auth flake on staging",
+      ),
       state: "active",
       hasPendingInteraction: false,
     },
@@ -69,8 +82,8 @@ const childThreadsFixture: ThreadPromptChildThreadsSection = {
       id: "thr_b",
       title: "Review PR #4521 reviewer comments",
       href: "/projects/proj-1/threads/thr_b",
-      projectId: "proj-1",
-      providerId: "codex",
+      agent: null,
+      thread: childThreadFixture("thr_b", "Review PR #4521 reviewer comments"),
       state: "active",
       hasPendingInteraction: false,
     },
@@ -78,8 +91,11 @@ const childThreadsFixture: ThreadPromptChildThreadsSection = {
       id: "thr_c",
       title: "Refactor email pipeline retry logic",
       href: "/projects/proj-1/threads/thr_c",
-      projectId: "proj-1",
-      providerId: "codex",
+      agent: null,
+      thread: childThreadFixture(
+        "thr_c",
+        "Refactor email pipeline retry logic",
+      ),
       state: "active",
       hasPendingInteraction: false,
     },
@@ -87,8 +103,11 @@ const childThreadsFixture: ThreadPromptChildThreadsSection = {
       id: "thr_d",
       title: "Backfill workspace-status invalidation cache",
       href: "/projects/proj-1/threads/thr_d",
-      projectId: "proj-1",
-      providerId: "codex",
+      agent: null,
+      thread: childThreadFixture(
+        "thr_d",
+        "Backfill workspace-status invalidation cache",
+      ),
       state: "active",
       hasPendingInteraction: false,
     },
@@ -101,8 +120,8 @@ const childThreadsPendingFixture: ThreadPromptChildThreadsSection = {
       id: "thr_blocked",
       title: "Install workspace tools",
       href: "/projects/proj-1/threads/thr_blocked",
-      projectId: "proj-1",
-      providerId: "codex",
+      agent: null,
+      thread: childThreadFixture("thr_blocked", "Install workspace tools"),
       state: "needs-input",
       hasPendingInteraction: true,
     },
@@ -122,8 +141,11 @@ const childThreadsLargeFixture: ThreadPromptChildThreadsSection = {
     id: `thr_large_${i}`,
     title: `Child work item ${i + 1} that is busy doing thing-${i}`,
     href: `/projects/proj-1/threads/thr_large_${i}`,
-    projectId: "proj-1",
-    providerId: "codex",
+    agent: null,
+    thread: childThreadFixture(
+      `thr_large_${i}`,
+      `Child work item ${i + 1} that is busy doing thing-${i}`,
+    ),
     state: i === 1 ? "needs-input" : i % 3 === 0 ? "done" : "active",
     hasPendingInteraction: i === 1,
   })),

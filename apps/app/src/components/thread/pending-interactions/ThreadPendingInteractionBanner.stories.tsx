@@ -5,6 +5,16 @@ import type {
 import { ThreadPendingInteractionBanner } from "@/components/thread/pending-interactions/ThreadPendingInteractionBanner";
 import { ThreadPromptContextBanner } from "@/components/promptbox/banner/ThreadPromptContextBanner";
 import { StoryCard, StoryRow } from "../../../../.ladle/story-card";
+import type { ThreadListEntry } from "@bb/domain";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+function childThreadFixture(id: string, title: string): ThreadListEntry {
+  return makeThreadListEntry({
+    id,
+    projectId: "proj-1",
+    title,
+    titleFallback: title,
+  });
+}
 
 export default {
   title: "thread/Pending Interaction/Approval",
@@ -198,8 +208,11 @@ export function Overview() {
                   id: "thr_blocked",
                   title: "Install workspace tools",
                   href: "/projects/proj-1/threads/thr_blocked",
-                  projectId: "proj-1",
-                  providerId: "codex",
+                  agent: null,
+                  thread: childThreadFixture(
+                    "thr_blocked",
+                    "Install workspace tools",
+                  ),
                   state: "needs-input",
                   hasPendingInteraction: true,
                 },
