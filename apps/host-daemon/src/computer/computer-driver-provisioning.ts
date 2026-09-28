@@ -250,7 +250,7 @@ async function ensureProvisionedDriverUnlocked(
       return { status: "permissions-missing", path: binaryPath };
     }
     await pruneOtherVersions(driverRoot, pinned.version, args.logger);
-    return { status: "installed", path: binaryPath };
+    return { status: "installed", path: binaryPath, changed: true };
   } finally {
     await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseComputerPermissionStatus } from "./computer-permissions.js";
+import { parseComputerPermissionStatus, parseHealthPermissionStatus } from "./computer-permissions.js";
 
 describe("parseComputerPermissionStatus", () => {
   it("reads boolean and string grants under any key spelling", () => {
@@ -17,6 +17,23 @@ describe("parseComputerPermissionStatus", () => {
       screenRecording: "unknown",
     });
     expect(parseComputerPermissionStatus('{"accessibility":"unknown"}')).toEqual({
+      accessibility: "unknown",
+      screenRecording: "unknown",
+    });
+  });
+});
+
+describe("parseHealthPermissionStatus", () => {
+  it("reads the driver's tcc checks from health_report", () => {
+    expect(
+      parseHealthPermissionStatus(
+        '{"checks":[{"name":"tcc_accessibility","status":"fail"},{"name":"tcc_screen_recording","status":"pass"}]}',
+      ),
+    ).toEqual({ accessibility: "denied", screenRecording: "granted" });
+  });
+
+  it("reports unknown for a refused or unparsable report", () => {
+    expect(parseHealthPermissionStatus("permissions_pending: still pending")).toEqual({
       accessibility: "unknown",
       screenRecording: "unknown",
     });

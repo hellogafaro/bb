@@ -1,11 +1,13 @@
-import { access, copyFile, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ArchiveSpawnFn } from "./computer-driver-archive.js";
 import type { HostDaemonLogger } from "../logger.js";
 
 export const COMPUTER_APP_BUNDLE_ID = "com.trycua.driver";
-export const COMPUTER_APP_BUNDLE_NAME = "bb.app";
+export const COMPUTER_APP_BUNDLE_NAME = "CuaDriver.app";
+export const COMPUTER_APP_DISPLAY_NAME = "bb Computer";
+const LEGACY_BUNDLE_NAMES = ["bb.app"];
 export const COMPUTER_APP_ICON_FILE = "bb-computer.icns";
 const BUNDLE_EXECUTABLE = "cua-driver";
 
@@ -28,15 +30,16 @@ export function appBundlePathForBinary(binaryPath: string): string | null {
 export function computerAppInfoPlist(version: string): string {
   const entries: [string, string][] = [
     ["CFBundleDevelopmentRegion", "<string>en</string>"],
-    ["CFBundleDisplayName", "<string>bb</string>"],
+    ["CFBundleDisplayName", `<string>${COMPUTER_APP_DISPLAY_NAME}</string>`],
     ["CFBundleExecutable", `<string>${BUNDLE_EXECUTABLE}</string>`],
     ["CFBundleIconFile", "<string>bb</string>"],
     ["CFBundleIdentifier", `<string>${COMPUTER_APP_BUNDLE_ID}</string>`],
     ["CFBundleInfoDictionaryVersion", "<string>6.0</string>"],
-    ["CFBundleName", "<string>bb</string>"],
+    ["CFBundleName", "<string>CuaDriver</string>"],
     ["CFBundlePackageType", "<string>APPL</string>"],
     ["CFBundleShortVersionString", `<string>${version}</string>`],
     ["CFBundleVersion", `<string>${version}</string>`],
+    ["LSHasLocalizedDisplayName", "<true/>"],
     ["LSMinimumSystemVersion", "<string>12.0</string>"],
     ["LSUIElement", "<true/>"],
     ["NSHighResolutionCapable", "<true/>"],
@@ -77,6 +80,10 @@ export async function repairDarwinBundle(args: {
 }): Promise<boolean> {
   const bundleDir = appBundlePathForBinary(args.binaryPath);
   if (bundleDir === null) return false;
+  for (const legacy of LEGACY_BUNDLE_NAMES) {
+    const legacyDir = join(dirname(bundleDir), legacy);
+    if (legacyDir !== bundleDir) await rm(legacyDir, { recursive: true, force: true });
+  }
   let changed = false;
   const plistPath = join(bundleDir, "Contents", "Info.plist");
   const expectedPlist = computerAppInfoPlist(args.version);

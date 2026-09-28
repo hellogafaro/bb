@@ -199,7 +199,7 @@ describe("ComputerHostService on macOS", () => {
   });
 
   it("launches the driver through LaunchServices when it lives in the bb.app bundle", async () => {
-    const bundleDir = join(dataDir, "computer", "driver", "0.30.2", "darwin-arm64", "bb.app");
+    const bundleDir = join(dataDir, "computer", "driver", "0.30.2", "darwin-arm64", "CuaDriver.app");
     const binaryPath = join(bundleDir, "Contents", "MacOS", "cua-driver");
     process.env.CUA_DRIVER_PATH = binaryPath;
     const launches: { command: string; args: readonly string[] }[] = [];
@@ -273,7 +273,7 @@ describe("ComputerHostService requestPermissions", () => {
   });
 
   it("runs the driver grant flow and opens the pane for the missing permission on macOS", async () => {
-    const binaryPath = join(dataDir, "bb.app", "Contents", "MacOS", "cua-driver");
+    const binaryPath = join(dataDir, "CuaDriver.app", "Contents", "MacOS", "cua-driver");
     process.env.CUA_DRIVER_PATH = binaryPath;
     const calls: { command: string; args: readonly string[] }[] = [];
     const spawnProcess = ((command: string, args: readonly string[]): unknown => {
@@ -293,8 +293,8 @@ describe("ComputerHostService requestPermissions", () => {
       const output =
         probe === "--version"
           ? "cua-driver 0.30.2\n"
-          : probe === "permissions" && args[1] === "status"
-            ? '{"accessibility":"granted","screen_recording":"denied"}\n'
+          : probe === "call" && args[1] === "health_report"
+            ? '{"checks":[{"name":"tcc_accessibility","status":"pass"},{"name":"tcc_screen_recording","status":"fail"}]}\n'
             : probe === "call"
               ? '{"windows":[]}\n'
               : "";
@@ -307,7 +307,7 @@ describe("ComputerHostService requestPermissions", () => {
           });
         },
       };
-      if (command === "/usr/bin/open" || (probe === "permissions" && args[1] === "grant")) {
+      if (command === "/usr/bin/open" || command === "/usr/bin/tccutil" || (probe === "permissions" && args[1] === "grant")) {
         queueMicrotask(() => child.emit("close", 0));
       }
       return child;
@@ -323,12 +323,18 @@ describe("ComputerHostService requestPermissions", () => {
     });
     const report = await service.requestPermissions({});
     expect(calls.some((call) => call.args[0] === "permissions" && call.args[1] === "grant")).toBe(true);
+    expect(calls).toContainEqual({
+      command: "/usr/bin/tccutil",
+      args: ["reset", "ScreenCapture", "com.trycua.driver"],
+    });
+    expect(calls.some((call) => call.command === "/usr/bin/tccutil" && call.args[1] === "Accessibility")).toBe(false);
     const opened = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
     expect(opened?.args[0]).toContain("Privacy_ScreenCapture");
     calls.length = 0;
     await service.requestPermissions({ permission: "accessibility" });
     const explicit = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
     expect(explicit?.args[0]).toContain("Privacy_Accessibility");
+    expect(calls.some((call) => call.command === "/usr/bin/tccutil")).toBe(false);
     expect(report.probes.find((probe) => probe.id === "screen-recording")?.status).toBe("setup-required");
     expect(report.probes.find((probe) => probe.id === "accessibility")?.status).toBe("ok");
     expect(report.driverPath).toBe(binaryPath);

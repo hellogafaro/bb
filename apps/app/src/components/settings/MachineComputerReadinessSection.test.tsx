@@ -26,12 +26,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const bundleBinary = "/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/bb.app/Contents/MacOS/cua-driver";
+const bundleBinary = "/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/CuaDriver.app/Contents/MacOS/cua-driver";
 
 function report(overrides: Partial<ComputerDoctorReport> = {}): ComputerDoctorReport {
   return {
     hostId: "host-a",
     state: "setup-required",
+    platform: "darwin",
     version: "cua-driver 0.30.2",
     driverPath: bundleBinary,
     probes: [
@@ -44,12 +45,10 @@ function report(overrides: Partial<ComputerDoctorReport> = {}): ComputerDoctorRe
   };
 }
 
-function renderSection(platformLabel: string | null = "macOS") {
+function renderSection() {
   const { wrapper } = createQueryClientTestHarness();
   const host = makeHost({ id: "host-a", name: "pro", status: "connected" });
-  return render(<MachineComputerReadinessSection host={host} platformLabel={platformLabel} />, {
-    wrapper,
-  });
+  return render(<MachineComputerReadinessSection host={host} />, { wrapper });
 }
 
 describe("MachineComputerReadinessSection", () => {
@@ -73,7 +72,7 @@ describe("MachineComputerReadinessSection", () => {
     );
     await view.findByText("Allow Accessibility on pro");
     expect(
-      view.getByText("/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/bb.app"),
+      view.getByText("/Users/jg/.bb-machines/x/computer/computer/driver/0.30.2/darwin-arm64/CuaDriver.app"),
     ).toBeTruthy();
   });
 
@@ -94,8 +93,8 @@ describe("MachineComputerReadinessSection", () => {
   });
 
   it("hides Grant off macOS", async () => {
-    doctorMock.mockResolvedValue(report());
-    const view = renderSection("Linux");
+    doctorMock.mockResolvedValue(report({ platform: "linux" }));
+    const view = renderSection();
     await view.findByText("Accessibility");
     expect(view.queryByText("Grant")).toBeNull();
   });

@@ -58,6 +58,7 @@ function useDoctorReport(hostId: string) {
         setReport({
           hostId,
           state: "unavailable",
+          platform: "unknown",
           version: null,
           driverPath: null,
           probes: [

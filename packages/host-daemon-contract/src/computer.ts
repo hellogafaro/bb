@@ -168,6 +168,7 @@ export type ComputerDoctorProbe = z.infer<typeof computerDoctorProbeSchema>;
 export const computerDoctorReportSchema = z
   .object({
     state: z.enum(["ready", "setup-required", "unavailable"]),
+    platform: z.string().min(1).max(16),
     version: z.string().nullable(),
     driverPath: z.string().nullable(),
     probes: z.array(computerDoctorProbeSchema).max(16),

@@ -268,20 +268,23 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
   },
   "computer.doctor": {
     state: "ready",
+    platform: "darwin",
     version: "1.0.0",
-    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    driverPath: "/tmp/CuaDriver.app/Contents/MacOS/cua-driver",
     probes: [{ id: "driver", label: "Driver", status: "ok", message: "Installed (1.0.0)" }],
   },
   "computer.install_driver": {
     state: "ready",
+    platform: "darwin",
     version: "1.0.0",
-    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    driverPath: "/tmp/CuaDriver.app/Contents/MacOS/cua-driver",
     probes: [{ id: "driver", label: "Driver", status: "ok", message: "Installed (1.0.0)" }],
   },
   "computer.request_permissions": {
     state: "ready",
+    platform: "darwin",
     version: "1.0.0",
-    driverPath: "/tmp/bb.app/Contents/MacOS/cua-driver",
+    driverPath: "/tmp/CuaDriver.app/Contents/MacOS/cua-driver",
     probes: [{ id: "accessibility", label: "Accessibility", status: "ok", message: "Granted" }],
   },
   "computer.observe": {
@@ -1251,7 +1254,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(231);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(232);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 

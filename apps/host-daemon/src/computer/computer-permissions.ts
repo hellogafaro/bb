@@ -54,6 +54,32 @@ export function parseComputerPermissionStatus(stdout: string): ComputerPermissio
   };
 }
 
+export function parseHealthPermissionStatus(stdout: string): ComputerPermissionStatus {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    return UNKNOWN;
+  }
+  if (parsed === null || typeof parsed !== "object") return UNKNOWN;
+  const checks = (parsed as { checks?: unknown }).checks;
+  if (!Array.isArray(checks)) return UNKNOWN;
+  const read = (name: string): ComputerPermissionState => {
+    const check = checks.find(
+      (entry): entry is { name: string; status?: unknown } =>
+        entry !== null && typeof entry === "object" && (entry as { name?: unknown }).name === name,
+    );
+    if (check === undefined) return "unknown";
+    return check.status === "pass" ? "granted" : check.status === "fail" ? "denied" : "unknown";
+  };
+  return { accessibility: read("tcc_accessibility"), screenRecording: read("tcc_screen_recording") };
+}
+
+export const MACOS_TCC_SERVICES = {
+  accessibility: "Accessibility",
+  "screen-recording": "ScreenCapture",
+} as const;
+
 export const MACOS_PRIVACY_PANES = {
   accessibility: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
   screenRecording: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",

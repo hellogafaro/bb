@@ -187,13 +187,15 @@ describe("ensureProvisionedDriver", () => {
 
       expect(result.status).toBe("installed");
       if (result.status !== "installed") return;
-      const bundleDir = join(dataDir, "computer", "driver", darwinPin.version, "darwin-arm64", "bb.app");
+      const bundleDir = join(dataDir, "computer", "driver", darwinPin.version, "darwin-arm64", "CuaDriver.app");
       expect(result.path).toBe(join(bundleDir, "Contents", "MacOS", "cua-driver"));
       await access(result.path, constants.X_OK);
       await access(join(bundleDir, "Contents", "MacOS", "libcua_driver_sdk.dylib"));
       const plist = await readFile(join(bundleDir, "Contents", "Info.plist"), "utf8");
       expect(plist).toContain("<string>com.trycua.driver</string>");
-      expect(plist).toContain("<key>CFBundleDisplayName</key>\n\t<string>bb</string>");
+      expect(plist).toContain("<key>CFBundleDisplayName</key>\n\t<string>bb Computer</string>");
+      expect(plist).toContain("<key>CFBundleName</key>\n\t<string>CuaDriver</string>");
+      expect(plist).toContain("<key>LSHasLocalizedDisplayName</key>\n\t<true/>");
       expect(plist).toContain("<key>LSUIElement</key>\n\t<true/>");
       expect(await stagingEntries(dataDir)).toEqual([]);
     } finally {

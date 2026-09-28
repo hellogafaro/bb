@@ -555,7 +555,7 @@ export function MachineSettingsView() {
           </SettingsRowList>
         </SettingsSection>
 
-        <MachineComputerReadinessSection host={host} platformLabel={platformLabel} />
+        <MachineComputerReadinessSection host={host} />
 
         {serverMoveEnabled && hasOldServerCopy(host, lastServerMove) ? (
           <OldServerCopySection host={host} lastMove={lastServerMove} />

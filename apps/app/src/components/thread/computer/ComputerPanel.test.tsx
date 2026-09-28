@@ -42,6 +42,7 @@ function machine(overrides: Partial<ComputerMachineSummary> = {}): ComputerMachi
 const readyDoctor = () => ({
   hostId: "host-a",
   state: "ready" as const,
+  platform: "linux",
   version: "1.0.0",
   driverPath: "/opt/bb/cua-driver",
   probes: [],
@@ -93,6 +94,7 @@ describe("computer panel machine picker", () => {
     doctorMock.mockResolvedValue({
       hostId: "host-a",
       state: "unavailable" as const,
+      platform: "linux",
       version: null,
       driverPath: null,
       probes: [{ id: "driver" as const, label: "Driver", status: "unavailable" as const, message: "driver not found" }],
