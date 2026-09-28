@@ -113,6 +113,7 @@ function thread(overrides: Parameters<typeof makeThreadListEntry>[0] = {}) {
     updatedAt: NOW - HOUR_MS,
     latestAttentionAt: NOW - HOUR_MS,
     lastReadAt: NOW - HOUR_MS,
+    ...(overrides.parentThreadId ? { originKind: "fork" } : {}),
     ...overrides,
   });
 }
@@ -286,6 +287,26 @@ describe("StatusThreadList", () => {
     expect(
       screen.getByRole("button", { name: "Expand Parent threads" }),
     ).toBeDefined();
+  });
+
+  it("hides agent-delegated children and keeps their activity on the parent row", () => {
+    const parent = thread({ title: "Parent" });
+    const child = thread({
+      title: "Worker",
+      parentThreadId: parent.id,
+      originKind: null,
+      hasPendingInteraction: true,
+    });
+    renderList([parent, child]);
+
+    expect(rowLink("Parent")).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Open Worker" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Collapse Parent threads" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Expand Parent threads" }),
+    ).toBeNull();
   });
 
   it("persists a collapsed status section through ui preferences", () => {
