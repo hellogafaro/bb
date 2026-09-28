@@ -1,6 +1,7 @@
 export {
   canOpenNativeScreen,
   isInsideNativeShell,
+  lockNativeShellViewportZoom,
   resetNativeShellForTests,
   shellOpenExternal,
   shellOpenNative,

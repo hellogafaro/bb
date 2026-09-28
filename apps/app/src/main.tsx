@@ -10,6 +10,7 @@ import { initializePreferredTheme } from "./hooks/useTheme";
 import { initializeFavicon } from "./lib/favicon-color-preference";
 import { installForeignDomMutationGuard } from "./lib/foreign-dom-mutation-guard";
 import { installAppQueryClientBrowserEvents } from "./lib/query-client";
+import { lockNativeShellViewportZoom } from "./lib/native-shell";
 import { installStaleBuildRecovery } from "./lib/stale-build-recovery";
 import { appQueryClient } from "./lib/app-query-client";
 import { applyCachedAppThemeCss } from "./lib/themes";
@@ -17,6 +18,7 @@ import "./app.css";
 
 installForeignDomMutationGuard();
 installStaleBuildRecovery();
+lockNativeShellViewportZoom();
 
 Error.stackTraceLimit = 50;
 

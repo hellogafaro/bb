@@ -4131,22 +4131,22 @@ describe("PromptBoxInternal selection reveal", () => {
 });
 
 describe("PromptBoxInternal touch sizing", () => {
-  it("keeps the expanded submit square on touch and insets it evenly", () => {
+  it("sizes the expanded submit like the compact one and insets it evenly on touch", () => {
     renderPromptBox("Ship it");
 
     const submit = document.querySelector<HTMLElement>(
       "[data-promptbox-submit-action]",
     );
     const classes = submit?.className.split(/\s+/) ?? [];
-    expect(classes).toContain("max-md:pointer-coarse:size-10");
-    expect(classes).not.toContain("max-md:pointer-coarse:h-10");
-    expect(classes).not.toContain("max-md:pointer-coarse:px-3");
+    expect(classes).toContain("size-8");
+    expect(
+      classes.filter((name) => name.startsWith("max-md:pointer-coarse:")),
+    ).toEqual([]);
 
     const actionRow = document.querySelector("[data-promptbox-action-row]");
-    expect(actionRow?.classList.contains("pb-2")).toBe(true);
     expect(actionRow?.classList.contains("pr-2")).toBe(true);
     expect(actionRow?.classList.contains("max-md:pointer-coarse:py-1")).toBe(
-      false,
+      true,
     );
   });
 });

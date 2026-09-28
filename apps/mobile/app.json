@@ -5,7 +5,7 @@
     "owner": "bb-team",
     "version": "0.39.0",
     "scheme": "bb",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

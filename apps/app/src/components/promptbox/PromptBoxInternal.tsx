@@ -66,10 +66,7 @@ import {
   usePluginComposerViewModel,
 } from "@/components/plugin/plugin-composer-host";
 import { useComposerInputLock } from "@/lib/plugin-sdk-hooks";
-import {
-  COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
-  COARSE_POINTER_PROMPT_ICON_ACTION_BUTTON_CLASS,
-} from "@bb/shared-ui/coarse-pointer-sizing";
+import { COARSE_POINTER_PROMPT_ICON_ACTION_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS } from "@bb/shared-ui/chrome-style-tokens";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import {
@@ -146,8 +143,6 @@ const PROMPTBOX_SELECTION_REVEAL_MARGIN = 12;
 const COMPACT_PROMPT_ACTION_BUTTON_CLASS =
   "size-8 p-0 transition-all [&_[data-icon-root]]:size-4";
 const PROMPT_SQUARE_ACTION_CLASS = "size-8 min-w-8 shrink-0 p-0";
-const PROMPT_TOUCH_SQUARE_SUBMIT_CLASS =
-  "max-md:pointer-coarse:size-10 max-md:pointer-coarse:min-w-10 max-md:pointer-coarse:p-0";
 const RICH_PASTE_BLOCK_TAGS = new Set([
   "ADDRESS",
   "ARTICLE",
@@ -339,7 +334,6 @@ function PromptSubmitButton({
         !hasInput &&
           "ring-1 ring-inset ring-border text-muted-foreground/50 disabled:opacity-100",
         (isCompact || label === undefined) && PROMPT_SQUARE_ACTION_CLASS,
-        !isCompact && label === undefined && PROMPT_TOUCH_SQUARE_SUBMIT_CLASS,
         !isCompact && label !== undefined && "size-auto h-8 gap-1.5 px-2.5",
       )}
     >
@@ -3308,7 +3302,7 @@ export function PromptBoxInternal({
                 "relative flex shrink-0 select-none flex-row items-center gap-1 pb-2 pl-3.5 pr-2 pt-1.5",
                 !showCompactLayout &&
                   !collapsesEditorWhileRecording &&
-                  "max-md:pointer-coarse:pt-1",
+                  "max-md:pointer-coarse:py-1",
                 showCompactLayout && "absolute inset-y-0 right-2 gap-0 p-0",
                 collapsesEditorWhileRecording && "h-12 py-0",
               )}
@@ -3456,9 +3450,7 @@ export function PromptBoxInternal({
                         icon={submitIcon}
                         label={submitLabel}
                         className={cn(
-                          showCompactLayout
-                            ? COMPACT_PROMPT_ACTION_BUTTON_CLASS
-                            : COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
+                          COMPACT_PROMPT_ACTION_BUTTON_CLASS,
                           "transition-colors",
                         )}
                         disabledReason={

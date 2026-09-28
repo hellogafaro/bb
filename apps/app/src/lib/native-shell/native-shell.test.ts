@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getNativeShell,
   isInsideNativeShell,
+  lockNativeShellViewportZoom,
   resetNativeShellForTests,
   shellOpenExternal,
 } from "./native-shell";
@@ -115,5 +116,43 @@ describe("shellOpenExternal", () => {
 
   it("declines in a plain browser so the caller can use window.open", () => {
     expect(shellOpenExternal("https://example.com/docs")).toBe(false);
+  });
+});
+
+describe("lockNativeShellViewportZoom", () => {
+  const baseViewport =
+    "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content";
+
+  function installViewport(content: string): HTMLMetaElement {
+    const meta = document.createElement("meta");
+    meta.name = "viewport";
+    meta.content = content;
+    document.head.append(meta);
+    return meta;
+  }
+
+  afterEach(() => {
+    document.head
+      .querySelectorAll('meta[name="viewport"]')
+      .forEach((meta) => meta.remove());
+  });
+
+  it("pins the scale inside the shell and keeps the other viewport settings", () => {
+    installShell();
+    const meta = installViewport(`${baseViewport}, maximum-scale=5`);
+
+    lockNativeShellViewportZoom();
+
+    expect(meta.content).toBe(
+      `${baseViewport}, minimum-scale=1, maximum-scale=1, user-scalable=no`,
+    );
+  });
+
+  it("leaves browser zoom alone outside the shell", () => {
+    const meta = installViewport(baseViewport);
+
+    lockNativeShellViewportZoom();
+
+    expect(meta.content).toBe(baseViewport);
   });
 });

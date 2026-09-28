@@ -101,6 +101,28 @@ export function isInsideNativeShell(): boolean {
   return getNativeShell() !== null;
 }
 
+export function lockNativeShellViewportZoom(): void {
+  if (!isInsideNativeShell()) return;
+  const viewport = document.querySelector<HTMLMetaElement>(
+    'meta[name="viewport"]',
+  );
+  if (viewport === null) return;
+  const entries = viewport.content
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(
+      (entry) =>
+        entry !== "" &&
+        !/^(maximum-scale|minimum-scale|user-scalable)\s*=/u.test(entry),
+    );
+  viewport.content = [
+    ...entries,
+    "minimum-scale=1",
+    "maximum-scale=1",
+    "user-scalable=no",
+  ].join(", ");
+}
+
 export function shellOpenExternal(url: string): boolean {
   const shell = getNativeShell();
   if (shell === null || !shell.has("open-external")) return false;
