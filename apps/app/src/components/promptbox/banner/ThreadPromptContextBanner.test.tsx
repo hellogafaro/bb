@@ -358,7 +358,7 @@ describe("ThreadPromptContextBanner", () => {
     expect(markup).toContain(
       "1 child thread · 1 active: Investigate failing checks",
     );
-    expect(markup).toContain("Active:");
+    expect(markup).not.toContain("Active:");
     expect(markup).toContain("Investigate failing checks");
     expect(markup).not.toContain("animate-shine font-medium");
   });
@@ -485,7 +485,7 @@ describe("ThreadPromptContextBanner", () => {
     expect(markup).toContain(
       "1 child thread · 1 active: Waiting for build host",
     );
-    expect(markup).toContain("Active:");
+    expect(markup).not.toContain("Active:");
     expect(markup).not.toContain("Running");
   });
 
@@ -522,7 +522,7 @@ describe("ThreadPromptContextBanner", () => {
     expect(markup).toContain(
       "1 child thread · 1 needs input: Install workspace tools",
     );
-    expect(markup).toContain("Needs input:");
+    expect(markup).not.toContain("Needs input:");
     expect(markup).toContain("Install workspace tools");
     expect(markup).not.toContain("Active:");
   });

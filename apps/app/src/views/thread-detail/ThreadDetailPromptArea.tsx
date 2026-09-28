@@ -61,7 +61,6 @@ import {
   ThreadPromptContextBanner,
   type ThreadPromptContextBannerExpandedSection,
   type ThreadPromptParentThreadSection,
-  CHILD_THREAD_STATE_LABEL,
   type ThreadPromptChildThreadsSection,
   type ThreadPromptPullRequestSection,
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
@@ -2101,7 +2100,6 @@ export function ThreadDetailPromptArea({
         href={openChildThreadItem.href}
         onClose={handleCloseChildThread}
         resolveMentionLink={resolveMentionLink}
-        stateLabel={CHILD_THREAD_STATE_LABEL[openChildThreadItem.state]}
         thread={openChildThreadItem.thread}
         title={openChildThreadItem.title}
       />

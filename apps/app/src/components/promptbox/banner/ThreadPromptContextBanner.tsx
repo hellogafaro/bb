@@ -442,10 +442,8 @@ function ChildThreadRow({
         <span className="min-w-0 flex-1 truncate text-left">
           <ThreadTitle title={item.title} inline />
         </span>
-        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-subtle-foreground">
-          <span>{stateLabel}</span>
-          <span aria-hidden="true">·</span>
-          <span>{age}</span>
+        <span className="shrink-0 whitespace-nowrap text-meta text-subtle-foreground">
+          {age}
         </span>
         <ChildThreadMascot item={item} />
       </button>
@@ -463,7 +461,7 @@ function ChildThreadsBody({
   onOpen: ((threadId: string) => void) | undefined;
 }) {
   return (
-    <ul className="pb-1">
+    <ul>
       {items.map((item) => (
         <ChildThreadRow
           key={item.id}
@@ -720,9 +718,6 @@ function ChildThreadsCard({
         >
           <ChildThreadMascot item={primary} />
           <span className="min-w-0 flex-1 truncate text-left">
-            <span className="text-muted-foreground">
-              {CHILD_THREAD_STATE_LABEL[headerState]}:{" "}
-            </span>
             <ThreadTitle
               title={primary.title}
               className="font-medium text-foreground/80"
@@ -741,7 +736,7 @@ function ChildThreadsCard({
         </button>
       </div>
       <AnimatedBody
-        collapsedBorder="reserve"
+        collapsedBorder="none"
         id={SECTION_IDS.childThreads.body}
         labelledBy={SECTION_IDS.childThreads.toggle}
         isExpanded={isExpanded}

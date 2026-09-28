@@ -24,7 +24,6 @@ interface ChildThreadWindowProps {
   href: string;
   onClose: () => void;
   resolveMentionLink?: PromptMentionLinkResolver;
-  stateLabel: string;
   thread: ThreadListEntry;
   title: string;
 }
@@ -66,7 +65,6 @@ export function ChildThreadWindow({
   href,
   onClose,
   resolveMentionLink,
-  stateLabel,
   thread,
   title,
 }: ChildThreadWindowProps) {
@@ -113,26 +111,29 @@ export function ChildThreadWindow({
           <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
             <ThreadTitle title={title} inline />
           </h3>
-          <span className="shrink-0 text-meta text-subtle-foreground">
-            {stateLabel}
+          <span className="flex shrink-0 items-center gap-0.5">
+            <NavLink
+              to={href}
+              aria-label={`Open ${titleText}`}
+              title="Open thread"
+              className={WINDOW_ACTION_CLASS}
+            >
+              <Icon
+                name="ExternalLink"
+                className="size-3.5"
+                aria-hidden="true"
+              />
+            </NavLink>
+            <button
+              type="button"
+              aria-label="Close child thread"
+              title="Close"
+              onClick={onClose}
+              className={WINDOW_ACTION_CLASS}
+            >
+              <Icon name="X" className="size-3.5" aria-hidden="true" />
+            </button>
           </span>
-          <NavLink
-            to={href}
-            aria-label={`Open ${titleText}`}
-            title="Open thread"
-            className={WINDOW_ACTION_CLASS}
-          >
-            <Icon name="ExternalLink" className="size-3.5" aria-hidden="true" />
-          </NavLink>
-          <button
-            type="button"
-            aria-label="Close child thread"
-            title="Close"
-            onClick={onClose}
-            className={WINDOW_ACTION_CLASS}
-          >
-            <Icon name="X" className="size-3.5" aria-hidden="true" />
-          </button>
         </div>
         <div
           ref={scrollRef}
