@@ -2,7 +2,9 @@ import {
   MCP_STDIO_CONNECT_TIMEOUT_MS,
   McpStdioManager,
 } from "./command-handlers/mcp-stdio.js";
+import { join } from "node:path";
 import { startDesktopBrowserBroker } from "./desktop-browser-broker.js";
+import { ComputerHostService } from "./computer/computer-host-service.js";
 import { MachineEnvironment } from "./machine-environment.js";
 import { CommandRouter } from "./command-router.js";
 import { createDaemon, type HostDaemon } from "./daemon.js";
@@ -699,6 +701,11 @@ export async function createHostDaemonApp(
     },
   });
 
+  const computer = new ComputerHostService({
+    dataDir: join(options.dataDir, "computer"),
+    logger: options.logger,
+  });
+
   const desktopBrowserBroker = await startDesktopBrowserBroker({
     dataDir: options.dataDir,
     hostId: options.hostId,
@@ -773,6 +780,7 @@ export async function createHostDaemonApp(
     ensureConnectTunnelIdentity: () => connectTunnel.ensureTunnelIdentity(),
     serverMove,
     mcpStdio,
+    computer,
     pluginHostManager,
     threadStorageRootPath,
     logger: options.logger,
@@ -912,6 +920,7 @@ export async function createHostDaemonApp(
       hostDaemonHealthMonitor.stop();
       await pluginHostManager.shutdown();
       await mcpStdio.closeAll();
+      computer.dispose();
       await options.closeMachineAuthProxy?.();
       await localApi?.close();
       connectTunnel.shutdown();

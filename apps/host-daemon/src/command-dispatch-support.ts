@@ -35,6 +35,7 @@ import {
   ensureCachedPluginHostArtifact,
   type FetchPluginHostArtifact,
 } from "./plugin-host-artifact-cache.js";
+import type { ComputerHostService } from "./computer/computer-host-service.js";
 
 type DispatchCommand = HostDaemonCommand | HostDaemonOnlineRpcCommand;
 
@@ -102,6 +103,7 @@ export interface CommandDispatchOptions {
   ensureConnectTunnelIdentity?: () => Promise<HostDaemonConnectTunnelIdentity>;
   serverMove?: ServerMoveService;
   mcpStdio?: McpStdioManager;
+  computer?: ComputerHostService;
   threadStorageRootPath: string;
 }
 

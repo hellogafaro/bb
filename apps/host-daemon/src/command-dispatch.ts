@@ -60,6 +60,7 @@ import {
 } from "./command-handlers/path-mutations.js";
 import { resolveInteractiveRequest } from "./command-handlers/interactive.js";
 import { pickHostFolder } from "./command-handlers/native-folder-picker.js";
+import type { ComputerHostService } from "./computer/computer-host-service.js";
 import {
   ProviderInstallationInProgressError,
   streamProviderInstallation,
@@ -387,6 +388,13 @@ function requireServerMove(options: CommandDispatchOptions): ServerMoveService {
   return options.serverMove;
 }
 
+function requireComputer(options: CommandDispatchOptions): ComputerHostService {
+  if (!options.computer) {
+    throw new Error("Computer use is unavailable on this daemon");
+  }
+  return options.computer;
+}
+
 async function forwardDesktopBrowserCommand<
   TCommand extends DesktopBrowserCommand,
 >(
@@ -630,6 +638,20 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
   "desktop.browser.release_control": forwardDesktopBrowserCommand,
   "desktop.browser.list_import_sources": forwardDesktopBrowserCommand,
   "desktop.browser.import_cookies": forwardDesktopBrowserCommand,
+  "computer.doctor": (_command, options) => requireComputer(options).doctor(),
+  "computer.observe": (command, options) =>
+    requireComputer(options).observe({ appId: command.appId }),
+  "computer.act": (command, options) => requireComputer(options).act({ action: command.action }),
+  "computer.capture": (command, options) =>
+    requireComputer(options).capture({ kind: command.kind, appId: command.appId }),
+  "computer.record_start": (command, options) =>
+    requireComputer(options).recordStart({ runId: command.runId }),
+  "computer.record_stop": (command, options) =>
+    requireComputer(options).recordStop({ runId: command.runId }),
+  "computer.preview_touch": (command, options) =>
+    Promise.resolve(requireComputer(options).previewTouch({ viewerId: command.viewerId, size: command.size })),
+  "computer.preview_latest": (command, options) =>
+    Promise.resolve(requireComputer(options).previewLatest({ afterSequence: command.afterSequence })),
   "connect-tunnel.ensure-identity": async (_command, options) => {
     if (!options.ensureConnectTunnelIdentity) {
       throw new Error("bb connect tunnel identity is unavailable");

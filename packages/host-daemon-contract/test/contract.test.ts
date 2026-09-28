@@ -266,6 +266,42 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
     skipped: 1,
     skippedDomains: ["example.com"],
   },
+  "computer.doctor": {
+    state: "ready",
+    version: "1.0.0",
+    probes: [{ label: "binary", status: "ok", message: "1.0.0" }],
+  },
+  "computer.observe": {
+    surface: "desktop",
+    title: "Editor",
+    snapshotId: "s1",
+    observedAt: 1700000000000,
+    targets: [],
+    hint: null,
+  },
+  "computer.act": {
+    state: "completed",
+    summary: "Executed click",
+    observation: null,
+  },
+  "computer.capture": {
+    mimeType: "image/png",
+    dataBase64: "AA==",
+    width: 800,
+    height: 600,
+  },
+  "computer.record_start": { started: true },
+  "computer.record_stop": { videoPath: null, trajectoryPath: null },
+  "computer.preview_touch": { ok: true },
+  "computer.preview_latest": {
+    sequence: 0,
+    state: "none",
+    mimeType: null,
+    dataBase64: null,
+    width: 0,
+    height: 0,
+    capturedAt: null,
+  },
   "plugin.host.call": { output: { ok: true } },
   "plugin.host.cancel": { cancelled: true },
   "plugin.host.dispose": { disposed: true },
@@ -864,6 +900,8 @@ const INTENTIONAL_OPTIONAL_HOST_DAEMON_FIELDS: Record<string, string> = {
     "a tool_use approval's presentation carries a tint only when the bridge wants an accent colour; absence means the neutral row tint, which is not a colour value.",
   "hostDaemonInteractiveRequestSchema.interaction.payload.subject.presentation.title":
     "a tool_use approval's presentation has a title only when the call has a headline (a path, a query); absence means the label stands alone.",
+  "hostDaemonOnlineRpcCommandSchema.appId":
+    "computer.observe and computer.capture omit appId to target whichever on-screen window is topmost; absence is not a missing app.",
   "hostDaemonOnlineRpcCommandSchema.cwd":
     "provider.list_models may omit cwd when only user-level provider configuration applies.",
   "hostDaemonOnlineRpcCommandSchema.query":
@@ -1198,7 +1236,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(223);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(224);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
