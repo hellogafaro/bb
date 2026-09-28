@@ -61,6 +61,7 @@ import {
   PluginPanelHeaderCenter,
 } from "@/components/plugin/PluginPanelHeader";
 import { PluginAppOverlays } from "@/components/plugin/PluginAppOverlays";
+import { ComputerPreviewLightbox } from "@/components/thread/computer/ComputerPreviewDirective";
 import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
 import {
   usePluginNavPanelChrome,
@@ -759,6 +760,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               />
             </SidebarStateBridge>
             <PluginAppOverlays />
+            <ComputerPreviewLightbox />
             <IframeDragGuardOverlay
               active={isSidebarResizing}
               cursor="col-resize"

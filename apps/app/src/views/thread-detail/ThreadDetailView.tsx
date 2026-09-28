@@ -181,6 +181,7 @@ import { BrowserTabLifecycleObserver } from "@/components/secondary-panel/Browse
 import {
   LazyBrowserTabDeck,
   LazyFilesPanel,
+  LazyComputerPanel,
   LazyHostFilePreviewTabContent,
   LazyNewTabPage,
   LazyThreadStorageFilePreviewTabContent,
@@ -1433,6 +1434,10 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     openTab({ kind: "files" });
     openCompactDrawer();
   }, [openCompactDrawer, openTab]);
+  const openComputerTab = useCallback(() => {
+    openTab({ kind: "computer" });
+    openCompactDrawer();
+  }, [openCompactDrawer, openTab]);
   const openFilesPanelFile = useCallback(
     (path: string) => {
       openTab({
@@ -2554,6 +2559,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             onOpenFiles={
               thread.environmentId === null ? undefined : openFilesTab
             }
+            onOpenComputer={openComputerTab}
             onStartTerminal={
               canCreateTerminal
                 ? () => {
@@ -2573,6 +2579,8 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             onOpenFile={openFilesPanelFile}
           />
         );
+      case "computer":
+        return <LazyComputerPanel threadId={thread.id} />;
       case "workspace-file-preview": {
         const copyPath = resolveAbsoluteFilePath({
           path: tab.path,
@@ -2689,6 +2697,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       const shared = {
         contentFillsRegion:
           tab.kind === "files" ||
+          tab.kind === "computer" ||
           (tab.kind === "workspace-file-preview" &&
             tab.environmentId !== null &&
             tab.source.kind === "working-tree" &&
@@ -2742,6 +2751,21 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
                 : session.status,
             onSelect: () => handleActivateTerminalTab(tab.terminalId),
             onClose: () => handleCloseTerminalTab(tab.terminalId),
+          };
+        }
+        case "computer": {
+          return {
+            ...shared,
+            label: "Computer",
+            leadingVisual: (
+              <Icon
+                name="Laptop"
+                className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
+                aria-hidden
+              />
+            ),
+            statusLabel: null,
+            onSelect: () => handleActivateFileTab(tab.id),
           };
         }
         case "workspace-file-preview":

@@ -31,6 +31,7 @@ export type StartTerminalHandler = () => void;
 export interface NewTabActionsProps {
   onOpenBrowser?: OpenBrowserHandler;
   onOpenFiles?: () => void;
+  onOpenComputer?: () => void;
   onStartTerminal?: StartTerminalHandler;
   startTerminalDisabled?: boolean;
   startTerminalTrailing?: ReactNode;
@@ -71,6 +72,7 @@ const NEW_TAB_ACTION_DRAG_HANDLE_CLASS =
   "cursor-grab touch-none opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing group-hover:opacity-100 [@media(hover:none)]:opacity-100";
 const OPEN_BROWSER_ACTION_ID = "file-search-result-open-browser";
 const OPEN_FILES_ACTION_ID = "file-search-result-open-files";
+const OPEN_COMPUTER_ACTION_ID = "file-search-result-open-computer";
 const START_TERMINAL_ACTION_ID = "file-search-result-start-terminal";
 
 function actionIcon(iconName: IconName): ReactNode {
@@ -86,6 +88,7 @@ function actionIcon(iconName: IconName): ReactNode {
 export function NewTabActions({
   onOpenBrowser,
   onOpenFiles,
+  onOpenComputer,
   onStartTerminal,
   pluginActions,
   startTerminalDisabled = false,
@@ -105,6 +108,17 @@ export function NewTabActions({
       shortcut: null,
       trailing: null,
       onSelect: () => onOpenFiles(),
+    });
+  }
+  if (onOpenComputer !== undefined) {
+    actions.push({
+      id: OPEN_COMPUTER_ACTION_ID,
+      icon: actionIcon("Laptop"),
+      label: "Computer",
+      disabled: false,
+      shortcut: null,
+      trailing: null,
+      onSelect: () => onOpenComputer(),
     });
   }
   if (showOpenBrowser) {

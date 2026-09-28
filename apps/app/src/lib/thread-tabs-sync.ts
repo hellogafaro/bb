@@ -43,7 +43,7 @@ const attemptedLocalMigrations = new WeakMap<QueryClient, Set<string>>();
 
 type PersistedThreadFixedPanelTab = Exclude<
   FixedPanelTab,
-  { kind: "plugin-page-fixed" }
+  { kind: "plugin-page-fixed" } | { kind: "computer" }
 >;
 
 function persistedThreadTabs(
@@ -51,8 +51,16 @@ function persistedThreadTabs(
 ): readonly PersistedThreadFixedPanelTab[] {
   return tabs.filter(
     (tab): tab is PersistedThreadFixedPanelTab =>
-      tab.kind !== "side-chat" && tab.kind !== "plugin-page-fixed",
+      tab.kind !== "side-chat" &&
+      tab.kind !== "plugin-page-fixed" &&
+      tab.kind !== "computer",
   );
+}
+
+function localOnlyThreadTabs(
+  tabs: readonly FixedPanelTab[],
+): readonly FixedPanelTab[] {
+  return tabs.filter((tab) => tab.kind === "computer");
 }
 
 export function areThreadTabListsEquivalent(
@@ -113,8 +121,15 @@ export function reconcileFixedPanelTabsState(
   current: FixedPanelTabsState,
   serverTabs: readonly ThreadTab[],
 ): FixedPanelTabsState {
-  const tabs = replaceRetiredSidetreeTabs(persistedThreadTabs(serverTabs));
-  if (areThreadTabListsEquivalent(current.secondary.tabs, tabs)) {
+  const localOnlyTabs = localOnlyThreadTabs(current.secondary.tabs);
+  const tabs = [
+    ...replaceRetiredSidetreeTabs(persistedThreadTabs(serverTabs)),
+    ...localOnlyTabs,
+  ];
+  if (
+    localOnlyTabs.length === 0 &&
+    areThreadTabListsEquivalent(current.secondary.tabs, tabs)
+  ) {
     return current;
   }
   const retainedIds = new Set(tabs.map((tab) => tab.id));

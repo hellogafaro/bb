@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/settings-section";
 import { appToast } from "@/components/ui/app-toast";
 import { MachineRenameDialog } from "@/components/settings/MachineRenameDialog";
+import { MachineComputerReadinessSection } from "@/components/settings/MachineComputerReadinessSection";
 import {
   useRenameHost,
   useResumeHost,
@@ -553,6 +554,8 @@ export function MachineSettingsView() {
             </SettingsDetailRow>
           </SettingsRowList>
         </SettingsSection>
+
+        <MachineComputerReadinessSection host={host} platformLabel={platformLabel} />
 
         {serverMoveEnabled && hasOldServerCopy(host, lastServerMove) ? (
           <OldServerCopySection host={host} lastMove={lastServerMove} />

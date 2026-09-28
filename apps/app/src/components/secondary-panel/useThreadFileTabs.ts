@@ -15,6 +15,7 @@ import {
 } from "@/lib/fixed-panel-tabs";
 import {
   createBrowserFixedPanelTab,
+  createComputerFixedPanelTab,
   createFilesFixedPanelTab,
   createHostFilePreviewFixedPanelTab,
   createNewTabFixedPanelTab,
@@ -22,6 +23,7 @@ import {
   createThreadStorageFilePreviewFixedPanelTab,
   createWorkspaceFilePreviewFixedPanelTab,
   type BrowserFixedPanelTab,
+  type ComputerFixedPanelTab,
   type FilesFixedPanelTab,
   type FixedPanelTab,
   type FixedPanelTabsState,
@@ -121,7 +123,8 @@ export type OpenSecondaryPanelTabRequest =
     }
   | { kind: "browser"; url: string }
   | { kind: "new-tab" }
-  | { kind: "files" };
+  | { kind: "files" }
+  | { kind: "computer" };
 
 interface CreateTabForOpenRequestArgs {
   projectId: string | null;
@@ -137,6 +140,7 @@ type SecondaryPanelTab =
   | BrowserFixedPanelTab
   | NewTabFixedPanelTab
   | FilesFixedPanelTab
+  | ComputerFixedPanelTab
   | PluginPanelFixedPanelTab;
 
 type ReopenableSecondaryPanelTab = Exclude<
@@ -195,6 +199,7 @@ function isReopenableSecondaryPanelTab(
     case "thread-storage-file-preview":
     case "browser":
     case "files":
+    case "computer":
     case "plugin-panel":
       return true;
     case "thread-info":
@@ -261,6 +266,7 @@ function isReopenablePanelTabOwnedByContext({
     case "browser":
       return tab.environmentId === context.environmentId;
     case "files":
+    case "computer":
     case "plugin-panel":
       return true;
   }
@@ -375,6 +381,8 @@ function createTabForOpenRequest({
       return createNewTabFixedPanelTab();
     case "files":
       return createFilesFixedPanelTab();
+    case "computer":
+      return createComputerFixedPanelTab();
   }
 }
 
@@ -679,7 +687,9 @@ export function useThreadFileTabs({
     (request: OpenSecondaryPanelTabRequest): SecondaryPanelTab | null => {
       return openResolvedTab(
         request,
-        request.kind === "browser" || request.kind === "files"
+        request.kind === "browser" ||
+        request.kind === "files" ||
+        request.kind === "computer"
           ? "replace-new-tab"
           : "open",
       );

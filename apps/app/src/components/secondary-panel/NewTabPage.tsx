@@ -12,6 +12,7 @@ interface NewTabPageProps {
   onAutoFocusHandled?: () => void;
   onOpenBrowser?: OpenBrowserHandler;
   onOpenFiles?: () => void;
+  onOpenComputer?: () => void;
   onStartTerminal?: StartTerminalHandler;
   pluginActions?: readonly PluginPanelActionEntry[];
   startTerminalDisabled?: boolean;
@@ -25,6 +26,7 @@ export function NewTabPage({
   onAutoFocusHandled,
   onOpenBrowser,
   onOpenFiles,
+  onOpenComputer,
   onStartTerminal,
   pluginActions,
   startTerminalDisabled,
@@ -78,6 +80,7 @@ export function NewTabPage({
       <NewTabActions
         onOpenBrowser={onOpenBrowser}
         onOpenFiles={onOpenFiles}
+        onOpenComputer={onOpenComputer}
         onStartTerminal={onStartTerminal}
         pluginActions={pluginActions}
         startTerminalDisabled={startTerminalDisabled}
