@@ -374,7 +374,7 @@ describe("preparePreview rpc", () => {
         threadId: "thr_1",
         file: "gone.html",
       }),
-    ).rejects.toThrow(/not found/);
+    ).rejects.toThrow("File not found.");
 
     const binaryHost = await load({
       threads: { get: () => threadWithEnv() },

@@ -599,7 +599,7 @@
         "features/plugin-canvas.md"
       ],
       "sourceFiles": 15,
-      "sourceDigest": "363d87b57945fd302db15359c152175f7be431d185e800f7268d4e1abdee167c",
+      "sourceDigest": "a1f6d17541ef342633404e0e6a41dcd766528b9c454745daa78462263ed042e8",
       "declarations": [
         "plugin-slot: plugins/canvas/app.tsx: messageDirective"
       ]

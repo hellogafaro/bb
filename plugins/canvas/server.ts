@@ -45,7 +45,7 @@ function previewKind(file: string): PreviewKind {
   const kind = PREVIEW_KIND_BY_EXTENSION.get(extension);
   if (kind === undefined) {
     throw new Error(
-      `"file" must end with .html, .htm, .md, or .markdown, got ${JSON.stringify(file)}`,
+      `"file" must end with .html, .htm, .md, or .markdown.`,
     );
   }
   return kind;
@@ -54,14 +54,14 @@ function previewKind(file: string): PreviewKind {
 export function requireRelativePreviewFile(value: unknown): string {
   const file = requireNonEmptyString(value, "file");
   if (path.isAbsolute(file)) {
-    throw new Error(`"file" must be source-relative, not absolute: ${file}`);
+    throw new Error(`"file" must be source-relative, not absolute.`);
   }
   if (/^[a-zA-Z]:[\\/]/.test(file) || file.startsWith("\\\\")) {
-    throw new Error(`"file" must be source-relative, not absolute: ${file}`);
+    throw new Error(`"file" must be source-relative, not absolute.`);
   }
   const slashNormalized = file.replace(/\\/g, "/");
   if (slashNormalized.split("/").includes("..")) {
-    throw new Error(`"file" must not contain traversal segments: ${file}`);
+    throw new Error(`"file" must not contain traversal segments.`);
   }
   const normalized = path.posix.normalize(slashNormalized);
   if (
@@ -71,7 +71,7 @@ export function requireRelativePreviewFile(value: unknown): string {
     normalized === "." ||
     normalized.startsWith("/")
   ) {
-    throw new Error(`"file" must not escape its source: ${file}`);
+    throw new Error(`"file" must not escape its source.`);
   }
   previewKind(normalized);
   return normalized;
@@ -89,7 +89,7 @@ export function resolveContainedPreviewPath(
     relative.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relative)
   ) {
-    throw new Error(`"file" must not escape its source: ${relativeFile}`);
+    throw new Error(`"file" must not escape its source.`);
   }
   return absolute;
 }
@@ -214,7 +214,7 @@ export default async function plugin(bb: BbPluginApi) {
         });
       } catch (error) {
         if (httpStatus(error) === 404) {
-          throw new Error(`Preview file not found: ${file}`);
+          throw new Error(`File not found.`);
         }
         throw error;
       }

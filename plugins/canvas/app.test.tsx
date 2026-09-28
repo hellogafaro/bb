@@ -91,7 +91,7 @@ describe("CanvasDirective", () => {
     ]);
   });
 
-  it("shows an error when rpc fails, e.g. a missing file", async () => {
+  it("shows an error when rpc fails, without repeating the filename", async () => {
     const slot = renderSlot(
       directive("canvas"),
       {
@@ -103,14 +103,14 @@ describe("CanvasDirective", () => {
       {
         rpc: {
           preparePreview: () => {
-            throw new Error("Preview file not found: missing.html");
+            throw new Error("File not found.");
           },
         },
       },
     );
 
     const alert = await slot.findByRole("alert");
-    expect(alert.textContent).toMatch(/Preview file not found: missing\.html/);
+    expect(alert.textContent).toBe("Failed to load missing.html: File not found.");
     expect(slot.container.querySelector("iframe")).toBeNull();
   });
 

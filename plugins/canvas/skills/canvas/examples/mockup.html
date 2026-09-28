@@ -232,6 +232,10 @@ pre code { background: none; padding: 0; }
 @media (max-width: 420px) { .grid, .grid-4 { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; transition: none; } }
 
+/* Footer — credits line, always present */
+.page-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+.page-footer strong { font-weight: 500; color: var(--foreground); }
+
 .chat { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .pane { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--background); }
 .pane.dark { --canvas: oklch(0.1872 0.002 286.2); --ink: oklch(0.9 0.0027 106.45); --background: var(--canvas); --foreground: var(--ink); --card: color-mix(in oklch, var(--ink) 3.5%, var(--canvas)); --card-foreground: var(--ink); --secondary: color-mix(in oklch, var(--ink) 11.4%, var(--canvas)); --secondary-foreground: var(--ink); --muted: color-mix(in oklch, var(--ink) 11.4%, var(--canvas)); --muted-foreground: color-mix(in oklch, var(--ink) 74%, var(--canvas)); --accent: color-mix(in oklch, var(--ink) 10.8%, var(--canvas)); --border: color-mix(in oklch, var(--ink) 14.3%, var(--canvas)); --tint-primary: color-mix(in oklab, var(--primary) 12%, var(--background)); background: var(--background); color: var(--foreground); }
