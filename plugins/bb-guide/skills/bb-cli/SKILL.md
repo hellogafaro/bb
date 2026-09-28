@@ -207,8 +207,9 @@ shell commands, and never a stale `snapshotId`. `bb computer screenshot` and
 `bb computer record` write evidence into thread storage (`--thread <id>`
 defaults to BB_THREAD_ID). `bb computer start --host <id> --goal <text>`
 begins a goal-driven run tracked with `bb computer status --run <id>` and
-ended with `bb computer cancel --run <id>`; without a configured TypeSafe key
-it always escalates immediately to manual `observe`/`act`. `bb computer
+ended with `bb computer cancel --run <id>`; `--mode jev` runs a decision loop
+through TypeSafe or, without a TypeSafe key, Jev on OpenRouter; agent mode, or
+jev with neither key, escalates immediately to manual `observe`/`act`. `bb computer
 take-control`/`control-status`/`release-control --host <id> --client <id>`
 hand control between a person and automation. The Computer tab streams a live
 view over a WebSocket while it's open; `bb computer input --host <id>

@@ -12,11 +12,12 @@ import { controlGateForHost } from "./control-gate.js";
 import { ComputerLiveHub } from "./live.js";
 import { copyIntoEvidence, writeEvidence } from "./evidence.js";
 import {
-  JevDecisionProvider,
-  OpenRouterTextGenerator,
+  createDecisionBackend,
+  type OpenRouterTextGenerator,
   operationChoices,
-  targetChoices,
+  postActionWaitMs,
   toOperation,
+  verifyTargetFresh,
   type DecisionProvider,
 } from "./decision.js";
 import type {
@@ -32,7 +33,7 @@ import type {
   ComputerOperation as Operation,
 } from "@bb/host-daemon-contract";
 
-interface RunRecord {
+export interface RunRecord {
   status: RunStatus;
   abort: AbortController;
 }
@@ -244,12 +245,35 @@ function touchRun(run: RunRecord, patch: Partial<RunStatus>): void {
   }
 }
 
-async function runJevLoop(
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+export interface JevLoopIo {
+  readonly observe: typeof observe;
+  readonly act: typeof act;
+}
+
+const defaultJevLoopIo: JevLoopIo = { observe, act };
+
+export async function runJevLoop(
   deps: WorkSessionDeps,
   run: RunRecord,
   input: StartInput,
   provider: DecisionProvider,
   textGenerator: OpenRouterTextGenerator | null,
+  io: JevLoopIo = defaultJevLoopIo,
 ) {
   const signal = run.abort.signal;
   const recentSummaries: string[] = [];
@@ -257,54 +281,62 @@ async function runJevLoop(
   touchRun(run, { state: "observing" });
   try {
     while (run.status.steps < input.maxSteps && !signal.aborted) {
-      const observationResult = await observe(deps, input.hostId, undefined);
+      let observationResult = await io.observe(deps, input.hostId, undefined);
       touchRun(run, { state: "deciding" });
-      const opChoices = operationChoices(
-        input.allowedOperations,
-        observationResult.targets,
-      );
-      if (opChoices.length === 0) {
-        touchRun(run, {
-          state: "blocked",
-          lastSummary: "No allowed operation matches the current target table",
-        });
-        return;
-      }
-      const decision = await provider.decide(
-        {
-          goal: input.goal,
-          observation: observationResult,
-          recentSummaries,
-          operationChoices: opChoices,
-          targetChoices:
-            opChoices.some(
-              (choice) => choice.choiceId === "click" || choice.choiceId === "type",
-            )
-              ? targetChoices(
-                  observationResult.targets,
-                  (opChoices[0]?.choiceId ?? "click") as never,
-                )
-              : [],
-        },
-        signal,
-      );
-      if (decision.confidence !== null && decision.confidence < 0.35) {
-        touchRun(run, {
-          state: "escalated",
-          lastSummary: `Low confidence (${decision.confidence.toFixed(2)}); escalating to the agent`,
-        });
-        return;
-      }
-      let typedText: string | null = null;
-      if (decision.operationChoiceId === "type" && textGenerator !== null) {
-        typedText = await textGenerator.generate(
-          `Goal: ${input.goal}\nWrite only the exact text to type into the target field. No quotes, no explanation.`,
+      let operation: Operation | null = null;
+      let outcome: ActionOutcome | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const opChoices = operationChoices(
+          input.allowedOperations,
+          observationResult.targets,
+        );
+        if (opChoices.length === 0) {
+          touchRun(run, {
+            state: "blocked",
+            lastSummary: "No allowed operation matches the current target table",
+          });
+          return;
+        }
+        const decision = await provider.decide(
+          {
+            goal: input.goal,
+            observation: observationResult,
+            recentSummaries,
+            operationChoices: opChoices,
+          },
           signal,
         );
+        if (decision.confidence !== null && decision.confidence < 0.35) {
+          touchRun(run, {
+            state: "escalated",
+            lastSummary: `Low confidence (${decision.confidence.toFixed(2)}); escalating to the agent`,
+          });
+          return;
+        }
+        let typedText: string | null = null;
+        if (decision.operationChoiceId === "type" && textGenerator !== null) {
+          const target = observationResult.targets.find(
+            (candidate) => candidate.targetId === decision.targetChoiceId,
+          );
+          typedText = await textGenerator.generate(
+            {
+              goal: input.goal,
+              targetLabel: target === undefined ? "" : `${target.role}: ${target.name}`,
+            },
+            signal,
+          );
+        }
+        operation = verifyTargetFresh(observationResult, toOperation(decision, observationResult, typedText));
+        touchRun(run, { state: "acting" });
+        outcome = await io.act(deps, input.hostId, operation, signal);
+        if (outcome.state === "stale" && outcome.observation !== null && attempt === 0) {
+          observationResult = outcome.observation;
+          touchRun(run, { state: "deciding" });
+          continue;
+        }
+        break;
       }
-      const operation = toOperation(decision, observationResult, typedText);
-      touchRun(run, { state: "acting" });
-      const outcome = await act(deps, input.hostId, operation, signal);
+      if (operation === null || outcome === null) throw new Error("Jev loop failed to produce an action");
       run.status.steps += 1;
       recentSummaries.push(outcome.summary);
       if (recentSummaries.length > 5) recentSummaries.shift();
@@ -318,7 +350,15 @@ async function runJevLoop(
       }
       touchRun(run, { lastSummary: outcome.summary, noProgressSteps: noProgress });
       if (operation.kind === "done") {
-        touchRun(run, { state: "done" });
+        try {
+          await io.observe(deps, input.hostId, undefined);
+          touchRun(run, { state: "done" });
+        } catch (error) {
+          touchRun(run, {
+            state: "error",
+            lastSummary: error instanceof Error ? error.message : String(error),
+          });
+        }
         return;
       }
       if (operation.kind === "blocked" || outcome.state === "blocked") {
@@ -332,6 +372,7 @@ async function runJevLoop(
         });
         return;
       }
+      await wait(postActionWaitMs(operation, observationResult), signal);
     }
     if (!signal.aborted) {
       touchRun(run, {
@@ -380,35 +421,17 @@ export async function start(
     });
     return run.status;
   }
-  const {
-    computerTypesafeApiKey,
-    computerTypesafeEndpoint,
-    computerTypesafeModel,
-    computerOpenRouterApiKey,
-    computerOpenRouterModel,
-  } = deps.config;
-  if (computerTypesafeApiKey.trim().length === 0) {
+  const backend = createDecisionBackend(deps.config);
+  if (backend === null) {
     touchRun(run, {
       mode: "agent",
       state: "escalated",
       lastSummary:
-        "No TypeSafe API key is configured for Computer; falling back to agent mode. Drive this goal with computer_observe/computer_act.",
+        "No TypeSafe or OpenRouter API key is configured for Computer; falling back to agent mode. Drive this goal with computer_observe/computer_act.",
     });
     return run.status;
   }
-  const provider = new JevDecisionProvider({
-    endpoint: computerTypesafeEndpoint,
-    model: computerTypesafeModel,
-    apiKey: computerTypesafeApiKey,
-  });
-  const textGenerator =
-    computerOpenRouterApiKey.trim().length > 0
-      ? new OpenRouterTextGenerator({
-          model: computerOpenRouterModel,
-          apiKey: computerOpenRouterApiKey,
-        })
-      : null;
-  void runJevLoop(deps, run, input, provider, textGenerator);
+  void runJevLoop(deps, run, input, backend.provider, backend.textGenerator);
   return run.status;
 }
 

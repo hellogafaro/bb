@@ -79,13 +79,19 @@ Goal-driven runs:
   bb computer cancel --run <id> [--json]
   bb computer active-run --host <id> [--json]
 
-Without a TypeSafe key configured in server config, `start` always runs in
-agent mode: it immediately returns an `escalated` status telling the caller
-to drive the goal with `observe`/`act`, then report progress with `status` and
-end it with `cancel` when done or stuck. With a TypeSafe key, `jev` mode runs
-a typed-choice decision loop in the background; poll `status` for its state
-(`observing`, `deciding`, `acting`, `escalated`, `blocked`, `done`, `error`)
-and take over with `observe`/`act` whenever it escalates. `active-run` reports
+In agent mode (the default) `start` immediately returns an `escalated` status
+telling the caller to drive the goal with `observe`/`act`, then report progress
+with `status` and end it with `cancel` when done or stuck. `jev` mode runs a
+typed-choice decision loop in the background. It decides through TypeSafe
+System One when `COMPUTER_TYPESAFE_API_KEY` is set in server config, and
+otherwise through Jev on OpenRouter (`COMPUTER_OPENROUTER_DECISION_MODEL`,
+default `typesafe/jev-router`) with `COMPUTER_OPENROUTER_API_KEY` or, when
+that is empty, `OPENROUTER_API_KEY`. Typed text generation uses
+`COMPUTER_OPENROUTER_TEXT_MODEL` (default `inception/mercury-2.5`) with the
+same key. With none of these keys it falls back to agent mode. Poll `status`
+for a jev run's state (`observing`, `deciding`, `acting`,
+`escalated`, `blocked`, `done`, `error`) and take over with `observe`/`act`
+whenever it escalates. `active-run` reports
 the running run ID for a machine, if any.
 
 Human takeover:

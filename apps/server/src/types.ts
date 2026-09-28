@@ -25,7 +25,8 @@ export interface ServerRuntimeConfig {
   appVersion: string;
   builtinSkillsRootPath: string;
   computerOpenRouterApiKey: string;
-  computerOpenRouterModel: string;
+  computerOpenRouterDecisionModel: string;
+  computerOpenRouterTextModel: string;
   computerTypesafeApiKey: string;
   computerTypesafeEndpoint: string;
   computerTypesafeModel: string;

@@ -325,7 +325,7 @@ export function registerComputerCommands(
       .requiredOption("--goal <text>", "The goal to pursue")
       .option(
         "--mode <agent|jev>",
-        "agent (default; escalates immediately) or jev (typed-choice decision loop, needs a configured TypeSafe key)",
+        "agent (default; escalates immediately) or jev (typed-choice decision loop, needs a TypeSafe or OpenRouter key in server config)",
         "agent",
       )
       .option(
