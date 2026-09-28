@@ -223,6 +223,11 @@ export async function createTestAppHarness(
   const config: ServerRuntimeConfig = {
     appVersion: "0.0.0-test",
     builtinSkillsRootPath: join(dataDir, "builtin-skills"),
+    computerOpenRouterApiKey: "",
+    computerOpenRouterModel: "openai/gpt-4o-mini",
+    computerTypesafeApiKey: "",
+    computerTypesafeEndpoint: "https://api.typesafe.ai/v1/systemone",
+    computerTypesafeModel: "jev-1",
     customModels: [],
     dataDir,
     featureFlags: defaultFeatureFlags,

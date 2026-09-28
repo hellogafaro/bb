@@ -144,6 +144,11 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
   const runtimeConfig: ServerRuntimeConfig = {
     appVersion: serverConfig.BB_APP_VERSION,
     builtinSkillsRootPath: resolveBuiltinSkillsRootPath(),
+    computerOpenRouterApiKey: serverConfig.COMPUTER_OPENROUTER_API_KEY,
+    computerOpenRouterModel: serverConfig.COMPUTER_OPENROUTER_MODEL,
+    computerTypesafeApiKey: serverConfig.COMPUTER_TYPESAFE_API_KEY,
+    computerTypesafeEndpoint: serverConfig.COMPUTER_TYPESAFE_ENDPOINT,
+    computerTypesafeModel: serverConfig.COMPUTER_TYPESAFE_MODEL,
     marketplaceUrl: serverConfig.BB_MARKETPLACE_URL,
     customModels: [],
     dataDir: serverConfig.BB_DATA_DIR,

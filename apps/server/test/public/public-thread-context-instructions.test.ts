@@ -85,7 +85,18 @@ describe("thread context instructions API", () => {
         ) +
           2 * (body.groups.length - 1),
       ).toBe(body.chars);
-      expect(body.dynamicTools).toEqual(["update_environment_directory"]);
+      expect(body.dynamicTools).toEqual([
+        "update_environment_directory",
+        "computer_machines",
+        "computer_doctor",
+        "computer_observe",
+        "computer_act",
+        "computer_screenshot",
+        "computer_record",
+        "computer_start",
+        "computer_status",
+        "computer_cancel",
+      ]);
       expect(body.contributedEnv.every((name: unknown) => typeof name === "string")).toBe(true);
       expect(JSON.stringify(body.contributedEnv)).not.toContain("value");
       expect(body.skills).toContainEqual({

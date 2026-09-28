@@ -17,6 +17,7 @@ import {
   prepareTurnSubmitCommandPayload,
 } from "../../../src/services/threads/thread-commands.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME } from "../../../src/services/threads/thread-environment-directory.js";
+import { COMPUTER_TOOL_NAMES } from "../../../src/services/computer/computer-tools.js";
 import { internalAuthHeaders } from "../../helpers/commands.js";
 import { readJson } from "../../helpers/json.js";
 import { textInput } from "../../helpers/prompt-input.js";
@@ -811,6 +812,7 @@ describe("plugin tools reach thread runtime config", () => {
     const command = await buildCommand(1);
     expect(command.dynamicTools.map((tool) => tool.name)).toEqual([
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      ...COMPUTER_TOOL_NAMES,
       "demo_lookup",
       "quiet_tool",
     ]);
@@ -985,10 +987,12 @@ describe("plugin tools reach thread runtime config", () => {
     const betaCommand = await build(beta, 11);
     expect(alphaCommand.dynamicTools.map((tool) => tool.name)).toEqual([
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      ...COMPUTER_TOOL_NAMES,
       "alpha_tool",
     ]);
     expect(betaCommand.dynamicTools.map((tool) => tool.name)).toEqual([
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      ...COMPUTER_TOOL_NAMES,
       "beta_tool",
     ]);
     expect(
@@ -1058,6 +1062,7 @@ describe("plugin tools reach thread runtime config", () => {
     const sideCommand = await build({ ...alpha, thread: sideThread }, 12);
     expect(sideCommand.dynamicTools.map((tool) => tool.name)).toEqual([
       "update_environment_directory",
+      ...COMPUTER_TOOL_NAMES,
       "alpha_tool",
     ]);
     expect(sideCommand.instructions).toContain(
@@ -1100,7 +1105,11 @@ describe("plugin tools reach thread runtime config", () => {
     });
     expect(
       turnSubmit.resumeContext.dynamicTools.map((tool) => tool.name),
-    ).toEqual([UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME, "beta_tool"]);
+    ).toEqual([
+      UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      ...COMPUTER_TOOL_NAMES,
+      "beta_tool",
+    ]);
     expect(
       turnSubmit.resumeContext.injectedSkillSources.map((skill) => skill.name),
     ).toContain("beta-skill");

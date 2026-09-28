@@ -8,6 +8,7 @@ import {
   buildThreadStartCommand,
 } from "../../../src/services/threads/thread-commands.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME } from "../../../src/services/threads/thread-environment-directory.js";
+import { COMPUTER_TOOL_NAMES } from "../../../src/services/computer/computer-tools.js";
 import { sendThreadMessage } from "../../../src/services/threads/thread-send.js";
 import {
   internalAuthHeaders,
@@ -95,6 +96,7 @@ describe("hero plugin: agent-enrichment (Phase 2 surfaces)", () => {
 
     expect(command.dynamicTools.map((tool) => tool.name)).toEqual([
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      ...COMPUTER_TOOL_NAMES,
       "docs_search",
     ]);
     const docsSearch = command.dynamicTools.find(

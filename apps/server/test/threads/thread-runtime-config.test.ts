@@ -22,6 +22,7 @@ import {
   resolvePermissionEscalation,
   resolveThreadRuntimeCommandConfig,
 } from "../../src/services/threads/thread-runtime-config.js";
+import { COMPUTER_TOOL_NAMES } from "../../src/services/computer/computer-tools.js";
 import {
   buildExecutionOptions,
   buildThreadStartCommand,
@@ -238,6 +239,7 @@ describe("thread runtime config", () => {
           expect.objectContaining({
             name: "update_environment_directory",
           }),
+          ...COMPUTER_TOOL_NAMES.map((name) => expect.objectContaining({ name })),
         ]);
         expect(startCommand.instructions).toContain(
           "update_environment_directory",
@@ -264,6 +266,7 @@ describe("thread runtime config", () => {
           expect.objectContaining({
             name: "update_environment_directory",
           }),
+          ...COMPUTER_TOOL_NAMES.map((name) => expect.objectContaining({ name })),
         ]);
         expect(submitCommand.resumeContext.instructions).toContain(
           "update_environment_directory",
@@ -364,6 +367,7 @@ describe("thread runtime config", () => {
           expect.objectContaining({
             name: "update_environment_directory",
           }),
+          ...COMPUTER_TOOL_NAMES.map((name) => expect.objectContaining({ name })),
         ]);
         expect(startCommand.instructions).toContain(
           "update_environment_directory",
@@ -390,6 +394,7 @@ describe("thread runtime config", () => {
           expect.objectContaining({
             name: "update_environment_directory",
           }),
+          ...COMPUTER_TOOL_NAMES.map((name) => expect.objectContaining({ name })),
         ]);
         expect(submitCommand.resumeContext.instructions).toContain(
           "update_environment_directory",
@@ -1217,6 +1222,7 @@ describe("thread runtime config", () => {
             required: ["path"],
           }),
         }),
+        ...COMPUTER_TOOL_NAMES.map((name) => expect.objectContaining({ name })),
       ]);
       expect(runtimeConfig.instructions).not.toContain(
         "You are working inside bb, an agentic IDE",

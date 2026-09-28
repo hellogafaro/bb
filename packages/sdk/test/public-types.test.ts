@@ -222,6 +222,7 @@ interface NodeSurface {
 
 type ExpectedBbSdkKey =
   | "agents"
+  | "computer"
   | "experimental_desktopBrowsers"
   | "experimental_server"
   | "environments"

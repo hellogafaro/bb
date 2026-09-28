@@ -24,6 +24,11 @@ export type ServerLogger = Pick<Logger, "debug" | "error" | "info" | "warn">;
 export interface ServerRuntimeConfig {
   appVersion: string;
   builtinSkillsRootPath: string;
+  computerOpenRouterApiKey: string;
+  computerOpenRouterModel: string;
+  computerTypesafeApiKey: string;
+  computerTypesafeEndpoint: string;
+  computerTypesafeModel: string;
   customModels: CustomProviderModel[];
   dataDir: string;
   featureFlags: FeatureFlags;
