@@ -68,5 +68,7 @@ Run `bb guide <chapter>` for command details:
   mcp                  MCP servers, tool policies, and the provider guard
   agents               Agents: the provider, model, skills, MCPs, and
                        instructions a thread runs as
+  computer             Observing and controlling a machine's desktop: target
+                       tables, actions, screenshots, recordings, runs
   json                 The --json contract: output shapes and the error envelope
   commands [group]     Every core command on one page; add a group for options

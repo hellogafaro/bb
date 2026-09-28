@@ -2,6 +2,7 @@ export const RESERVED_BB_CLI_COMMANDS: readonly string[] = [
   "agent",
   "inbox",
   "browser",
+  "computer",
   "diagnostics",
   "environment",
   "file",
