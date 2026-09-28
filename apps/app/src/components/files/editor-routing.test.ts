@@ -21,4 +21,10 @@ describe("opensInEditor", () => {
     expect(opensInEditor("img/logo.png")).toBe(true);
     expect(opensInEditor("Makefile")).toBe(true);
   });
+
+  it("routes html and htm files to the rendered preview instead of the editor", () => {
+    expect(opensInEditor("index.html")).toBe(false);
+    expect(opensInEditor("legacy/page.htm")).toBe(false);
+    expect(opensInEditor("REPORT.HTML")).toBe(false);
+  });
 });
