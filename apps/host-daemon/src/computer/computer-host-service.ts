@@ -70,7 +70,6 @@ function permissionProbe(
   id: "accessibility" | "screen-recording",
   label: string,
   state: ComputerPermissionState,
-  detail: string,
 ): ComputerDoctorProbe {
   return {
     id,
@@ -81,9 +80,7 @@ function permissionProbe(
         ? "Granted"
         : state === "denied"
           ? "Not granted"
-          : detail.length > 0
-            ? `Unknown; the driver reported: ${detail}`
-            : "Unknown; the driver gave no status",
+          : "Not verified yet; use Grant permissions and approve on the Mac",
   };
 }
 
@@ -279,10 +276,12 @@ class DriverController {
   async #permissionProbes(dataDir: string): Promise<ComputerDoctorProbe[]> {
     const status = await this.runProbe(dataDir, ["permissions", "status", "--json"]);
     const parsed = parseComputerPermissionStatus(status.stdout);
-    const detail = `${status.stdout} ${status.stderr}`.replace(/\s+/g, " ").trim().slice(0, 160);
+    if (parsed.accessibility === "unknown" || parsed.screenRecording === "unknown") {
+      this.#logger.debug({ stdout: status.stdout.slice(0, 500), stderr: status.stderr.slice(0, 500) }, "Driver permission status not verified");
+    }
     return [
-      permissionProbe("accessibility", "Accessibility", parsed.accessibility, detail),
-      permissionProbe("screen-recording", "Screen recording", parsed.screenRecording, detail),
+      permissionProbe("accessibility", "Accessibility", parsed.accessibility),
+      permissionProbe("screen-recording", "Screen recording", parsed.screenRecording),
     ];
   }
 
@@ -317,7 +316,7 @@ class DriverController {
       ? { code: null as number | null, stdout: "" }
       : await this.runProbe(dataDir, ["--version"]);
     const installed = version.code === 0;
-    const versionText = installed ? version.stdout.trim().slice(0, 100) : null;
+    const versionText = installed ? version.stdout.trim().replace(/^cua-driver\s+/i, "").slice(0, 100) : null;
     const running = installed ? await this.daemonRunning(dataDir) : false;
     const probes: ComputerDoctorProbe[] = [
       {

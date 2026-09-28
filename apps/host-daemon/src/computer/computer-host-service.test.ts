@@ -159,7 +159,7 @@ describe("ComputerHostService driver resolution order", () => {
     const report = await service.doctor();
     const binaryProbe = report.probes.find((probe) => probe.id === "driver");
     expect(binaryProbe?.status).toBe("ok");
-    expect(binaryProbe?.message).toContain("cua-driver");
+    expect(binaryProbe?.message).toContain("Installed");
     service.dispose();
   });
 
