@@ -22,7 +22,7 @@ import {
 } from "./computer-transport.js";
 import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
 import { LiveCaptureLoop } from "./computer-live.js";
-import { buildCapabilityManifest, WindowGrantSet } from "./computer-manifest.js";
+import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
 import { findWindow, TargetTable } from "./computer-target-table.js";
 
 export type SpawnFn = typeof nodeSpawn;
@@ -65,6 +65,7 @@ class DriverController {
   #fetchImpl: typeof fetch | undefined;
   #daemonProcess: ChildProcess | null = null;
   #windowGrants = new WindowGrantSet();
+  #runDirGrants = new PathGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
 
   constructor(
@@ -79,6 +80,10 @@ class DriverController {
 
   get windowGrants(): WindowGrantSet {
     return this.#windowGrants;
+  }
+
+  get runDirGrants(): PathGrantSet {
+    return this.#runDirGrants;
   }
 
   async #resolveBinaryPath(dataDir: string): Promise<BinaryResolution> {
@@ -149,7 +154,7 @@ class DriverController {
 
   async #writeManifestFile(dataDir: string): Promise<void> {
     const manifest = buildCapabilityManifest({
-      writablePaths: [join(dataDir, "runs")],
+      writablePaths: this.#runDirGrants.list(),
       windows: this.#windowGrants.list(),
     });
     await writeFile(this.#manifestPath(dataDir), JSON.stringify(manifest, null, 2));
@@ -205,6 +210,16 @@ class DriverController {
     if (PERMISSION_MODE !== "bounded") return;
     if (this.#windowGrants.has(pid, windowId)) return;
     this.#windowGrants.add(pid, windowId);
+    await this.#writeManifestFile(dataDir);
+    await this.#stopDaemon(dataDir);
+    await this.#spawnDaemon(dataDir);
+  }
+
+  async ensureRunDirGranted(dataDir: string, outputDir: string): Promise<void> {
+    await this.ensureDaemon(dataDir);
+    if (PERMISSION_MODE !== "bounded") return;
+    if (this.#runDirGrants.has(outputDir)) return;
+    this.#runDirGrants.add(outputDir);
     await this.#writeManifestFile(dataDir);
     await this.#stopDaemon(dataDir);
     await this.#spawnDaemon(dataDir);
@@ -397,9 +412,9 @@ export class ComputerHostService {
 
   async recordStart(input: { runId: string }): Promise<{ started: boolean }> {
     const signal = new AbortController().signal;
-    await this.#driver.ensureDaemon(this.#dataDir);
     const outputDir = join(this.#dataDir, "runs", input.runId);
     await mkdir(outputDir, { recursive: true });
+    await this.#driver.ensureRunDirGranted(this.#dataDir, outputDir);
     await this.#transport.call("start_recording", { output_dir: outputDir, record_video: true }, signal);
     return { started: true };
   }

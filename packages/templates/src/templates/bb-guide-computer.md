@@ -55,13 +55,14 @@ further action.
 Evidence:
 
   bb computer screenshot --host <id> [--app <name>] [--thread <id>] [--json]
-  bb computer record --host <id> [--thread <id>] --action start|stop --run <id> [--json]
+  bb computer record --host <id> [--thread <id>] --action start|stop [--run <id>] [--json]
 
 Both write into thread storage — the target thread defaults to BB_THREAD_ID,
 so pass `--thread <id>` outside a thread environment. `screenshot` captures a
 JPEG/PNG of the desktop or a named app's window and returns its path.
-`record` starts or stops a recording for a run ID chosen by the caller;
-stopping writes the finished MP4 and a trajectory folder into thread storage.
+`record` starts or stops a recording for a run ID; omit `--run` on `start` to
+generate and print a UUID, then pass that same `--run <id>` to `stop`.
+Stopping writes the finished MP4 and a trajectory folder into thread storage.
 
 Goal-driven runs:
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Command } from "commander";
 import type { ComputerRunMode } from "@bb/server-contract";
 import { computerOperationSchema } from "@bb/host-daemon-contract";
@@ -27,7 +28,7 @@ interface ScreenshotOptions extends HostOptions {
 interface RecordOptions extends HostOptions {
   thread?: string;
   action: string;
-  run: string;
+  run?: string;
 }
 
 interface StartOptions extends HostOptions {
@@ -240,19 +241,21 @@ export function registerComputerCommands(
       .description("Start or stop a screen recording for a run")
       .option("--thread <id>", "Thread to store the recording in (defaults to BB_THREAD_ID)")
       .requiredOption("--action <start|stop>", "start or stop the recording")
-      .requiredOption("--run <id>", "Run ID (UUID) to record under")
+      .option("--run <id>", "Run ID (UUID) to record under (generated and printed if omitted)")
       .option("--json", "Print machine-readable JSON output"),
   ).action(
     action(async (opts: RecordOptions) => {
       const threadId = requireThread(opts.thread);
       const recordAction = opts.action === "stop" ? "stop" : "start";
+      const runId = opts.run ?? randomUUID();
+      if (opts.run === undefined && !opts.json) console.log(`Run ID: ${runId}`);
       const result = await createCliBbSdk(getUrl()).computer.record({
         hostId: opts.host,
         threadId,
         action: recordAction,
-        runId: opts.run,
+        runId,
       });
-      if (outputJson(opts, result)) return;
+      if (outputJson(opts, { runId, ...result })) return;
       console.log(JSON.stringify(result, null, 2));
     }),
   );

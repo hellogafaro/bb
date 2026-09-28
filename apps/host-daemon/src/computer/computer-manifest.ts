@@ -72,3 +72,27 @@ export class WindowGrantSet {
     return [...this.#grants.values()];
   }
 }
+
+const MAX_GRANTED_PATHS = 8;
+
+export class PathGrantSet {
+  readonly #paths = new Set<string>();
+
+  has(path: string): boolean {
+    return this.#paths.has(path);
+  }
+
+  add(path: string): boolean {
+    if (this.#paths.has(path)) return false;
+    if (this.#paths.size >= MAX_GRANTED_PATHS) {
+      const oldest = this.#paths.values().next().value;
+      if (oldest !== undefined) this.#paths.delete(oldest);
+    }
+    this.#paths.add(path);
+    return true;
+  }
+
+  list(): string[] {
+    return [...this.#paths];
+  }
+}

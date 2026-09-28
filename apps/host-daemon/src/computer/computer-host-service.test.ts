@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -179,6 +179,68 @@ describe("ComputerHostService driver resolution order", () => {
     const report = await service.doctor();
     const binaryProbe = report.probes.find((probe) => probe.label === "binary");
     expect(binaryProbe?.status).toBe("ok");
+    service.dispose();
+  });
+});
+
+describe("ComputerHostService recordStart", () => {
+  let dataDir: string;
+  let fakeHome: string;
+  let previousOverride: string | undefined;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "computer-host-home-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    previousHome = process.env.HOME;
+    const driverPath = join(dataDir, "runtime", "cua-driver");
+    await mkdir(join(dataDir, "runtime"), { recursive: true });
+    await writeFile(driverPath, "#!/bin/sh\necho fixture\n");
+    await chmod(driverPath, 0o755);
+    process.env.CUA_DRIVER_PATH = driverPath;
+    process.env.HOME = fakeHome;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(fakeHome, { recursive: true, force: true });
+  });
+
+  it("grants the exact run directory in the manifest before calling start_recording, not just its parent", async () => {
+    const calls: { tool: string; input: Record<string, unknown> }[] = [];
+    class RecordingTransport implements CuaTransport {
+      async call(tool: string, input: Record<string, unknown>): Promise<CuaToolResult> {
+        calls.push({ tool, input });
+        return { structuredContent: {} };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      transportFactory: () => new RecordingTransport(),
+      spawnProcess: succeedingSpawn(),
+      driverFetchImpl: networkDisabledFetch,
+    });
+
+    const runId = "11111111-1111-1111-1111-111111111111";
+    await service.recordStart({ runId });
+
+    const startRecordingCall = calls.find((call) => call.tool === "start_recording");
+    expect(startRecordingCall).toBeDefined();
+    const outputDir = join(dataDir, "runs", runId);
+    expect(startRecordingCall?.input.output_dir).toBe(outputDir);
+
+    const manifest = JSON.parse(await readFile(join(dataDir, "capability-manifest.json"), "utf8")) as {
+      resources: { files: { write: string[] } };
+    };
+    expect(manifest.resources.files.write).toContain(outputDir);
+    expect(manifest.resources.files.write).not.toContain(join(dataDir, "runs"));
+
     service.dispose();
   });
 });

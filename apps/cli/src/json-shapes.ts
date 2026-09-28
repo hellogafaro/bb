@@ -72,7 +72,7 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "computer act":
     "{state, summary, observation: {hostId, surface, title, snapshotId, observedAt, targets, hint} | null}",
   "computer screenshot": "{path, mimeType}",
-  "computer record": "{recording, path, trajectoryPath}",
+  "computer record": "{runId, recording, path, trajectoryPath}",
   "computer start":
     "{runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}",
   "computer status":

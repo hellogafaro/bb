@@ -196,8 +196,8 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb computer screenshot --host <id> [--thread <id>] --json
     {path, mimeType}
 
-  bb computer record --host <id> --action start|stop --run <id> --json
-    {recording, path, trajectoryPath}
+  bb computer record --host <id> --action start|stop [--run <id>] --json
+    {runId, recording, path, trajectoryPath}
 
   bb computer start --host <id> --goal <text> --json
     {runId, hostId, mode, goal, state, steps, noProgressSteps, lastSummary, startedAt, updatedAt}

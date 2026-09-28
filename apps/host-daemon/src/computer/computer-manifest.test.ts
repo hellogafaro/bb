@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCapabilityManifest, WindowGrantSet } from "./computer-manifest.js";
+import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
 
 describe("buildCapabilityManifest", () => {
   it("never allows kill_app, clipboard, or launch_app", () => {
@@ -49,5 +49,32 @@ describe("WindowGrantSet", () => {
     expect(grants.has(0, 0)).toBe(false);
     expect(grants.has(8, 8)).toBe(true);
     expect(grants.list()).toHaveLength(8);
+  });
+});
+
+describe("PathGrantSet", () => {
+  it("reports new grants as added and repeats as no-ops", () => {
+    const grants = new PathGrantSet();
+    expect(grants.add("/data/runs/a")).toBe(true);
+    expect(grants.add("/data/runs/a")).toBe(false);
+    expect(grants.has("/data/runs/a")).toBe(true);
+  });
+
+  it("evicts the oldest grant once the cap of 8 run dirs is reached", () => {
+    const grants = new PathGrantSet();
+    for (let i = 0; i < 8; i += 1) grants.add(`/data/runs/${i}`);
+    expect(grants.has("/data/runs/0")).toBe(true);
+    grants.add("/data/runs/8");
+    expect(grants.has("/data/runs/0")).toBe(false);
+    expect(grants.has("/data/runs/8")).toBe(true);
+    expect(grants.list()).toHaveLength(8);
+  });
+
+  it("feeds buildCapabilityManifest an exact run directory grant, matching the driver's exact-path check", () => {
+    const grants = new PathGrantSet();
+    grants.add("/data/runs/11111111-1111-1111-1111-111111111111");
+    const manifest = buildCapabilityManifest({ writablePaths: grants.list(), windows: [] });
+    const resources = manifest.resources as { files: { write: string[] } };
+    expect(resources.files.write).toEqual(["/data/runs/11111111-1111-1111-1111-111111111111"]);
   });
 });
