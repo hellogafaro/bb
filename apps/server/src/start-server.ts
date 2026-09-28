@@ -146,7 +146,6 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     builtinSkillsRootPath: resolveBuiltinSkillsRootPath(),
     computerOpenRouterApiKey: serverConfig.COMPUTER_OPENROUTER_API_KEY,
     computerOpenRouterDecisionModel: serverConfig.COMPUTER_OPENROUTER_DECISION_MODEL,
-    computerOpenRouterTextModel: serverConfig.COMPUTER_OPENROUTER_TEXT_MODEL,
     computerTypesafeApiKey: serverConfig.COMPUTER_TYPESAFE_API_KEY,
     computerTypesafeEndpoint: serverConfig.COMPUTER_TYPESAFE_ENDPOINT,
     computerTypesafeModel: serverConfig.COMPUTER_TYPESAFE_MODEL,

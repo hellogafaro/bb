@@ -60,11 +60,17 @@ export const computerOperationKindSchema = z.enum([
   "select",
   "scroll",
   "hotkey",
+  "type_window",
+  "press_key",
+  "focus_window",
   "wait",
   "done",
   "blocked",
 ]);
 export type ComputerOperationKind = z.infer<typeof computerOperationKindSchema>;
+
+export const computerKeyPressSchema = z.enum(["Enter", "Escape", "Tab", "mod+a", "mod+c", "mod+v"]);
+export type ComputerKeyPress = z.infer<typeof computerKeyPressSchema>;
 
 export const computerOperationSchema = z.discriminatedUnion("kind", [
   z
@@ -122,6 +128,19 @@ export const computerOperationSchema = z.discriminatedUnion("kind", [
       keys: z.array(z.string().min(1).max(40)).min(1).max(5),
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal("type_window"),
+      text: z.string().min(1).max(10_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("press_key"),
+      key: computerKeyPressSchema,
+    })
+    .strict(),
+  z.object({ kind: z.literal("focus_window") }).strict(),
   z
     .object({
       kind: z.literal("wait"),

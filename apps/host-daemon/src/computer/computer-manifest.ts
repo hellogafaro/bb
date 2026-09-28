@@ -10,6 +10,7 @@ export const ALLOWED_TOOLS = [
   "scroll",
   "hotkey",
   "press_key",
+  "bring_to_front",
   "move_cursor",
   "drag",
   "clipboard_read",

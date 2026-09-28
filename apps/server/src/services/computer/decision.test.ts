@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   JevDecisionProvider,
+  KEY_CHOICES,
   OpenRouterJevDecisionProvider,
   OpenRouterTextGenerator,
   createDecisionBackend,
@@ -58,50 +59,92 @@ describe("targetChoices", () => {
 
 describe("toOperation", () => {
   it("maps a click decision to a click operation carrying the current snapshotId", () => {
-    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: "t0", confidence: 0.9 };
+    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.9 };
     const operation = toOperation(decision, observation, null);
     expect(operation).toEqual({ kind: "click", targetId: "t0", snapshotId: "snap-1" });
   });
 
   it("blocks a click decision with no target instead of guessing one", () => {
-    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: null, confidence: 0.9 };
+    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.9 };
     const operation = toOperation(decision, observation, null);
     expect(operation.kind).toBe("blocked");
   });
 
   it("carries generated text into a type operation and never into any other kind", () => {
-    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", confidence: 0.8 };
+    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 };
     const operation = toOperation(decision, observation, "hello world");
     expect(operation).toMatchObject({ kind: "type", text: "hello world" });
+  });
+
+  it("blocks type instead of typing an empty or invalid string", () => {
+    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 };
+    const operation = toOperation(decision, observation, null);
+    expect(operation.kind).toBe("blocked");
+  });
+
+  it("maps type_window to a targetless type operation carrying the given text", () => {
+    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 };
+    const operation = toOperation(decision, observation, "echo hello-from-jev");
+    expect(operation).toEqual({ kind: "type_window", text: "echo hello-from-jev" });
+  });
+
+  it("blocks type_window when no valid text was produced", () => {
+    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 };
+    const operation = toOperation(decision, observation, null);
+    expect(operation.kind).toBe("blocked");
+  });
+
+  it("maps press_key to the chosen key, defaulting to Enter with no choice", () => {
+    const chosen = toOperation(
+      { operationChoiceId: "press_key", targetChoiceId: "Escape", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 },
+      observation,
+      null,
+    );
+    expect(chosen).toEqual({ kind: "press_key", key: "Escape" });
+    const defaulted = toOperation(
+      { operationChoiceId: "press_key", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 },
+      observation,
+      null,
+    );
+    expect(defaulted).toEqual({ kind: "press_key", key: "Enter" });
+  });
+
+  it("maps focus_window to a targetless operation", () => {
+    const operation = toOperation(
+      { operationChoiceId: "focus_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 },
+      observation,
+      null,
+    );
+    expect(operation).toEqual({ kind: "focus_window" });
   });
 });
 
 describe("verifyTargetFresh", () => {
   it("passes through an operation whose target is still in the observation", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", confidence: 1 }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, observation, null);
     expect(verifyTargetFresh(observation, operation)).toEqual(operation);
   });
 
   it("blocks instead of executing against a target that vanished from the observation", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "gone", confidence: 1 }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "gone", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, observation, null);
     const guarded = verifyTargetFresh(observation, operation);
     expect(guarded.kind).toBe("blocked");
   });
 
   it("leaves target-less operations untouched", () => {
-    const operation = toOperation({ operationChoiceId: "done", targetChoiceId: null, confidence: 1 }, observation, null);
+    const operation = toOperation({ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, observation, null);
     expect(verifyTargetFresh(observation, operation)).toEqual(operation);
   });
 });
 
 describe("postActionWaitMs", () => {
   it("caps a non-type action to 50ms", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", confidence: 1 }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, observation, null);
     expect(postActionWaitMs(operation, observation)).toBe(50);
   });
 
   it("caps typing into a plain text field to 50ms", () => {
-    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t1", confidence: 1 }, observation, "hi");
+    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, observation, "hi");
     expect(postActionWaitMs(operation, observation)).toBe(50);
   });
 
@@ -112,7 +155,7 @@ describe("postActionWaitMs", () => {
         { index: 0, targetId: "t3", role: "searchbox", name: "Search", value: "", bounds: null, ref: null, allowedOperations: ["type"] },
       ],
     };
-    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t3", confidence: 1 }, comboObservation, "hi");
+    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t3", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }, comboObservation, "hi");
     expect(postActionWaitMs(operation, comboObservation)).toBe(200);
   });
 });
@@ -134,8 +177,8 @@ class ScriptedProvider implements DecisionProvider {
 describe("ScriptedProvider fixture", () => {
   it("replays exactly the scripted decisions in order", async () => {
     const provider = new ScriptedProvider([
-      { operationChoiceId: "click", targetChoiceId: "t0", confidence: 1 },
-      { operationChoiceId: "done", targetChoiceId: null, confidence: 1 },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
     ]);
     const first = await provider.decide();
     const second = await provider.decide();
@@ -192,19 +235,37 @@ describe("OpenRouterJevDecisionProvider", () => {
       type_text_target: "none",
       set_value_target: "none",
       select_target: "t2",
+      press_key_choice: "none",
+      text: "",
     });
     const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
     const decision = await provider.decide(decisionRequest, new AbortController().signal);
-    expect(decision).toEqual({ operationChoiceId: "select", targetChoiceId: "t2", confidence: null });
+    expect(decision).toEqual({ operationChoiceId: "select", targetChoiceId: "t2", typedText: null, submit: false, goalCompleteAfter: false, confidence: null });
     const schema = responseSchema(calls[0]!);
-    expect(schema.properties.operation!.enum).toEqual(expect.arrayContaining(["click", "type", "set_value", "select", "wait", "done", "blocked"]));
+    expect(schema.properties.operation!.enum).toEqual(
+      expect.arrayContaining(["click", "type", "set_value", "select", "press_key", "focus_window", "type_window", "wait", "done", "blocked"]),
+    );
     expect(schema.properties.click_target!.enum).toEqual(["t0", "t2", "none"]);
     expect(schema.properties.type_text_target!.enum).toEqual(["t1", "none"]);
     expect(schema.properties.set_value_target!.enum).toEqual(["t1", "none"]);
     expect(schema.properties.select_target!.enum).toEqual(["t2", "none"]);
+    expect(schema.properties.press_key_choice!.enum).toEqual([
+      ...KEY_CHOICES.map((choice) => choice.choiceId),
+      "none",
+    ]);
     expect(schema.properties.scroll_target).toBeUndefined();
     expect(schema.required.sort()).toEqual(
-      ["operation", "click_target", "type_text_target", "set_value_target", "select_target"].sort(),
+      [
+        "operation",
+        "click_target",
+        "type_text_target",
+        "set_value_target",
+        "select_target",
+        "press_key_choice",
+        "text",
+        "submit",
+        "goal_complete_after",
+      ].sort(),
     );
     expect(calls).toHaveLength(1);
     expect(calls[0]!.body.model).toBe("typesafe/jev-router");
@@ -218,10 +279,12 @@ describe("OpenRouterJevDecisionProvider", () => {
       type_text_target: "t1",
       set_value_target: "t1",
       select_target: "t2",
+      press_key_choice: "Enter",
+      text: "unused",
     });
     const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
     const decision = await provider.decide(decisionRequest, new AbortController().signal);
-    expect(decision).toEqual({ operationChoiceId: "click", targetChoiceId: "t2", confidence: null });
+    expect(decision).toEqual({ operationChoiceId: "click", targetChoiceId: "t2", typedText: "unused", submit: false, goalCompleteAfter: false, confidence: null });
   });
 
   it("does not offer an operation with no compatible target and emits no head for it", async () => {
@@ -244,19 +307,97 @@ describe("OpenRouterJevDecisionProvider", () => {
     expect(schema.properties.operation!.enum).not.toContain("select");
   });
 
-  it("omits target heads entirely when no operation needs one", async () => {
+  it("omits target and text heads, keeping only the always-on goal_complete_after head, when the allowed operations need none", async () => {
     const noTargetObservation: Observation = { ...observation, targets: [] };
     const request: DecisionRequest = {
       goal: "Save the file",
       observation: noTargetObservation,
       recentSummaries: [],
+      operationChoices: operationChoices(["done", "blocked"], noTargetObservation.targets),
+    };
+    const { fetchImpl, calls } = fakeOpenRouter({ operation: "done", goal_complete_after: true });
+    const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
+    const decision = await provider.decide(request, new AbortController().signal);
+    expect(decision).toEqual({ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: true, confidence: null });
+    expect(Object.keys(responseSchema(calls[0]!).properties)).toEqual(["operation", "goal_complete_after"]);
+  });
+
+  it("always offers focus_window, type_window, and press_key when a window is observed, even with no accessible elements", async () => {
+    const noTargetObservation: Observation = { ...observation, targets: [] };
+    const request: DecisionRequest = {
+      goal: "Type into the terminal",
+      observation: noTargetObservation,
+      recentSummaries: [],
       operationChoices: operationChoices(undefined, noTargetObservation.targets),
+    };
+    const { fetchImpl, calls } = fakeOpenRouter({ operation: "type_window", press_key_choice: "none", text: "echo hello-from-jev" });
+    const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
+    const decision = await provider.decide(request, new AbortController().signal);
+    expect(decision).toEqual({ operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hello-from-jev", submit: false, goalCompleteAfter: false, confidence: null });
+    const schema = responseSchema(calls[0]!);
+    expect(schema.properties.operation!.enum).toEqual(
+      expect.arrayContaining(["type_window", "press_key", "focus_window", "wait", "done", "blocked"]),
+    );
+    expect(schema.properties.press_key_choice!.enum).toEqual([...KEY_CHOICES.map((choice) => choice.choiceId), "none"]);
+  });
+
+  it("asks for submit only alongside type/set_value/type_window, and honors true", async () => {
+    const noTargetObservation: Observation = { ...observation, targets: [] };
+    const request: DecisionRequest = {
+      goal: "Type into the terminal",
+      observation: noTargetObservation,
+      recentSummaries: [],
+      operationChoices: operationChoices(undefined, noTargetObservation.targets),
+    };
+    const { fetchImpl, calls } = fakeOpenRouter({
+      operation: "type_window",
+      press_key_choice: "none",
+      text: "echo hello-from-jev",
+      submit: true,
+      goal_complete_after: false,
+    });
+    const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
+    const decision = await provider.decide(request, new AbortController().signal);
+    expect(decision.submit).toBe(true);
+    const schema = responseSchema(calls[0]!);
+    expect(Object.keys(schema.properties)).toContain("submit");
+  });
+
+  it("ignores submit for operations outside type/set_value/type_window even if the model answers true", async () => {
+    const { fetchImpl } = fakeOpenRouter({
+      operation: "click",
+      click_target: "t0",
+      type_text_target: "none",
+      set_value_target: "none",
+      select_target: "none",
+      press_key_choice: "none",
+      text: "",
+      submit: true,
+    });
+    const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
+    const decision = await provider.decide(decisionRequest, new AbortController().signal);
+    expect(decision.submit).toBe(false);
+  });
+
+  it("does not offer a submit head when no offered operation needs one", async () => {
+    const noTargetObservation: Observation = { ...observation, targets: [] };
+    const request: DecisionRequest = {
+      goal: "Save the file",
+      observation: noTargetObservation,
+      recentSummaries: [],
+      operationChoices: operationChoices(["done", "blocked"], noTargetObservation.targets),
     };
     const { fetchImpl, calls } = fakeOpenRouter({ operation: "done" });
     const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
-    const decision = await provider.decide(request, new AbortController().signal);
-    expect(decision.targetChoiceId).toBeNull();
-    expect(Object.keys(responseSchema(calls[0]!).properties)).toEqual(["operation"]);
+    await provider.decide(request, new AbortController().signal);
+    expect(Object.keys(responseSchema(calls[0]!).properties)).not.toContain("submit");
+  });
+
+  it("carries goalCompleteAfter through regardless of which operation was chosen", async () => {
+    const { fetchImpl } = fakeOpenRouter({ operation: "click", click_target: "t0", goal_complete_after: true });
+    const provider = new OpenRouterJevDecisionProvider({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
+    const decision = await provider.decide(decisionRequest, new AbortController().signal);
+    expect(decision.goalCompleteAfter).toBe(true);
   });
 
   it("rejects an operation outside the supplied choices, an invalid head value, or malformed JSON", async () => {
@@ -310,7 +451,7 @@ describe("JevDecisionProvider", () => {
     );
     const provider = new JevDecisionProvider({ endpoint: "https://typesafe.test/v1/systemone", model: "jev-1", apiKey: "key", fetchImpl });
     const decision = await provider.decide(decisionRequest, new AbortController().signal);
-    expect(decision).toEqual({ operationChoiceId: "select", targetChoiceId: "t2", confidence: 0.8 });
+    expect(decision).toEqual({ operationChoiceId: "select", targetChoiceId: "t2", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8 });
     expect(calls).toHaveLength(2);
     const secondQuestions = calls[1]!.body.questions as { target: { criteria: Record<string, string> } };
     expect(Object.keys(secondQuestions.target.criteria)).toEqual(["t2"]);
@@ -320,7 +461,7 @@ describe("JevDecisionProvider", () => {
     const { fetchImpl, calls } = fakeTypesafe({ operation: { choice: "done", confidence: 1 } });
     const provider = new JevDecisionProvider({ endpoint: "https://typesafe.test/v1/systemone", model: "jev-1", apiKey: "key", fetchImpl });
     const decision = await provider.decide(decisionRequest, new AbortController().signal);
-    expect(decision).toEqual({ operationChoiceId: "done", targetChoiceId: null, confidence: 1 });
+    expect(decision).toEqual({ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 });
     expect(calls).toHaveLength(1);
   });
 });
@@ -328,7 +469,7 @@ describe("JevDecisionProvider", () => {
 describe("OpenRouterTextGenerator", () => {
   it("parses a strict JSON {text} object, disables reasoning, and rejects malformed content", async () => {
     const { fetchImpl, calls } = fakeOpenRouter({ text: "hello.txt" });
-    const generator = new OpenRouterTextGenerator({ model: "inception/mercury-2.5", apiKey: "key", fetchImpl });
+    const generator = new OpenRouterTextGenerator({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
     const value = await generator.generate({ goal: "Save the file", targetLabel: "text: Filename" }, new AbortController().signal);
     expect(value).toBe("hello.txt");
     expect(calls[0]!.body.reasoning).toEqual({ enabled: false });
@@ -337,7 +478,7 @@ describe("OpenRouterTextGenerator", () => {
     expect(format.json_schema.schema.required).toEqual(["text"]);
 
     const { fetchImpl: badFetch } = fakeOpenRouter({ notText: "oops" });
-    const badGenerator = new OpenRouterTextGenerator({ model: "inception/mercury-2.5", apiKey: "key", fetchImpl: badFetch });
+    const badGenerator = new OpenRouterTextGenerator({ model: "typesafe/jev-router", apiKey: "key", fetchImpl: badFetch });
     await expect(
       badGenerator.generate({ goal: "Save the file", targetLabel: "text: Filename" }, new AbortController().signal),
     ).rejects.toThrow(/text/);
@@ -345,7 +486,7 @@ describe("OpenRouterTextGenerator", () => {
 
   it("reuses the cached value on a stale retry when the whole input is unchanged, and regenerates when it changes", async () => {
     const { fetchImpl, calls } = fakeOpenRouter({ text: "first" }, { text: "second" });
-    const generator = new OpenRouterTextGenerator({ model: "inception/mercury-2.5", apiKey: "key", fetchImpl });
+    const generator = new OpenRouterTextGenerator({ model: "typesafe/jev-router", apiKey: "key", fetchImpl });
     const signal = new AbortController().signal;
     const input = { goal: "Save the file", targetLabel: "text: Filename" };
     const first = await generator.generate(input, signal);
@@ -366,7 +507,6 @@ describe("createDecisionBackend", () => {
     computerTypesafeModel: "jev-1",
     computerOpenRouterApiKey: "",
     computerOpenRouterDecisionModel: "typesafe/jev-router",
-    computerOpenRouterTextModel: "inception/mercury-2.5",
     openRouterApiKey: "",
   };
 
@@ -376,21 +516,35 @@ describe("createDecisionBackend", () => {
     expect(typesafe?.textGenerator).not.toBeNull();
     const openRouter = createDecisionBackend({ ...empty, openRouterApiKey: "or" });
     expect(openRouter?.provider).toBeInstanceOf(OpenRouterJevDecisionProvider);
+    expect(openRouter?.textGenerator).toBeNull();
     expect(createDecisionBackend({ ...empty, computerOpenRouterApiKey: " ", openRouterApiKey: " " })).toBeNull();
   });
 
-  it("decides with the decision model and generates text with the text model", async () => {
+  it("decides and gets typed text from the same OpenRouter Jev call when only an OpenRouter key is configured", async () => {
     const signal = new AbortController().signal;
-    const { fetchImpl, calls } = fakeOpenRouter({ operation: "done" }, { text: "hi" });
+    const { fetchImpl, calls } = fakeOpenRouter({ operation: "type_window", text: "hi" });
     const noTargetObservation: Observation = { ...observation, targets: [] };
     const backend = createDecisionBackend({ ...empty, openRouterApiKey: "or" }, fetchImpl)!;
-    await backend.provider.decide(
-      { goal: "Save the file", observation: noTargetObservation, recentSummaries: [], operationChoices: operationChoices(undefined, []) },
+    const decision = await backend.provider.decide(
+      {
+        goal: "Save the file",
+        observation: noTargetObservation,
+        recentSummaries: [],
+        operationChoices: operationChoices(undefined, []),
+      },
       signal,
     );
+    expect(decision.typedText).toBe("hi");
+    expect(calls).toHaveLength(1);
     expect(calls[0]!.body.model).toBe("typesafe/jev-router");
+  });
+
+  it("uses the decision model, never a separate text model, for the TypeSafe text-helper fallback", async () => {
+    const signal = new AbortController().signal;
+    const { fetchImpl, calls } = fakeOpenRouter({ text: "hi" });
+    const backend = createDecisionBackend({ ...empty, computerTypesafeApiKey: "ts", openRouterApiKey: "or" }, fetchImpl)!;
     await backend.textGenerator!.generate({ goal: "Save the file", targetLabel: "text: Filename" }, signal);
-    expect(calls[1]!.body.model).toBe("inception/mercury-2.5");
+    expect(calls[0]!.body.model).toBe("typesafe/jev-router");
   });
 
   it("uses the Computer OpenRouter key and falls back to the server key", async () => {

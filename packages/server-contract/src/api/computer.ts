@@ -154,7 +154,7 @@ export const computerStartRequestSchema = z
     allowedApps: z.array(z.string().max(160)).max(20).default([]),
     allowedOperations: z.array(computerOperationKindSchema).max(10).optional(),
     maxSteps: z.number().int().min(1).max(200).default(40),
-    mode: computerRunModeSchema.default("agent"),
+    mode: computerRunModeSchema.optional(),
   })
   .strict();
 export type ComputerStartRequest = z.infer<typeof computerStartRequestSchema>;

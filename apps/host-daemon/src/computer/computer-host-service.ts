@@ -17,13 +17,7 @@ import type {
   ComputerOperation,
 } from "@bb/host-daemon-contract";
 import type { HostDaemonLogger } from "../logger.js";
-import {
-  content,
-  CuaError,
-  cuaEnv,
-  ProcessCuaTransport,
-  type CuaTransport,
-} from "./computer-transport.js";
+import { content, CuaError, cuaEnv, type CuaTransport } from "./computer-transport.js";
 import { appBundlePathForBinary, COMPUTER_APP_BUNDLE_ID } from "./computer-driver-bundle.js";
 import {
   MACOS_PRIVACY_PANES,
@@ -479,12 +473,6 @@ export class ComputerHostService {
       options.driverFetchImpl,
       options.platform,
     );
-    this.#transport =
-      options.transportFactory?.() ??
-      new ProcessCuaTransport({
-        binaryPath: () => this.#driver.binaryPath(this.#dataDir),
-        env: daemonEnv(),
-      });
     this.#liveTransport =
       options.liveTransportFactory?.() ??
       new PersistentCuaTransport({
@@ -498,6 +486,7 @@ export class ComputerHostService {
         },
       });
     this.#driver.onStopped(() => this.#liveTransport.close());
+    this.#transport = options.transportFactory?.() ?? this.#liveTransport;
     this.#live = new LiveStream({
       source: options.liveFrameSourceFactory?.(this.#liveTransport) ?? new DriverCaptureFrameSource({ transport: this.#liveTransport }),
       prepare: () => this.#driver.ensureDaemon(this.#dataDir),
@@ -619,8 +608,18 @@ export class ComputerHostService {
     return this.#desktopSize;
   }
 
+  async warmUp(): Promise<void> {
+    try {
+      await this.#driver.ensureDaemon(this.#dataDir);
+      await this.#liveTransport.call("health_report", {}, AbortSignal.timeout(15_000));
+    } catch {
+      // Best-effort: observe()/act() establish the session themselves if this did not finish in time.
+    }
+  }
+
   async doctor(): Promise<ComputerDoctorReport> {
     await this.#driver.ensureDaemon(this.#dataDir).catch(() => {});
+    void this.warmUp();
     const report = await this.#driver.doctorReport(this.#dataDir);
     const screen = report.probes.find((probe) => probe.id === "screen-recording");
     if (screen === undefined || screen.status === "ok") return report;
@@ -650,7 +649,7 @@ export class ComputerHostService {
   async act(input: { action: ComputerOperation }): Promise<ComputerActionOutcome> {
     const signal = new AbortController().signal;
     await this.#driver.ensureDaemon(this.#dataDir);
-    return performAction(this.#transport, this.#table, input.action, signal);
+    return performAction(this.#transport, this.#table, input.action, this.#platform, signal);
   }
 
   async capture(input: { kind: "desktop" | "window"; appId?: string }): Promise<ComputerCaptureImage> {
@@ -735,10 +734,17 @@ export function mapFramePoint(
   };
 }
 
+const MODIFIER_COMBO_LETTER: Record<string, string> = {
+  "mod+a": "a",
+  "mod+c": "c",
+  "mod+v": "v",
+};
+
 async function performAction(
   transport: CuaTransport,
   table: TargetTable,
   action: ComputerOperation,
+  platform: NodeJS.Platform,
   signal: AbortSignal,
 ): Promise<ComputerActionOutcome> {
   try {
@@ -782,6 +788,32 @@ async function performAction(
       }
       case "hotkey": {
         await transport.call("hotkey", { ...table.windowArgs(), keys: action.keys, delivery_mode: "background" }, signal);
+        break;
+      }
+      case "type_window": {
+        await transport.call(
+          "type_text",
+          { ...table.windowArgs(), text: action.text, delivery_mode: "background" },
+          signal,
+        );
+        break;
+      }
+      case "press_key": {
+        const comboLetter = MODIFIER_COMBO_LETTER[action.key];
+        if (comboLetter === undefined) {
+          await transport.call("press_key", { ...table.windowArgs(), key: action.key, delivery_mode: "foreground" }, signal);
+        } else {
+          const modifier = platform === "darwin" ? "cmd" : "ctrl";
+          await transport.call(
+            "hotkey",
+            { ...table.windowArgs(), keys: [modifier, comboLetter], delivery_mode: "foreground" },
+            signal,
+          );
+        }
+        break;
+      }
+      case "focus_window": {
+        await transport.call("bring_to_front", table.windowArgs(), signal);
         break;
       }
       case "done":

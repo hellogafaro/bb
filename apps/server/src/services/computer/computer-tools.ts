@@ -70,7 +70,7 @@ const COMPUTER_TOOL_DEFINITIONS = {
   },
   computer_start: {
     description:
-      "Start a goal-driven run on a machine. In agent mode (default) this immediately escalates: drive the goal yourself with computer_observe/computer_act and report computer_status. In jev mode it runs a typed-choice decision loop in the background, deciding through TypeSafe when a TypeSafe key is configured and otherwise through Jev on OpenRouter; with neither key it falls back to agent mode.",
+      "Start a goal-driven run on a machine. Defaults to jev mode when a TypeSafe or OpenRouter (Jev-router) key is configured: it runs a typed-choice decision loop in the background, deciding through TypeSafe when a TypeSafe key is configured and otherwise through Jev on OpenRouter. Without either key it falls back to agent mode, which immediately escalates: drive the goal yourself with computer_observe/computer_act and report computer_status. Pass mode explicitly to override the default.",
     parameters: startParameters,
   },
   computer_status: {

@@ -77,8 +77,8 @@ describe("runJevLoop", () => {
     const initial = observationFixture();
     const fresh = observationFixture({ snapshotId: "snap-2" });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "click", targetChoiceId: "t0", confidence: 1 },
-      { operationChoiceId: "click", targetChoiceId: "t0", confidence: 1 },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
     ]);
     let observeCalls = 0;
     let actCalls = 0;
@@ -104,7 +104,7 @@ describe("runJevLoop", () => {
 
   it("re-observes before reporting DONE and escalates to error instead if that re-observe fails", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, confidence: 1 }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }]);
     let observeCalls = 0;
     const io: JevLoopIo = {
       observe: async () => {
@@ -121,7 +121,7 @@ describe("runJevLoop", () => {
 
   it("does not report done when the verification re-observe fails", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, confidence: 1 }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }]);
     let observeCalls = 0;
     const io: JevLoopIo = {
       observe: async () => {
@@ -139,7 +139,7 @@ describe("runJevLoop", () => {
 
   it("blocks instead of acting when the provider returns a target that is not in the observation", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "click", targetChoiceId: "ghost", confidence: 1 }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "click", targetChoiceId: "ghost", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 }]);
     let actedOperation: unknown = null;
     const io: JevLoopIo = {
       observe: async () => observation,
@@ -163,8 +163,8 @@ describe("runJevLoop", () => {
       targets: [{ index: 0, targetId: "t1", role: "text", name: "Filename", value: "", bounds: null, ref: null, allowedOperations: ["type"] }],
     });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "type", targetChoiceId: "t1", confidence: 1 },
-      { operationChoiceId: "type", targetChoiceId: "t1", confidence: 1 },
+      { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
+      { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1 },
     ]);
     const generateInputs: unknown[] = [];
     const textGenerator = {
@@ -189,5 +189,89 @@ describe("runJevLoop", () => {
     expect(generateInputs).toHaveLength(2);
     expect(generateInputs[0]).toEqual(generateInputs[1]);
     expect(generateInputs[0]).toEqual({ goal: "Save the file", targetLabel: "text: Filename" });
+  });
+
+  it("presses Enter immediately after a submit:true type_window, without spending another decide() on it", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ScriptedProvider([
+      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, goalCompleteAfter: false, confidence: null },
+    ]);
+    const actedActions: unknown[] = [];
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async (_deps, _hostId, action) => {
+        actedActions.push(action);
+        return outcomeFixture({ state: "completed", summary: `did ${(action as { kind: string }).kind}` });
+      },
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 1 }), provider, null, io);
+    expect(actedActions).toEqual([
+      { kind: "type_window", text: "echo hi" },
+      { kind: "press_key", key: "Enter" },
+    ]);
+    expect(provider.requests).toHaveLength(1);
+    expect(run.status.steps).toBe(1);
+  });
+
+  it("does not submit when the type action itself did not complete", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ScriptedProvider([
+      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, goalCompleteAfter: false, confidence: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: null },
+    ]);
+    const actedActions: unknown[] = [];
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async (_deps, _hostId, action) => {
+        actedActions.push(action);
+        return outcomeFixture({ state: "error", summary: "boom" });
+      },
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, null, io);
+    expect(actedActions[0]).toEqual({ kind: "type_window", text: "echo hi" });
+    expect(actedActions).not.toContainEqual({ kind: "press_key", key: "Enter" });
+  });
+
+  it("finishes as done after one verification observe when goalCompleteAfter is true, without another decide()", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ScriptedProvider([
+      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, goalCompleteAfter: true, confidence: null },
+    ]);
+    let observeCalls = 0;
+    const io: JevLoopIo = {
+      observe: async () => {
+        observeCalls += 1;
+        return observation;
+      },
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, null, io);
+    expect(run.status.state).toBe("done");
+    expect(observeCalls).toBe(2);
+    expect(provider.requests).toHaveLength(1);
+  });
+
+  it("continues the loop normally when the goalCompleteAfter verification observe is inconsistent", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ScriptedProvider([
+      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, goalCompleteAfter: true, confidence: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: null },
+    ]);
+    let observeCalls = 0;
+    const io: JevLoopIo = {
+      observe: async () => {
+        observeCalls += 1;
+        if (observeCalls === 2) throw new Error("window vanished");
+        return observation;
+      },
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, null, io);
+    expect(run.status.state).toBe("done");
+    expect(provider.requests).toHaveLength(2);
   });
 });

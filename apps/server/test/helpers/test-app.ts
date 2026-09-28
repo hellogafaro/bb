@@ -225,7 +225,6 @@ export async function createTestAppHarness(
     builtinSkillsRootPath: join(dataDir, "builtin-skills"),
     computerOpenRouterApiKey: "",
     computerOpenRouterDecisionModel: "typesafe/jev-router",
-    computerOpenRouterTextModel: "inception/mercury-2.5",
     computerTypesafeApiKey: "",
     computerTypesafeEndpoint: "https://api.typesafe.ai/v1/systemone",
     computerTypesafeModel: "jev-1",

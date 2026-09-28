@@ -432,3 +432,116 @@ describe("mapFramePoint", () => {
     expect(mapFramePoint(frame, desktop, 123, 456)).toEqual({ x: 123, y: 456 });
   });
 });
+
+describe("ComputerHostService act with targetless window operations", () => {
+  let dataDir: string;
+  let fakeHome: string;
+  let previousOverride: string | undefined;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "computer-host-home-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    previousHome = process.env.HOME;
+    const driverPath = join(dataDir, "runtime", "cua-driver");
+    await mkdir(join(dataDir, "runtime"), { recursive: true });
+    await writeFile(driverPath, "#!/bin/sh\necho fixture\n");
+    await chmod(driverPath, 0o755);
+    process.env.CUA_DRIVER_PATH = driverPath;
+    process.env.HOME = fakeHome;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(fakeHome, { recursive: true, force: true });
+  });
+
+  it("targets the observed window by pid/window_id for focus_window, type_window, and press_key, translating combos to hotkey", async () => {
+    const calls: { tool: string; input: Record<string, unknown> }[] = [];
+    class RecordingTransport implements CuaTransport {
+      async call(tool: string, input: Record<string, unknown>): Promise<CuaToolResult> {
+        calls.push({ tool, input });
+        if (tool === "list_windows") {
+          return { structuredContent: { windows: [{ pid: 42, window_id: 7, title: "jev-test", is_on_screen: true, z_index: 1 }] } };
+        }
+        if (tool === "get_window_state") {
+          return { structuredContent: { window_title: "jev-test", elements: [] } };
+        }
+        return { structuredContent: {} };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new RecordingTransport(),
+      spawnProcess: succeedingSpawn(),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    await service.observe({});
+    await service.act({ action: { kind: "focus_window" } });
+    await service.act({ action: { kind: "type_window", text: "echo hello-from-jev" } });
+    await service.act({ action: { kind: "press_key", key: "Enter" } });
+    await service.act({ action: { kind: "press_key", key: "mod+c" } });
+
+    const focus = calls.find((call) => call.tool === "bring_to_front");
+    expect(focus?.input).toMatchObject({ pid: 42, window_id: 7 });
+
+    const typed = calls.find((call) => call.tool === "type_text");
+    expect(typed?.input).toMatchObject({ pid: 42, window_id: 7, text: "echo hello-from-jev" });
+
+    const enter = calls.find((call) => call.tool === "press_key" && call.input.key === "Enter");
+    expect(enter?.input).toMatchObject({ pid: 42, window_id: 7 });
+
+    const combo = calls.find((call) => call.tool === "hotkey");
+    expect(combo?.input).toMatchObject({ pid: 42, window_id: 7, keys: ["ctrl", "c"] });
+
+    service.dispose();
+  });
+
+  it("warmUp() connects the persistent driver session eagerly, before any observe or act", async () => {
+    const calls: string[] = [];
+    class RecordingLiveTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        calls.push(tool);
+        return { structuredContent: {} };
+      }
+      close(): void {}
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      liveTransportFactory: () => new RecordingLiveTransport(),
+      spawnProcess: succeedingSpawn(),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    await service.warmUp();
+
+    expect(calls).toEqual(["health_report"]);
+    service.dispose();
+  });
+
+  it("warmUp() never throws even when the driver session cannot be established", async () => {
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      spawnProcess: enoentSpawn(),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    await expect(service.warmUp()).resolves.toBeUndefined();
+    service.dispose();
+  });
+});

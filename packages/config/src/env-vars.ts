@@ -271,21 +271,15 @@ export const COMPUTER_TYPESAFE_MODEL_ENV = defineEnvVar<string>({
 
 export const COMPUTER_OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
   description:
-    "OpenRouter API key used by Computer's jev-mode decision loop, for decisions when no TypeSafe key is set and for typed text. Empty falls back to OPENROUTER_API_KEY; jev mode needs one of these keys or a TypeSafe key.",
+    "OpenRouter API key used by Computer's jev-mode decision loop, for decisions when no TypeSafe key is set and for typed text. Empty falls back to OPENROUTER_API_KEY; jev mode needs one of these keys or a TypeSafe key. Only the Jev router model may be used through OpenRouter for Computer.",
   name: "COMPUTER_OPENROUTER_API_KEY",
   parse: parseStringEnvValue,
 });
 
 export const COMPUTER_OPENROUTER_DECISION_MODEL_ENV = defineEnvVar<string>({
   description:
-    "OpenRouter model id used for Computer's jev-mode decisions when no TypeSafe key is set",
+    "OpenRouter model id used for Computer's jev-mode decisions (and, when a TypeSafe key is also set, for typed text) when no TypeSafe key is set for decisions. Must stay the Jev router model; no other OpenRouter model is supported for Computer.",
   name: "COMPUTER_OPENROUTER_DECISION_MODEL",
-  parse: parseStringEnvValue,
-});
-
-export const COMPUTER_OPENROUTER_TEXT_MODEL_ENV = defineEnvVar<string>({
-  description: "OpenRouter model id used to generate typed text for Computer's jev-mode decision loop",
-  name: "COMPUTER_OPENROUTER_TEXT_MODEL",
   parse: parseStringEnvValue,
 });
 
@@ -414,7 +408,6 @@ export const DEFAULT_COMPUTER_TYPESAFE_ENDPOINT =
 export const DEFAULT_COMPUTER_TYPESAFE_MODEL = "jev-1";
 export const DEFAULT_COMPUTER_OPENROUTER_API_KEY = "";
 export const DEFAULT_COMPUTER_OPENROUTER_DECISION_MODEL = "typesafe/jev-router";
-export const DEFAULT_COMPUTER_OPENROUTER_TEXT_MODEL = "inception/mercury-2.5";
 export const DEFAULT_BB_POSTHOG_API_KEY =
   "phc_tejoYoNLV6vG8QAd5eYXXvcsENFYnP4brpZDGqG7zvpy";
 export const DEFAULT_BB_TELEMETRY = true;

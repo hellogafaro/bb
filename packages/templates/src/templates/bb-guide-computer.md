@@ -55,9 +55,13 @@ table no longer applies.
 
 Operations (the `--action` JSON's `kind`): `click`, `double_click`, `type`
 (text supplied inline), `set_value`, `select`, `scroll` (direction + amount),
-`hotkey` (a short key list), `wait`. Use `done` when the goal is reached and
-`blocked` when no safe next step exists — both end the interaction without
-further action.
+`hotkey` (a short key list), `wait`. Some apps (a terminal emulator, for
+example) expose no accessible elements at all, so three operations need no
+`targetId`: `focus_window` (bring the observed window to the front),
+`type_window` (type text into it directly), and `press_key` (one of `Enter`,
+`Escape`, `Tab`, `mod+a`, `mod+c`, `mod+v` — `mod` is Cmd on macOS, Ctrl
+elsewhere). Use `done` when the goal is reached and `blocked` when no safe
+next step exists — both end the interaction without further action.
 
 Evidence:
 
@@ -79,20 +83,33 @@ Goal-driven runs:
   bb computer cancel --run <id> [--json]
   bb computer active-run --host <id> [--json]
 
-In agent mode (the default) `start` immediately returns an `escalated` status
-telling the caller to drive the goal with `observe`/`act`, then report progress
-with `status` and end it with `cancel` when done or stuck. `jev` mode runs a
-typed-choice decision loop in the background. It decides through TypeSafe
-System One when `COMPUTER_TYPESAFE_API_KEY` is set in server config, and
-otherwise through Jev on OpenRouter (`COMPUTER_OPENROUTER_DECISION_MODEL`,
-default `typesafe/jev-router`) with `COMPUTER_OPENROUTER_API_KEY` or, when
-that is empty, `OPENROUTER_API_KEY`. Typed text generation uses
-`COMPUTER_OPENROUTER_TEXT_MODEL` (default `inception/mercury-2.5`) with the
-same key. With none of these keys it falls back to agent mode. Poll `status`
-for a jev run's state (`observing`, `deciding`, `acting`,
-`escalated`, `blocked`, `done`, `error`) and take over with `observe`/`act`
-whenever it escalates. `active-run` reports
-the running run ID for a machine, if any.
+`jev` mode is the default whenever a TypeSafe or OpenRouter key is configured
+for Computer; pass `--mode agent` to override. `jev` runs a typed-choice
+decision loop in the background: it decides through TypeSafe System One when
+`COMPUTER_TYPESAFE_API_KEY` is set in server config, and otherwise through Jev
+on OpenRouter (`COMPUTER_OPENROUTER_DECISION_MODEL`, default
+`typesafe/jev-router` — the only OpenRouter model Computer will ever call)
+with `COMPUTER_OPENROUTER_API_KEY` or, when that is empty,
+`OPENROUTER_API_KEY`. When deciding through OpenRouter, three more fields
+ride along as speculative heads in the same decision call, so most steps stay
+a single round trip: typed text for `type`/`set_value`/`select`/`type_window`;
+`submit`, which presses Enter right after a `type`/`set_value`/`type_window`
+without spending another decision on it; and `goal_complete_after`, which
+skips a whole DONE decision by re-observing once after the capped wait and
+finishing the run there when that re-observe is consistent, otherwise
+continuing normally. When deciding through TypeSafe, a second call to the Jev
+router model on OpenRouter supplies the text, and `submit`/`goal_complete_after`
+are not used. A malformed or invalid decision is retried once against the
+same observation before the run gives up, and the daemon pre-warms its
+persistent driver session at startup and on `doctor` so the first `observe`
+of a run does not pay a cold-connect cost. With no TypeSafe or OpenRouter key
+configured, `start` falls back to agent mode: it immediately
+returns an `escalated` status telling the caller to drive the goal with
+`observe`/`act`, then report progress with `status` and end it with `cancel`
+when done or stuck. Poll `status` for a jev run's state (`observing`,
+`deciding`, `acting`, `escalated`, `blocked`, `done`, `error`) and take over
+with `observe`/`act` whenever it escalates. `active-run` reports the running
+run ID for a machine, if any.
 
 Human takeover:
 

@@ -717,6 +717,7 @@ export async function createHostDaemonApp(
       },
     },
   });
+  void computer.warmUp();
 
   const desktopBrowserBroker = await startDesktopBrowserBroker({
     dataDir: options.dataDir,

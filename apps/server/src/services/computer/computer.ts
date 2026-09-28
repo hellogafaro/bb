@@ -13,10 +13,13 @@ import { ComputerLiveHub } from "./live.js";
 import { copyIntoEvidence, writeEvidence } from "./evidence.js";
 import {
   createDecisionBackend,
+  type DecisionRequest,
+  type DecisionResponse,
   type OpenRouterTextGenerator,
   operationChoices,
   postActionWaitMs,
   toOperation,
+  validateTypedText,
   verifyTargetFresh,
   type DecisionProvider,
 } from "./decision.js";
@@ -267,6 +270,22 @@ export interface JevLoopIo {
 
 const defaultJevLoopIo: JevLoopIo = { observe, act };
 
+const TYPED_TEXT_OPERATIONS = new Set(["type", "set_value", "select", "type_window"]);
+const SUBMIT_OPERATIONS = new Set(["type", "set_value", "type_window"]);
+
+async function decideWithRetry(
+  provider: DecisionProvider,
+  request: DecisionRequest,
+  signal: AbortSignal,
+): Promise<DecisionResponse> {
+  try {
+    return await provider.decide(request, signal);
+  } catch (error) {
+    if (signal.aborted) throw error;
+    return provider.decide(request, signal);
+  }
+}
+
 export async function runJevLoop(
   deps: WorkSessionDeps,
   run: RunRecord,
@@ -285,6 +304,7 @@ export async function runJevLoop(
       touchRun(run, { state: "deciding" });
       let operation: Operation | null = null;
       let outcome: ActionOutcome | null = null;
+      let lastDecision: DecisionResponse | null = null;
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const opChoices = operationChoices(
           input.allowedOperations,
@@ -297,7 +317,8 @@ export async function runJevLoop(
           });
           return;
         }
-        const decision = await provider.decide(
+        const decision = await decideWithRetry(
+          provider,
           {
             goal: input.goal,
             observation: observationResult,
@@ -306,6 +327,7 @@ export async function runJevLoop(
           },
           signal,
         );
+        lastDecision = decision;
         if (decision.confidence !== null && decision.confidence < 0.35) {
           touchRun(run, {
             state: "escalated",
@@ -313,17 +335,19 @@ export async function runJevLoop(
           });
           return;
         }
-        let typedText: string | null = null;
-        if (decision.operationChoiceId === "type" && textGenerator !== null) {
+        let typedText = validateTypedText(decision.typedText);
+        if (typedText === null && textGenerator !== null && TYPED_TEXT_OPERATIONS.has(decision.operationChoiceId)) {
           const target = observationResult.targets.find(
             (candidate) => candidate.targetId === decision.targetChoiceId,
           );
-          typedText = await textGenerator.generate(
-            {
-              goal: input.goal,
-              targetLabel: target === undefined ? "" : `${target.role}: ${target.name}`,
-            },
-            signal,
+          typedText = validateTypedText(
+            await textGenerator.generate(
+              {
+                goal: input.goal,
+                targetLabel: target === undefined ? "" : `${target.role}: ${target.name}`,
+              },
+              signal,
+            ),
           );
         }
         operation = verifyTargetFresh(observationResult, toOperation(decision, observationResult, typedText));
@@ -336,7 +360,13 @@ export async function runJevLoop(
         }
         break;
       }
-      if (operation === null || outcome === null) throw new Error("Jev loop failed to produce an action");
+      if (operation === null || outcome === null || lastDecision === null) throw new Error("Jev loop failed to produce an action");
+      const decision = lastDecision;
+      if (decision.submit && outcome.state === "completed" && SUBMIT_OPERATIONS.has(operation.kind)) {
+        touchRun(run, { state: "acting" });
+        const submitOutcome = await io.act(deps, input.hostId, { kind: "press_key", key: "Enter" }, signal);
+        outcome = { ...submitOutcome, summary: `${outcome.summary}; then ${submitOutcome.summary}` };
+      }
       run.status.steps += 1;
       recentSummaries.push(outcome.summary);
       if (recentSummaries.length > 5) recentSummaries.shift();
@@ -373,6 +403,15 @@ export async function runJevLoop(
         return;
       }
       await wait(postActionWaitMs(operation, observationResult), signal);
+      if (decision.goalCompleteAfter && outcome.state !== "error") {
+        try {
+          await io.observe(deps, input.hostId, undefined);
+          touchRun(run, { state: "done" });
+          return;
+        } catch {
+          // The verification re-observe was inconsistent; continue the loop normally below.
+        }
+      }
     }
     if (!signal.aborted) {
       touchRun(run, {
@@ -397,10 +436,12 @@ export async function start(
   requireNonDestroyedHostWithStatus(deps, input.hostId);
   const runId = randomUUID();
   const abort = new AbortController();
+  const backend = input.mode === "agent" ? null : createDecisionBackend(deps.config);
+  const mode = input.mode ?? (backend !== null ? "jev" : "agent");
   const base: RunStatus = {
     runId,
     hostId: input.hostId,
-    mode: input.mode,
+    mode,
     goal: input.goal,
     state: "idle",
     steps: 0,
@@ -413,7 +454,7 @@ export async function start(
   runs.set(runId, run);
   activeRunByHost.set(input.hostId, runId);
   emitActiveRunChange(input.hostId);
-  if (input.mode === "agent") {
+  if (mode === "agent") {
     touchRun(run, {
       state: "escalated",
       lastSummary:
@@ -421,7 +462,6 @@ export async function start(
     });
     return run.status;
   }
-  const backend = createDecisionBackend(deps.config);
   if (backend === null) {
     touchRun(run, {
       mode: "agent",

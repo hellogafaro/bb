@@ -40,7 +40,7 @@ interface RecordOptions extends HostOptions {
 
 interface StartOptions extends HostOptions {
   goal: string;
-  mode: string;
+  mode?: string;
   app: string[];
   maxSteps: string;
 }
@@ -78,7 +78,8 @@ function requireThread(explicit: string | undefined): string {
   return threadId;
 }
 
-function parseMode(value: string): ComputerRunMode {
+function parseMode(value: string | undefined): ComputerRunMode | undefined {
+  if (value === undefined) return undefined;
   return value === "jev" ? "jev" : "agent";
 }
 
@@ -325,8 +326,7 @@ export function registerComputerCommands(
       .requiredOption("--goal <text>", "The goal to pursue")
       .option(
         "--mode <agent|jev>",
-        "agent (default; escalates immediately) or jev (typed-choice decision loop, needs a TypeSafe or OpenRouter key in server config)",
-        "agent",
+        "jev (typed-choice decision loop; default when a TypeSafe or OpenRouter Jev key is configured) or agent (escalates immediately; the fallback without a key)",
       )
       .option(
         "--app <name>",
