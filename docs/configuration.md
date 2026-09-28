@@ -1377,7 +1377,7 @@ plugins use `builtin:<name>` and ship with bb unless removed. Managed
 refuse plugins whose optional `engines.bb` or `engines.bbPluginSdk` ranges
 do not match the running bb/SDK, or whose `dist/*.meta.json` plugin identity
 does not match the package manifest; installing a non-builtin source whose
-derived id collides with a builtin name (automations, connect, inline-vis,
+derived id collides with a builtin name (automations, connect, canvas,
 secrets, workflows) is also refused.
 
 `engines.bbPluginSdk` is a floor, not a ceiling. bb reads the lowest version

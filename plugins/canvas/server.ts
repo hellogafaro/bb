@@ -28,12 +28,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const HTML_TITLE_PATTERN = /<title[^>]*>([\s\S]*?)<\/title>/i;
+const MARKDOWN_HEADING_PATTERN = /^#{1,6}[ \t]+(.+?)[ \t]*$/m;
+
+function extractTitle(kind: PreviewKind, content: string): string | null {
+  const match =
+    kind === "html"
+      ? HTML_TITLE_PATTERN.exec(content)
+      : MARKDOWN_HEADING_PATTERN.exec(content);
+  const title = match?.[1]?.trim();
+  return title && title.length > 0 ? title : null;
+}
+
 function previewKind(file: string): PreviewKind {
   const extension = path.posix.extname(file).toLowerCase();
   const kind = PREVIEW_KIND_BY_EXTENSION.get(extension);
   if (kind === undefined) {
     throw new Error(
-      `"file" must end with .html, .htm, .md, or .markdown, got ${JSON.stringify(file)}`,
+      `"file" must end with .html, .htm, .md, or .markdown.`,
     );
   }
   return kind;
@@ -42,14 +54,14 @@ function previewKind(file: string): PreviewKind {
 export function requireRelativePreviewFile(value: unknown): string {
   const file = requireNonEmptyString(value, "file");
   if (path.isAbsolute(file)) {
-    throw new Error(`"file" must be source-relative, not absolute: ${file}`);
+    throw new Error(`"file" must be source-relative, not absolute.`);
   }
   if (/^[a-zA-Z]:[\\/]/.test(file) || file.startsWith("\\\\")) {
-    throw new Error(`"file" must be source-relative, not absolute: ${file}`);
+    throw new Error(`"file" must be source-relative, not absolute.`);
   }
   const slashNormalized = file.replace(/\\/g, "/");
   if (slashNormalized.split("/").includes("..")) {
-    throw new Error(`"file" must not contain traversal segments: ${file}`);
+    throw new Error(`"file" must not contain traversal segments.`);
   }
   const normalized = path.posix.normalize(slashNormalized);
   if (
@@ -59,7 +71,7 @@ export function requireRelativePreviewFile(value: unknown): string {
     normalized === "." ||
     normalized.startsWith("/")
   ) {
-    throw new Error(`"file" must not escape its source: ${file}`);
+    throw new Error(`"file" must not escape its source.`);
   }
   previewKind(normalized);
   return normalized;
@@ -77,7 +89,7 @@ export function resolveContainedPreviewPath(
     relative.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relative)
   ) {
-    throw new Error(`"file" must not escape its source: ${relativeFile}`);
+    throw new Error(`"file" must not escape its source.`);
   }
   return absolute;
 }
@@ -107,7 +119,7 @@ const previewTargetSchema = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 
-export const inlineVisRpcContract = defineRpcContract({
+export const canvasRpcContract = defineRpcContract({
   preparePreview: {
     input: z
       .object({
@@ -129,6 +141,7 @@ export const inlineVisRpcContract = defineRpcContract({
           file: z.string(),
           source: z.enum(["workspace", "thread-storage"]),
           target: previewTargetSchema,
+          title: z.string().nullable(),
         })
         .strict(),
       z
@@ -139,6 +152,7 @@ export const inlineVisRpcContract = defineRpcContract({
           target: previewTargetSchema,
           rootPath: z.string(),
           content: z.string(),
+          title: z.string().nullable(),
         })
         .strict(),
     ]),
@@ -146,7 +160,7 @@ export const inlineVisRpcContract = defineRpcContract({
 });
 
 export default async function plugin(bb: BbPluginApi) {
-  bb.rpc.register(inlineVisRpcContract, {
+  bb.rpc.register(canvasRpcContract, {
     async preparePreview({ threadId, file, source }) {
       let rootPath: string;
       let hostId: string;
@@ -165,7 +179,7 @@ export default async function plugin(bb: BbPluginApi) {
 
         if (!("environment" in thread)) {
           throw new Error(
-            "Thread environment was not returned — inline-vis needs a live environment.",
+            "Thread environment was not returned — canvas needs a live environment.",
           );
         }
 
@@ -174,7 +188,7 @@ export default async function plugin(bb: BbPluginApi) {
           typeof environment?.path === "string" ? environment.path : null;
         if (!environment || !workspacePath) {
           throw new Error(
-            "This thread has no workspace path — inline-vis needs a live environment.",
+            "This thread has no workspace path — canvas needs a live environment.",
           );
         }
         const workspaceHostId =
@@ -200,7 +214,7 @@ export default async function plugin(bb: BbPluginApi) {
         });
       } catch (error) {
         if (httpStatus(error) === 404) {
-          throw new Error(`Preview file not found: ${file}`);
+          throw new Error(`File not found.`);
         }
         throw error;
       }
@@ -218,9 +232,10 @@ export default async function plugin(bb: BbPluginApi) {
       }
 
       const kind = previewKind(file);
+      const title = extractTitle(kind, result.content);
       return kind === "markdown"
-        ? { kind, file, source, target, rootPath, content: result.content }
-        : { kind, file, source, target };
+        ? { kind, file, source, target, rootPath, content: result.content, title }
+        : { kind, file, source, target, title };
     },
   });
 }

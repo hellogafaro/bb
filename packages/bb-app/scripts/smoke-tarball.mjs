@@ -34,7 +34,7 @@ const EXPECTED_RUNNING_BUILTIN_PLUGINS = [
   "provider-codex",
   "push-notifications",
   "connect",
-  "inline-vis",
+  "canvas",
   "keep-awake",
   "provider-retry",
   "scheduled-send",

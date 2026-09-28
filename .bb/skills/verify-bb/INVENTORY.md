@@ -439,6 +439,12 @@ has been exercised or that every behavior has been understood.
 - `cli-name-candidate: plugins/automations/src/cli.ts: update`
 - `plugin-slot: plugins/automations/app.tsx: navPanel`
 
+## plugin:canvas
+
+15 source files. Recipes: [plugin-canvas](features/plugin-canvas.md).
+
+- `plugin-slot: plugins/canvas/app.tsx: messageDirective`
+
 ## plugin:concurrency-limit
 
 8 source files. Recipes: [plugin-concurrency-limit](features/plugin-concurrency-limit.md).
@@ -498,12 +504,6 @@ has been exercised or that every behavior has been understood.
 - `cli-name-candidate: plugins/github/server.ts: sync`
 - `plugin-slot: plugins/github/app.tsx: navPanel`
 - `plugin-slot: plugins/github/app.tsx: threadPanelAction`
-
-## plugin:inline-vis
-
-5 source files. Recipes: [plugin-inline-vis](features/plugin-inline-vis.md).
-
-- `plugin-slot: plugins/inline-vis/app.tsx: messageDirective`
 
 ## plugin:keep-awake
 

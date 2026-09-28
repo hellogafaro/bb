@@ -57,11 +57,11 @@ were excluded. See the [audit](../MAINTENANCE.md) and
 | [Account pooling](plugin-account-pool.md) | 7 | 7 partial/blocked |
 | [Fallback question cards](plugin-ask-user-question.md) | 5 | 3 passed, 1 failed, 1 partial/blocked |
 | [Scheduled agent and script automations](plugin-automations.md) | 8 | 8 passed |
+| [Canvas](plugin-canvas.md) | 5 | needs revalidation |
 | [Agent concurrency limits](plugin-concurrency-limit.md) | 5 | 4 passed, 1 partial/blocked |
 | [Remote Connect and port sharing](plugin-connect.md) | 7 | 5 passed, 2 partial/blocked |
 | [Docs vaults and editing](plugin-docs.md) | 9 | 7 passed, 2 partial/blocked |
 | [GitHub issues and pull requests](plugin-github.md) | 8 | 2 passed, 6 partial/blocked |
-| [Inline HTML visualizations](plugin-inline-vis.md) | 5 | 5 passed |
 | [Keep machines awake](plugin-keep-awake.md) | 4 | 4 passed |
 | [Persistent agent memory](plugin-memory.md) | 6 | 6 passed |
 | [PDF preview](plugin-pdf-preview.md) | 3 | 2 passed, 1 partial/blocked |

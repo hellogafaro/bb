@@ -16,11 +16,11 @@ import accountPoolManifest from "../../../plugins/account-pool/package.json";
 import askUserQuestionManifest from "../../../plugins/ask-user-question/package.json";
 import automationsManifest from "../../../plugins/automations/package.json";
 import browserAutomationManifest from "../../../plugins/browser-automation/package.json";
+import canvasManifest from "../../../plugins/canvas/package.json";
 import concurrencyLimitManifest from "../../../plugins/concurrency-limit/package.json";
 import docsManifest from "../../../plugins/docs/package.json";
 import draftsManifest from "../../../plugins/drafts/package.json";
 import githubManifest from "../../../plugins/github/package.json";
-import inlineVisManifest from "../../../plugins/inline-vis/package.json";
 import keepAwakeManifest from "../../../plugins/keep-awake/package.json";
 import memoryManifest from "../../../plugins/memory/package.json";
 import environmentModalSandboxManifest from "../../../plugins/environment-modal-sandbox/package.json";
@@ -46,11 +46,11 @@ const FIRST_PARTY_PLUGINS = [
   askUserQuestionManifest,
   automationsManifest,
   browserAutomationManifest,
+  canvasManifest,
   concurrencyLimitManifest,
   docsManifest,
   draftsManifest,
   githubManifest,
-  inlineVisManifest,
   keepAwakeManifest,
   memoryManifest,
   environmentModalSandboxManifest,
