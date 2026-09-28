@@ -84,7 +84,10 @@ import {
   type ThreadStatusGlyphProps,
 } from "@/components/thread/ThreadStatusGlyph";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
-import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import {
+  ThreadStatusMascot,
+  threadMascotTone,
+} from "@/components/agents/ThreadStatusMascot";
 import {
   SidebarThreadHoverCard,
   SidebarThreadHoverCardTrigger,
@@ -97,8 +100,25 @@ const SIDEBAR_TITLE_DOUBLE_CLICK_MS = 400;
 const THREAD_ROW_BASE_CLASS =
   "grid h-[var(--bb-sidebar-thread-row-height)] w-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[20px_16px] content-center items-center gap-x-2 rounded-md py-1.5 pr-0 text-sm transition-colors";
 
-const DRAFT_ROW_CLASS =
-  "[background-image:linear-gradient(var(--surface-draft),var(--surface-draft))] hover:[background-image:none] has-[[data-state=open]]:[background-image:none]";
+type ThreadRowTone = "error" | "waiting" | "draft";
+
+const ROW_TONE_CLASS: Record<ThreadRowTone, string> = {
+  error:
+    "[background-image:linear-gradient(var(--surface-destructive),var(--surface-destructive))] hover:[background-image:none] has-[[data-state=open]]:[background-image:none]",
+  waiting:
+    "[background-image:linear-gradient(var(--surface-attention),var(--surface-attention))] hover:[background-image:none] has-[[data-state=open]]:[background-image:none]",
+  draft:
+    "[background-image:linear-gradient(var(--surface-draft),var(--surface-draft))] hover:[background-image:none] has-[[data-state=open]]:[background-image:none]",
+};
+
+function resolveThreadRowTone(
+  mascotTone: ReturnType<typeof threadMascotTone>,
+  hasComposerDraft: boolean,
+): ThreadRowTone | null {
+  if (mascotTone === "error") return "error";
+  if (mascotTone === "waiting") return "waiting";
+  return hasComposerDraft ? "draft" : null;
+}
 
 let lastSidebarTitleClick: { at: number; threadId: string } | null = null;
 
@@ -423,6 +443,10 @@ function ThreadRowComponent({
     pluginThreadRowStatus,
   );
   const trailingIndicatorKind = trailingIndicatorResolution.indicatorKind;
+  const rowTone = resolveThreadRowTone(
+    threadMascotTone(trailingIndicatorKind),
+    hasComposerDraft,
+  );
   const splitIndicatorIsWorking = hasThreadListWorkingActivity(
     trailingIndicatorState,
     pluginThreadRowStatus?.tone === "running",
@@ -446,7 +470,7 @@ function ThreadRowComponent({
     THREAD_ROW_BASE_CLASS,
     LIST_HOVER_TRANSITION,
     parentOptions?.stickyLevel === undefined && "relative",
-    hasComposerDraft && !showActive && DRAFT_ROW_CLASS,
+    rowTone !== null && !showActive && ROW_TONE_CLASS[rowTone],
     showActive
       ? SIDEBAR_ROW_SELECTED_STATE_CLASS
       : SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,

@@ -66,6 +66,18 @@ describe("ThreadStatusMascot", () => {
     expect(tone(container)).toBe(expected);
   });
 
+  it("keeps the agent color for error and waiting tones", () => {
+    const { container } = render(
+      <ThreadStatusMascot {...IDLE} hasUnreadError agent={agent} />,
+    );
+    expect(tone(container)).toBe("error");
+    const style =
+      container.querySelector("[data-agent-mascot]")?.getAttribute("style") ??
+      "";
+    expect(style).not.toContain("destructive");
+    expect(style).not.toContain("status-waiting");
+  });
+
   it("stays hidden from assistive tech when idle and labels active states", () => {
     const { container } = render(
       <ThreadStatusMascot {...IDLE} agent={agent} />,

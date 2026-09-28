@@ -10,13 +10,6 @@ import { AgentMascot } from "./mascots/AgentMascot";
 
 export type ThreadMascotTone = "idle" | "working" | "error" | "waiting";
 
-const TONE_TINT: Record<ThreadMascotTone, string | undefined> = {
-  idle: undefined,
-  working: undefined,
-  error: "var(--destructive)",
-  waiting: "var(--status-waiting)",
-};
-
 export function threadMascotTone(
   kind: ReturnType<typeof resolveThreadStatus>["indicatorKind"],
 ): ThreadMascotTone {
@@ -84,7 +77,6 @@ export function ThreadStatusMascot({
         mascot={agent.mascot}
         color={agent.color}
         active={tone === "working"}
-        tint={TONE_TINT[tone]}
         className={size === "compact" ? "size-3" : "size-3.5"}
       />
     </span>

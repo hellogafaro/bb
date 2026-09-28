@@ -1167,28 +1167,29 @@ describe("ThreadRow", () => {
         latestAttentionAt: 10,
       }),
       tone: "error",
-      color: "var(--destructive)",
     },
     {
       label: "Thread needs user input",
       thread: createThread({ hasPendingInteraction: true }),
       tone: "waiting",
-      color: "var(--status-waiting)",
     },
-  ])("tints the mascot for $tone", ({ label, thread, tone, color }) => {
-    const { container } = render(
-      <ThreadRowTestHarness
-        queryClient={createTestQueryClient([createAgent()])}
-        thread={thread}
-      />,
-    );
-    const status = screen.getByLabelText(label);
-    expect(status).toBe(trailingMascot(container));
-    expect(status.getAttribute("data-thread-status-mascot")).toBe(tone);
-    const mascot = status.querySelector<SVGElement>("[data-agent-mascot]");
-    expect(mascot?.style.color).toBe(color);
-    expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
-  });
+  ])(
+    "keeps the agent color on the mascot for $tone",
+    ({ label, thread, tone }) => {
+      const { container } = render(
+        <ThreadRowTestHarness
+          queryClient={createTestQueryClient([createAgent()])}
+          thread={thread}
+        />,
+      );
+      const status = screen.getByLabelText(label);
+      expect(status).toBe(trailingMascot(container));
+      expect(status.getAttribute("data-thread-status-mascot")).toBe(tone);
+      const mascot = status.querySelector<SVGElement>("[data-agent-mascot]");
+      expect(mascot?.style.color).toBe("var(--agent-color-1)");
+      expect(mascot?.hasAttribute("data-agent-mascot-active")).toBe(false);
+    },
+  );
 
   it("shows a quiet mascot without a status dot for unread done threads", () => {
     const { container } = render(
@@ -1362,6 +1363,32 @@ describe("ThreadRow", () => {
       "[data-sidebar-rename-row]",
     );
     expect(selectedRow?.className).not.toContain("var(--surface-draft)");
+  });
+
+  it("tints waiting and failed rows instead of the mascot", () => {
+    const waiting = renderThreadRow({
+      thread: createThread({ hasPendingInteraction: true }),
+      hasComposerDraft: true,
+    });
+    const waitingRow = waiting.container.querySelector(
+      "[data-sidebar-rename-row]",
+    );
+    expect(waitingRow?.className).toContain("var(--surface-attention)");
+    expect(waitingRow?.className).not.toContain("var(--surface-draft)");
+    waiting.unmount();
+
+    const failed = renderThreadRow({
+      thread: createThread({ queuedWork: "failed" }),
+    });
+    const failedRow = failed.container.querySelector(
+      "[data-sidebar-rename-row]",
+    );
+    expect(failedRow?.className).toContain("var(--surface-destructive)");
+    const mascotStyle =
+      failed.container
+        .querySelector("[data-agent-mascot]")
+        ?.getAttribute("style") ?? "";
+    expect(mascotStyle).not.toContain("destructive");
   });
 
   it("uses the circle-question glyph when the thread needs user input", () => {

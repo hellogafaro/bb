@@ -19,13 +19,11 @@ export function AgentMascot({
   mascot,
   color,
   active = false,
-  tint,
   className,
 }: {
   mascot: AgentMascotName;
   color: number;
   active?: boolean;
-  tint?: string;
   className?: string;
 }) {
   const sprite = mascotSprite(mascot);
@@ -38,7 +36,7 @@ export function AgentMascot({
       shapeRendering="crispEdges"
       fill="currentColor"
       className={cn("size-3 shrink-0", active && "mascot-active", className)}
-      style={{ color: tint ?? agentColorVar(color) }}
+      style={{ color: agentColorVar(color) }}
     >
       {active ? (
         <>
