@@ -189,6 +189,9 @@ export type ComputerPreviewFrame = z.infer<typeof computerPreviewFrameSchema>;
 
 export const computerCommandSchemas = {
   "computer.doctor": z.object({ type: z.literal("computer.doctor") }).strict(),
+  "computer.install_driver": z
+    .object({ type: z.literal("computer.install_driver") })
+    .strict(),
   "computer.observe": z
     .object({
       type: z.literal("computer.observe"),
@@ -236,6 +239,7 @@ export const computerCommandSchemas = {
 };
 export const computerCommandSchema = z.discriminatedUnion("type", [
   computerCommandSchemas["computer.doctor"],
+  computerCommandSchemas["computer.install_driver"],
   computerCommandSchemas["computer.observe"],
   computerCommandSchemas["computer.act"],
   computerCommandSchemas["computer.capture"],
@@ -246,6 +250,7 @@ export const computerCommandSchema = z.discriminatedUnion("type", [
 ]);
 export const computerResultSchemas = {
   "computer.doctor": computerDoctorReportSchema,
+  "computer.install_driver": computerDoctorReportSchema,
   "computer.observe": computerObservationSchema,
   "computer.act": computerActionOutcomeSchema,
   "computer.capture": computerCaptureImageSchema,

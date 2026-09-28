@@ -271,6 +271,11 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
     version: "1.0.0",
     probes: [{ label: "binary", status: "ok", message: "1.0.0" }],
   },
+  "computer.install_driver": {
+    state: "ready",
+    version: "1.0.0",
+    probes: [{ label: "binary", status: "ok", message: "1.0.0" }],
+  },
   "computer.observe": {
     surface: "desktop",
     title: "Editor",

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getEnvironment, getThread } from "@bb/db";
-import { COMMAND_TIMEOUT_MS } from "../../constants.js";
+import { COMMAND_TIMEOUT_MS, COMPUTER_DRIVER_INSTALL_TIMEOUT_MS } from "../../constants.js";
 import type { WorkSessionDeps } from "../../types.js";
 import {
   listPublicHostsWithStatus,
@@ -74,6 +74,19 @@ export async function doctor(
     hostId,
     timeoutMs: COMMAND_TIMEOUT_MS,
     command: { type: "computer.doctor" },
+  });
+  return { hostId, ...report };
+}
+
+export async function installDriver(
+  deps: WorkSessionDeps,
+  hostId: string,
+): Promise<DoctorReport> {
+  requireNonDestroyedHostWithStatus(deps, hostId);
+  const report = await callHostOnlineRpcForWork(deps, {
+    hostId,
+    timeoutMs: COMPUTER_DRIVER_INSTALL_TIMEOUT_MS,
+    command: { type: "computer.install_driver" },
   });
   return { hostId, ...report };
 }

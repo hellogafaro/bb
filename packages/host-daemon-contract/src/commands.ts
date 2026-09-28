@@ -1455,6 +1455,15 @@ export const hostDaemonCommandRegistry = {
     flushEventsBeforeResult: false,
     envLane: null,
   }),
+  "computer.install_driver": defineHostDaemonCommandDescriptor({
+    type: "computer.install_driver",
+    schema: computerCommandSchemas["computer.install_driver"],
+    resultSchema: computerResultSchemas["computer.install_driver"],
+    transport: "onlineRpc",
+    retryable: false,
+    flushEventsBeforeResult: false,
+    envLane: null,
+  }),
   "computer.observe": defineHostDaemonCommandDescriptor({
     type: "computer.observe",
     schema: computerCommandSchemas["computer.observe"],

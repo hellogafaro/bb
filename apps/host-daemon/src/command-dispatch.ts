@@ -639,6 +639,7 @@ const onlineRpcHandlers: OnlineRpcHandlerMap = {
   "desktop.browser.list_import_sources": forwardDesktopBrowserCommand,
   "desktop.browser.import_cookies": forwardDesktopBrowserCommand,
   "computer.doctor": (_command, options) => requireComputer(options).doctor(),
+  "computer.install_driver": (_command, options) => requireComputer(options).installDriver(),
   "computer.observe": (command, options) =>
     requireComputer(options).observe({ appId: command.appId }),
   "computer.act": (command, options) => requireComputer(options).act({ action: command.action }),

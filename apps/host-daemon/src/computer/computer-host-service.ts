@@ -62,13 +62,19 @@ const PERMISSION_MODE = process.env.CUA_DRIVER_PERMISSION_MODE ?? "bounded";
 class DriverController {
   #spawnProcess: SpawnFn;
   #logger: Pick<HostDaemonLogger, "debug" | "warn">;
+  #fetchImpl: typeof fetch | undefined;
   #daemonProcess: ChildProcess | null = null;
   #windowGrants = new WindowGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
 
-  constructor(spawnProcess: SpawnFn, logger: Pick<HostDaemonLogger, "debug" | "warn">) {
+  constructor(
+    spawnProcess: SpawnFn,
+    logger: Pick<HostDaemonLogger, "debug" | "warn">,
+    fetchImpl?: typeof fetch,
+  ) {
     this.#spawnProcess = spawnProcess;
     this.#logger = logger;
+    this.#fetchImpl = fetchImpl;
   }
 
   get windowGrants(): WindowGrantSet {
@@ -83,7 +89,11 @@ class DriverController {
     let cached = this.#resolutionCache.get(dataDir);
     if (cached === undefined) {
       cached = (async () => {
-        const provisioned = await ensureProvisionedDriver({ dataDir, logger: this.#logger });
+        const provisioned = await ensureProvisionedDriver({
+          dataDir,
+          logger: this.#logger,
+          fetchImpl: this.#fetchImpl,
+        });
         if (provisioned.status === "installed") {
           return { path: provisioned.path, tried: [provisioned.path], missing: false, permissionsMissing: false };
         }
@@ -106,6 +116,11 @@ class DriverController {
 
   async binaryPath(dataDir: string): Promise<string> {
     return (await this.#resolveBinaryPath(dataDir)).path;
+  }
+
+  async installDriver(dataDir: string): Promise<void> {
+    this.#resolutionCache.delete(dataDir);
+    await this.#resolveBinaryPath(dataDir);
   }
 
   async runProbe(dataDir: string, args: string[], stdin?: string): Promise<{ code: number | null; stdout: string }> {
@@ -269,6 +284,7 @@ export interface ComputerHostServiceOptions {
   readonly logger: Pick<HostDaemonLogger, "debug" | "warn">;
   readonly spawnProcess?: SpawnFn;
   readonly transportFactory?: () => CuaTransport;
+  readonly driverFetchImpl?: typeof fetch;
 }
 
 export class ComputerHostService {
@@ -281,7 +297,11 @@ export class ComputerHostService {
 
   constructor(options: ComputerHostServiceOptions) {
     this.#dataDir = options.dataDir;
-    this.#driver = new DriverController(options.spawnProcess ?? nodeSpawn, options.logger);
+    this.#driver = new DriverController(
+      options.spawnProcess ?? nodeSpawn,
+      options.logger,
+      options.driverFetchImpl,
+    );
     this.#transport =
       options.transportFactory?.() ??
       new ProcessCuaTransport({
@@ -314,6 +334,12 @@ export class ComputerHostService {
   }
 
   async doctor(): Promise<ComputerDoctorReport> {
+    await this.#driver.ensureDaemon(this.#dataDir).catch(() => {});
+    return this.#driver.doctorReport(this.#dataDir);
+  }
+
+  async installDriver(): Promise<ComputerDoctorReport> {
+    await this.#driver.installDriver(this.#dataDir);
     await this.#driver.ensureDaemon(this.#dataDir).catch(() => {});
     return this.#driver.doctorReport(this.#dataDir);
   }

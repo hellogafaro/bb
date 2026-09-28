@@ -15,6 +15,7 @@ import {
   cancel,
   controlStatus,
   doctor,
+  installDriver,
   listMachines,
   observe,
   preview,
@@ -36,6 +37,9 @@ export function registerComputerRoutes(app: Hono, deps: AppDeps) {
     c.json(await listMachines(deps, input.threadId)),
   );
   post(routes.doctor, async (c, input) => c.json(await doctor(deps, input.hostId)));
+  post(routes.installDriver, async (c, input) =>
+    c.json(await installDriver(deps, input.hostId)),
+  );
   post(routes.observe, async (c, input) =>
     c.json(await observe(deps, input.hostId, input.appId)),
   );

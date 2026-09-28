@@ -184,6 +184,9 @@ Fields beyond those shown exist; these are the ones scripts use.
   bb computer doctor --host <id> --json
     {hostId, state, version, probes: [{label, status, message}]}
 
+  bb computer setup --host <id> --json
+    {hostId, state, version, probes: [{label, status, message}]}
+
   bb computer observe --host <id> [--app <name>] --json
     {hostId, surface, title, snapshotId, observedAt, targets: [{index, targetId, role, name, value, bounds, ref, allowedOperations}], hint}
 

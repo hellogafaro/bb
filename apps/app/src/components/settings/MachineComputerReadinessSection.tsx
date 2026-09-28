@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Host } from "@bb/domain";
 import type { ComputerDoctorReport } from "@bb/server-contract";
 import { Button } from "@bb/shared-ui/button";
@@ -29,39 +29,38 @@ const PROBE_STATUS_CLASS: Record<
   unavailable: "text-status-failed",
 };
 
+function computerDoctorQueryKey(hostId: string) {
+  return ["computer-doctor", hostId];
+}
+
 function useComputerDoctor(hostId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ["computer-doctor", hostId],
+    queryKey: computerDoctorQueryKey(hostId),
     queryFn: () => sdk.computer.doctor({ hostId }),
     enabled,
     staleTime: 15_000,
   });
 }
 
-type GuidanceDialogKind = "install-driver" | "grant-permissions";
-
-function GuidanceDialog({
-  kind,
+function PermissionsDialog({
+  open,
   machineName,
   onOpenChange,
   onRecheck,
 }: {
-  kind: GuidanceDialogKind | null;
+  open: boolean;
   machineName: string;
   onOpenChange: (open: boolean) => void;
   onRecheck: () => void;
 }) {
-  const title = kind === "install-driver" ? "Install driver" : "Grant permissions";
-  const description =
-    kind === "install-driver"
-      ? `BB needs a desktop automation driver installed on ${machineName} to observe and control it. Install it there, then re-check.`
-      : `${machineName} needs Accessibility and Screen Recording permissions enabled in System Settings for BB to observe and control it.`;
   return (
-    <Dialog open={kind !== null} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>Grant permissions</DialogTitle>
+          <DialogDescription>
+            {`${machineName} needs Accessibility and Screen Recording permissions enabled in System Settings for BB to observe and control it.`}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -88,14 +87,20 @@ export function MachineComputerReadinessSection({
   host: Host;
   platformLabel: string | null;
 }) {
-  const [guidanceDialog, setGuidanceDialog] = useState<GuidanceDialogKind | null>(
-    null,
-  );
+  const queryClient = useQueryClient();
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const doctorQuery = useComputerDoctor(host.id, host.status === "connected");
   const report = doctorQuery.data ?? null;
   const isMacOs = platformLabel === "macOS";
   const hasUnavailableProbe =
     report?.probes.some((probe) => probe.status !== "ok") ?? false;
+
+  const installMutation = useMutation({
+    mutationFn: () => sdk.computer.installDriver({ hostId: host.id }),
+    onSuccess: (nextReport) => {
+      queryClient.setQueryData(computerDoctorQueryKey(host.id), nextReport);
+    },
+  });
 
   return (
     <SettingsSection
@@ -136,6 +141,15 @@ export function MachineComputerReadinessSection({
             </div>
           )}
         </SettingsDetailRow>
+        {installMutation.isError ? (
+          <SettingsDetailRow label="Install driver">
+            <span className="text-xs text-status-failed">
+              {installMutation.error instanceof Error
+                ? installMutation.error.message
+                : "Installing the driver failed."}
+            </span>
+          </SettingsDetailRow>
+        ) : null}
         <SettingsRow>
           <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
             {hasUnavailableProbe ? (
@@ -143,9 +157,10 @@ export function MachineComputerReadinessSection({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setGuidanceDialog("install-driver")}
+                disabled={installMutation.isPending}
+                onClick={() => installMutation.mutate()}
               >
-                Install driver
+                {installMutation.isPending ? "Installing…" : "Install driver"}
               </Button>
             ) : null}
             {isMacOs && hasUnavailableProbe ? (
@@ -153,7 +168,7 @@ export function MachineComputerReadinessSection({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setGuidanceDialog("grant-permissions")}
+                onClick={() => setPermissionsDialogOpen(true)}
               >
                 Grant permissions
               </Button>
@@ -171,12 +186,10 @@ export function MachineComputerReadinessSection({
         </SettingsRow>
       </SettingsRowList>
 
-      <GuidanceDialog
-        kind={guidanceDialog}
+      <PermissionsDialog
+        open={permissionsDialogOpen}
         machineName={host.name}
-        onOpenChange={(open) => {
-          if (!open) setGuidanceDialog(null);
-        }}
+        onOpenChange={setPermissionsDialogOpen}
         onRecheck={() => void doctorQuery.refetch()}
       />
     </SettingsSection>

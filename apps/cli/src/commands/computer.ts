@@ -157,6 +157,24 @@ export function registerComputerCommands(
 
   hostOption(
     computer
+      .command("setup")
+      .description(
+        "Install the pinned Cua Driver on a machine if it is missing, then report readiness",
+      )
+      .option("--json", "Print machine-readable JSON output"),
+  ).action(
+    action(async (opts: HostOptions) => {
+      if (!opts.json) console.log("Installing Cua Driver...");
+      const report = await createCliBbSdk(getUrl()).computer.installDriver({
+        hostId: opts.host,
+      });
+      if (outputJson(opts, report)) return;
+      console.log(JSON.stringify(report, null, 2));
+    }),
+  );
+
+  hostOption(
+    computer
       .command("observe")
       .description(
         "Read the target table (clickable/typable elements) for the active window, or a named app",

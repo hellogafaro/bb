@@ -890,6 +890,14 @@ export const publicApiRoutes = {
       ),
       response: jsonResponse<ComputerDoctorReport>(),
     }),
+    installDriver: defineRoute({
+      path: "/computer/install-driver",
+      method: "post",
+      request: jsonRequest<EmptyInput, ComputerHostRequest>(
+        computerHostRequestSchema,
+      ),
+      response: jsonResponse<ComputerDoctorReport>(),
+    }),
     observe: defineRoute({
       path: "/computer/observe",
       method: "post",

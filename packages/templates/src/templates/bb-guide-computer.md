@@ -15,11 +15,15 @@ Resolve the target machine first:
 
   bb computer machines [--json]
   bb computer doctor --host <id> [--json]
+  bb computer setup --host <id> [--json]
 
 `machines` lists enrolled hosts by ID and name, and marks the current thread's
 host. `doctor` reports whether Cua Driver is ready (binary, daemon,
 accessibility, on-screen windows) and starts the daemon on first use; call it
-once before the first observe on a machine you have not used yet.
+once before the first observe on a machine you have not used yet. `setup`
+installs the pinned Cua Driver release on the machine if it is missing (or
+reports why it could not, e.g. no prebuilt driver for that platform), then
+returns the same readiness report as `doctor`.
 
 The fast loop:
 
@@ -112,7 +116,7 @@ the calling thread.
 
 SDK and API:
 
-  sdk.computer.{machines, doctor, observe, act, screenshot, record, start,
-    status, cancel, activeRun, takeControl, releaseControl, controlStatus,
-    preview}
+  sdk.computer.{machines, doctor, installDriver, observe, act, screenshot,
+    record, start, status, cancel, activeRun, takeControl, releaseControl,
+    controlStatus, preview}
   REST: POST /api/v1/computer/<method>

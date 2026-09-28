@@ -65,6 +65,8 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
     "{machines: [{hostId, name, status, type, lastSeenAt}], currentHostId}",
   "computer doctor":
     "{hostId, state, version, probes: [{label, status, message}]}",
+  "computer setup":
+    "{hostId, state, version, probes: [{label, status, message}]}",
   "computer observe":
     "{hostId, surface, title, snapshotId, observedAt, targets: [{index, targetId, role, name, value, bounds, ref, allowedOperations}], hint}",
   "computer act":

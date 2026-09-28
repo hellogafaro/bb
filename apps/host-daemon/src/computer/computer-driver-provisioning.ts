@@ -1,18 +1,54 @@
 import { constants } from "node:fs";
-import { access, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { sha256Hex } from "../sha256-hex.js";
+import { extractArchive, type ArchiveSpawnFn } from "./computer-driver-archive.js";
 import type { HostDaemonLogger } from "../logger.js";
 
 export interface ComputerDriverPin {
   readonly version: string;
-  readonly url: string;
+  readonly asset: string;
   readonly sha256: string;
-  readonly byteLength: number;
 }
 
-export const COMPUTER_DRIVER_PINS: Partial<Record<string, ComputerDriverPin>> = {};
+const CUA_DRIVER_REPO = "trycua/cua";
+
+export function computerDriverDownloadUrl(pin: ComputerDriverPin): string {
+  return `https://github.com/${CUA_DRIVER_REPO}/releases/download/cua-driver-rs-v${pin.version}/${pin.asset}`;
+}
+
+const DRIVER_VERSION = "0.30.2";
+
+function pin(asset: string, sha256: string): ComputerDriverPin {
+  return { version: DRIVER_VERSION, asset, sha256 };
+}
+
+const DARWIN_UNIVERSAL_PIN = pin(
+  "cua-driver-rs-0.30.2-darwin-universal-binary.tar.gz",
+  "b545f63b746dc87004836c316245a1b5769ad5373ac6d7737996308042af7eed",
+);
+
+export const COMPUTER_DRIVER_PINS: Partial<Record<string, ComputerDriverPin>> = {
+  "linux-x64": pin(
+    "cua-driver-rs-0.30.2-linux-x86_64-binary.tar.gz",
+    "3b05920e412717be150b9629b96c1817499088ec779cadc13700d07084abe504",
+  ),
+  "linux-arm64": pin(
+    "cua-driver-rs-0.30.2-linux-arm64-binary.tar.gz",
+    "11573eed8e7ce16cad97212ebedacc1b911a9e20192b09551cff8795482cee8a",
+  ),
+  "darwin-x64": DARWIN_UNIVERSAL_PIN,
+  "darwin-arm64": DARWIN_UNIVERSAL_PIN,
+  "win32-x64": pin(
+    "cua-driver-rs-0.30.2-windows-x86_64-binary.zip",
+    "bbf9909b92cf57e6faf0edc3542cff2accd52096e34d56baadcf1a2340c8ec2d",
+  ),
+  "win32-arm64": pin(
+    "cua-driver-rs-0.30.2-windows-arm64-binary.zip",
+    "5697c6479b3972e00472172d8a698ca07f2809fa3567ba8899d3d89d1356dfaa",
+  ),
+};
 
 export function computerDriverPlatformKey(
   platform: string = process.platform,
@@ -32,6 +68,8 @@ interface EnsureProvisionedDriverArgs {
   readonly logger: Pick<HostDaemonLogger, "debug" | "warn">;
   readonly platformKey?: string;
   readonly fetchImpl?: typeof fetch;
+  readonly spawnImpl?: ArchiveSpawnFn;
+  readonly pins?: Partial<Record<string, ComputerDriverPin>>;
 }
 
 const pendingInstalls = new Map<string, Promise<ComputerDriverProvisionState>>();
@@ -40,20 +78,22 @@ function driverFileName(platformKey: string): string {
   return platformKey.startsWith("win32-") ? "cua-driver.exe" : "cua-driver";
 }
 
-function describeMismatch(pin: ComputerDriverPin, bytes: Uint8Array): string | null {
-  if (bytes.byteLength !== pin.byteLength) {
-    return `expected ${pin.byteLength} bytes, received ${bytes.byteLength}`;
-  }
-  const actual = sha256Hex(bytes);
-  if (actual !== pin.sha256) {
-    return `expected sha256 ${pin.sha256}, received ${actual}`;
-  }
-  return null;
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function isExecutable(path: string): Promise<boolean> {
   try {
     await access(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
     return true;
   } catch {
     return false;
@@ -81,71 +121,100 @@ export async function ensureProvisionedDriver(
   args: EnsureProvisionedDriverArgs,
 ): Promise<ComputerDriverProvisionState> {
   const platformKey = args.platformKey ?? computerDriverPlatformKey();
-  const pin = COMPUTER_DRIVER_PINS[platformKey];
-  if (pin === undefined) return { status: "unpinned" };
-  const key = `${args.dataDir}\0${platformKey}\0${pin.version}`;
+  const pinned = (args.pins ?? COMPUTER_DRIVER_PINS)[platformKey];
+  if (pinned === undefined) return { status: "unpinned" };
+  const key = `${args.dataDir}\0${platformKey}\0${pinned.version}`;
   const pending = pendingInstalls.get(key);
   if (pending !== undefined) return pending;
-  const install = ensureProvisionedDriverUnlocked(args, platformKey, pin).finally(() => {
+  const install = ensureProvisionedDriverUnlocked(args, platformKey, pinned).finally(() => {
     pendingInstalls.delete(key);
   });
   pendingInstalls.set(key, install);
   return install;
 }
 
-async function ensureProvisionedDriverUnlocked(
+async function downloadAndVerify(
   args: EnsureProvisionedDriverArgs,
-  platformKey: string,
-  pin: ComputerDriverPin,
-): Promise<ComputerDriverProvisionState> {
-  const driverRoot = join(args.dataDir, "computer", "driver");
-  const versionDir = join(driverRoot, pin.version, platformKey);
-  const binaryPath = join(versionDir, driverFileName(platformKey));
-
-  if (await isExecutable(binaryPath)) {
-    await pruneOtherVersions(driverRoot, pin.version, args.logger);
-    return { status: "installed", path: binaryPath };
-  }
-
+  pinned: ComputerDriverPin,
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
-  args.logger.debug({ dataDir: args.dataDir, version: pin.version, platformKey }, "Downloading cua-driver");
-  await mkdir(versionDir, { recursive: true });
+  const url = computerDriverDownloadUrl(pinned);
   let lastMismatch = "unknown mismatch";
   for (let attempt = 0; attempt < 2; attempt += 1) {
     let bytes: Uint8Array;
     try {
-      const response = await doFetch(pin.url);
+      const response = await doFetch(url);
       if (!response.ok) {
-        return { status: "failed", message: `cua-driver download failed with HTTP ${response.status}` };
+        return { ok: false, message: `cua-driver download failed with HTTP ${response.status}` };
       }
       bytes = new Uint8Array(await response.arrayBuffer());
     } catch (error) {
+      return { ok: false, message: `cua-driver download failed: ${errorMessage(error)}` };
+    }
+    const actual = sha256Hex(bytes);
+    if (actual === pinned.sha256) return { ok: true, bytes };
+    lastMismatch = `expected sha256 ${pinned.sha256}, received ${actual}`;
+  }
+  return { ok: false, message: `cua-driver download failed verification after retry: ${lastMismatch}` };
+}
+
+async function ensureProvisionedDriverUnlocked(
+  args: EnsureProvisionedDriverArgs,
+  platformKey: string,
+  pinned: ComputerDriverPin,
+): Promise<ComputerDriverProvisionState> {
+  const computerRoot = join(args.dataDir, "computer");
+  const driverRoot = join(computerRoot, "driver");
+  const versionDir = join(driverRoot, pinned.version, platformKey);
+  const binaryPath = join(versionDir, driverFileName(platformKey));
+
+  if (await isExecutable(binaryPath)) {
+    await pruneOtherVersions(driverRoot, pinned.version, args.logger);
+    return { status: "installed", path: binaryPath };
+  }
+
+  args.logger.debug(
+    { dataDir: args.dataDir, version: pinned.version, platformKey },
+    "Downloading cua-driver",
+  );
+
+  const stagingDir = join(computerRoot, "staging", randomUUID());
+  try {
+    await mkdir(stagingDir, { recursive: true });
+
+    const downloaded = await downloadAndVerify(args, pinned);
+    if (!downloaded.ok) return { status: "failed", message: downloaded.message };
+
+    const archivePath = join(stagingDir, pinned.asset);
+    await writeFile(archivePath, downloaded.bytes);
+
+    const extractDir = join(stagingDir, "extracted");
+    await mkdir(extractDir, { recursive: true });
+    try {
+      await extractArchive(archivePath, extractDir, args.spawnImpl);
+    } catch (error) {
+      return { status: "failed", message: `cua-driver extraction failed: ${errorMessage(error)}` };
+    }
+
+    const extractedBinary = join(extractDir, driverFileName(platformKey));
+    if (!(await pathExists(extractedBinary))) {
       return {
         status: "failed",
-        message: `cua-driver download failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `cua-driver archive did not contain ${driverFileName(platformKey)}`,
       };
     }
-    const mismatch = describeMismatch(pin, bytes);
-    if (mismatch !== null) {
-      lastMismatch = mismatch;
-      continue;
-    }
-    const staged = join(versionDir, `.staged-${randomUUID()}.tmp`);
-    try {
-      await writeFile(staged, bytes, { mode: 0o755 });
-      await rename(staged, binaryPath);
-    } catch (error) {
-      await rm(staged, { force: true });
-      throw error;
-    }
+    await chmod(extractedBinary, 0o755).catch(() => {});
+
+    await mkdir(join(driverRoot, pinned.version), { recursive: true });
+    await rm(versionDir, { recursive: true, force: true });
+    await rename(extractDir, versionDir);
+
     if (!(await isExecutable(binaryPath))) {
       return { status: "permissions-missing", path: binaryPath };
     }
-    await pruneOtherVersions(driverRoot, pin.version, args.logger);
+    await pruneOtherVersions(driverRoot, pinned.version, args.logger);
     return { status: "installed", path: binaryPath };
+  } finally {
+    await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
   }
-  return {
-    status: "failed",
-    message: `cua-driver download failed verification after retry: ${lastMismatch}`,
-  };
 }

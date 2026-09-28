@@ -369,6 +369,7 @@ move and downloads the new server's bb-app package for its service.
 - `bb computer`
 - `bb computer machines`
 - `bb computer doctor`
+- `bb computer setup`
 - `bb computer observe`
 - `bb computer act`
 - `bb computer screenshot`

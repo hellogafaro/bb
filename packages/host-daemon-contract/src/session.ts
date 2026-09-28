@@ -420,6 +420,7 @@ const hostDaemonOnlineRpcResponseSuccessSchema = z.discriminatedUnion(
     onlineRpcResponseSuccessSchemaFor("desktop.browser.list_import_sources"),
     onlineRpcResponseSuccessSchemaFor("desktop.browser.import_cookies"),
     onlineRpcResponseSuccessSchemaFor("computer.doctor"),
+    onlineRpcResponseSuccessSchemaFor("computer.install_driver"),
     onlineRpcResponseSuccessSchemaFor("computer.observe"),
     onlineRpcResponseSuccessSchemaFor("computer.act"),
     onlineRpcResponseSuccessSchemaFor("computer.capture"),
