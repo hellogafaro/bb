@@ -3,6 +3,7 @@ import type { ThreadTab } from "@bb/server-contract";
 import { describe, expect, it } from "vitest";
 import { buildFileOpenerPanelTab } from "@/test/fixtures/plugins";
 import {
+  createComputerFixedPanelTab,
   createEmptyFixedPanelTabsState,
   createFilesFixedPanelTab,
   createPluginPanelFixedPanelTab,
@@ -191,6 +192,31 @@ describe("thread tab synchronization", () => {
     });
 
     expect(areThreadTabListsEquivalent([pageTab], [])).toBe(true);
+  });
+
+  it("keeps the same state when only local-only tabs sit beside the remote tabs", () => {
+    const remote = browserTab("first", "First");
+    const computer = createComputerFixedPanelTab();
+    const current = createEmptyFixedPanelTabsState({
+      secondary: {
+        activeTabId: computer.id,
+        isOpen: true,
+        tabs: [remote, computer],
+      },
+    });
+
+    expect(reconcileFixedPanelTabsState(current, [remote])).toBe(current);
+
+    const reordered = createEmptyFixedPanelTabsState({
+      secondary: {
+        activeTabId: computer.id,
+        isOpen: true,
+        tabs: [computer, remote],
+      },
+    });
+    const reconciled = reconcileFixedPanelTabsState(reordered, [remote]);
+    expect(reconciled.secondary.tabs).toEqual([remote, computer]);
+    expect(reconcileFixedPanelTabsState(reconciled, [remote])).toBe(reconciled);
   });
 });
 

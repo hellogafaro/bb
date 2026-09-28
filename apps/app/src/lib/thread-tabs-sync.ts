@@ -63,6 +63,19 @@ function localOnlyThreadTabs(
   return tabs.filter((tab) => tab.kind === "computer");
 }
 
+function areFixedPanelTabListsEquivalent(
+  left: readonly FixedPanelTab[],
+  right: readonly FixedPanelTab[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((tab, index) => {
+      const other = right[index];
+      return other !== undefined && areFixedPanelTabsEquivalent(tab, other);
+    })
+  );
+}
+
 export function areThreadTabListsEquivalent(
   left: readonly (FixedPanelTab | ThreadTab)[],
   right: readonly (FixedPanelTab | ThreadTab)[],
@@ -126,10 +139,7 @@ export function reconcileFixedPanelTabsState(
     ...replaceRetiredSidetreeTabs(persistedThreadTabs(serverTabs)),
     ...localOnlyTabs,
   ];
-  if (
-    localOnlyTabs.length === 0 &&
-    areThreadTabListsEquivalent(current.secondary.tabs, tabs)
-  ) {
+  if (areFixedPanelTabListsEquivalent(current.secondary.tabs, tabs)) {
     return current;
   }
   const retainedIds = new Set(tabs.map((tab) => tab.id));
