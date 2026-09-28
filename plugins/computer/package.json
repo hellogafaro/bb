@@ -12,7 +12,7 @@
     "name": "Computer",
     "description": "Observe and control the machine a thread runs on, or any enrolled machine, through Cua Driver: a target table, click/type/scroll, screenshots and recordings, and a live view with Stop and Take control.",
     "branding": {
-      "icon": "Monitor"
+      "icon": "Laptop"
     },
     "server": "./server.ts",
     "host": "./host.ts",

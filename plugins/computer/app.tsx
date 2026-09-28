@@ -280,7 +280,7 @@ export default definePluginApp((app) => {
   app.slots.threadPanelAction({
     id: PANEL_ACTION_ID,
     title: "Computer",
-    icon: "Monitor",
+    icon: "Laptop",
     component: ComputerPanel,
     layout: "flush",
     run: ({ openPanel }) => {
