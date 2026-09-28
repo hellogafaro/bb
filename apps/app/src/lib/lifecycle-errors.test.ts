@@ -484,7 +484,7 @@ const descriptionCases: DescriptionCase[] = [
     },
     expected: {
       title: "Parent thread unavailable",
-      body: "Thread nesting is limited to 4 levels.",
+      body: "Thread nesting is limited to 2 levels.",
       severity: "error",
     },
   },

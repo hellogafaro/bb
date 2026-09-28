@@ -323,19 +323,9 @@ describe("canThreadSpawnChild", () => {
         projectId: project.id,
         parentThreadId: root.id,
       });
-      const level3 = seedThread(harness.deps, {
-        projectId: project.id,
-        parentThreadId: level2.id,
-      });
-      const level4 = seedThread(harness.deps, {
-        projectId: project.id,
-        parentThreadId: level3.id,
-      });
 
       expect(canThreadSpawnChild(harness.deps, { thread: root })).toBe(true);
-      expect(canThreadSpawnChild(harness.deps, { thread: level2 })).toBe(true);
-      expect(canThreadSpawnChild(harness.deps, { thread: level3 })).toBe(true);
-      expect(canThreadSpawnChild(harness.deps, { thread: level4 })).toBe(false);
+      expect(canThreadSpawnChild(harness.deps, { thread: level2 })).toBe(false);
     });
   });
 
@@ -358,16 +348,8 @@ describe("canThreadSpawnChild", () => {
       const root = seedThread(harness.deps, { projectId: project.id });
       const level2 = seedThread(harness.deps, {
         projectId: project.id,
-        parentThreadId: root.id,
-      });
-      const level3 = seedThread(harness.deps, {
-        projectId: project.id,
-        parentThreadId: level2.id,
-      });
-      const level4 = seedThread(harness.deps, {
-        projectId: project.id,
         environmentId: environment.id,
-        parentThreadId: level3.id,
+        parentThreadId: root.id,
       });
 
       let caught: ApiError | null = null;
@@ -383,7 +365,7 @@ describe("canThreadSpawnChild", () => {
           originKind: "fork",
           projectId: project.id,
           providerId: "codex",
-          sourceThreadId: level4.id,
+          sourceThreadId: level2.id,
           startedOnBehalfOf: null,
         });
       } catch (error) {

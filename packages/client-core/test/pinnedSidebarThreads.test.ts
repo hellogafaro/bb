@@ -141,7 +141,32 @@ describe("buildPinnedSidebarState", () => {
     expect(state.rootNodes[0]?.stats.childCount).toBe(0);
   });
 
-  it("hides an explicitly pinned child under its pinned ancestor root", () => {
+  it("hides an explicitly pinned fork child under its pinned ancestor root", () => {
+    const state = buildPinnedSidebarState({
+      threads: [
+        createThread({
+          id: "parent",
+          pinnedAt: 2_000,
+          pinSortKey: "a",
+        }),
+        createThread({
+          id: "child",
+          originKind: "fork",
+          parentThreadId: "parent",
+          pinnedAt: 1_000,
+          pinSortKey: "b",
+        }),
+      ],
+    });
+
+    expect(rootIds(state)).toEqual(["parent"]);
+    expect(state.rootNodes[0]?.children[0]).toMatchObject({
+      kind: "thread",
+    });
+    expect(state.rootNodes[0]?.stats.childCount).toBe(1);
+  });
+
+  it("counts a pinned delegated child on its root without listing it", () => {
     const state = buildPinnedSidebarState({
       threads: [
         createThread({
@@ -159,9 +184,7 @@ describe("buildPinnedSidebarState", () => {
     });
 
     expect(rootIds(state)).toEqual(["parent"]);
-    expect(state.rootNodes[0]?.children[0]).toMatchObject({
-      kind: "thread",
-    });
+    expect(state.rootNodes[0]?.children).toEqual([]);
     expect(state.rootNodes[0]?.stats.childCount).toBe(1);
   });
 

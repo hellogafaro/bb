@@ -135,7 +135,7 @@ export type ThreadRowOptions =
       childCount: number;
       childActivity: CollapsedChildActivity;
       stickyLevel?: number;
-      onToggleCollapsed: (threadId: string) => void;
+      onToggleCollapsed?: (threadId: string) => void;
     });
 
 interface ThreadRowProps {
@@ -479,7 +479,10 @@ function ThreadRowComponent({
   const wakesAt = snoozeState?.activeUntil(thread.id) ?? null;
   const extraHoverActionsWidth = `${(isSnoozeRoot ? 3 : 2) * 30}px`;
   const reservesActionsBesideDisclosure =
-    parentOptions !== null && hasChildren && !shortcut && !isEditing;
+    parentOptions?.onToggleCollapsed !== undefined &&
+    hasChildren &&
+    !shortcut &&
+    !isEditing;
   const rowContent = (
     <>
       {parentOptions?.stickyLevel !== undefined && parentGuideLeft !== null ? (
@@ -558,14 +561,14 @@ function ThreadRowComponent({
             </span>
           )}
         </span>
-        {parentOptions && hasChildren ? (
+        {parentOptions?.onToggleCollapsed && hasChildren ? (
           <SidebarChildToggleChevron
             disabled={isEditing}
             className={isEditing ? "hidden" : undefined}
             isCollapsed={isParentCollapsed}
             expandLabel={`Expand ${labelTitle} threads`}
             collapseLabel={`Collapse ${labelTitle} threads`}
-            onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
+            onToggle={() => parentOptions.onToggleCollapsed?.(thread.id)}
             revealOnHover={!isParentCollapsed}
           />
         ) : null}

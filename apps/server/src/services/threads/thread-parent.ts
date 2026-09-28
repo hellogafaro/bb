@@ -3,7 +3,7 @@ import type { Thread } from "@bb/domain";
 import type { AppDeps } from "../../types.js";
 import { throwParentThreadInvalid } from "../lib/lifecycle-api-errors.js";
 
-const MAX_THREAD_HIERARCHY_DEPTH = 4;
+const MAX_THREAD_HIERARCHY_DEPTH = 2;
 
 export function isAgentDelegatedChildThread<
   T extends Pick<Thread, "parentThreadId">,

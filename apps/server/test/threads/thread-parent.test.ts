@@ -148,25 +148,15 @@ describe("thread parent validation", () => {
       projectId: project.id,
       providerId: "codex",
     });
-    const level2Thread = createThread(db, noopNotifier, {
-      parentThreadId: rootThread.id,
-      projectId: project.id,
-      providerId: "codex",
-    });
-    const level3Thread = createThread(db, noopNotifier, {
-      parentThreadId: level2Thread.id,
-      projectId: project.id,
-      providerId: "codex",
-    });
 
     const validatedParent = assertValidParentThread(
       { db },
       {
-        parentThreadId: level3Thread.id,
+        parentThreadId: rootThread.id,
       },
     );
 
-    expect(validatedParent.id).toBe(level3Thread.id);
+    expect(validatedParent.id).toBe(rootThread.id);
   });
 
   it("rejects new children beyond the configured depth cap", () => {
@@ -180,22 +170,12 @@ describe("thread parent validation", () => {
       projectId: project.id,
       providerId: "codex",
     });
-    const level3Thread = createThread(db, noopNotifier, {
-      parentThreadId: level2Thread.id,
-      projectId: project.id,
-      providerId: "codex",
-    });
-    const level4Thread = createThread(db, noopNotifier, {
-      parentThreadId: level3Thread.id,
-      projectId: project.id,
-      providerId: "codex",
-    });
 
     const error = captureApiError(() => {
       assertValidParentThread(
         { db },
         {
-          parentThreadId: level4Thread.id,
+          parentThreadId: level2Thread.id,
         },
       );
     });
@@ -209,16 +189,6 @@ describe("thread parent validation", () => {
   it("rejects moves whose existing descendants would exceed the depth cap", () => {
     const { db, project } = setup();
     const rootThread = createThread(db, noopNotifier, {
-      projectId: project.id,
-      providerId: "codex",
-    });
-    const level2Thread = createThread(db, noopNotifier, {
-      parentThreadId: rootThread.id,
-      projectId: project.id,
-      providerId: "codex",
-    });
-    const level3Thread = createThread(db, noopNotifier, {
-      parentThreadId: level2Thread.id,
       projectId: project.id,
       providerId: "codex",
     });
@@ -237,7 +207,7 @@ describe("thread parent validation", () => {
         { db },
         {
           childThreadId: movingThread.id,
-          parentThreadId: level3Thread.id,
+          parentThreadId: rootThread.id,
         },
       );
     });

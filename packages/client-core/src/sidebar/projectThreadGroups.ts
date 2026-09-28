@@ -69,9 +69,15 @@ type SidebarProjectThreadShape = Pick<
   "originKind" | "visibility"
 >;
 
+type SidebarDelegatedChildThreadShape = Pick<
+  ThreadListEntry,
+  "originKind" | "parentThreadId"
+>;
+
 interface BuildThreadNodeArgs {
   ancestorThreadIds: ReadonlySet<string>;
   childrenByParentId: ReadonlyMap<string, readonly ThreadListEntry[]>;
+  delegatedChildrenByParentId: ReadonlyMap<string, readonly ThreadListEntry[]>;
   compareThreads: ThreadComparator;
   depth: number;
   draftThreadIds: ReadonlySet<string>;
@@ -249,9 +255,31 @@ function buildSortedItems(
   return items;
 }
 
+function collectDelegatedDescendantThreads(
+  delegatedChildrenByParentId: ReadonlyMap<string, readonly ThreadListEntry[]>,
+  parentThreadId: string,
+  visitedThreadIds: Set<string>,
+): ThreadListEntry[] {
+  const descendants: ThreadListEntry[] = [];
+  for (const child of delegatedChildrenByParentId.get(parentThreadId) ?? []) {
+    if (visitedThreadIds.has(child.id)) continue;
+    visitedThreadIds.add(child.id);
+    descendants.push(
+      child,
+      ...collectDelegatedDescendantThreads(
+        delegatedChildrenByParentId,
+        child.id,
+        visitedThreadIds,
+      ),
+    );
+  }
+  return descendants;
+}
+
 function buildThreadNode({
   ancestorThreadIds,
   childrenByParentId,
+  delegatedChildrenByParentId,
   compareThreads,
   depth,
   draftThreadIds,
@@ -272,6 +300,7 @@ function buildThreadNode({
       buildThreadNode({
         ancestorThreadIds: nextAncestorThreadIds,
         childrenByParentId,
+        delegatedChildrenByParentId,
         compareThreads,
         depth: depth + 1,
         draftThreadIds,
@@ -293,7 +322,14 @@ function buildThreadNode({
     children,
     depth,
     stats: buildStatsForHiddenThreads(
-      getProjectThreadItemDescendants(children),
+      [
+        ...getProjectThreadItemDescendants(children),
+        ...collectDelegatedDescendantThreads(
+          delegatedChildrenByParentId,
+          thread.id,
+          new Set([thread.id]),
+        ),
+      ],
       draftThreadIds,
     ),
   };
@@ -374,11 +410,31 @@ function buildThreadTreeItems(
 ): ProjectThreadItem[] {
   const projectThreads = allThreads.filter(isSidebarProjectThread);
   const projectThreadIds = new Set(projectThreads.map((thread) => thread.id));
-  const childrenByParentId = new Map<string, ThreadListEntry[]>();
+  const delegatedChildrenByParentId = new Map<string, ThreadListEntry[]>();
+  const listedThreads: ThreadListEntry[] = [];
 
   for (const thread of projectThreads) {
+    if (
+      thread.parentThreadId === null ||
+      !isSidebarDelegatedChildThread(thread, projectThreadIds)
+    ) {
+      listedThreads.push(thread);
+      continue;
+    }
+    const siblings = delegatedChildrenByParentId.get(thread.parentThreadId);
+    if (siblings) {
+      siblings.push(thread);
+    } else {
+      delegatedChildrenByParentId.set(thread.parentThreadId, [thread]);
+    }
+  }
+
+  const listedThreadIds = new Set(listedThreads.map((thread) => thread.id));
+  const childrenByParentId = new Map<string, ThreadListEntry[]>();
+
+  for (const thread of listedThreads) {
     if (thread.parentThreadId === null) continue;
-    if (!projectThreadIds.has(thread.parentThreadId)) continue;
+    if (!listedThreadIds.has(thread.parentThreadId)) continue;
 
     const children = childrenByParentId.get(thread.parentThreadId);
     if (children) {
@@ -391,14 +447,15 @@ function buildThreadTreeItems(
   const visitedThreadIds = new Set<string>();
   const rootNodes: ProjectThreadNode[] = [];
 
-  for (const thread of projectThreads) {
-    if (!isRootThread(thread, projectThreadIds)) continue;
+  for (const thread of listedThreads) {
+    if (!isRootThread(thread, listedThreadIds)) continue;
     if (visitedThreadIds.has(thread.id)) continue;
 
     rootNodes.push(
       buildThreadNode({
         ancestorThreadIds: new Set(),
         childrenByParentId,
+        delegatedChildrenByParentId,
         compareThreads,
         depth: 0,
         draftThreadIds,
@@ -409,13 +466,14 @@ function buildThreadTreeItems(
     );
   }
 
-  for (const thread of projectThreads) {
+  for (const thread of listedThreads) {
     if (visitedThreadIds.has(thread.id)) continue;
 
     rootNodes.push(
       buildThreadNode({
         ancestorThreadIds: new Set(),
         childrenByParentId,
+        delegatedChildrenByParentId,
         compareThreads,
         depth: 0,
         draftThreadIds,
@@ -475,6 +533,17 @@ export function isSidebarProjectThread(
   thread: SidebarProjectThreadShape,
 ): boolean {
   return thread.visibility !== "hidden";
+}
+
+export function isSidebarDelegatedChildThread(
+  thread: SidebarDelegatedChildThreadShape,
+  listedThreadIds: ReadonlySet<string>,
+): boolean {
+  return (
+    thread.originKind === null &&
+    thread.parentThreadId !== null &&
+    listedThreadIds.has(thread.parentThreadId)
+  );
 }
 
 function bucketEnvironmentThreadGroups(

@@ -3,7 +3,13 @@ import {
   machineRemovalLabels,
   type MachineRemovalStatus,
 } from "@/lib/machine-removal-display";
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { NavLink } from "react-router-dom";
 import type {
   EnvironmentStatus,
@@ -32,6 +38,8 @@ import {
 } from "@/lib/pull-request-display";
 import { PullRequestStatusPill } from "@/components/pull-request/PullRequestStatusPill";
 import { AnimatedBody } from "@/components/promptbox/banner/AnimatedBody";
+import { ChildThreadPanel } from "@/components/promptbox/banner/ChildThreadPanel";
+import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
 import {
   BannerActionSlot,
   PROMPT_BANNER_ACTION_FILL_CLASS,
@@ -57,15 +65,21 @@ export interface ThreadPromptParentThreadSection {
   relationship: "parent" | "fork" | "side-chat";
 }
 
-interface ThreadPromptChildThreadItem {
+export type ThreadPromptChildThreadState = "needs-input" | "active" | "done";
+
+export interface ThreadPromptChildThreadItem {
   id: string;
   title: string;
   href: string;
+  projectId: string;
+  providerId: string;
+  state: ThreadPromptChildThreadState;
   hasPendingInteraction: boolean;
 }
 
 export interface ThreadPromptChildThreadsSection {
   items: readonly ThreadPromptChildThreadItem[];
+  resolveMentionLink?: PromptMentionLinkResolver;
 }
 
 export interface ThreadPromptPullRequestSection {
@@ -161,16 +175,6 @@ const SECTION_IDS = {
 } as const;
 
 const SEGMENT_SHRINK_CLASS = "min-w-0 overflow-hidden";
-
-function ChildThreadIcon({ className }: { className?: string }) {
-  return (
-    <Icon
-      name="ChevronDown"
-      className={cn("size-3.5 shrink-0 rotate-45", className)}
-      aria-hidden="true"
-    />
-  );
-}
 
 interface SectionToggleButtonProps {
   id: string;
@@ -376,36 +380,170 @@ function ParentThreadSectionBody({
   );
 }
 
+const CHILD_THREAD_STATE_ORDER: Record<ThreadPromptChildThreadState, number> = {
+  "needs-input": 0,
+  active: 1,
+  done: 2,
+};
+
+const CHILD_THREAD_STATE_LABEL: Record<ThreadPromptChildThreadState, string> = {
+  "needs-input": "Needs input",
+  active: "Active",
+  done: "Done",
+};
+
+function sortChildThreadItems(
+  items: readonly ThreadPromptChildThreadItem[],
+): ThreadPromptChildThreadItem[] {
+  return [...items].sort(
+    (left, right) =>
+      CHILD_THREAD_STATE_ORDER[left.state] -
+      CHILD_THREAD_STATE_ORDER[right.state],
+  );
+}
+
+function ChildThreadStateIcon({
+  state,
+  className,
+}: {
+  state: ThreadPromptChildThreadState;
+  className?: string;
+}) {
+  switch (state) {
+    case "needs-input":
+      return (
+        <Icon
+          name="CircleQuestion"
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground/75",
+            className,
+          )}
+          aria-hidden="true"
+        />
+      );
+    case "active":
+      return (
+        <Icon
+          name="UserRound"
+          className={activityIconClass(
+            "active",
+            cn("size-3.5 shrink-0", className),
+          )}
+          aria-hidden="true"
+        />
+      );
+    case "done":
+      return (
+        <Icon
+          name="Check"
+          className={cn("size-3.5 shrink-0 text-subtle-foreground", className)}
+          aria-hidden="true"
+        />
+      );
+    default: {
+      const exhaustiveCheck: never = state;
+      return exhaustiveCheck;
+    }
+  }
+}
+
+function childThreadRowId(threadId: string): string {
+  return `thread-prompt-banner-child-thread-${threadId}`;
+}
+
+function ChildThreadRow({
+  item,
+  isExpanded,
+  onToggle,
+  resolveMentionLink,
+}: {
+  item: ThreadPromptChildThreadItem;
+  isExpanded: boolean;
+  onToggle: () => void;
+  resolveMentionLink: PromptMentionLinkResolver | undefined;
+}) {
+  const titleText = useThreadTitleDisplayText(item.title);
+  const panelId = `${childThreadRowId(item.id)}-panel`;
+  return (
+    <li className="text-xs">
+      <div className="flex min-w-0 items-center gap-1">
+        <button
+          type="button"
+          id={childThreadRowId(item.id)}
+          aria-expanded={isExpanded}
+          aria-controls={panelId}
+          aria-label={`${CHILD_THREAD_STATE_LABEL[item.state]}: ${titleText}`}
+          onClick={onToggle}
+          className="flex min-h-7 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-left text-foreground/90 transition-colors hover:bg-background/80"
+        >
+          <ChildThreadStateIcon state={item.state} />
+          <ThreadTitle title={item.title} tooltip className="flex-1" />
+          <span className="shrink-0 text-muted-foreground">
+            {CHILD_THREAD_STATE_LABEL[item.state]}
+          </span>
+          <PromptStackCardChevron
+            isExpanded={isExpanded}
+            className="text-muted-foreground"
+          />
+        </button>
+        <NavLink
+          to={item.href}
+          aria-label={`Open ${titleText}`}
+          title="Open thread"
+          className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+        >
+          <Icon name="ExternalLink" className="size-3.5" aria-hidden="true" />
+        </NavLink>
+      </div>
+      <AnimatedBody
+        collapsedBorder="none"
+        id={panelId}
+        labelledBy={childThreadRowId(item.id)}
+        isExpanded={isExpanded}
+      >
+        {isExpanded ? (
+          <ChildThreadPanel
+            projectId={item.projectId}
+            providerId={item.providerId}
+            resolveMentionLink={resolveMentionLink}
+            threadId={item.id}
+          />
+        ) : null}
+      </AnimatedBody>
+    </li>
+  );
+}
+
 function ChildThreadsBody({
   items,
+  resolveMentionLink,
 }: {
   items: readonly ThreadPromptChildThreadItem[];
+  resolveMentionLink: PromptMentionLinkResolver | undefined;
 }) {
+  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
+  useEffect(() => {
+    if (
+      expandedThreadId !== null &&
+      !items.some((item) => item.id === expandedThreadId)
+    ) {
+      setExpandedThreadId(null);
+    }
+  }, [expandedThreadId, items]);
   return (
-    <ul className="max-h-40 space-y-0.5 overflow-y-auto px-3 pb-2 pt-1.5">
+    <ul className="space-y-0.5 px-2 pb-2 pt-1">
       {items.map((item) => (
-        <li key={item.id} className="text-xs">
-          <NavLink
-            to={item.href}
-            className="flex min-w-0 items-center gap-2 py-0.5 text-foreground/90 underline-offset-2 hover:underline"
-          >
-            {item.hasPendingInteraction ? (
-              <Icon
-                name="CircleQuestion"
-                className="size-3.5 shrink-0 text-muted-foreground/75 no-underline"
-                aria-hidden="true"
-              />
-            ) : (
-              <ChildThreadIcon className="text-subtle-foreground no-underline" />
-            )}
-            <ThreadTitle title={item.title} tooltip className="flex-1" />
-            {item.hasPendingInteraction ? (
-              <span className="shrink-0 text-muted-foreground">
-                Needs input
-              </span>
-            ) : null}
-          </NavLink>
-        </li>
+        <ChildThreadRow
+          key={item.id}
+          item={item}
+          isExpanded={expandedThreadId === item.id}
+          onToggle={() =>
+            setExpandedThreadId((current) =>
+              current === item.id ? null : item.id,
+            )
+          }
+          resolveMentionLink={resolveMentionLink}
+        />
       ))}
     </ul>
   );
@@ -592,14 +730,19 @@ function PullRequestBannerLink({
 function childThreadsLabel(args: {
   count: number;
   pendingCount: number;
+  activeCount: number;
 }): string {
+  const base = `${args.count} child ${args.count === 1 ? "thread" : "threads"}`;
   if (args.pendingCount > 0) {
-    return `${args.pendingCount} child ${args.pendingCount === 1 ? "thread needs" : "threads need"} input`;
+    return `${base} · ${args.pendingCount} ${args.pendingCount === 1 ? "needs" : "need"} input`;
   }
-  return `${args.count} active child ${args.count === 1 ? "thread" : "threads"}`;
+  if (args.activeCount > 0) {
+    return `${base} · ${args.activeCount} active`;
+  }
+  return base;
 }
 
-function ActiveChildThreadsCard({
+function ChildThreadsCard({
   childThreadsSection,
   isExpanded,
   onToggle,
@@ -608,27 +751,23 @@ function ActiveChildThreadsCard({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  const items = [...childThreadsSection.items].sort((left, right) =>
-    left.hasPendingInteraction === right.hasPendingInteraction
-      ? 0
-      : left.hasPendingInteraction
-        ? -1
-        : 1,
-  );
+  const items = sortChildThreadItems(childThreadsSection.items);
   const primary = items[0];
   const primaryTitle = useThreadTitleDisplayText(primary?.title ?? "");
   if (!primary) {
     return null;
   }
   const pendingCount = items.filter(
-    (item) => item.hasPendingInteraction,
+    (item) => item.state === "needs-input",
   ).length;
+  const activeCount = items.filter((item) => item.state === "active").length;
   const otherCount = items.length - 1;
   const groupLabel = childThreadsLabel({
     count: items.length,
     pendingCount,
+    activeCount,
   });
-  const needsApproval = pendingCount > 0;
+  const headerState = primary.state;
   return (
     <PromptStackCard
       ariaLabel="Child threads"
@@ -644,26 +783,18 @@ function ActiveChildThreadsCard({
           aria-label={`${groupLabel}: ${primaryTitle}`}
           onClick={onToggle}
           className={
-            needsApproval
-              ? PROMPT_STACK_CARD_HEADER_BUTTON_CLASS
-              : activityRowClass(
+            headerState === "active"
+              ? activityRowClass(
                   "active",
                   PROMPT_STACK_CARD_HEADER_BUTTON_CLASS,
                 )
+              : PROMPT_STACK_CARD_HEADER_BUTTON_CLASS
           }
         >
-          <Icon
-            name={needsApproval ? "CircleQuestion" : "UserRound"}
-            className={
-              needsApproval
-                ? "size-3.5 shrink-0 text-muted-foreground/75"
-                : activityIconClass("active", "size-3.5 shrink-0")
-            }
-            aria-hidden="true"
-          />
+          <ChildThreadStateIcon state={headerState} />
           <span className="min-w-0 flex-1 truncate text-left">
             <span className="text-muted-foreground">
-              {needsApproval ? "Needs your input: " : "Active child thread: "}
+              {CHILD_THREAD_STATE_LABEL[headerState]}:{" "}
             </span>
             <ThreadTitle
               title={primary.title}
@@ -688,7 +819,10 @@ function ActiveChildThreadsCard({
         labelledBy={SECTION_IDS.childThreads.toggle}
         isExpanded={isExpanded}
       >
-        <ChildThreadsBody items={items} />
+        <ChildThreadsBody
+          items={items}
+          resolveMentionLink={childThreadsSection.resolveMentionLink}
+        />
       </AnimatedBody>
     </PromptStackCard>
   );
@@ -849,7 +983,7 @@ export function ThreadPromptContextBanner({
     expandedSection === "childThreads" && showChildThreads;
   const activeChildThreadsCard =
     showChildThreads && childThreadsSection ? (
-      <ActiveChildThreadsCard
+      <ChildThreadsCard
         childThreadsSection={childThreadsSection}
         isExpanded={isChildThreadsExpanded}
         onToggle={() => onToggleSection("childThreads")}
