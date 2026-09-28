@@ -322,19 +322,15 @@ describe("ComputerHostService requestPermissions", () => {
       platform: "darwin",
     });
     const report = await service.requestPermissions({});
-    expect(calls.some((call) => call.args[0] === "permissions" && call.args[1] === "grant")).toBe(true);
-    expect(calls).toContainEqual({
-      command: "/usr/bin/tccutil",
-      args: ["reset", "ScreenCapture", "com.trycua.driver"],
-    });
-    expect(calls.some((call) => call.command === "/usr/bin/tccutil" && call.args[1] === "Accessibility")).toBe(false);
+    expect(calls).toContainEqual({ command: "/usr/bin/open", args: ["-R", join(dataDir, "bb Computer.app")] });
+    expect(calls.some((call) => call.args[0] === "permissions" && call.args[1] === "grant")).toBe(false);
+    expect(calls.some((call) => call.command === "/usr/bin/tccutil")).toBe(false);
     const opened = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
     expect(opened?.args[0]).toContain("Privacy_ScreenCapture");
     calls.length = 0;
     await service.requestPermissions({ permission: "accessibility" });
     const explicit = calls.find((call) => call.command === "/usr/bin/open" && String(call.args[0]).startsWith("x-apple"));
     expect(explicit?.args[0]).toContain("Privacy_Accessibility");
-    expect(calls.some((call) => call.command === "/usr/bin/tccutil")).toBe(false);
     expect(report.probes.find((probe) => probe.id === "screen-recording")?.status).toBe("setup-required");
     expect(report.probes.find((probe) => probe.id === "accessibility")?.status).toBe("ok");
     expect(report.driverPath).toBe(binaryPath);

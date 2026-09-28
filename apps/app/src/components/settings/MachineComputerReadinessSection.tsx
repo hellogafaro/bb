@@ -128,12 +128,12 @@ function PermissionsDialog({
         <DialogHeader>
           <DialogTitle>{`Allow ${title} on ${machineName}`}</DialogTitle>
           <DialogDescription>
-            {`System Settings opened on ${machineName} at Privacy & Security → ${title}. Approve the prompt if macOS shows one, or switch on "bb Computer" in the list, then re-check.`}
+            {`On ${machineName}, System Settings opened at Privacy & Security → ${title}, and a Finder window shows "bb Computer". Drag "bb Computer" into the list, switch it on, then re-check.`}
           </DialogDescription>
         </DialogHeader>
         {driverBundle !== null ? (
           <div className="flex flex-col gap-1 text-sm text-subtle-foreground">
-            <span>If "bb Computer" is not listed, add this app with the plus button:</span>
+            <span>No Finder window? Click + in the list and add this app:</span>
             <code className="break-all rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground">
               {driverBundle}
             </code>

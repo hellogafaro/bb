@@ -97,7 +97,6 @@ class DriverController {
   #runDirGrants = new PathGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
   #restartRequired = true;
-  #grantProcess: ChildProcess | null = null;
 
   constructor(
     spawnProcess: SpawnFn,
@@ -133,7 +132,14 @@ class DriverController {
           fetchImpl: this.#fetchImpl,
         });
         if (provisioned.status === "installed") {
-          if (provisioned.changed === true) this.#restartRequired = true;
+          if (provisioned.changed === true) {
+            this.#restartRequired = true;
+            if (this.#platform === "darwin") {
+              for (const service of Object.values(MACOS_TCC_SERVICES)) {
+                await this.#runQuiet("/usr/bin/tccutil", ["reset", service, COMPUTER_APP_BUNDLE_ID]);
+              }
+            }
+          }
           return { path: provisioned.path, tried: [provisioned.path], missing: false, permissionsMissing: false };
         }
         if (provisioned.status === "permissions-missing") {
@@ -312,19 +318,10 @@ class DriverController {
           ? "screen-recording"
           : null);
     if (target === null) return;
-    const granted = target === "accessibility" ? status?.accessibility === "granted" : status?.screenRecording === "granted";
-    if (!granted && usable) {
-      await this.#runQuiet("/usr/bin/tccutil", ["reset", MACOS_TCC_SERVICES[target], COMPUTER_APP_BUNDLE_ID]);
-      if (this.#grantProcess !== null && this.#grantProcess.exitCode === null) this.#grantProcess.kill("SIGTERM");
-      const grant = this.#spawnProcess(resolution.path, ["permissions", "grant"], { stdio: "ignore", detached: true, env: daemonEnv() });
-      grant.on("error", () => {});
-      grant.unref();
-      this.#grantProcess = grant;
-    }
     const pane = target === "screen-recording" ? MACOS_PRIVACY_PANES.screenRecording : MACOS_PRIVACY_PANES.accessibility;
-    const opener = this.#spawnProcess("/usr/bin/open", [pane], { stdio: "ignore", env: daemonEnv() });
-    opener.on("error", () => {});
-    opener.unref();
+    await this.#runQuiet("/usr/bin/open", [pane]);
+    const bundle = usable ? appBundlePathForBinary(resolution.path) : null;
+    if (bundle !== null) await this.#runQuiet("/usr/bin/open", ["-R", bundle]);
   }
 
   async restartDaemon(dataDir: string): Promise<void> {
