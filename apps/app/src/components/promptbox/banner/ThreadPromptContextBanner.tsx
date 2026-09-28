@@ -439,7 +439,9 @@ function ChildThreadRow({
           isOpen && "bg-background/80",
         )}
       >
-        <ThreadTitle title={item.title} className="min-w-0 flex-1" inline />
+        <span className="min-w-0 flex-1 truncate text-left">
+          <ThreadTitle title={item.title} inline />
+        </span>
         <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-subtle-foreground">
           <span>{stateLabel}</span>
           <span aria-hidden="true">·</span>
