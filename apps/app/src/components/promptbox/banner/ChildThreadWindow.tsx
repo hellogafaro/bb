@@ -4,7 +4,12 @@ import type { Agent, ThreadListEntry } from "@bb/domain";
 import { threadListIndicatorStateForThread } from "@bb/client-core";
 import { Icon } from "@bb/shared-ui/icon";
 import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
-import { ThreadStatusMascot } from "@/components/agents/ThreadStatusMascot";
+import { AgentMascot } from "@/components/agents/mascots/AgentMascot";
+import { threadMascotTone } from "@/components/agents/ThreadStatusMascot";
+import {
+  resolveThreadStatus,
+  ThreadStatusGlyph,
+} from "@/components/thread/ThreadStatusGlyph";
 import { ThreadProviderContext } from "@/components/thread/thread-provider-context";
 import { ThreadTimelinePanelContent } from "@/components/thread/timeline";
 import {
@@ -84,6 +89,9 @@ export function ChildThreadWindow({
   );
   const titleText = useThreadTitleDisplayText(title);
   const indicator = threadListIndicatorStateForThread(thread, false);
+  const mascotTone = threadMascotTone(
+    resolveThreadStatus(indicator, null).indicatorKind,
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   useStickToBottom(scrollRef, contentRef);
@@ -106,7 +114,16 @@ export function ChildThreadWindow({
       >
         <div className="flex min-h-9 shrink-0 items-center gap-2 border-b border-border-hairline py-1.5 pl-3 pr-1.5">
           <span className="flex size-4 shrink-0 items-center justify-center">
-            <ThreadStatusMascot {...indicator} agent={agent} size="compact" />
+            {agent === null ? (
+              <ThreadStatusGlyph {...indicator} />
+            ) : (
+              <AgentMascot
+                mascot={agent.mascot}
+                color={agent.color}
+                active={mascotTone === "working"}
+                className="size-4"
+              />
+            )}
           </span>
           <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
             <ThreadTitle title={title} inline />

@@ -408,7 +408,7 @@ function ChildThreadMascot({ item }: { item: ThreadPromptChildThreadItem }) {
   const indicator = threadListIndicatorStateForThread(item.thread, false);
   return (
     <span className="flex size-4 shrink-0 items-center justify-center">
-      <ThreadStatusMascot {...indicator} agent={item.agent} size="compact" />
+      <ThreadStatusMascot {...indicator} agent={item.agent} />
     </span>
   );
 }
@@ -439,13 +439,13 @@ function ChildThreadRow({
           isOpen && "bg-background/80",
         )}
       >
+        <ChildThreadMascot item={item} />
         <span className="min-w-0 flex-1 truncate text-left">
           <ThreadTitle title={item.title} inline />
         </span>
         <span className="shrink-0 whitespace-nowrap text-meta text-subtle-foreground">
           {age}
         </span>
-        <ChildThreadMascot item={item} />
       </button>
     </li>
   );
