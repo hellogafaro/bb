@@ -44,10 +44,24 @@ export default async function computerPlugin(bb: BbPluginApi) {
     openrouterModel: { type: "string", label: "OpenRouter model for typed text", default: "openai/gpt-4o-mini" },
   });
 
-  async function listMachines() {
+  async function listMachines(threadId: string | undefined) {
     const hosts = await bb.sdk.hosts.list();
+    const currentHostId =
+      threadId === undefined
+        ? null
+        : await bb.sdk.threads
+            .get({ threadId, include: "host" })
+            .then((thread) => ("host" in thread ? (thread.host?.id ?? null) : null))
+            .catch(() => null);
     return {
-      machines: hosts.map((entry) => ({ hostId: entry.id, name: entry.name })),
+      machines: hosts.map((entry) => ({
+        hostId: entry.id,
+        name: entry.name,
+        status: entry.status,
+        type: entry.type,
+        lastSeenAt: entry.lastSeenAt,
+      })),
+      currentHostId,
     };
   }
 
@@ -214,7 +228,7 @@ export default async function computerPlugin(bb: BbPluginApi) {
   }
 
   bb.rpc.register(rpcContract, {
-    machines: async () => listMachines(),
+    machines: async ({ threadId }) => listMachines(threadId),
     doctor: async ({ hostId }) => doctor(hostId, lifecycle.signal),
     observe: async ({ hostId, appId }) => observe(hostId, appId, lifecycle.signal),
     act: async ({ hostId, action }) => act(hostId, action, lifecycle.signal),
@@ -242,8 +256,8 @@ export default async function computerPlugin(bb: BbPluginApi) {
     name: "computer_machines",
     description: "List machines this thread can observe or control with the Computer plugin.",
     parameters: z.object({}),
-    async execute() {
-      return JSON.stringify(await listMachines());
+    async execute(_input, ctx) {
+      return JSON.stringify(await listMachines(ctx.threadId));
     },
   });
   bb.agents.registerTool({
@@ -376,7 +390,7 @@ export default async function computerPlugin(bb: BbPluginApi) {
           case "--help":
             return { exitCode: 0, stdout: usage };
           case "machines":
-            return reply(await listMachines());
+            return reply(await listMachines(threadId));
           case "doctor":
             if (hostId === undefined) return { exitCode: 1, stderr: "computer doctor requires --host <id>" };
             return reply(await doctor(hostId, signal));

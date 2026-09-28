@@ -234,13 +234,23 @@ export const startInputSchema = z
   .strict();
 export type StartInput = z.infer<typeof startInputSchema>;
 
+export const machineSummarySchema = z
+  .object({
+    hostId: hostIdSchema,
+    name: z.string(),
+    status: z.enum(["connected", "disconnected"]),
+    type: z.enum(["persistent", "ephemeral"]),
+    lastSeenAt: z.number().int().nullable(),
+  })
+  .strict();
+export type MachineSummary = z.infer<typeof machineSummarySchema>;
+
 export const rpcContract = defineRpcContract({
   machines: {
-    input: z.object({}).strict(),
+    input: z.object({ threadId: z.string().min(1).optional() }).strict(),
     output: z.object({
-      machines: z.array(
-        z.object({ hostId: hostIdSchema, name: z.string() }).strict(),
-      ),
+      machines: z.array(machineSummarySchema),
+      currentHostId: hostIdSchema.nullable(),
     }),
   },
   doctor: {

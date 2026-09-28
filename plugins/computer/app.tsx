@@ -1,14 +1,28 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@bb/shared-ui/dialog";
+import { Icon } from "@bb/shared-ui/icon";
+import { cn } from "@bb/shared-ui/lib/utils";
 import {
   definePluginApp,
   useRpc,
   type PluginMessageDirectiveProps,
   type PluginThreadPanelProps,
 } from "@get-bb/plugin-sdk/app";
-import type { rpcContract } from "./contracts.js";
+import type { DoctorReport, MachineSummary, rpcContract } from "./contracts.js";
 import { closeLightbox, openLightbox, useLightboxTarget } from "./lightbox-store.js";
 import { PREVIEW_DIRECTIVE_ID } from "./preview-directive.js";
+
+function formatLastSeen(lastSeenAt: number | null): string {
+  if (lastSeenAt === null) return "never seen";
+  const diffMs = Date.now() - lastSeenAt;
+  if (diffMs < 60_000) return "last seen just now";
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 60) return `last seen ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `last seen ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `last seen ${days}d ago`;
+}
 
 const PANEL_ACTION_ID = "computer";
 
@@ -51,6 +65,60 @@ function useLiveFrame(hostId: string | null, active: boolean, size: "thumbnail" 
     };
   }, [hostId, active, rpc, viewerId, size, pollIntervalMs]);
   return frame;
+}
+
+function useMachines(threadId: string) {
+  const rpc = useRpc<typeof rpcContract>();
+  const [state, setState] = useState<{ machines: MachineSummary[]; currentHostId: string | null }>({
+    machines: [],
+    currentHostId: null,
+  });
+  useEffect(() => {
+    let stopped = false;
+    rpc
+      .call("machines", { threadId })
+      .then((result) => {
+        if (!stopped) setState(result);
+      })
+      .catch(() => {});
+    return () => {
+      stopped = true;
+    };
+  }, [rpc, threadId]);
+  return state;
+}
+
+function useDoctorReport(hostId: string) {
+  const rpc = useRpc<typeof rpcContract>();
+  const [report, setReport] = useState<DoctorReport | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    setReport(null);
+    rpc
+      .call("doctor", { hostId })
+      .then((result) => {
+        if (!stopped) setReport(result);
+      })
+      .catch((error) => {
+        if (stopped) return;
+        setReport({
+          hostId,
+          state: "unavailable",
+          version: null,
+          probes: [
+            {
+              label: "Doctor",
+              status: "unavailable",
+              message: error instanceof Error ? error.message : String(error),
+            },
+          ],
+        });
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [hostId, rpc]);
+  return report;
 }
 
 function useActiveRun(hostId: string) {
@@ -105,11 +173,10 @@ function useControlStatus(hostId: string, clientId: string) {
   return [owner, setOwner] as const;
 }
 
-function ControlBanner({ hostId }: { hostId: string }) {
+function ControlBanner({ hostId, activeRunId }: { hostId: string; activeRunId: string | null }) {
   const rpc = useRpc<typeof rpcContract>();
   const clientId = useId();
   const [owner, setOwner] = useControlStatus(hostId, clientId);
-  const activeRunId = useActiveRun(hostId);
   const takeControl = () => {
     rpc
       .call("takeControl", { hostId, clientId })
@@ -179,43 +246,195 @@ function LiveView({ hostId, active, size = "thumbnail" }: { hostId: string; acti
   );
 }
 
-function ComputerPanel({ params }: PluginThreadPanelProps) {
-  const rpc = useRpc<typeof rpcContract>();
+function CenteredSpinner() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <Icon name="Loading" className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden />
+    </div>
+  );
+}
+
+function MachineStatusDot({ status }: { status: MachineSummary["status"] }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("size-1.5 shrink-0 rounded-full", status === "connected" ? "bg-status-ready" : "bg-muted-foreground/50")}
+    />
+  );
+}
+
+function MachineCard({
+  machine,
+  isCurrentThreadMachine,
+  onSelect,
+}: {
+  machine: MachineSummary;
+  isCurrentThreadMachine: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex flex-col gap-0.5 rounded-lg border border-border bg-card px-3 py-2 text-left hover:bg-muted/40"
+    >
+      <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+        <MachineStatusDot status={machine.status} />
+        <span className="min-w-0 truncate">{machine.name}</span>
+        {isCurrentThreadMachine ? (
+          <span className="shrink-0 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 text-2xs leading-none text-subtle-foreground">
+            this thread
+          </span>
+        ) : null}
+      </span>
+      <span className="text-meta text-subtle-foreground">{machine.type === "persistent" ? "Persistent" : "Ephemeral"}</span>
+      <span className="text-meta text-subtle-foreground">{formatLastSeen(machine.lastSeenAt)}</span>
+    </button>
+  );
+}
+
+function MachinePickerCards({
+  machines,
+  currentHostId,
+  onSelect,
+}: {
+  machines: MachineSummary[];
+  currentHostId: string | null;
+  onSelect: (hostId: string) => void;
+}) {
+  const ordered = [...machines].sort(
+    (left, right) => Number(right.hostId === currentHostId) - Number(left.hostId === currentHostId),
+  );
+  return (
+    <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+      <div className="flex w-full max-w-[360px] flex-col gap-3">
+        <h2 className="text-center text-sm font-medium text-foreground">Choose a machine</h2>
+        <div className="flex flex-col gap-2">
+          {ordered.map((machine) => (
+            <MachineCard
+              key={machine.hostId}
+              machine={machine}
+              isCurrentThreadMachine={machine.hostId === currentHostId}
+              onSelect={() => onSelect(machine.hostId)}
+            />
+          ))}
+          {ordered.length === 0 ? <p className="text-center text-xs text-muted-foreground">No machines yet</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PROBE_STATUS_CLASS: Record<DoctorReport["probes"][number]["status"], string> = {
+  ok: "text-status-ready",
+  "setup-required": "text-status-waiting",
+  unavailable: "text-status-failed",
+};
+
+function DoctorFailure({ machineName, report, onBack }: { machineName: string; report: DoctorReport; onBack: () => void }) {
+  return (
+    <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+      <div className="flex w-full max-w-[360px] flex-col gap-3">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="truncate text-sm font-medium text-foreground">{machineName}</p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {report.probes.map((probe) => (
+              <li key={probe.label} className="text-meta text-subtle-foreground">
+                <span className={cn("font-medium", PROBE_STATUS_CLASS[probe.status])}>{probe.label}</span>
+                {" — "}
+                <span>{probe.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="self-start text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
+          Back
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MachineTopBar({
+  machineName,
+  activeRunId,
+  onChange,
+}: {
+  machineName: string;
+  activeRunId: string | null;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs">
+      <span className="truncate font-medium text-foreground">{machineName}</span>
+      <button
+        type="button"
+        onClick={onChange}
+        disabled={activeRunId !== null}
+        title={activeRunId !== null ? "Stop the active run before switching machines" : undefined}
+        className="shrink-0 text-muted-foreground hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+      >
+        Change
+      </button>
+    </div>
+  );
+}
+
+function MachineWorkspace({
+  hostId,
+  machineName,
+  onBack,
+  onChange,
+}: {
+  hostId: string;
+  machineName: string;
+  onBack: () => void;
+  onChange: () => void;
+}) {
+  const report = useDoctorReport(hostId);
+  const activeRunId = useActiveRun(hostId);
+  const frame = useLiveFrame(hostId, report !== null && report.state === "ready", "full");
+
+  if (report === null) return <CenteredSpinner />;
+  if (report.state !== "ready") {
+    return <DoctorFailure machineName={machineName} report={report} onBack={onBack} />;
+  }
+  if (frame === null) return <CenteredSpinner />;
+  return (
+    <>
+      <MachineTopBar machineName={machineName} activeRunId={activeRunId} onChange={onChange} />
+      <ControlBanner hostId={hostId} activeRunId={activeRunId} />
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-black/90">
+        <img src={frame.src} alt="Live machine view" className="max-h-full max-w-full object-contain" />
+      </div>
+    </>
+  );
+}
+
+function ComputerPanel({ threadId, params }: PluginThreadPanelProps) {
   const parsedHostId = typeof params === "object" && params !== null && "hostId" in params && typeof (params as Record<string, unknown>).hostId === "string"
     ? ((params as Record<string, unknown>).hostId as string)
     : null;
   const [hostId, setHostId] = useState<string | null>(parsedHostId);
-  const [machines, setMachines] = useState<{ hostId: string; name: string }[]>([]);
-  useEffect(() => {
-    rpc.call("machines", {}).then((result) => setMachines(result.machines)).catch(() => {});
-  }, [rpc]);
+  const { machines, currentHostId } = useMachines(threadId);
+  const selectedMachine = machines.find((machine) => machine.hostId === hostId) ?? null;
+  const backToPicker = () => setHostId(null);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs">
-        <label htmlFor="computer-machine">Machine</label>
-        <select
-          id="computer-machine"
-          value={hostId ?? ""}
-          onChange={(event) => setHostId(event.target.value === "" ? null : event.target.value)}
-          className="rounded border border-border bg-background px-2 py-1"
-        >
-          <option value="">Select a machine…</option>
-          {machines.map((machine) => (
-            <option key={machine.hostId} value={machine.hostId}>
-              {machine.name}
-            </option>
-          ))}
-        </select>
-      </div>
       {hostId === null ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Select a machine to observe or control it.
-        </div>
+        <MachinePickerCards machines={machines} currentHostId={currentHostId} onSelect={setHostId} />
       ) : (
-        <>
-          <ControlBanner hostId={hostId} />
-          <LiveView hostId={hostId} active={true} size="full" />
-        </>
+        <MachineWorkspace
+          hostId={hostId}
+          machineName={selectedMachine?.name ?? hostId}
+          onBack={backToPicker}
+          onChange={backToPicker}
+        />
       )}
     </div>
   );
