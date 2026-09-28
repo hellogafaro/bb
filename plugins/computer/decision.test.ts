@@ -8,6 +8,7 @@ const observation: Observation = {
   title: "Editor",
   snapshotId: "snap-1",
   observedAt: Date.now(),
+  hint: null,
   targets: [
     { index: 0, targetId: "t0", role: "button", name: "Save", value: null, bounds: null, ref: null, allowedOperations: ["click"] },
     { index: 1, targetId: "t1", role: "text", name: "Filename", value: "", bounds: null, ref: null, allowedOperations: ["type", "set_value"] },

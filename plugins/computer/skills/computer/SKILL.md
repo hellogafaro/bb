@@ -15,7 +15,11 @@ commands:
 1. `computer_observe { hostId, appId? }` returns the target table for the
    active window (or the first window matching `appId`): each target has an
    `index`, `targetId`, `role`, `name`, `value`, `bounds`, and
-   `allowedOperations`. It also returns a `snapshotId`.
+   `allowedOperations`. It also returns a `snapshotId`. If the window reports
+   zero elements, `hint` explains why: Chromium-based apps (Chrome, Chromium,
+   Electron) need to be launched with `--force-renderer-accessibility` to
+   expose their accessibility tree, and for a web page the browser binding is
+   usually a better fit than desktop automation.
 2. Pick one target by `targetId` and one operation from its
    `allowedOperations`. Call `computer_act { hostId, action }` with that exact
    `targetId` and the observation's `snapshotId`. Never invent a target,

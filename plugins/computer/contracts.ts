@@ -50,6 +50,7 @@ export const observationSchema = z
     snapshotId: z.string().min(1).max(64),
     observedAt: z.number().int(),
     targets: z.array(targetSchema).max(1_000),
+    hint: z.string().max(500).nullable(),
   })
   .strict();
 export type Observation = z.infer<typeof observationSchema>;

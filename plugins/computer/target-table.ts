@@ -37,6 +37,13 @@ function sha256(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+function zeroElementHint(title: string): string {
+  const chromium = /chrom(e|ium)/iu.test(title);
+  return chromium
+    ? "This window reported no accessible elements. Chromium-based apps need --force-renderer-accessibility on their launch command to expose the accessibility tree; for web pages, prefer the browser binding instead of desktop automation."
+    : "This window reported no accessible elements; it may not implement platform accessibility APIs, or it may need to be focused before observing.";
+}
+
 function allowedOperationsFor(element: CuaElement): Target["allowedOperations"] {
   const role = (element.role ?? "").toLocaleLowerCase();
   const actions = element.actions ?? [];
@@ -166,12 +173,14 @@ export class TargetTable {
     }
     this.#bindings = bindings;
     this.#snapshotId = snapshotId;
+    const title = String(data.window_title ?? window.title ?? "").slice(0, 500);
     return {
       surface: "desktop",
-      title: String(data.window_title ?? window.title ?? "").slice(0, 500),
+      title,
       snapshotId,
       observedAt: Date.now(),
       targets,
+      hint: targets.length === 0 ? zeroElementHint(title) : null,
     };
   }
 

@@ -1,5 +1,6 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
+import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -12,7 +13,7 @@ import { LiveCaptureLoop } from "./live.js";
 import { buildCapabilityManifest, WindowGrantSet } from "./manifest.js";
 import { findWindow, TargetTable } from "./target-table.js";
 
-const BINARY_PATH = process.env.CUA_DRIVER_PATH ?? "cua-driver";
+export type SpawnFn = typeof nodeSpawn;
 
 function daemonEnv(): Record<string, string> {
   return cuaEnv({
@@ -27,141 +28,225 @@ function daemonEnv(): Record<string, string> {
   });
 }
 
-async function runProbe(args: string[], stdin?: string): Promise<{ code: number | null; stdout: string }> {
-  return new Promise((resolve) => {
-    const child = spawn(BINARY_PATH, args, { stdio: ["pipe", "pipe", "ignore"], env: daemonEnv() });
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout = (stdout + chunk).slice(0, 200_000);
-    });
-    child.on("error", () => resolve({ code: 1, stdout: "" }));
-    child.on("close", (code) => resolve({ code, stdout }));
-    child.stdin.end(stdin ?? "");
-  });
+function candidateBinaryPaths(dataDir: string): string[] {
+  return [
+    join(homedir(), ".local", "bin", "cua-driver"),
+    "/Applications/CuaDriver.app/Contents/MacOS/cua-driver",
+    "/opt/homebrew/bin/cua-driver",
+    "/usr/local/bin/cua-driver",
+    join(dataDir, "runtime", "cua-driver"),
+  ];
 }
 
-let daemonProcess: ChildProcess | null = null;
-const windowGrants = new WindowGrantSet();
-
-async function daemonRunning(): Promise<boolean> {
-  const status = await runProbe(["status"]);
-  return status.code === 0;
-}
-
-function manifestPath(dataDir: string): string {
-  return join(dataDir, "capability-manifest.json");
-}
-
-async function writeManifestFile(dataDir: string): Promise<void> {
-  const manifest = buildCapabilityManifest({
-    writablePaths: [join(dataDir, "runs")],
-    windows: windowGrants.list(),
-  });
-  await writeFile(manifestPath(dataDir), JSON.stringify(manifest, null, 2));
+interface BinaryResolution {
+  readonly path: string;
+  readonly tried: readonly string[];
+  readonly missing: boolean;
 }
 
 const PERMISSION_MODE = process.env.CUA_DRIVER_PERMISSION_MODE ?? "bounded";
 
-async function spawnDaemon(dataDir: string): Promise<void> {
-  const args =
-    PERMISSION_MODE === "bounded"
-      ? ["serve", "--permission-mode", "bounded", "--capability-manifest", manifestPath(dataDir), "--approve-capability-manifest"]
-      : ["serve", "--permission-mode", PERMISSION_MODE];
-  daemonProcess = spawn(BINARY_PATH, args, { stdio: "ignore", detached: true, env: daemonEnv() });
-  daemonProcess.unref();
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    if (await daemonRunning()) return;
+class DriverController {
+  #spawnProcess: SpawnFn;
+  #daemonProcess: ChildProcess | null = null;
+  #windowGrants = new WindowGrantSet();
+  #resolutionCache = new Map<string, Promise<BinaryResolution>>();
+
+  constructor(spawnProcess: SpawnFn) {
+    this.#spawnProcess = spawnProcess;
   }
-  throw new CuaError("Cua Driver daemon did not start within 5 seconds", "setup-required");
-}
 
-async function stopDaemon(): Promise<void> {
-  await runProbe(["stop"]);
-  if (daemonProcess !== null && daemonProcess.exitCode === null) daemonProcess.kill("SIGTERM");
-  daemonProcess = null;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (!(await daemonRunning())) return;
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  get windowGrants(): WindowGrantSet {
+    return this.#windowGrants;
   }
-}
 
-async function ensureDaemon(dataDir: string): Promise<void> {
-  if (await daemonRunning()) return;
-  if (daemonProcess !== null && daemonProcess.exitCode === null) return;
-  await mkdir(dataDir, { recursive: true });
-  await writeManifestFile(dataDir);
-  await spawnDaemon(dataDir);
-}
-
-async function ensureWindowGranted(dataDir: string, pid: number, windowId: number): Promise<void> {
-  await ensureDaemon(dataDir);
-  if (PERMISSION_MODE !== "bounded") return;
-  if (windowGrants.has(pid, windowId)) return;
-  windowGrants.add(pid, windowId);
-  await writeManifestFile(dataDir);
-  await stopDaemon();
-  await spawnDaemon(dataDir);
-}
-
-async function doctorReport() {
-  const version = await runProbe(["--version"]);
-  const running = await daemonRunning();
-  const probes: { label: string; status: "ok" | "setup-required" | "unavailable"; message: string }[] = [
-    {
-      label: "binary",
-      status: version.code === 0 ? "ok" : "unavailable",
-      message: version.code === 0 ? version.stdout.trim().slice(0, 100) : "cua-driver was not found on PATH",
-    },
-    {
-      label: "daemon",
-      status: running ? "ok" : "setup-required",
-      message: running ? "Cua Driver daemon is running" : "Cua Driver daemon is not running; call doctor/setup to start it",
-    },
-  ];
-  if (running) {
-    const windows = await runProbe(["call", "list_windows"], JSON.stringify({ on_screen_only: true }));
-    const health = await runProbe(["call", "health_report"], "{}");
-    probes.push({
-      label: "health",
-      status: health.code === 0 ? "ok" : "unavailable",
-      message: health.code === 0 ? "End-to-end health probe passed" : "The health_report probe failed",
-    });
-    let windowCount = -1;
-    let refusalMessage: string | null = null;
-    try {
-      const parsed = JSON.parse(windows.stdout) as { windows?: unknown[]; refusal?: { message?: string } };
-      windowCount = (parsed.windows ?? []).length;
-      refusalMessage = parsed.refusal?.message ?? null;
-    } catch {
-      windowCount = -1;
+  async #resolveBinaryPath(dataDir: string): Promise<BinaryResolution> {
+    const override = process.env.CUA_DRIVER_PATH;
+    if (override !== undefined && override.length > 0) {
+      return { path: override, tried: [override], missing: false };
     }
-    probes.push({
-      label: "windows",
-      status: windows.code === 0 && windowCount >= 0 ? "ok" : "unavailable",
-      message:
-        windows.code === 0 && windowCount >= 0
-          ? `${windowCount} on-screen window(s) visible`
-          : refusalMessage !== null
-            ? `Could not list on-screen windows: ${refusalMessage}`
-            : "Could not list on-screen windows",
+    let cached = this.#resolutionCache.get(dataDir);
+    if (cached === undefined) {
+      cached = (async () => {
+        const candidates = candidateBinaryPaths(dataDir);
+        for (const candidate of candidates) {
+          try {
+            await access(candidate, constants.X_OK);
+            return { path: candidate, tried: candidates, missing: false };
+          } catch {}
+        }
+        return { path: "cua-driver", tried: candidates, missing: true };
+      })();
+      this.#resolutionCache.set(dataDir, cached);
+    }
+    return cached;
+  }
+
+  async binaryPath(dataDir: string): Promise<string> {
+    return (await this.#resolveBinaryPath(dataDir)).path;
+  }
+
+  async runProbe(dataDir: string, args: string[], stdin?: string): Promise<{ code: number | null; stdout: string }> {
+    const resolution = await this.#resolveBinaryPath(dataDir);
+    return new Promise((resolve) => {
+      const child = this.#spawnProcess(resolution.path, args, { stdio: ["pipe", "pipe", "ignore"], env: daemonEnv() });
+      let stdout = "";
+      child.stdout?.setEncoding("utf8");
+      child.stdout?.on("data", (chunk: string) => {
+        stdout = (stdout + chunk).slice(0, 200_000);
+      });
+      child.on("error", () => resolve({ code: null, stdout: "" }));
+      child.on("close", (code) => resolve({ code, stdout }));
+      child.stdin?.end(stdin ?? "");
     });
   }
-  const state = probes.every((probe) => probe.status === "ok")
-    ? "ready"
-    : probes.some((probe) => probe.status === "unavailable")
-      ? "unavailable"
-      : "setup-required";
-  return {
-    state,
-    version: version.code === 0 ? version.stdout.trim().slice(0, 100) : null,
-    probes,
-  } as const;
+
+  async daemonRunning(dataDir: string): Promise<boolean> {
+    const status = await this.runProbe(dataDir, ["status"]);
+    return status.code === 0;
+  }
+
+  #manifestPath(dataDir: string): string {
+    return join(dataDir, "capability-manifest.json");
+  }
+
+  async #writeManifestFile(dataDir: string): Promise<void> {
+    const manifest = buildCapabilityManifest({
+      writablePaths: [join(dataDir, "runs")],
+      windows: this.#windowGrants.list(),
+    });
+    await writeFile(this.#manifestPath(dataDir), JSON.stringify(manifest, null, 2));
+  }
+
+  async #spawnDaemon(dataDir: string): Promise<void> {
+    const resolution = await this.#resolveBinaryPath(dataDir);
+    const args =
+      PERMISSION_MODE === "bounded"
+        ? ["serve", "--permission-mode", "bounded", "--capability-manifest", this.#manifestPath(dataDir), "--approve-capability-manifest"]
+        : ["serve", "--permission-mode", PERMISSION_MODE];
+    const spawnState: { failure: Error | null } = { failure: null };
+    const child = this.#spawnProcess(resolution.path, args, { stdio: "ignore", detached: true, env: daemonEnv() });
+    child.on("error", (error) => {
+      spawnState.failure = error;
+      if (this.#daemonProcess === child) this.#daemonProcess = null;
+    });
+    this.#daemonProcess = child;
+    child.unref();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (spawnState.failure !== null) {
+        const detail = resolution.missing
+          ? `tried: ${resolution.tried.join(", ")}`
+          : spawnState.failure.message;
+        throw new CuaError(`Cua Driver binary is unavailable: ${detail}`, "setup-required");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (await this.daemonRunning(dataDir)) return;
+    }
+    throw new CuaError("Cua Driver daemon did not start within 5 seconds", "setup-required");
+  }
+
+  async #stopDaemon(dataDir: string): Promise<void> {
+    await this.runProbe(dataDir, ["stop"]);
+    if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) this.#daemonProcess.kill("SIGTERM");
+    this.#daemonProcess = null;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (!(await this.daemonRunning(dataDir))) return;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+
+  async ensureDaemon(dataDir: string): Promise<void> {
+    if (await this.daemonRunning(dataDir)) return;
+    if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) return;
+    await mkdir(dataDir, { recursive: true });
+    await this.#writeManifestFile(dataDir);
+    await this.#spawnDaemon(dataDir);
+  }
+
+  async ensureWindowGranted(dataDir: string, pid: number, windowId: number): Promise<void> {
+    await this.ensureDaemon(dataDir);
+    if (PERMISSION_MODE !== "bounded") return;
+    if (this.#windowGrants.has(pid, windowId)) return;
+    this.#windowGrants.add(pid, windowId);
+    await this.#writeManifestFile(dataDir);
+    await this.#stopDaemon(dataDir);
+    await this.#spawnDaemon(dataDir);
+  }
+
+  async doctorReport(dataDir: string) {
+    const resolution = await this.#resolveBinaryPath(dataDir);
+    const version = resolution.missing ? { code: null as number | null, stdout: "" } : await this.runProbe(dataDir, ["--version"]);
+    const running = resolution.missing ? false : await this.daemonRunning(dataDir);
+    const probes: { label: string; status: "ok" | "setup-required" | "unavailable"; message: string }[] = [
+      {
+        label: "binary",
+        status: version.code === 0 ? "ok" : "unavailable",
+        message: resolution.missing
+          ? `cua-driver binary was not found; tried: ${resolution.tried.join(", ")}`
+          : version.code === 0
+            ? version.stdout.trim().slice(0, 100)
+            : "cua-driver was not found on PATH",
+      },
+      {
+        label: "daemon",
+        status: running ? "ok" : "setup-required",
+        message: running ? "Cua Driver daemon is running" : "Cua Driver daemon is not running; call doctor/setup to start it",
+      },
+    ];
+    if (running) {
+      const windows = await this.runProbe(dataDir, ["call", "list_windows"], JSON.stringify({ on_screen_only: true }));
+      const health = await this.runProbe(dataDir, ["call", "health_report"], "{}");
+      probes.push({
+        label: "health",
+        status: health.code === 0 ? "ok" : "unavailable",
+        message: health.code === 0 ? "End-to-end health probe passed" : "The health_report probe failed",
+      });
+      let windowCount = -1;
+      let refusalMessage: string | null = null;
+      try {
+        const parsed = JSON.parse(windows.stdout) as { windows?: unknown[]; refusal?: { message?: string } };
+        windowCount = (parsed.windows ?? []).length;
+        refusalMessage = parsed.refusal?.message ?? null;
+      } catch {
+        windowCount = -1;
+      }
+      probes.push({
+        label: "windows",
+        status: windows.code === 0 && windowCount >= 0 ? "ok" : "unavailable",
+        message:
+          windows.code === 0 && windowCount >= 0
+            ? `${windowCount} on-screen window(s) visible`
+            : refusalMessage !== null
+              ? `Could not list on-screen windows: ${refusalMessage}`
+              : "Could not list on-screen windows",
+      });
+    }
+    const state = probes.every((probe) => probe.status === "ok")
+      ? "ready"
+      : probes.some((probe) => probe.status === "unavailable")
+        ? "unavailable"
+        : "setup-required";
+    return {
+      state,
+      version: version.code === 0 ? version.stdout.trim().slice(0, 100) : null,
+      probes,
+    } as const;
+  }
+
+  dispose(): void {
+    if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) this.#daemonProcess.kill("SIGTERM");
+  }
 }
 
-export function createHostEntry(transportFactory: () => CuaTransport = () => new ProcessCuaTransport({ binaryPath: BINARY_PATH, env: daemonEnv() })) {
-  const transport = transportFactory();
+export function createHostEntry(transportFactory?: () => CuaTransport, spawnProcess: SpawnFn = nodeSpawn) {
+  const driver = new DriverController(spawnProcess);
+  let currentDataDir = "";
+  const transport =
+    transportFactory?.() ??
+    new ProcessCuaTransport({
+      binaryPath: () => driver.binaryPath(currentDataDir),
+      env: daemonEnv(),
+    });
   const table = new TargetTable();
   const liveLoop = new LiveCaptureLoop({
     thumbnailFps: 6,
@@ -198,27 +283,30 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
     contract: hostContract,
     handlers: {
       async doctor(_input, context) {
-        await ensureDaemon(context.experimental_paths.dataDir).catch(() => {});
-        return doctorReport();
+        currentDataDir = context.experimental_paths.dataDir;
+        await driver.ensureDaemon(currentDataDir).catch(() => {});
+        return driver.doctorReport(currentDataDir);
       },
       async observe({ appId }, context) {
         context.signal.throwIfAborted();
-        const dataDir = context.experimental_paths.dataDir;
-        await ensureDaemon(dataDir);
+        currentDataDir = context.experimental_paths.dataDir;
+        await driver.ensureDaemon(currentDataDir);
         const window = await findWindow(transport, context.signal, appId);
-        await ensureWindowGranted(dataDir, window.pid, window.windowId);
+        await driver.ensureWindowGranted(currentDataDir, window.pid, window.windowId);
         return table.observe(transport, context.signal, appId);
       },
       async act({ action }, context) {
         context.signal.throwIfAborted();
-        await ensureDaemon(context.experimental_paths.dataDir);
+        currentDataDir = context.experimental_paths.dataDir;
+        await driver.ensureDaemon(currentDataDir);
         const outcome = await performAction(transport, table, action, context.signal);
         return outcome;
       },
       async capture({ kind, appId }, context) {
         context.signal.throwIfAborted();
-        const dataDir = context.experimental_paths.dataDir;
-        await ensureDaemon(dataDir);
+        currentDataDir = context.experimental_paths.dataDir;
+        const dataDir = currentDataDir;
+        await driver.ensureDaemon(dataDir);
         if (kind === "desktop") {
           const result = await transport.call("get_desktop_state", {}, context.signal);
           const data = content(result);
@@ -230,7 +318,7 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
           };
         }
         const window = await findWindow(transport, context.signal, appId);
-        await ensureWindowGranted(dataDir, window.pid, window.windowId);
+        await driver.ensureWindowGranted(dataDir, window.pid, window.windowId);
         const state = await transport.call(
           "get_window_state",
           { pid: window.pid, window_id: window.windowId, include_screenshot: false, max_elements: 1 },
@@ -253,7 +341,8 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
         };
       },
       async recordStart({ runId }, context) {
-        await ensureDaemon(context.experimental_paths.dataDir);
+        currentDataDir = context.experimental_paths.dataDir;
+        await driver.ensureDaemon(currentDataDir);
         const outputDir = join(context.experimental_paths.dataDir, "runs", runId);
         await mkdir(outputDir, { recursive: true });
         await transport.call("start_recording", { output_dir: outputDir, record_video: true }, context.signal);
@@ -295,7 +384,7 @@ export function createHostEntry(transportFactory: () => CuaTransport = () => new
     },
     async dispose() {
       liveController?.abort();
-      if (daemonProcess !== null && daemonProcess.exitCode === null) daemonProcess.kill("SIGTERM");
+      driver.dispose();
     },
   });
 }

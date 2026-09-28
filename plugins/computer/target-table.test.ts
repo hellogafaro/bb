@@ -81,4 +81,47 @@ describe("TargetTable", () => {
     const args = table.resolveTarget(target.targetId, observation.snapshotId);
     expect(args).toMatchObject({ pid: 100, window_id: 1, element_index: 0 });
   });
+
+  it("returns no hint when the window has elements", async () => {
+    const transport = new FakeTransport({ list_windows: windowsResponse, get_window_state: stateResponse });
+    const table = new TargetTable();
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(observation.hint).toBeNull();
+  });
+
+  it("hints at --force-renderer-accessibility for a Chromium window with zero elements", async () => {
+    const chromeWindow: CuaToolResult = {
+      structuredContent: {
+        windows: [
+          { pid: 200, window_id: 2, title: "Example Domain - Google Chrome for Testing", app_name: "chrome", is_on_screen: true, z_index: 1 },
+        ],
+      },
+    };
+    const emptyState: CuaToolResult = {
+      structuredContent: { window_title: "Example Domain - Google Chrome for Testing", snapshot_id: "s2", elements: [] },
+    };
+    const transport = new FakeTransport({ list_windows: chromeWindow, get_window_state: emptyState });
+    const table = new TargetTable();
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(observation.targets).toHaveLength(0);
+    expect(observation.hint).toMatch(/force-renderer-accessibility/);
+    expect(observation.hint).toMatch(/browser binding/);
+  });
+
+  it("gives a generic hint for a non-Chromium window with zero elements", async () => {
+    const nativeWindow: CuaToolResult = {
+      structuredContent: {
+        windows: [{ pid: 300, window_id: 3, title: "Untitled - gedit", app_name: "gedit", is_on_screen: true, z_index: 1 }],
+      },
+    };
+    const emptyState: CuaToolResult = {
+      structuredContent: { window_title: "Untitled - gedit", snapshot_id: "s3", elements: [] },
+    };
+    const transport = new FakeTransport({ list_windows: nativeWindow, get_window_state: emptyState });
+    const table = new TargetTable();
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(observation.targets).toHaveLength(0);
+    expect(observation.hint).not.toMatch(/force-renderer-accessibility/);
+    expect(observation.hint).not.toBeNull();
+  });
 });

@@ -11,7 +11,7 @@ export interface CuaTransport {
 }
 
 export interface ProcessCuaTransportOptions {
-  readonly binaryPath: string;
+  readonly binaryPath: string | (() => Promise<string>);
   readonly env: Readonly<Record<string, string>>;
   readonly timeoutMs?: number;
   readonly maxOutputBytes?: number;
@@ -85,12 +85,16 @@ export class ProcessCuaTransport implements CuaTransport {
     };
   }
 
-  call(tool: string, input: Record<string, unknown>, signal: AbortSignal): Promise<CuaToolResult> {
+  async call(tool: string, input: Record<string, unknown>, signal: AbortSignal): Promise<CuaToolResult> {
     if (!/^[a-z][a-z0-9_]{0,63}$/u.test(tool)) {
-      return Promise.reject(new CuaError(`Invalid Cua tool name: ${tool}`, "policy-denied"));
+      throw new CuaError(`Invalid Cua tool name: ${tool}`, "policy-denied");
     }
+    const binaryPath =
+      typeof this.#options.binaryPath === "string"
+        ? this.#options.binaryPath
+        : await this.#options.binaryPath();
     return new Promise((resolve, reject) => {
-      const child = spawn(this.#options.binaryPath, ["call", tool], {
+      const child = spawn(binaryPath, ["call", tool], {
         stdio: ["pipe", "pipe", "pipe"],
         env: this.#options.env,
       });
