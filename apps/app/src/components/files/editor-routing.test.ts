@@ -22,9 +22,9 @@ describe("opensInEditor", () => {
     expect(opensInEditor("Makefile")).toBe(true);
   });
 
-  it("routes html and htm files to the rendered preview instead of the editor", () => {
-    expect(opensInEditor("index.html")).toBe(false);
-    expect(opensInEditor("legacy/page.htm")).toBe(false);
-    expect(opensInEditor("REPORT.HTML")).toBe(false);
+  it("routes html and htm files to the editor, which renders its own preview", () => {
+    expect(opensInEditor("index.html")).toBe(true);
+    expect(opensInEditor("legacy/page.htm")).toBe(true);
+    expect(opensInEditor("REPORT.HTML")).toBe(true);
   });
 });

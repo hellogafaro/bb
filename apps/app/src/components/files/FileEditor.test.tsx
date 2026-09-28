@@ -130,6 +130,7 @@ function editorTree(
   store: FileDocumentStore,
   tabs = 1,
   path = PATH,
+  htmlPreviewUrl: string | null = null,
 ) {
   const { wrapper: Wrapper } = createQueryClientTestHarness();
   return (
@@ -145,6 +146,7 @@ function editorTree(
                 copyPath={path}
                 lineRange={null}
                 isPanelOpen
+                htmlPreviewUrl={htmlPreviewUrl}
               />
             ))}
           </FileDocumentStoreContext.Provider>
@@ -500,6 +502,74 @@ describe("FileEditor", () => {
     await waitFor(() =>
       expect(document.querySelector(".ProseMirror h1")).not.toBeNull(),
     );
+    expect(screen.queryByLabelText(FILES_COPY.unsaved)).toBeNull();
+  });
+
+  it("renders the HTML file header the same as Markdown: file icon, path, Code toggle, and file actions, no Preview/Raw control", async () => {
+    const { transport } = fakeDisk("<h1>Hi</h1>", "s1");
+    const store = new FileDocumentStore(transport, timing(60_000));
+    render(
+      editorTree(
+        transport,
+        store,
+        1,
+        "/repo/index.html",
+        "https://example.test/preview/index.html",
+      ),
+    );
+
+    const codeToggle = await screen.findByRole("button", {
+      name: FILES_COPY.source,
+    });
+    expect(codeToggle.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      screen.getByRole("button", { name: FILES_COPY.fileActions }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByText("Preview")).toBeNull();
+    expect(screen.queryByText("Raw")).toBeNull();
+
+    const iframe = document.querySelector("iframe");
+    expect(iframe?.getAttribute("src")).toBe(
+      "https://example.test/preview/index.html",
+    );
+    expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(document.querySelector(".cm-content")).toBeNull();
+
+    openFileActions();
+    expect(
+      screen.queryByRole("menuitem", { name: FILES_COPY.openInEditor }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: FILES_COPY.copyContents }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", { name: FILES_COPY.download }),
+    ).toBeTruthy();
+  });
+
+  it("toggles a clean HTML file between the rendered preview and source without marking it dirty", async () => {
+    const source = "<h1>Hi</h1>";
+    const { transport } = fakeDisk(source, "s1");
+    const store = new FileDocumentStore(transport, timing(60_000));
+    render(
+      editorTree(
+        transport,
+        store,
+        1,
+        "/repo/index.html",
+        "https://example.test/preview/index.html",
+      ),
+    );
+    await waitFor(() => expect(document.querySelector("iframe")).not.toBeNull());
+
+    act(() => screen.getByRole("button", { name: FILES_COPY.source }).click());
+    const view = await editorView();
+    expect(view.state.doc.toString()).toBe(source);
+    expect(document.querySelector("iframe")).toBeNull();
+
+    act(() => screen.getByRole("button", { name: FILES_COPY.source }).click());
+    await waitFor(() => expect(document.querySelector("iframe")).not.toBeNull());
     expect(screen.queryByLabelText(FILES_COPY.unsaved)).toBeNull();
   });
 });
