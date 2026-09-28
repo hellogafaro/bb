@@ -24,11 +24,12 @@ import {
   buildThreadWorktreeRawContentUrl,
 } from "@/lib/file-content-urls";
 import { buildRawFileUrl, type RawFileSource } from "@/lib/raw-file-url";
-import type {
-  EnvironmentFilePreviewSource,
-  FilePreview,
-  FilePreviewLineRange,
-  WorkspaceFilePreviewStatusLabel,
+import {
+  isHtmlFilePreviewPath,
+  type EnvironmentFilePreviewSource,
+  type FilePreview,
+  type FilePreviewLineRange,
+  type WorkspaceFilePreviewStatusLabel,
 } from "@bb/client-core";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { PANEL_SCROLL_SLOT_CLASS } from "./panelChromeClasses";
@@ -335,6 +336,11 @@ export function WorkspaceFilePreviewTabContent(
         copyPath={props.copyPath ?? null}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        htmlPreviewUrl={
+          props.threadId
+            ? buildThreadWorktreeRawContentUrl(props.threadId, activePath)
+            : null
+        }
         onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />
@@ -542,6 +548,10 @@ export function HostFilePreviewTabContent(
         copyPath={props.copyPath}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        htmlPreviewUrl={buildRawFilesystemHtmlContentUrl(
+          props.threadId,
+          activePath,
+        )}
         onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />
@@ -601,6 +611,12 @@ export function HostFilePreview({
 export function HostScopedFilePreviewTabContent(
   props: HostScopedFilePreviewTabContentProps,
 ) {
+  const isHtml = isHtmlFilePreviewPath(props.activePath);
+  const hostFilePreviewQuery = useHostFilePreview(
+    props.hostId,
+    props.activePath,
+    { enabled: props.isPanelOpen && isHtml },
+  );
   if (opensInEditor(props.activePath)) {
     return (
       <LazyFileEditor
@@ -609,6 +625,7 @@ export function HostScopedFilePreviewTabContent(
         copyPath={props.activePath}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        htmlPreviewUrl={isHtml ? (hostFilePreviewQuery.data?.url ?? null) : null}
         onOpenInEditor={props.onOpenInEditor}
       />
     );
@@ -663,6 +680,10 @@ export function ThreadStorageFilePreviewTabContent(
         copyPath={props.copyPath ?? null}
         lineRange={props.lineRange}
         isPanelOpen={props.isPanelOpen}
+        htmlPreviewUrl={buildThreadStorageRawContentUrl(
+          props.threadId,
+          props.activePath,
+        )}
         onOpenInEditor={props.onOpenInEditor}
         onSelectionAddToChat={props.onSelectionAddToChat}
       />

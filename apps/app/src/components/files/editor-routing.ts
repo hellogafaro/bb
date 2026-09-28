@@ -1,5 +1,3 @@
-import { isHtmlFilePreviewPath } from "@bb/client-core";
-
 export function fileName(path: string): string {
   const slash = path.lastIndexOf("/");
   return slash === -1 ? path : path.slice(slash + 1);
@@ -125,7 +123,6 @@ const EDITOR_EXTENSIONS: ReadonlySet<string> = new Set([
 ]);
 
 export function opensInEditor(path: string): boolean {
-  if (isHtmlFilePreviewPath(path)) return false;
   const ext = fileExt(path);
   if (ext === "") return true;
   return EDITOR_EXTENSIONS.has(ext);

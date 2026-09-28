@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe("html/htm routing across the four file preview gates", () => {
   it.each(["index.html", "legacy/page.htm"])(
-    "routes workspace %s to the rendered preview, not the editor",
+    "routes workspace %s to the editor, which renders its own preview",
     (path) => {
       render(
         <WorkspaceFilePreviewTabContent
@@ -57,8 +57,10 @@ describe("html/htm routing across the four file preview gates", () => {
           statusLabel={null}
         />,
       );
-      expect(screen.queryByTestId("secondary-panel-file-preview")).toBeTruthy();
-      expect(screen.queryByTestId("lazy-file-editor")).toBeNull();
+      expect(screen.queryByTestId("lazy-file-editor")).toBeTruthy();
+      expect(
+        screen.queryByTestId("secondary-panel-file-preview"),
+      ).toBeNull();
     },
   );
 
@@ -77,7 +79,7 @@ describe("html/htm routing across the four file preview gates", () => {
   });
 
   it.each(["index.html", "legacy/page.htm"])(
-    "routes host %s to the rendered preview, not the editor",
+    "routes host %s to the editor, which renders its own preview",
     (path) => {
       render(
         <HostFilePreviewTabContent
@@ -89,13 +91,15 @@ describe("html/htm routing across the four file preview gates", () => {
           threadId="thr-1"
         />,
       );
-      expect(screen.queryByTestId("secondary-panel-file-preview")).toBeTruthy();
-      expect(screen.queryByTestId("lazy-file-editor")).toBeNull();
+      expect(screen.queryByTestId("lazy-file-editor")).toBeTruthy();
+      expect(
+        screen.queryByTestId("secondary-panel-file-preview"),
+      ).toBeNull();
     },
   );
 
   it.each(["index.html", "legacy/page.htm"])(
-    "routes host-scoped %s to the rendered preview, not the editor",
+    "routes host-scoped %s to the editor, which renders its own preview",
     (path) => {
       render(
         <HostScopedFilePreviewTabContent
@@ -105,13 +109,15 @@ describe("html/htm routing across the four file preview gates", () => {
           lineRange={null}
         />,
       );
-      expect(screen.queryByTestId("secondary-panel-file-preview")).toBeTruthy();
-      expect(screen.queryByTestId("lazy-file-editor")).toBeNull();
+      expect(screen.queryByTestId("lazy-file-editor")).toBeTruthy();
+      expect(
+        screen.queryByTestId("secondary-panel-file-preview"),
+      ).toBeNull();
     },
   );
 
   it.each(["index.html", "legacy/page.htm"])(
-    "routes thread-storage %s to the rendered preview, not the editor",
+    "routes thread-storage %s to the editor, which renders its own preview",
     (path) => {
       render(
         <ThreadStorageFilePreviewTabContent
@@ -121,8 +127,10 @@ describe("html/htm routing across the four file preview gates", () => {
           threadId="thr-1"
         />,
       );
-      expect(screen.queryByTestId("secondary-panel-file-preview")).toBeTruthy();
-      expect(screen.queryByTestId("lazy-file-editor")).toBeNull();
+      expect(screen.queryByTestId("lazy-file-editor")).toBeTruthy();
+      expect(
+        screen.queryByTestId("secondary-panel-file-preview"),
+      ).toBeNull();
     },
   );
 });

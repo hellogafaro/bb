@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  isHtmlFilePreviewPath,
   TEXT_FILE_PREVIEW_MAX_BYTES,
   type FilePreviewLineRange,
 } from "@bb/client-core";
@@ -86,6 +87,7 @@ interface FileEditorProps {
   copyPath: string | null;
   lineRange: FilePreviewLineRange | null;
   isPanelOpen: boolean;
+  htmlPreviewUrl?: string | null;
   onOpenInEditor?: (path: string) => void;
   onSelectionAddToChat?: (text: string) => void;
 }
@@ -165,12 +167,14 @@ function FileSession({
   copyPath,
   lineRange,
   isPanelOpen,
+  htmlPreviewUrl = null,
   onOpenInEditor,
   onSelectionAddToChat,
 }: FileSessionProps) {
   const store = useFileDocumentStore();
   const name = fileName(displayPath);
   const markdown = isMarkdownPath(displayPath);
+  const html = isHtmlFilePreviewPath(displayPath);
   const root = useRef<HTMLDivElement>(null);
   const handle = useRef<FileEditorHandle | null>(null);
   const writer = useRef({});
@@ -502,6 +506,7 @@ function FileSession({
   const editable = base !== null && !oversized && isEditable(displayPath, base);
   const richMarkdown =
     markdown && editable && draft.length <= RICH_MARKDOWN_MAX_CHARS;
+  const richHtml = html && editable;
   const readOnly = deleted || conflict?.kind === "missing";
 
   const flushBeforeDownload = async (): Promise<boolean> => {
@@ -667,6 +672,14 @@ function FileSession({
         handleRef={handle}
       />
     );
+  } else if (richHtml && !sourceMode) {
+    body = (
+      <HtmlPreviewFrame
+        path={displayPath}
+        url={htmlPreviewUrl}
+        cacheKey={base.sha256}
+      />
+    );
   } else {
     body = (
       <CodeEditor
@@ -741,7 +754,7 @@ function FileSession({
             />
             {FILES_COPY.saving}
           </span>
-          {editable && (!richMarkdown || sourceMode) ? (
+          {editable && (!(richMarkdown || richHtml) || sourceMode) ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -762,7 +775,7 @@ function FileSession({
               </TooltipContent>
             </Tooltip>
           ) : null}
-          {richMarkdown ? (
+          {richMarkdown || richHtml ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -873,6 +886,41 @@ function FileSession({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function HtmlPreviewFrame({
+  path,
+  url,
+  cacheKey,
+}: {
+  path: string;
+  url: string | null;
+  cacheKey: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    setLoaded(false);
+  }, [url, cacheKey]);
+
+  if (url === null) return <FileSkeleton />;
+
+  return (
+    <div className="relative h-full min-h-0">
+      {loaded ? null : (
+        <div className="absolute inset-0">
+          <FileSkeleton />
+        </div>
+      )}
+      <iframe
+        key={`${url}:${cacheKey}`}
+        title={path}
+        src={url}
+        sandbox="allow-scripts"
+        className="block h-full w-full border-0"
+        onLoad={() => setLoaded(true)}
+      />
     </div>
   );
 }
