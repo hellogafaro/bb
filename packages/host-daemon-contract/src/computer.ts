@@ -286,6 +286,7 @@ export type ComputerVideoCodec = z.infer<typeof computerVideoCodecSchema>;
 
 export const computerFrameHeaderSchema = z
   .object({
+    kind: z.literal("image"),
     sequence: z.number().int().nonnegative(),
     capturedAt: z.number().int().nonnegative(),
     mimeType: computerImageMimeTypeSchema,
@@ -336,7 +337,7 @@ export const computerVideoFrameHeaderSchema = z
   .strict();
 export type ComputerVideoFrameHeader = z.infer<typeof computerVideoFrameHeaderSchema>;
 
-export const computerLiveFrameHeaderSchema = z.union([
+export const computerLiveFrameHeaderSchema = z.discriminatedUnion("kind", [
   computerFrameHeaderSchema,
   computerVideoConfigHeaderSchema,
   computerVideoFrameHeaderSchema,

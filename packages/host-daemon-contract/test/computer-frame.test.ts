@@ -7,6 +7,7 @@ import {
 } from "../src/index.js";
 
 const header: ComputerFrameHeader = {
+  kind: "image",
   sequence: 7,
   capturedAt: 1_700_000_000_000,
   mimeType: "image/png",

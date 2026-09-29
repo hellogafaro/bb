@@ -19,6 +19,7 @@ function fakeLive(overrides: Partial<ComputerLiveHandle> = {}): ComputerLiveHand
     fps: 30,
     frameUrl: "blob:frame",
     frameHeader: {
+      kind: "image",
       sequence: 1,
       capturedAt: Date.now(),
       mimeType: "image/jpeg",
@@ -27,6 +28,8 @@ function fakeLive(overrides: Partial<ComputerLiveHandle> = {}): ComputerLiveHand
       originalWidth: 100,
       originalHeight: 100,
     },
+    isVideo: false,
+    attachVideoCanvas: vi.fn(),
     send: vi.fn(),
     perform: vi.fn().mockResolvedValue(undefined),
     readClipboard: vi.fn().mockResolvedValue("machine text"),

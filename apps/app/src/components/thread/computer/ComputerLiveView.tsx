@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
-  ComputerFrameHeader,
   ComputerHumanInput,
   ComputerKeyModifier,
+  ComputerLiveFrameHeader,
   ComputerLiveProfile,
   ComputerPointerButton,
 } from "@bb/host-daemon-contract";
 import type { ComputerControlOwner } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
+import { VideoFrameDecoder, videoDecodeSupported } from "./computer-video-decoder";
 
 type ComputerLiveConnection = ReturnType<typeof sdk.computer.live>;
 export type ComputerLiveViewState = "connecting" | "starting" | "live" | "stopped" | "error";
@@ -20,7 +21,9 @@ export interface ComputerLiveHandle {
   readonly runId: string | null;
   readonly fps: number;
   readonly frameUrl: string | null;
-  readonly frameHeader: ComputerFrameHeader | null;
+  readonly frameHeader: ComputerLiveFrameHeader | null;
+  readonly isVideo: boolean;
+  attachVideoCanvas(canvas: HTMLCanvasElement | null): void;
   send(input: ComputerHumanInput): void;
   perform(input: ComputerHumanInput): Promise<void>;
   readClipboard(): Promise<string | null>;
@@ -41,14 +44,25 @@ export function useComputerLive(
   const [runId, setRunId] = useState<string | null>(null);
   const [fps, setFps] = useState(0);
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
-  const [frameHeader, setFrameHeader] = useState<ComputerFrameHeader | null>(null);
+  const [frameHeader, setFrameHeader] = useState<ComputerLiveFrameHeader | null>(null);
+  const [isVideo, setIsVideo] = useState(false);
   const connectionRef = useRef<ComputerLiveConnection | null>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const videoDecoderRef = useRef<VideoFrameDecoder | null>(null);
+
+  const attachVideoCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    canvasElRef.current = canvas;
+    videoDecoderRef.current?.attachCanvas(canvas);
+  }, []);
 
   useEffect(() => {
     if (hostId === null || !active) return;
     let stopped = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let currentFrameUrl: string | null = null;
+    const decoder = new VideoFrameDecoder();
+    decoder.attachCanvas(canvasElRef.current);
+    videoDecoderRef.current = decoder;
 
     const connectOnce = () => {
       if (stopped) return;
@@ -57,12 +71,25 @@ export function useComputerLive(
       connectionRef.current = connection;
       connection.onFrame((frame) => {
         if (stopped) return;
-        const blob = new Blob([new Uint8Array(frame.body)], { type: frame.header.mimeType });
+        const header = frame.header;
+        if (header.kind === "video-config") {
+          setIsVideo(videoDecodeSupported() && decoder.configure(new Uint8Array(frame.body)));
+          setFrameHeader(header);
+          return;
+        }
+        if (header.kind === "video-frame") {
+          if (!decoder.isConfigured) return;
+          decoder.decode(new Uint8Array(frame.body), header.keyframe, header.ptsMicros);
+          setFrameHeader(header);
+          return;
+        }
+        setIsVideo(false);
+        const blob = new Blob([new Uint8Array(frame.body)], { type: header.mimeType });
         const url = URL.createObjectURL(blob);
         const previous = currentFrameUrl;
         currentFrameUrl = url;
         setFrameUrl(url);
-        setFrameHeader(frame.header);
+        setFrameHeader(header);
         if (previous !== null) URL.revokeObjectURL(previous);
       });
       connection.onStatus((status) => {
@@ -88,11 +115,14 @@ export function useComputerLive(
       if (retryTimer !== null) clearTimeout(retryTimer);
       connectionRef.current?.close();
       connectionRef.current = null;
+      decoder.close();
+      if (videoDecoderRef.current === decoder) videoDecoderRef.current = null;
       if (currentFrameUrl !== null) URL.revokeObjectURL(currentFrameUrl);
       setConnected(false);
       setState("connecting");
       setFrameUrl(null);
       setFrameHeader(null);
+      setIsVideo(false);
     };
   }, [hostId, active, profile, clientId]);
 
@@ -105,6 +135,8 @@ export function useComputerLive(
     fps,
     frameUrl,
     frameHeader,
+    isVideo,
+    attachVideoCanvas,
     send: (input) => connectionRef.current?.input(input),
     perform: (input) => connectionRef.current?.perform(input) ?? Promise.resolve(),
     readClipboard: () => connectionRef.current?.readClipboard() ?? Promise.resolve(null),
@@ -167,7 +199,7 @@ function pointInFrame(
   clientX: number,
   clientY: number,
   container: HTMLElement,
-  header: ComputerFrameHeader,
+  header: ComputerLiveFrameHeader,
 ): FramePoint {
   const rect = container.getBoundingClientRect();
   const containerAspect = rect.width / rect.height;
@@ -225,7 +257,7 @@ export function ComputerLiveStage({
 
   const canControl = interactive && live.control === "you" && live.frameHeader !== null;
 
-  const frameOf = useCallback((header: ComputerFrameHeader) => ({ width: header.width, height: header.height }), []);
+  const frameOf = useCallback((header: ComputerLiveFrameHeader) => ({ width: header.width, height: header.height }), []);
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -409,7 +441,12 @@ export function ComputerLiveStage({
       onContextMenu={handleContextMenu}
       onWheel={handleWheel}
     >
-      {live.frameUrl === null ? (
+      <canvas
+        ref={live.attachVideoCanvas}
+        className="max-h-full max-w-full object-contain"
+        style={{ display: live.isVideo ? "block" : "none" }}
+      />
+      {live.isVideo ? null : live.frameUrl === null ? (
         <p className="text-xs text-muted-foreground">
           {live.state === "error" ? (live.message ?? "The live view failed") : "Waiting for a frame…"}
         </p>

@@ -250,6 +250,7 @@ function frameHeaderFor(frame: CapturedFrame, sequence: number): ComputerLiveFra
   switch (frame.kind) {
     case "image":
       return {
+        kind: "image",
         sequence,
         capturedAt: frame.capturedAt,
         mimeType: frame.mimeType,
