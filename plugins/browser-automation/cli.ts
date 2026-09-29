@@ -265,16 +265,19 @@ export function createBrowserAutomationCli(deps: {
         summary:
           "Run a natural-language, goal-driven task with a fast Jev decision loop; prefer `run` for a precise scripted check",
         description:
-          "Drives the session's \"main\" page toward the goal in short ref-based steps (click/fill/select/press_key/scroll/goto),\ndeciding each step with an OpenRouter Jev model. Returns a final answer, the steps taken, and a screenshot.",
+          'Drives the session\'s "main" page toward the goal in short ref-based steps (click/fill/select/press_key/scroll/goto),\ndeciding each step with an OpenRouter Jev model. Returns a final answer, the steps taken, and a screenshot.',
         positionals: [
           SESSION_POSITIONAL,
           {
             name: "goal",
-            description: "Natural-language task to accomplish on this session's page",
+            description:
+              "Natural-language task to accomplish on this session's page",
             required: true,
           },
         ],
-        constraints: [{ kind: "at-most-one", options: ["timeout", "timeout-ms"] }],
+        constraints: [
+          { kind: "at-most-one", options: ["timeout", "timeout-ms"] },
+        ],
         options: {
           "max-steps": {
             type: "integer",
@@ -421,12 +424,14 @@ export function createBrowserAutomationCli(deps: {
           "submit-selector": {
             type: "string",
             placeholder: "css-selector",
-            description: "CSS selector for the submit button, clicked after filling",
+            description:
+              "CSS selector for the submit button, clicked after filling",
           },
           label: {
             type: "string",
             placeholder: "text",
-            description: "Label shown on the credential form, e.g. \"GitHub login\"",
+            description:
+              'Label shown on the credential form, e.g. "GitHub login"',
           },
           thread: THREAD_OPTION,
           json: JSON_OPTION,

@@ -1,6 +1,10 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
-import type { PreviewFrame, PreviewInputEvent, PreviewSize } from "./contracts.js";
+import type {
+  PreviewFrame,
+  PreviewInputEvent,
+  PreviewSize,
+} from "./contracts.js";
 
 const messageSchema = z.object({
   id: z.number().int().optional(),
@@ -402,7 +406,8 @@ export function createPreview(
             {
               x: event.x,
               y: event.y,
-              type: event.type === "mouseDown" ? "mousePressed" : "mouseReleased",
+              type:
+                event.type === "mouseDown" ? "mousePressed" : "mouseReleased",
               button: event.button,
               clickCount: event.clickCount,
             },
@@ -451,7 +456,12 @@ export function createPreview(
           );
           break;
         case "insertText":
-          await send(connection, "Input.insertText", { text: event.text }, sessionId);
+          await send(
+            connection,
+            "Input.insertText",
+            { text: event.text },
+            sessionId,
+          );
           break;
       }
     },

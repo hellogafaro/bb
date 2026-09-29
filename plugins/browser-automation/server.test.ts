@@ -571,7 +571,9 @@ describe("server persistent profiles", () => {
     const h = await setup();
     h.worker.mockImplementation(async ({ method }) =>
       method === "open"
-        ? Promise.reject(new Error("This project's browser profile is already in use"))
+        ? Promise.reject(
+            new Error("This project's browser profile is already in use"),
+          )
         : method === "prepare"
           ? { status: "ready", version: "1.0.0-test", source: "release" }
           : null,
@@ -672,7 +674,9 @@ describe("server fill-login", () => {
       await vi.waitFor(() =>
         expect(h.harness.pendingInteractions).toHaveLength(1),
       );
-      h.harness.behavior.cancelInteraction(h.harness.pendingInteractions[0]!.id);
+      h.harness.behavior.cancelInteraction(
+        h.harness.pendingInteractions[0]!.id,
+      );
       await expect(call).rejects.toThrow(/cancelled/);
     } finally {
       await h.harness.lifecycle.dispose();

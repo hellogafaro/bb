@@ -41,7 +41,10 @@ export interface JevDecisionRequest {
 }
 
 export interface JevProvider {
-  decide(request: JevDecisionRequest, signal: AbortSignal): Promise<JevDecision>;
+  decide(
+    request: JevDecisionRequest,
+    signal: AbortSignal,
+  ): Promise<JevDecision>;
 }
 
 const REF_PATTERN = /^[A-Za-z0-9]+$/;
@@ -52,18 +55,29 @@ function cleanRef(value: unknown): string | null {
 }
 
 function cleanText(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 && value.length <= MAX_TEXT_LENGTH ? value : null;
+  return typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_TEXT_LENGTH
+    ? value
+    : null;
 }
 
 function cleanKey(value: unknown): string | null {
-  return typeof value === "string" && (JEV_KEYS as readonly string[]).includes(value) ? value : null;
+  return typeof value === "string" &&
+    (JEV_KEYS as readonly string[]).includes(value)
+    ? value
+    : null;
 }
 
 export function parseJevDecision(value: unknown): JevDecision {
-  if (value === null || typeof value !== "object") throw new Error("OpenRouter Jev omitted a decision");
+  if (value === null || typeof value !== "object")
+    throw new Error("OpenRouter Jev omitted a decision");
   const record = value as Record<string, unknown>;
   const action = record.action;
-  if (typeof action !== "string" || !(JEV_ACTIONS as readonly string[]).includes(action)) {
+  if (
+    typeof action !== "string" ||
+    !(JEV_ACTIONS as readonly string[]).includes(action)
+  ) {
     throw new Error("OpenRouter Jev returned an invalid action");
   }
   return {
@@ -74,11 +88,13 @@ export function parseJevDecision(value: unknown): JevDecision {
     key: cleanKey(record.key),
     submit: record.submit === true,
     goalCompleteAfter: record.goal_complete_after === true,
-    answer: typeof record.answer === "string" ? record.answer.slice(0, 4_000) : "",
+    answer:
+      typeof record.answer === "string" ? record.answer.slice(0, 4_000) : "",
   };
 }
 
-const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_CHAT_COMPLETIONS_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
 const JEV_ROUTER_MODEL = "typesafe/jev-router";
 
 const SYSTEM_PROMPT =
@@ -100,7 +116,8 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
   readonly #fetchImpl: typeof fetch;
 
   constructor(options: OpenRouterBrowserJevOptions) {
-    if (options.apiKey.trim().length === 0) throw new Error("OpenRouter API key is missing");
+    if (options.apiKey.trim().length === 0)
+      throw new Error("OpenRouter API key is missing");
     this.#apiKey = options.apiKey;
     this.#model = options.model ?? JEV_ROUTER_MODEL;
     this.#endpoint = options.endpoint ?? OPENROUTER_CHAT_COMPLETIONS_URL;
@@ -108,7 +125,10 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
     this.#fetchImpl = options.fetchImpl ?? fetch;
   }
 
-  async decide(request: JevDecisionRequest, signal: AbortSignal): Promise<JevDecision> {
+  async decide(
+    request: JevDecisionRequest,
+    signal: AbortSignal,
+  ): Promise<JevDecision> {
     const state = {
       goal: request.goal,
       page: { url: request.observation.url, title: request.observation.title },
@@ -127,13 +147,25 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
         goal_complete_after: { type: "boolean" },
         answer: { type: "string" },
       },
-      required: ["action", "ref", "value", "url", "key", "submit", "goal_complete_after", "answer"],
+      required: [
+        "action",
+        "ref",
+        "value",
+        "url",
+        "key",
+        "submit",
+        "goal_complete_after",
+        "answer",
+      ],
       additionalProperties: false,
     };
     const timeout = AbortSignal.timeout(this.#timeoutMs);
     const response = await this.#fetchImpl(this.#endpoint, {
       method: "POST",
-      headers: { authorization: `Bearer ${this.#apiKey}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${this.#apiKey}`,
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         model: this.#model,
         messages: [
@@ -150,15 +182,20 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
       signal: AbortSignal.any([timeout, signal]),
     });
     const text = await response.text();
-    if (!response.ok) throw new Error(`OpenRouter Jev returned HTTP ${response.status}`);
-    const parsed = JSON.parse(text) as { choices?: Array<{ message?: { content?: unknown } }> };
+    if (!response.ok)
+      throw new Error(`OpenRouter Jev returned HTTP ${response.status}`);
+    const parsed = JSON.parse(text) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+    };
     const content = parsed.choices?.[0]?.message?.content;
-    if (typeof content !== "string") throw new Error("OpenRouter Jev response omitted content");
+    if (typeof content !== "string")
+      throw new Error("OpenRouter Jev response omitted content");
     let answers: unknown;
     try {
       answers = JSON.parse(content);
     } catch (error) {
-      if (error instanceof SyntaxError) throw new Error("OpenRouter Jev returned malformed JSON");
+      if (error instanceof SyntaxError)
+        throw new Error("OpenRouter Jev returned malformed JSON");
       throw error;
     }
     return parseJevDecision(answers);
@@ -166,7 +203,8 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
 }
 
 export function resolveJevApiKey(env: NodeJS.ProcessEnv): string | null {
-  const key = env.COMPUTER_OPENROUTER_API_KEY?.trim() || env.OPENROUTER_API_KEY?.trim();
+  const key =
+    env.COMPUTER_OPENROUTER_API_KEY?.trim() || env.OPENROUTER_API_KEY?.trim();
   return key !== undefined && key.length > 0 ? key : null;
 }
 
@@ -228,13 +266,16 @@ function submitCode(decision: JevDecision): string {
 }
 
 export function buildStepScript(decision: JevDecision | null): string {
-  const action = decision === null ? "" : [actionCode(decision), submitCode(decision)].filter(Boolean).join("\n");
+  const action =
+    decision === null
+      ? ""
+      : [actionCode(decision), submitCode(decision)].filter(Boolean).join("\n");
   return [
     'const page = await browser.getPage("main");',
     "let actOk = true;",
     "let actError = null;",
     action,
-    'try { await page.waitForLoad({ timeout: 2000 }); } catch {}',
+    "try { await page.waitForLoad({ timeout: 2000 }); } catch {}",
     "let snapshot;",
     'try { snapshot = await page.snapshot({ interactive: true, maxChars: 12000 }); } catch (e) { snapshot = "snapshot unavailable: " + String((e && e.message) || e); }',
     'let title = "";',
@@ -260,7 +301,8 @@ function parseStepResult(text: string): StepResult {
   } catch {
     throw new Error("Browser step script returned malformed output");
   }
-  if (parsed === null || typeof parsed !== "object") throw new Error("Browser step script returned no data");
+  if (parsed === null || typeof parsed !== "object")
+    throw new Error("Browser step script returned no data");
   const record = parsed as Record<string, unknown>;
   if (typeof record.url !== "string" || typeof record.snapshot !== "string") {
     throw new Error("Browser step script omitted page state");
@@ -284,12 +326,16 @@ const MAX_STEP_OUTCOME_LENGTH = 400;
 const MAX_STEP_TARGET_LENGTH = 200;
 
 function clampStepOutcome(outcome: string): string {
-  return outcome.length > MAX_STEP_OUTCOME_LENGTH ? outcome.slice(0, MAX_STEP_OUTCOME_LENGTH) : outcome;
+  return outcome.length > MAX_STEP_OUTCOME_LENGTH
+    ? outcome.slice(0, MAX_STEP_OUTCOME_LENGTH)
+    : outcome;
 }
 
 function clampStepTarget(target: string | null): string | null {
   if (target === null) return null;
-  return target.length > MAX_STEP_TARGET_LENGTH ? target.slice(0, MAX_STEP_TARGET_LENGTH) : target;
+  return target.length > MAX_STEP_TARGET_LENGTH
+    ? target.slice(0, MAX_STEP_TARGET_LENGTH)
+    : target;
 }
 
 const RETRYABLE_DECISION_ERROR_MESSAGES = [
@@ -302,7 +348,9 @@ const RETRYABLE_DECISION_ERROR_MESSAGES = [
 function isRetryableDecisionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === "AbortError") return false;
-  return RETRYABLE_DECISION_ERROR_MESSAGES.some((message) => error.message.startsWith(message));
+  return RETRYABLE_DECISION_ERROR_MESSAGES.some((message) =>
+    error.message.startsWith(message),
+  );
 }
 
 async function decideWithRetry(
@@ -324,7 +372,11 @@ export interface RunJevGoalArgs {
   readonly stepTimeoutMs: number;
   readonly signal: AbortSignal;
   readonly provider: JevProvider;
-  readonly runScript: (script: string, timeoutMs: number, signal: AbortSignal) => Promise<{ text: string }>;
+  readonly runScript: (
+    script: string,
+    timeoutMs: number,
+    signal: AbortSignal,
+  ) => Promise<{ text: string }>;
 }
 
 export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
@@ -333,7 +385,11 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
   let lastAnswer = "";
   for (let index = 0; index < args.maxSteps; index += 1) {
     args.signal.throwIfAborted();
-    const raw = await args.runScript(buildStepScript(pendingDecision), args.stepTimeoutMs, args.signal);
+    const raw = await args.runScript(
+      buildStepScript(pendingDecision),
+      args.stepTimeoutMs,
+      args.signal,
+    );
     const stepResult = parseStepResult(raw.text);
     if (pendingDecision !== null) {
       const executed = pendingDecision;
@@ -341,7 +397,11 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
         index: index - 1,
         action: executed.action,
         target: clampStepTarget(executed.ref),
-        outcome: clampStepOutcome(stepResult.actOk ? "ok" : `failed: ${stepResult.actError ?? "unknown error"}`),
+        outcome: clampStepOutcome(
+          stepResult.actOk
+            ? "ok"
+            : `failed: ${stepResult.actError ?? "unknown error"}`,
+        ),
       });
       if (executed.goalCompleteAfter && stepResult.actOk) {
         return { state: "done", answer: executed.answer, steps };
@@ -352,15 +412,32 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
       args.provider,
       {
         goal: args.goal,
-        observation: { url: stepResult.url, title: stepResult.title, snapshot: stepResult.snapshot },
-        recentOutcomes: steps.slice(-5).map((step) => `${step.action} ${step.target ?? ""}: ${step.outcome}`),
+        observation: {
+          url: stepResult.url,
+          title: stepResult.title,
+          snapshot: stepResult.snapshot,
+        },
+        recentOutcomes: steps
+          .slice(-5)
+          .map(
+            (step) => `${step.action} ${step.target ?? ""}: ${step.outcome}`,
+          ),
       },
       args.signal,
     );
     lastAnswer = decision.answer;
     if (decision.action === "done" || decision.action === "blocked") {
-      steps.push({ index, action: decision.action, target: null, outcome: clampStepOutcome(decision.answer) });
-      return { state: decision.action === "done" ? "done" : "blocked", answer: decision.answer, steps };
+      steps.push({
+        index,
+        action: decision.action,
+        target: null,
+        outcome: clampStepOutcome(decision.answer),
+      });
+      return {
+        state: decision.action === "done" ? "done" : "blocked",
+        answer: decision.answer,
+        steps,
+      };
     }
     pendingDecision = decision;
   }

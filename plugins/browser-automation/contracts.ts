@@ -173,10 +173,14 @@ export const previewInputEventSchema = z.discriminatedUnion("type", [
       modifiers: z.number().int().min(0).max(15).default(0),
     })
     .strict(),
-  z.object({ type: z.literal("insertText"), text: z.string().min(1).max(200) }).strict(),
+  z
+    .object({ type: z.literal("insertText"), text: z.string().min(1).max(200) })
+    .strict(),
 ]);
 export type PreviewInputEvent = z.infer<typeof previewInputEventSchema>;
-export const inputSchema = ownedSchema.extend({ event: previewInputEventSchema });
+export const inputSchema = ownedSchema.extend({
+  event: previewInputEventSchema,
+});
 export const rpcContract = defineRpcContract({
   open: { input: openSchema, output: sessionSchema },
   list: {

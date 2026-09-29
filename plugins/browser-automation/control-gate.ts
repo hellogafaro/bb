@@ -12,7 +12,10 @@ export class ControlGate {
     this.#leaseMs = leaseMs;
   }
 
-  async runAgent<T>(signal: AbortSignal, operation: () => Promise<T>): Promise<T> {
+  async runAgent<T>(
+    signal: AbortSignal,
+    operation: () => Promise<T>,
+  ): Promise<T> {
     while (this.#activeHuman() !== null) await this.#wait(signal);
     this.#agentActive = true;
     try {
@@ -23,7 +26,10 @@ export class ControlGate {
     }
   }
 
-  async acquire(clientId: string, signal: AbortSignal): Promise<"human" | "busy"> {
+  async acquire(
+    clientId: string,
+    signal: AbortSignal,
+  ): Promise<"human" | "busy"> {
     const owner = this.#activeHuman();
     if (owner !== null) {
       if (owner !== clientId) return "busy";
@@ -31,7 +37,8 @@ export class ControlGate {
       return "human";
     }
     while (this.#agentActive) await this.#wait(signal);
-    if (this.#activeHuman() !== null) return this.#humanClientId === clientId ? "human" : "busy";
+    if (this.#activeHuman() !== null)
+      return this.#humanClientId === clientId ? "human" : "busy";
     this.#humanClientId = clientId;
     this.#renew();
     return "human";
@@ -58,7 +65,8 @@ export class ControlGate {
   }
 
   #activeHuman(): string | null {
-    if (this.#humanClientId !== null && Date.now() >= this.#expiresAt) this.#clearHuman();
+    if (this.#humanClientId !== null && Date.now() >= this.#expiresAt)
+      this.#clearHuman();
     return this.#humanClientId;
   }
 

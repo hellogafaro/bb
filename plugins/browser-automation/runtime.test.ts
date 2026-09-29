@@ -10,7 +10,11 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { decodeOutput, profileDirectory, runtimeEnvironment } from "./runtime.js";
+import {
+  decodeOutput,
+  profileDirectory,
+  runtimeEnvironment,
+} from "./runtime.js";
 
 const dirs: string[] = [];
 afterEach(async () => {

@@ -557,7 +557,10 @@ function InteractiveOverlay({
       const now = performance.now();
       if (now - lastMoveAtRef.current < MOVE_THROTTLE_MS) return;
       lastMoveAtRef.current = now;
-      send({ type: "mouseMove", ...pointInFrame(event.clientX, event.clientY) });
+      send({
+        type: "mouseMove",
+        ...pointInFrame(event.clientX, event.clientY),
+      });
     },
     [pointInFrame, send],
   );
@@ -639,7 +642,11 @@ function LightboxBody({
 }) {
   const visible = useDocumentVisible();
   const rpc = useRpc<typeof rpcContract>();
-  const { frame, status, controlled: controlling } = useLivePreview({
+  const {
+    frame,
+    status,
+    controlled: controlling,
+  } = useLivePreview({
     threadId: target.threadId,
     sessionId: target.sessionId,
     enabled: visible && open,
@@ -895,7 +902,11 @@ function LoginFillInteraction({
           disabled={busy}
         >
           {busy ? (
-            <Icon name="Spinner" className="size-3 animate-spin" aria-hidden="true" />
+            <Icon
+              name="Spinner"
+              className="size-3 animate-spin"
+              aria-hidden="true"
+            />
           ) : null}
           Fill form
         </Button>

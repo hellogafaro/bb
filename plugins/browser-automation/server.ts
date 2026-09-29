@@ -73,7 +73,9 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
     return gate;
   }
   function sanitizeProfileName(value: string): string {
-    const cleaned = value.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^[._-]+/, "");
+    const cleaned = value
+      .replace(/[^A-Za-z0-9._-]/g, "-")
+      .replace(/^[._-]+/, "");
     return (cleaned === "" ? "default" : cleaned).slice(0, 120);
   }
   const pending = new Set<Promise<void>>();
@@ -408,7 +410,10 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       throw new Error(
         "OpenRouter API key is not configured for goal-driven browser automation; use `run` with an explicit script instead",
       );
-    const overall = AbortSignal.any([signal, AbortSignal.timeout(input.timeoutMs)]);
+    const overall = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(input.timeoutMs),
+    ]);
     const result = await runJevGoal({
       goal: input.goal,
       maxSteps: input.maxSteps,
@@ -417,7 +422,12 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       provider,
       runScript: (script, timeoutMs, stepSignal) =>
         run(
-          { threadId: input.threadId, sessionId: input.sessionId, script, timeoutMs },
+          {
+            threadId: input.threadId,
+            sessionId: input.sessionId,
+            script,
+            timeoutMs,
+          },
           stepSignal,
         ),
     });
@@ -435,14 +445,20 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       );
       image = shot.images[0] ?? null;
     } catch {}
-    return { state: result.state, answer: result.answer, steps: result.steps, image };
+    return {
+      state: result.state,
+      answer: result.answer,
+      steps: result.steps,
+      image,
+    };
   }
   async function preview(
     input: z.output<typeof rpcContract.preview.input>,
     signal: AbortSignal,
   ): Promise<PreviewOutput> {
     const { session } = await owned(input.threadId, input.sessionId);
-    const controlled = controlGates.get(input.sessionId)?.owns(CONTROL_CLIENT) ?? false;
+    const controlled =
+      controlGates.get(input.sessionId)?.owns(CONTROL_CLIENT) ?? false;
     if (
       session.backend !== "local" ||
       session.state !== "ready" ||
@@ -513,12 +529,22 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       Date.now() >= record.session.expiresAt
     )
       throw new Error("Session stopped or expired; open a new session");
-    const fields: { name: string; kind: "text" | "password"; selector: string }[] = [
+    const fields: {
+      name: string;
+      kind: "text" | "password";
+      selector: string;
+    }[] = [
       { name: "username", kind: "text", selector: input.usernameSelector },
       { name: "password", kind: "password", selector: input.passwordSelector },
       ...(input.otpSelector === undefined
         ? []
-        : [{ name: "otp", kind: "password" as const, selector: input.otpSelector }]),
+        : [
+            {
+              name: "otp",
+              kind: "password" as const,
+              selector: input.otpSelector,
+            },
+          ]),
     ];
     const names = fields.map((field) => field.name);
     const result = await bb.ui.requestInput(
@@ -528,7 +554,10 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         title: input.label ?? "Enter login credentials",
         payload: {
           label: input.label ?? null,
-          fields: fields.map((field) => ({ name: field.name, kind: field.kind })),
+          fields: fields.map((field) => ({
+            name: field.name,
+            kind: field.kind,
+          })),
         },
         describeSubmission: () => ({
           title: `Filled ${names.join(", ")}`,
@@ -545,7 +574,9 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         `await p.fill(${JSON.stringify(field.selector)}, ${JSON.stringify(response.values[field.name] ?? "")});`,
     );
     if (input.submitSelector !== undefined) {
-      statements.push(`await p.click(${JSON.stringify(input.submitSelector)});`);
+      statements.push(
+        `await p.click(${JSON.stringify(input.submitSelector)});`,
+      );
     }
     const script = [
       `const p = await browser.getPage(${JSON.stringify(input.page)});`,
@@ -553,7 +584,12 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       `JSON.stringify({ filled: true, fields: ${JSON.stringify(names)} });`,
     ].join(" ");
     const output = await run(
-      { threadId: input.threadId, sessionId: input.sessionId, script, timeoutMs: 30_000 },
+      {
+        threadId: input.threadId,
+        sessionId: input.sessionId,
+        script,
+        timeoutMs: 30_000,
+      },
       signal,
     );
     if (output.exitCode !== 0) {

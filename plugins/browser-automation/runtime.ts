@@ -173,7 +173,10 @@ async function findChrome(dataDir: string): Promise<string> {
   );
 }
 
-function requestGracefulShutdown(url: string, timeoutMs = 2_000): Promise<void> {
+function requestGracefulShutdown(
+  url: string,
+  timeoutMs = 2_000,
+): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = () => {
@@ -196,7 +199,9 @@ function requestGracefulShutdown(url: string, timeoutMs = 2_000): Promise<void> 
     }
     socket.addEventListener("open", () => {
       try {
-        socket.send(JSON.stringify({ id: 1, method: "Browser.close", params: {} }));
+        socket.send(
+          JSON.stringify({ id: 1, method: "Browser.close", params: {} }),
+        );
       } catch {
         finish();
       }

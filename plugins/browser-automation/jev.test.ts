@@ -13,7 +13,9 @@ import {
 describe("parseJevDecision", () => {
   it("rejects a missing or invalid action", () => {
     expect(() => parseJevDecision(null)).toThrow(/omitted a decision/);
-    expect(() => parseJevDecision({ action: "hover" })).toThrow(/invalid action/);
+    expect(() => parseJevDecision({ action: "hover" })).toThrow(
+      /invalid action/,
+    );
   });
 
   it("cleans a well-formed decision and drops unsafe fields", () => {
@@ -59,7 +61,9 @@ describe("buildStepScript", () => {
     const script = buildStepScript(null);
     expect(script).not.toContain("page.click");
     expect(script).toContain("page.snapshot(");
-    expect(script).toContain("actOk, actError, url: page.url(), title, snapshot");
+    expect(script).toContain(
+      "actOk, actError, url: page.url(), title, snapshot",
+    );
   });
 
   it("embeds a click action by ref and always re-observes afterward", () => {
@@ -114,9 +118,14 @@ describe("buildStepScript", () => {
 describe("resolveJevApiKey / createOpenRouterBrowserJevProvider", () => {
   it("prefers COMPUTER_OPENROUTER_API_KEY over OPENROUTER_API_KEY", () => {
     expect(
-      resolveJevApiKey({ COMPUTER_OPENROUTER_API_KEY: "computer-key", OPENROUTER_API_KEY: "generic-key" }),
+      resolveJevApiKey({
+        COMPUTER_OPENROUTER_API_KEY: "computer-key",
+        OPENROUTER_API_KEY: "generic-key",
+      }),
     ).toBe("computer-key");
-    expect(resolveJevApiKey({ OPENROUTER_API_KEY: "generic-key" })).toBe("generic-key");
+    expect(resolveJevApiKey({ OPENROUTER_API_KEY: "generic-key" })).toBe(
+      "generic-key",
+    );
   });
 
   it("returns null and no provider when neither key is set", () => {
@@ -125,7 +134,9 @@ describe("resolveJevApiKey / createOpenRouterBrowserJevProvider", () => {
   });
 
   it("builds a provider when a key is present", () => {
-    expect(createOpenRouterBrowserJevProvider({ OPENROUTER_API_KEY: "k" })).not.toBeNull();
+    expect(
+      createOpenRouterBrowserJevProvider({ OPENROUTER_API_KEY: "k" }),
+    ).not.toBeNull();
   });
 });
 
@@ -144,7 +155,15 @@ function decision(partial: Partial<JevDecision>): JevDecision {
 }
 
 function observationResult(snapshot: string) {
-  return { text: JSON.stringify({ actOk: true, actError: null, url: "https://example.com", title: "Example", snapshot }) };
+  return {
+    text: JSON.stringify({
+      actOk: true,
+      actError: null,
+      url: "https://example.com",
+      title: "Example",
+      snapshot,
+    }),
+  };
 }
 
 describe("runJevGoal", () => {
@@ -166,7 +185,7 @@ describe("runJevGoal", () => {
       provider,
       runScript: async (script) => {
         scripts.push(script);
-        return observationResult("heading \"Result\" [ref=e9]");
+        return observationResult('heading "Result" [ref=e9]');
       },
     });
     expect(result.state).toBe("done");
@@ -178,7 +197,11 @@ describe("runJevGoal", () => {
 
   it("stops immediately on a blocked decision without acting", async () => {
     const provider: JevProvider = {
-      decide: async () => decision({ action: "blocked", answer: "Cannot proceed: a CAPTCHA is blocking the page" }),
+      decide: async () =>
+        decision({
+          action: "blocked",
+          answer: "Cannot proceed: a CAPTCHA is blocking the page",
+        }),
     };
     const result = await runJevGoal({
       goal: "buy the item",
@@ -194,7 +217,13 @@ describe("runJevGoal", () => {
 
   it("stops the goal_complete_after action from executing twice and reports done", async () => {
     const provider: JevProvider = {
-      decide: async () => decision({ action: "click", ref: "e2", goalCompleteAfter: true, answer: "Submitted the form" }),
+      decide: async () =>
+        decision({
+          action: "click",
+          ref: "e2",
+          goalCompleteAfter: true,
+          answer: "Submitted the form",
+        }),
     };
     let runs = 0;
     const result = await runJevGoal({
@@ -205,7 +234,7 @@ describe("runJevGoal", () => {
       provider,
       runScript: async () => {
         runs += 1;
-        return observationResult("button \"Submit\" [ref=e2]");
+        return observationResult('button "Submit" [ref=e2]');
       },
     });
     expect(result.state).toBe("done");
@@ -215,7 +244,8 @@ describe("runJevGoal", () => {
 
   it("gives up after maxSteps and reports the last answer", async () => {
     const provider: JevProvider = {
-      decide: async () => decision({ action: "click", ref: "e2", answer: "still looking" }),
+      decide: async () =>
+        decision({ action: "click", ref: "e2", answer: "still looking" }),
     };
     const result = await runJevGoal({
       goal: "an impossible task",
@@ -223,7 +253,7 @@ describe("runJevGoal", () => {
       stepTimeoutMs: 1_000,
       signal: new AbortController().signal,
       provider,
-      runScript: async () => observationResult("button \"Next\" [ref=e2]"),
+      runScript: async () => observationResult('button "Next" [ref=e2]'),
     });
     expect(result.state).toBe("max_steps");
     expect(result.answer).toBe("still looking");
@@ -302,7 +332,8 @@ describe("runJevGoal", () => {
     const provider: JevProvider = {
       decide: async () => {
         decideCalls += 1;
-        if (decideCalls === 1) throw new Error("OpenRouter Jev returned malformed JSON");
+        if (decideCalls === 1)
+          throw new Error("OpenRouter Jev returned malformed JSON");
         return decision({ action: "done", answer: "recovered" });
       },
     };

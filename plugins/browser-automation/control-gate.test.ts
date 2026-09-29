@@ -20,10 +20,13 @@ describe("ControlGate", () => {
     const gate = new ControlGate();
     await gate.acquire("client-1", new AbortController().signal);
     let ran = false;
-    const agentPromise = gate.runAgent(new AbortController().signal, async () => {
-      ran = true;
-      return "done";
-    });
+    const agentPromise = gate.runAgent(
+      new AbortController().signal,
+      async () => {
+        ran = true;
+        return "done";
+      },
+    );
     await Promise.resolve();
     expect(ran).toBe(false);
     gate.release("client-1");
