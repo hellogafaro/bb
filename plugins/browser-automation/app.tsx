@@ -746,6 +746,7 @@ function MaskedField({
   id,
   label,
   masked,
+  autoComplete,
   value,
   onChange,
   disabled,
@@ -753,6 +754,7 @@ function MaskedField({
   id: string;
   label: string;
   masked: boolean;
+  autoComplete: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
@@ -760,18 +762,12 @@ function MaskedField({
   const [revealed, setRevealed] = useState(false);
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label
-        htmlFor={id}
-        className="font-mono text-xs font-semibold text-foreground"
-        translate="no"
-      >
-        {label}
-      </Label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative">
         <Input
           id={id}
           type={masked && !revealed ? "password" : "text"}
-          autoComplete="off"
+          autoComplete={autoComplete}
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -803,6 +799,15 @@ function MaskedField({
     </div>
   );
 }
+
+const LOGIN_FIELD_DISPLAY: Record<
+  string,
+  { label: string; autoComplete: string }
+> = {
+  username: { label: "Username", autoComplete: "username" },
+  password: { label: "Password", autoComplete: "current-password" },
+  otp: { label: "One-time code", autoComplete: "one-time-code" },
+};
 
 function LoginFillInteraction({
   interaction,
@@ -856,25 +861,27 @@ function LoginFillInteraction({
         void submitValues();
       }}
     >
-      {payload.label ? (
-        <p className="text-pretty text-sm leading-relaxed text-foreground">
-          {payload.label}
-        </p>
-      ) : null}
       <div className="space-y-3.5">
-        {payload.fields.map((field) => (
-          <MaskedField
-            key={field.name}
-            id={`login-fill-${interaction.id}-${field.name}`}
-            label={field.name}
-            masked={field.kind === "password"}
-            value={values[field.name] ?? ""}
-            onChange={(value) =>
-              setValues((current) => ({ ...current, [field.name]: value }))
-            }
-            disabled={busy}
-          />
-        ))}
+        {payload.fields.map((field) => {
+          const display = LOGIN_FIELD_DISPLAY[field.name] ?? {
+            label: field.name,
+            autoComplete: "off",
+          };
+          return (
+            <MaskedField
+              key={field.name}
+              id={`login-fill-${interaction.id}-${field.name}`}
+              label={display.label}
+              autoComplete={display.autoComplete}
+              masked={field.kind === "password"}
+              value={values[field.name] ?? ""}
+              onChange={(value) =>
+                setValues((current) => ({ ...current, [field.name]: value }))
+              }
+              disabled={busy}
+            />
+          );
+        })}
       </div>
       {formError ? (
         <p
