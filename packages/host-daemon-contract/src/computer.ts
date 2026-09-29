@@ -281,6 +281,9 @@ export const COMPUTER_CLIPBOARD_MAX_CHARS = 1_000_000;
 export const computerLiveStateSchema = z.enum(["starting", "live", "stopped", "error"]);
 export type ComputerLiveState = z.infer<typeof computerLiveStateSchema>;
 
+export const computerVideoCodecSchema = z.enum(["h264"]);
+export type ComputerVideoCodec = z.infer<typeof computerVideoCodecSchema>;
+
 export const computerFrameHeaderSchema = z
   .object({
     sequence: z.number().int().nonnegative(),
@@ -294,8 +297,54 @@ export const computerFrameHeaderSchema = z
   .strict();
 export type ComputerFrameHeader = z.infer<typeof computerFrameHeaderSchema>;
 
+/**
+ * Sent once when a hardware H.264 video stream starts (or its parameter sets
+ * change): carries the avcC (AVCDecoderConfigurationRecord) extradata a
+ * WebCodecs VideoDecoder needs in its `description` to configure for 'avc'
+ * (AVCC) chunk type. The body of the accompanying ComputerFrame-shaped
+ * message is the raw avcC bytes.
+ */
+export const computerVideoConfigHeaderSchema = z
+  .object({
+    kind: z.literal("video-config"),
+    sequence: z.number().int().nonnegative(),
+    capturedAt: z.number().int().nonnegative(),
+    codec: computerVideoCodecSchema,
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  })
+  .strict();
+export type ComputerVideoConfigHeader = z.infer<typeof computerVideoConfigHeaderSchema>;
+
+/**
+ * One H.264 access unit in AVCC (4-byte length-prefixed NAL units) framing,
+ * matching what VideoToolbox emits and what WebCodecs expects for the 'avc'
+ * chunk type. The body of the accompanying ComputerFrame-shaped message is
+ * the raw AVCC payload.
+ */
+export const computerVideoFrameHeaderSchema = z
+  .object({
+    kind: z.literal("video-frame"),
+    sequence: z.number().int().nonnegative(),
+    capturedAt: z.number().int().nonnegative(),
+    codec: computerVideoCodecSchema,
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    keyframe: z.boolean(),
+    ptsMicros: z.number().int(),
+  })
+  .strict();
+export type ComputerVideoFrameHeader = z.infer<typeof computerVideoFrameHeaderSchema>;
+
+export const computerLiveFrameHeaderSchema = z.union([
+  computerFrameHeaderSchema,
+  computerVideoConfigHeaderSchema,
+  computerVideoFrameHeaderSchema,
+]);
+export type ComputerLiveFrameHeader = z.infer<typeof computerLiveFrameHeaderSchema>;
+
 export interface ComputerFrame {
-  readonly header: ComputerFrameHeader;
+  readonly header: ComputerLiveFrameHeader;
   readonly body: Uint8Array;
 }
 
@@ -325,7 +374,7 @@ export function decodeComputerFrame(bytes: Uint8Array): ComputerFrame | null {
   } catch {
     return null;
   }
-  const header = computerFrameHeaderSchema.safeParse(raw);
+  const header = computerLiveFrameHeaderSchema.safeParse(raw);
   if (!header.success) return null;
   return { header: header.data, body: bytes.subarray(bodyStart) };
 }
