@@ -280,6 +280,18 @@ export interface JevGoalResult {
   readonly steps: DoStep[];
 }
 
+const MAX_STEP_OUTCOME_LENGTH = 400;
+const MAX_STEP_TARGET_LENGTH = 200;
+
+function clampStepOutcome(outcome: string): string {
+  return outcome.length > MAX_STEP_OUTCOME_LENGTH ? outcome.slice(0, MAX_STEP_OUTCOME_LENGTH) : outcome;
+}
+
+function clampStepTarget(target: string | null): string | null {
+  if (target === null) return null;
+  return target.length > MAX_STEP_TARGET_LENGTH ? target.slice(0, MAX_STEP_TARGET_LENGTH) : target;
+}
+
 export interface RunJevGoalArgs {
   readonly goal: string;
   readonly maxSteps: number;
@@ -302,8 +314,8 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
       steps.push({
         index: index - 1,
         action: executed.action,
-        target: executed.ref,
-        outcome: stepResult.actOk ? "ok" : `failed: ${stepResult.actError ?? "unknown error"}`,
+        target: clampStepTarget(executed.ref),
+        outcome: clampStepOutcome(stepResult.actOk ? "ok" : `failed: ${stepResult.actError ?? "unknown error"}`),
       });
       if (executed.goalCompleteAfter && stepResult.actOk) {
         return { state: "done", answer: executed.answer, steps };
@@ -320,7 +332,7 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
     );
     lastAnswer = decision.answer;
     if (decision.action === "done" || decision.action === "blocked") {
-      steps.push({ index, action: decision.action, target: null, outcome: decision.answer });
+      steps.push({ index, action: decision.action, target: null, outcome: clampStepOutcome(decision.answer) });
       return { state: decision.action === "done" ? "done" : "blocked", answer: decision.answer, steps };
     }
     pendingDecision = decision;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { doOutputSchema } from "./contracts.js";
 import {
   buildStepScript,
   createOpenRouterBrowserJevProvider,
@@ -250,5 +251,49 @@ describe("runJevGoal", () => {
       }),
     });
     expect(result.state).toBe("done");
+  });
+
+  it("clamps a long answer and a long action error into doOutputSchema's step limits", async () => {
+    const longAnswer = "a".repeat(1_000);
+    const longError = "b".repeat(1_000);
+    const decisions: JevDecision[] = [
+      decision({ action: "click", ref: "e6", answer: "clicking" }),
+      decision({ action: "done", answer: longAnswer }),
+    ];
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => decisions[decideCalls++],
+    };
+    const result = await runJevGoal({
+      goal: "trigger a long error and a long final answer",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () => ({
+        text: JSON.stringify({
+          actOk: false,
+          actError: longError,
+          url: "https://example.com",
+          title: "Example",
+          snapshot: "generic [ref=e1]",
+        }),
+      }),
+    });
+    expect(result.state).toBe("done");
+    expect(result.answer).toBe(longAnswer);
+    expect(result.answer.length).toBe(1_000);
+    for (const step of result.steps) {
+      expect(step.outcome.length).toBeLessThanOrEqual(400);
+      expect(step.target === null || step.target.length <= 200).toBe(true);
+    }
+    expect(
+      doOutputSchema.parse({
+        state: result.state,
+        answer: result.answer,
+        steps: result.steps,
+        image: null,
+      }),
+    ).toMatchObject({ state: "done" });
   });
 });
