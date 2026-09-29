@@ -178,6 +178,13 @@ export function isLapsedManifestError(error: unknown): boolean {
   return error instanceof Error && LAPSED_MANIFEST_PATTERN.test(error.message);
 }
 
+const RECOVERABLE_SESSION_PATTERN =
+  /session '[^']*' has ended|call start_session|connection closed|not connected|epipe|econnreset/iu;
+
+export function isRecoverableSessionError(error: unknown): boolean {
+  return error instanceof Error && RECOVERABLE_SESSION_PATTERN.test(error.message);
+}
+
 export interface ManifestRenewalHooks {
   ensureFresh(): Promise<void>;
   renewAfterLapse(): Promise<void>;

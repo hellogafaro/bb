@@ -615,12 +615,15 @@ describe("ComputerHostService manifest renewal", () => {
 
   it("proactively renews and restarts once the driver has been idle past the configured margin", async () => {
     const log: string[] = [];
+    let closes = 0;
     class RecordingLiveTransport implements CuaTransport {
       async call(tool: string): Promise<CuaToolResult> {
         log.push(tool);
         return { structuredContent: { text: "clip" } };
       }
-      close(): void {}
+      close(): void {
+        closes += 1;
+      }
     }
     let now = 1_000;
     const service = new ComputerHostService({
@@ -636,6 +639,7 @@ describe("ComputerHostService manifest renewal", () => {
 
     await service.warmUp();
     expect(log.filter((entry) => entry === "serve")).toHaveLength(1);
+    expect(closes).toBe(1);
 
     log.length = 0;
     await service.clipboardRead();
@@ -645,6 +649,7 @@ describe("ComputerHostService manifest renewal", () => {
     log.length = 0;
     await service.clipboardRead();
     expect(log).toEqual(["stop", "serve", "clipboard_read"]);
+    expect(closes).toBe(2);
 
     const manifestPath = join(dataDir, "capability-manifest.json");
     expect(await readFile(manifestPath, "utf8")).toContain("idle_timeout");
