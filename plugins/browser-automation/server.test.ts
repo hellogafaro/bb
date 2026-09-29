@@ -433,7 +433,7 @@ describe("server live preview", () => {
           afterSequence: 6,
           size: "full",
         }),
-      ).toEqual({ session: local, frame });
+      ).toEqual({ session: local, frame, controlled: false });
       expect(h.worker).toHaveBeenCalledWith(
         expect.objectContaining({
           hostId: "local-host",
@@ -451,7 +451,7 @@ describe("server live preview", () => {
           threadId: "thread-test",
           sessionId: desktop.id,
         }),
-      ).toEqual({ session: desktop, frame: null });
+      ).toEqual({ session: desktop, frame: null, controlled: false });
       await expect(
         h.harness.behavior.callRpc("preview", {
           threadId: "other",
@@ -544,6 +544,45 @@ describe("server live preview", () => {
           bytes: 10,
         },
       });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});
+describe("server persistent profiles", () => {
+  it("always uses one persistent profile per project for local sessions", async () => {
+    const h = await setup();
+    try {
+      await h.harness.behavior.callRpc("open", {
+        threadId: "thread-test",
+        selection: { backend: "local", hostId: "local-host" },
+      });
+      expect(h.worker).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "open",
+          input: expect.objectContaining({ profileName: "project-1" }),
+        }),
+      );
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("surfaces a clear error when the host refuses a profile already in use", async () => {
+    const h = await setup();
+    h.worker.mockImplementation(async ({ method }) =>
+      method === "open"
+        ? Promise.reject(new Error("This project's browser profile is already in use"))
+        : method === "prepare"
+          ? { status: "ready", version: "1.0.0-test", source: "release" }
+          : null,
+    );
+    try {
+      await expect(
+        h.harness.behavior.callRpc("open", {
+          threadId: "thread-test",
+          selection: { backend: "local", hostId: "local-host" },
+        }),
+      ).rejects.toThrow("already in use");
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -696,6 +735,79 @@ describe("server fill-login", () => {
         filled: true,
         fields: ["username", "password", "otp"],
       });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});
+describe("server human takeover", () => {
+  async function openLocal(h: Awaited<ReturnType<typeof setup>>) {
+    return rpcContract.open.output.parse(
+      await h.harness.behavior.callRpc("open", {
+        threadId: "thread-test",
+        selection: { backend: "local", hostId: "local-host" },
+      }),
+    );
+  }
+  it("pauses agent runs while a person holds control and forwards input only then", async () => {
+    const h = await setup();
+    try {
+      const local = await openLocal(h);
+      await expect(
+        h.harness.behavior.callRpc("input", {
+          threadId: "thread-test",
+          sessionId: local.id,
+          event: { type: "mouseMove", x: 1, y: 1 },
+        }),
+      ).rejects.toThrow("Take over");
+      await h.harness.behavior.callRpc("takeover", {
+        threadId: "thread-test",
+        sessionId: local.id,
+      });
+      const blockedRun = h.harness.behavior.callRpc("run", {
+        threadId: "thread-test",
+        sessionId: local.id,
+        script: "1",
+      });
+      let ranWhileControlled = false;
+      void blockedRun.then(() => {
+        ranWhileControlled = true;
+      });
+      await h.harness.behavior.callRpc("input", {
+        threadId: "thread-test",
+        sessionId: local.id,
+        event: { type: "mouseMove", x: 1, y: 1 },
+      });
+      expect(h.worker).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "input",
+          input: {
+            sessionId: local.id,
+            event: { type: "mouseMove", x: 1, y: 1 },
+          },
+        }),
+      );
+      await Promise.resolve();
+      expect(ranWhileControlled).toBe(false);
+      await h.harness.behavior.callRpc("release", {
+        threadId: "thread-test",
+        sessionId: local.id,
+      });
+      await expect(blockedRun).resolves.toMatchObject({ exitCode: 0 });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("releasing without control is a no-op and does not throw", async () => {
+    const h = await setup();
+    try {
+      const local = await openLocal(h);
+      await expect(
+        h.harness.behavior.callRpc("release", {
+          threadId: "thread-test",
+          sessionId: local.id,
+        }),
+      ).resolves.toBeNull();
     } finally {
       await h.harness.lifecycle.dispose();
     }

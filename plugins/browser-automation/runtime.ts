@@ -173,6 +173,39 @@ async function findChrome(dataDir: string): Promise<string> {
   );
 }
 
+function requestGracefulShutdown(url: string, timeoutMs = 2_000): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        socket.close();
+      } catch {}
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(url);
+    } catch {
+      clearTimeout(timer);
+      resolve();
+      return;
+    }
+    socket.addEventListener("open", () => {
+      try {
+        socket.send(JSON.stringify({ id: 1, method: "Browser.close", params: {} }));
+      } catch {
+        finish();
+      }
+    });
+    socket.addEventListener("close", finish);
+    socket.addEventListener("error", finish);
+  });
+}
+
 export interface RuntimeSession {
   run(
     script: string,
@@ -183,11 +216,16 @@ export interface RuntimeSession {
   close(): Promise<void>;
 }
 
+export function profileDirectory(dataDir: string, profileName: string): string {
+  return join(dataDir, "profiles", profileName);
+}
+
 export async function createRuntime(args: {
   runtime: ResolvedRuntime;
   dataDir: string;
   tempDir: string;
   connectionUrl?: string;
+  profileName?: string;
   signal: AbortSignal;
 }): Promise<RuntimeSession> {
   const binary = args.runtime.binary;
@@ -198,6 +236,8 @@ export async function createRuntime(args: {
   let closed = false;
   let closing: Promise<void> | null = null;
   let preview: PreviewSource | null = null;
+  let ownedConnectionUrl: string | undefined;
+  let ownedChrome: ReturnType<typeof supervise> | undefined;
   const stopped = new AbortController();
   let queue = Promise.resolve();
   const close = (): Promise<void> => {
@@ -206,6 +246,11 @@ export async function createRuntime(args: {
     stopped.abort();
     preview?.close();
     closing = (async () => {
+      if (ownedConnectionUrl !== undefined && ownedChrome !== undefined) {
+        await requestGracefulShutdown(ownedConnectionUrl);
+        const deadline = Date.now() + 3_000;
+        while (ownedChrome.alive() && Date.now() < deadline) await delay(50);
+      }
       await Promise.all(processes.map((child) => child.close()));
       await rm(home, { recursive: true, force: true });
     })();
@@ -230,24 +275,30 @@ export async function createRuntime(args: {
     let connectionUrl = args.connectionUrl;
     if (connectionUrl === undefined) {
       const chrome = await findChrome(args.dataDir);
-      const profile = join(home, "profile");
-      processes.push(
-        supervise(
-          chrome,
-          [
-            "--headless=new",
-            "--no-sandbox",
-            "--remote-debugging-port=0",
-            "--remote-debugging-address=127.0.0.1",
-            `--user-data-dir=${profile}`,
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--window-size=1280,720",
-            "about:blank",
-          ],
-          env,
-        ),
+      const profile =
+        args.profileName === undefined
+          ? join(home, "profile")
+          : profileDirectory(args.dataDir, args.profileName);
+      await mkdir(profile, { recursive: true, mode: 0o700 });
+      if (args.profileName !== undefined)
+        await rm(join(profile, "DevToolsActivePort"), { force: true });
+      ownedChrome = supervise(
+        chrome,
+        [
+          "--headless=new",
+          "--no-sandbox",
+          "--password-store=basic",
+          "--remote-debugging-port=0",
+          "--remote-debugging-address=127.0.0.1",
+          `--user-data-dir=${profile}`,
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--window-size=1280,720",
+          "about:blank",
+        ],
+        env,
       );
+      processes.push(ownedChrome);
       const lines = (await waitForFile(join(profile, "DevToolsActivePort")))
         .trim()
         .split("\n");
@@ -257,6 +308,7 @@ export async function createRuntime(args: {
         .regex(/^\/devtools\/browser\/[a-zA-Z0-9-]+$/)
         .parse(lines[1]);
       connectionUrl = `ws://127.0.0.1:${port}${path}`;
+      ownedConnectionUrl = connectionUrl;
     }
     const endpoint = new URL(connectionUrl);
     if (

@@ -138,28 +138,60 @@ browser host. Relative paths use the invoking CLI working directory. Browser
 file reads/writes still occur on the browser's host; scripts are not run in the
 workspace directory.
 
-Desktop sessions create a tab in a dedicated automation profile. Acquiring
-control opens the side panel and selects its browser tab only when the owning
-thread is already focused. New or activated controller pages follow
-the same rule. Automation does not switch threads or bring the desktop window
-forward. While controlled, a desktop tab never takes keyboard focus from the
-composer or other apps; press Take over to type into it. Pass
+Desktop sessions create a tab in a dedicated, project-scoped automation
+profile: every automation tab for threads in the same project shares one
+Electron session partition (`persist:bb-browser-automation-<hash>`, keyed by
+project ID), so its cookies, localStorage, and IndexedDB persist across
+sessions and app restarts the same way a personal Chrome profile would.
+Acquiring control opens the side panel and selects its browser tab only when
+the owning thread is already focused. New or activated controller pages
+follow the same rule. Automation does not switch threads or bring the desktop
+window forward. While controlled, a desktop tab never takes keyboard focus
+from the composer or other apps; press Take over to type into it, complete a
+passkey or captcha, then press it again to give control back. Pass
 `--tab <tab-id>` only for an explicit handoff of an existing tab. This grants the
 existing profile's browsing authority, including its authenticated cookies;
 release preserves that tab and login. Plugin-created tabs in its dedicated
 profile are disposed by `close`. `stop` releases control and preserves desktop
 tabs, including plugin-created ones, until close or cleanup.
 
-Local sessions own a Chrome process and a separate profile. Each session owns a
-fresh `DEV_BROWSER_HOME` and socket under the worker's temporary directory.
-Pages and cookies persist between runs in that session. `stop`, timeout, or
-cancellation terminates that local session; open another session to resume.
-`close` disposes its processes and session directory. Desktop handoff tabs
-remain open. Sessions expire after 30 minutes, with five-minute idle cleanup;
-active scripts do not count as idle. Archiving, deleting, or failing a thread
-closes its sessions; normal idle turns preserve them. Externally invoked CLI
-runs remain subject to the same per-run timeout and absolute session expiry. Run timeouts default to 30 seconds and are
+Local sessions own a Chrome process and a persistent, project-scoped profile:
+every local session for a project reuses that project's one Chrome profile on
+the selected host (under the plugin's host data directory), so cookies,
+localStorage, and IndexedDB survive `stop`, `close`, and later sessions with
+no flag to set. Only one session may hold that profile at a time; opening a
+second session for the same project on the same host while one is already
+running fails with a clear error naming the conflict. Each session still owns
+a fresh `DEV_BROWSER_HOME` and socket under the worker's temporary directory
+for its own daemon and capture files, separate from the persistent profile
+directory. `stop`, timeout, or cancellation terminates that local session and
+releases the profile; open another session to resume. `close` disposes its
+processes and session directory, leaving the profile's cookies in place.
+Desktop handoff tabs remain open. Sessions expire after 30 minutes, with
+five-minute idle cleanup; active scripts do not count as idle. Archiving,
+deleting, or failing a thread closes its sessions; normal idle turns preserve
+them. Externally invoked CLI runs remain subject to the same per-run timeout
+and absolute session expiry. Run timeouts default to 30 seconds and are
 bounded to 1–120 seconds. Runs are serialized per session.
+
+## Interactive takeover
+
+A local headless session's live preview lightbox (below) can become
+interactive: pressing **Take over** forwards the lightbox's mouse, keyboard,
+and scroll events to the real page over CDP (`Input.dispatchMouseEvent`,
+`Input.dispatchKeyEvent`, `Input.insertText`), the same way a person would use
+a real browser, so they can type a 2FA code, solve a captcha, or otherwise act
+where the agent cannot. Passkeys and QR/hybrid WebAuthn need Bluetooth
+proximity on the machine running the browser, which a headless session on a
+server does not have; use the desktop backend and its own Take over for those.
+Runs on that session (`run`, `pages`, `screenshot`)
+pause automatically while a person holds control, backed by the same
+control-gate pattern used for the Computer tab's human-control stream
+(`control-gate.ts`), and resume once **Give back control** releases it. There
+is no agent-facing "ask for control" command: when an agent needs a person to
+complete a step it cannot, it asks the user directly (with its standard
+question tool) to open the live preview and press Take over, then retries
+once they are done.
 
 DevBrowser scripts are trusted code, not a security sandbox. Script output is
 bounded to 512 KB before parsing and 160,000 text characters after parsing.
@@ -177,7 +209,10 @@ session records or CLI session results.
 
 The CLI uses the same validated operation handlers as RPC. The
 RPC contract in `contracts.ts` exposes `open`, `list`, `run`, `do`, `pages`,
-`screenshot`, `preview`, `fillLogin`, `stop`, and `close`.
+`screenshot`, `preview`, `fillLogin`, `stop`, and `close` to both the CLI and the app;
+`takeover`, `release`, and `input` are RPC-only, used by the live preview
+lightbox to let a person hold and use interactive control (see "Interactive
+takeover" above).
 RPC inputs include `threadId`; session operations also include `sessionId`.
 `open.selection` is `{backend:"local",hostId}` or
 `{backend:"desktop",hostId,instanceId,tabId?}`. A tab ID is an explicit handoff.

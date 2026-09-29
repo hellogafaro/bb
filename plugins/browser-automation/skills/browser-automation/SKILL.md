@@ -10,8 +10,10 @@ act, and verify in short scripts.
 take precedence over names; unknown or ambiguous names fail before opening a session.
 
 Choose `--backend local --headless --machine <host-id>` for headless Chrome on
-an enrolled host. Choose `--backend desktop --machine <host-id> --desktop
-<instance-id>` for a new dedicated desktop automation tab. Starting desktop
+an enrolled host. Prefer `--backend desktop --machine <host-id> --desktop
+<instance-id>` when a desktop client is connected on that host: it drives the
+user's real browser, which supports passkeys and QR/hybrid WebAuthn natively.
+Choose desktop for a new dedicated desktop automation tab. Starting desktop
 control opens the side panel and selects the browser tab only if its thread is
 already focused. New or activated controller pages follow the same rule;
 automation does not switch threads or bring the desktop window forward. While
@@ -105,6 +107,21 @@ Read the printed local path with your image-reading tool. Do not print base64
 image bytes into the conversation. Read or copy captures before closing the
 session: cleanup removes its temporary directory. Remove local copies when
 finished.
+
+Local headless sessions persist logins automatically: every local session for
+a project on a given host reuses that project's one Chrome profile, so cookies
+survive `stop`, `close`, and later sessions with no flag to set. Opening a
+second local session for the same project on the same host while one is
+already running fails with a clear error; close the first one before opening
+another.
+
+For a 2FA code or captcha in a local headless session, ask the user (with your
+standard question tool) to open the live preview lightbox and press Take over,
+complete the step, and press it again to give back control; agent runs on that
+session pause automatically while a person holds control, and resume once they
+release it. Headless takeover has no Bluetooth proximity on the host, so it
+cannot complete a passkey or QR/hybrid WebAuthn prompt; use the desktop backend
+and its own Take over (in the side panel) for those instead.
 
 A local headless `open` returns a `previewDirective`, for example
 `::browser-preview{session="<session-id>"}`. Copy it into your next message

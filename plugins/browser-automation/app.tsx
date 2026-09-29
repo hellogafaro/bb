@@ -1,6 +1,8 @@
 import {
+  useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -36,7 +38,12 @@ import {
   loginFillPayloadSchema,
   loginFillResponseSchema,
 } from "@bb/plugin-interaction-contracts";
-import type { PreviewFrame, PreviewSize, rpcContract } from "./contracts.js";
+import type {
+  PreviewFrame,
+  PreviewInputEvent,
+  PreviewSize,
+  rpcContract,
+} from "./contracts.js";
 import {
   closeLightbox,
   openLightbox,
@@ -121,13 +128,18 @@ function useLivePreview(args: {
   enabled: boolean;
   size: PreviewSize;
   initialFrame: PreviewFrame | null;
-}): { frame: PreviewFrame | null; status: PreviewStatus } {
+}): {
+  frame: PreviewFrame | null;
+  status: PreviewStatus;
+  controlled: boolean;
+} {
   const { threadId, sessionId, enabled, size, initialFrame } = args;
   const rpc = useRpc<typeof rpcContract>();
   const [frame, setFrame] = useState<PreviewFrame | null>(initialFrame);
   const [status, setStatus] = useState<PreviewStatus>(
     initialFrame ? "live" : "connecting",
   );
+  const [controlled, setControlled] = useState(false);
   const settled = status === "ended" || status === "unavailable";
 
   useEffect(() => {
@@ -147,6 +159,7 @@ function useLivePreview(args: {
           size,
         });
         if (cancelled) return;
+        setControlled(result.controlled);
         if (
           result.session.state !== "ready" ||
           result.session.backend !== "local"
@@ -181,7 +194,7 @@ function useLivePreview(args: {
     };
   }, [enabled, rpc, sessionId, settled, size, threadId]);
 
-  return { frame, status };
+  return { frame, status, controlled };
 }
 
 function PreviewImage({
@@ -190,19 +203,21 @@ function PreviewImage({
   title,
   className,
   maxHeight,
+  overlay,
 }: {
   frame: PreviewFrame | null;
   status: PreviewStatus;
   title: string;
   className: string;
   maxHeight?: string;
+  overlay?: ReactNode;
 }) {
   const aspect = frame ?? { width: 16, height: 9 };
   if (!frame && status !== "connecting") return null;
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border/60 bg-background",
+        "relative overflow-hidden rounded-md border border-border/60 bg-background",
         className,
       )}
       style={{
@@ -228,7 +243,9 @@ function PreviewImage({
             status !== "live" && "opacity-60",
           )}
         />
-      ) : (
+      ) : null}
+      {frame ? overlay : null}
+      {!frame ? (
         <div
           role="status"
           aria-busy="true"
@@ -237,7 +254,7 @@ function PreviewImage({
         >
           <Skeleton className="size-full rounded-none" />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -392,6 +409,227 @@ function BrowserPreviewCard({
   );
 }
 
+const SPECIAL_KEYS = new Set([
+  "Enter",
+  "Backspace",
+  "Delete",
+  "Tab",
+  "Escape",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+function isSpecialOrShortcutKey(event: {
+  key: string;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): boolean {
+  return (
+    SPECIAL_KEYS.has(event.key) ||
+    /^F\d{1,2}$/u.test(event.key) ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.metaKey
+  );
+}
+
+function modifierBits(event: {
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}): number {
+  let bits = 0;
+  if (event.altKey) bits |= 1;
+  if (event.ctrlKey) bits |= 2;
+  if (event.metaKey) bits |= 4;
+  if (event.shiftKey) bits |= 8;
+  return bits;
+}
+
+function pointerButtonFor(button: number): "left" | "middle" | "right" | null {
+  if (button === 0) return "left";
+  if (button === 1) return "middle";
+  if (button === 2) return "right";
+  return null;
+}
+
+const MOVE_THROTTLE_MS = 33;
+const WHEEL_THROTTLE_MS = 40;
+
+function InteractiveOverlay({
+  threadId,
+  sessionId,
+  frame,
+}: {
+  threadId: string;
+  sessionId: string;
+  frame: PreviewFrame;
+}) {
+  const rpc = useRpc<typeof rpcContract>();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const keyCaptureRef = useRef<HTMLTextAreaElement>(null);
+  const lastMoveAtRef = useRef(0);
+  const lastWheelAtRef = useRef(0);
+
+  useEffect(() => {
+    keyCaptureRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const send = useCallback(
+    (event: PreviewInputEvent) => {
+      void rpc.call("input", { threadId, sessionId, event }).catch(() => {});
+    },
+    [rpc, threadId, sessionId],
+  );
+
+  const pointInFrame = useCallback(
+    (clientX: number, clientY: number): { x: number; y: number } => {
+      const container = containerRef.current;
+      if (!container) return { x: 0, y: 0 };
+      const rect = container.getBoundingClientRect();
+      const containerAspect = rect.width / rect.height;
+      const frameAspect = frame.width / frame.height;
+      let displayWidth = rect.width;
+      let displayHeight = rect.height;
+      let offsetX = 0;
+      let offsetY = 0;
+      if (containerAspect > frameAspect) {
+        displayWidth = rect.height * frameAspect;
+        offsetX = (rect.width - displayWidth) / 2;
+      } else {
+        displayHeight = rect.width / frameAspect;
+        offsetY = (rect.height - displayHeight) / 2;
+      }
+      const fracX = Math.min(
+        1,
+        Math.max(0, (clientX - rect.left - offsetX) / displayWidth),
+      );
+      const fracY = Math.min(
+        1,
+        Math.max(0, (clientY - rect.top - offsetY) / displayHeight),
+      );
+      return { x: fracX * frame.width, y: fracY * frame.height };
+    },
+    [frame.width, frame.height],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const button = pointerButtonFor(event.button);
+      if (button === null) return;
+      event.preventDefault();
+      containerRef.current?.setPointerCapture(event.pointerId);
+      keyCaptureRef.current?.focus({ preventScroll: true });
+      send({
+        type: "mouseDown",
+        ...pointInFrame(event.clientX, event.clientY),
+        button,
+        clickCount: 1,
+      });
+    },
+    [pointInFrame, send],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const button = pointerButtonFor(event.button);
+      if (button === null) return;
+      send({
+        type: "mouseUp",
+        ...pointInFrame(event.clientX, event.clientY),
+        button,
+        clickCount: 1,
+      });
+    },
+    [pointInFrame, send],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const now = performance.now();
+      if (now - lastMoveAtRef.current < MOVE_THROTTLE_MS) return;
+      lastMoveAtRef.current = now;
+      send({ type: "mouseMove", ...pointInFrame(event.clientX, event.clientY) });
+    },
+    [pointInFrame, send],
+  );
+
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const now = performance.now();
+      if (now - lastWheelAtRef.current < WHEEL_THROTTLE_MS) return;
+      lastWheelAtRef.current = now;
+      send({
+        type: "wheel",
+        ...pointInFrame(event.clientX, event.clientY),
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+      });
+    },
+    [pointInFrame, send],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!isSpecialOrShortcutKey(event)) return;
+      event.preventDefault();
+      const modifiers = modifierBits(event);
+      send({ type: "keyDown", key: event.key, code: event.code, modifiers });
+      send({ type: "keyUp", key: event.key, code: event.code, modifiers });
+    },
+    [send],
+  );
+
+  const handleInput = useCallback(
+    (event: React.FormEvent<HTMLTextAreaElement>) => {
+      const target = event.currentTarget;
+      const text = target.value;
+      target.value = "";
+      if (text.length === 0) return;
+      send({ type: "insertText", text });
+    },
+    [send],
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      role="application"
+      aria-label="Interactive browser control"
+      className="absolute inset-0 cursor-default touch-none"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={(event) => event.preventDefault()}
+      onWheel={handleWheel}
+    >
+      <textarea
+        ref={keyCaptureRef}
+        aria-label="Browser keyboard input"
+        className="absolute inset-0 h-full w-full cursor-default resize-none opacity-0"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        onKeyDown={handleKeyDown}
+        onInput={handleInput}
+      />
+    </div>
+  );
+}
+
+const TAKEOVER_BUTTON_CLASS =
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50";
+
 function LightboxBody({
   target,
   open,
@@ -400,15 +638,39 @@ function LightboxBody({
   open: boolean;
 }) {
   const visible = useDocumentVisible();
-  const { frame, status } = useLivePreview({
+  const rpc = useRpc<typeof rpcContract>();
+  const { frame, status, controlled: controlling } = useLivePreview({
     threadId: target.threadId,
     sessionId: target.sessionId,
     enabled: visible && open,
     size: "full",
     initialFrame: target.frame,
   });
+  const [pending, setPending] = useState(false);
   const title = pageTitle(frame);
   const location = frame ? pageLocation(frame.url) : "";
+  const canToggle = status === "live" && frame !== null && !pending;
+
+  const toggleControl = useCallback(async () => {
+    setPending(true);
+    try {
+      if (controlling) {
+        await rpc.call("release", {
+          threadId: target.threadId,
+          sessionId: target.sessionId,
+        });
+      } else {
+        await rpc.call("takeover", {
+          threadId: target.threadId,
+          sessionId: target.sessionId,
+        });
+      }
+    } catch {
+      // The next preview poll reflects the actual server-side control state.
+    } finally {
+      setPending(false);
+    }
+  }, [controlling, rpc, target.sessionId, target.threadId]);
 
   return (
     <>
@@ -424,7 +686,26 @@ function LightboxBody({
         title={title}
         className="mx-auto"
         maxHeight="78dvh"
+        overlay={
+          controlling && frame ? (
+            <InteractiveOverlay
+              threadId={target.threadId}
+              sessionId={target.sessionId}
+              frame={frame}
+            />
+          ) : null
+        }
       />
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={!canToggle}
+          onClick={() => void toggleControl()}
+          className={TAKEOVER_BUTTON_CLASS}
+        >
+          {controlling ? "Give back control" : "Take over"}
+        </button>
+      </div>
     </>
   );
 }

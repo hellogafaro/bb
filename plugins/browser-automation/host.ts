@@ -29,8 +29,10 @@ export function createHostEntry(
       idleTimeoutMs: number;
       lastUsed: number;
       active: number;
+      profileName?: string;
     }
   >();
+  const profileLocks = new Map<string, string>();
   let resolved: ResolvedRuntime | null = null;
   interface RuntimePreparation {
     promise: Promise<ResolvedRuntime>;
@@ -111,6 +113,10 @@ export function createHostEntry(
     const session = sessions.get(sessionId);
     if (!session) return;
     sessions.delete(sessionId);
+    if (session.profileName !== undefined) {
+      const owner = profileLocks.get(session.profileName);
+      if (owner === sessionId) profileLocks.delete(session.profileName);
+    }
     session.abort.abort();
     try {
       await (await session.runtime).close();
@@ -165,43 +171,62 @@ export function createHostEntry(
           throw new Error("Session already exists");
         if (sessions.size >= 32)
           throw new Error("Host browser session limit reached");
-        const attached = await attachRuntime(context);
-        let runtime: ResolvedRuntime;
-        try {
-          runtime = await attached.promise;
-        } finally {
-          attached.detach();
+        if (input.profileName !== undefined) {
+          const owner = profileLocks.get(input.profileName);
+          if (owner !== undefined)
+            throw new Error(
+              "This project's browser profile is already in use by another session on this host; stop it first",
+            );
+          profileLocks.set(input.profileName, input.sessionId);
         }
-        const abort = new AbortController();
-        const signal = AbortSignal.any([
-          context.signal,
-          context.lifecycle.signal,
-          abort.signal,
-        ]);
-        const session = {
-          runtime: factory({
-            ...context.experimental_paths,
-            runtime,
-            connectionUrl: input.connectionUrl,
-            signal,
-          }),
-          abort,
-          lease: context.experimental_retainWorker(),
-          expiresAt: input.expiresAt,
-          idleTimeoutMs: input.idleTimeoutMs,
-          lastUsed: Date.now(),
-          active: 1,
-        };
-        sessions.set(input.sessionId, session);
         try {
-          await session.runtime;
-          signal.throwIfAborted();
-          session.active = 0;
+          const attached = await attachRuntime(context);
+          let runtime: ResolvedRuntime;
+          try {
+            runtime = await attached.promise;
+          } finally {
+            attached.detach();
+          }
+          const abort = new AbortController();
+          const signal = AbortSignal.any([
+            context.signal,
+            context.lifecycle.signal,
+            abort.signal,
+          ]);
+          const session = {
+            runtime: factory({
+              ...context.experimental_paths,
+              runtime,
+              connectionUrl: input.connectionUrl,
+              profileName: input.profileName,
+              signal,
+            }),
+            abort,
+            lease: context.experimental_retainWorker(),
+            expiresAt: input.expiresAt,
+            idleTimeoutMs: input.idleTimeoutMs,
+            lastUsed: Date.now(),
+            active: 1,
+            profileName: input.profileName,
+          };
+          sessions.set(input.sessionId, session);
+          try {
+            await session.runtime;
+            signal.throwIfAborted();
+            session.active = 0;
+          } catch (error) {
+            await close(input.sessionId);
+            throw error;
+          }
+          return null;
         } catch (error) {
-          await close(input.sessionId);
+          if (
+            input.profileName !== undefined &&
+            profileLocks.get(input.profileName) === input.sessionId
+          )
+            profileLocks.delete(input.profileName);
           throw error;
         }
-        return null;
       },
       async run(input, context) {
         const session = sessions.get(input.sessionId);
@@ -257,6 +282,27 @@ export function createHostEntry(
       },
       async close({ sessionId }) {
         await close(sessionId);
+        return null;
+      },
+      async input(input, context) {
+        const session = sessions.get(input.sessionId);
+        if (!session)
+          throw new Error(
+            "Session stopped, expired, or worker restarted; open a new session",
+          );
+        const runtime = await session.runtime;
+        if (!runtime.preview)
+          throw new Error(
+            "Interactive control is available only for local headless sessions",
+          );
+        await runtime.preview.dispatch(
+          input.event,
+          AbortSignal.any([
+            context.signal,
+            context.lifecycle.signal,
+            session.abort.signal,
+          ]),
+        );
         return null;
       },
     },

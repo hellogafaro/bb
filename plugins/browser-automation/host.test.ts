@@ -5,6 +5,12 @@ import { createHostEntry } from "./host.js";
 import type { ResolvedRuntime } from "./runtime-pin.js";
 import type { RuntimeSession } from "./runtime.js";
 
+const stubRuntime: RuntimeSession = {
+  close: async () => {},
+  preview: null,
+  run: async () => ({ text: "", images: [], exitCode: 0 }),
+};
+
 const runtime: ResolvedRuntime = {
   binary: process.execPath,
   version: "1.0.0-test",
@@ -233,7 +239,7 @@ describe("host live preview", () => {
       createHostEntry(
         async () => ({
           close,
-          preview: { next, close() {} },
+          preview: { next, dispatch: async () => {}, close() {} },
           run: async () => ({ text: "", images: [], exitCode: 0 }),
         }),
         resolver,
@@ -290,7 +296,7 @@ describe("host live preview", () => {
       .mockResolvedValueOnce({ close: async () => {}, preview: null })
       .mockResolvedValueOnce({
         close: async () => {},
-        preview: { next: waiting, close() {} },
+        preview: { next: waiting, dispatch: async () => {}, close() {} },
       });
     const harness = experimental_createHostEntryHarness(
       createHostEntry(factory, resolver),
@@ -320,6 +326,34 @@ describe("host live preview", () => {
     await vi.waitFor(() => expect(waiting).toHaveBeenCalledOnce());
     await harness.experimental_call("close", { sessionId: local });
     await rejected;
+    await harness.experimental_dispose();
+  });
+});
+describe("persistent local profiles", () => {
+  it("refuses to open a second session on a profile already in use", async () => {
+    const factory = vi.fn(async () => stubRuntime);
+    const harness = experimental_createHostEntryHarness(
+      createHostEntry(factory, resolver),
+    );
+    const first = randomUUID();
+    const second = randomUUID();
+    await harness.experimental_call("open", {
+      ...open(first),
+      profileName: "acme",
+    });
+    await expect(
+      harness.experimental_call("open", {
+        ...open(second),
+        profileName: "acme",
+      }),
+    ).rejects.toThrow("in use");
+    await harness.experimental_call("close", { sessionId: first });
+    await expect(
+      harness.experimental_call("open", {
+        ...open(second),
+        profileName: "acme",
+      }),
+    ).resolves.toBeNull();
     await harness.experimental_dispose();
   });
 });

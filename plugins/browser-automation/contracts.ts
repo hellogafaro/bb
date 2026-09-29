@@ -3,6 +3,15 @@ import { z } from "zod";
 
 export const idSchema = z.string().min(1).max(160);
 export const sessionIdSchema = z.string().uuid();
+export const profileNameSchema = z
+  .string()
+  .min(1)
+  .max(120)
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._-]*$/,
+    "Profile names use letters, digits, '.', '_', or '-'",
+  );
+export type ProfileName = z.infer<typeof profileNameSchema>;
 export const sessionSchema = z
   .object({
     id: sessionIdSchema,
@@ -74,7 +83,11 @@ export const previewSchema = ownedSchema.extend({
   size: previewSizeSchema.default("thumbnail"),
 });
 export const previewOutputSchema = z
-  .object({ session: sessionSchema, frame: previewFrameSchema.nullable() })
+  .object({
+    session: sessionSchema,
+    frame: previewFrameSchema.nullable(),
+    controlled: z.boolean(),
+  })
   .strict();
 export type PreviewOutput = z.infer<typeof previewOutputSchema>;
 export const doSchema = ownedSchema.extend({
@@ -112,6 +125,58 @@ export const fillOutputSchema = z
   .object({ filled: z.boolean(), fields: z.array(z.string()).max(8) })
   .strict();
 export type FillOutput = z.infer<typeof fillOutputSchema>;
+export const previewInputEventSchema = z.discriminatedUnion("type", [
+  z
+    .object({ type: z.literal("mouseMove"), x: z.number(), y: z.number() })
+    .strict(),
+  z
+    .object({
+      type: z.literal("mouseDown"),
+      x: z.number(),
+      y: z.number(),
+      button: z.enum(["left", "middle", "right"]),
+      clickCount: z.number().int().min(1).max(3).default(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("mouseUp"),
+      x: z.number(),
+      y: z.number(),
+      button: z.enum(["left", "middle", "right"]),
+      clickCount: z.number().int().min(1).max(3).default(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("wheel"),
+      x: z.number(),
+      y: z.number(),
+      deltaX: z.number(),
+      deltaY: z.number(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("keyDown"),
+      key: z.string().min(1).max(40),
+      code: z.string().min(1).max(40),
+      text: z.string().max(8).optional(),
+      modifiers: z.number().int().min(0).max(15).default(0),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("keyUp"),
+      key: z.string().min(1).max(40),
+      code: z.string().min(1).max(40),
+      modifiers: z.number().int().min(0).max(15).default(0),
+    })
+    .strict(),
+  z.object({ type: z.literal("insertText"), text: z.string().min(1).max(200) }).strict(),
+]);
+export type PreviewInputEvent = z.infer<typeof previewInputEventSchema>;
+export const inputSchema = ownedSchema.extend({ event: previewInputEventSchema });
 export const rpcContract = defineRpcContract({
   open: { input: openSchema, output: sessionSchema },
   list: {
@@ -126,6 +191,9 @@ export const rpcContract = defineRpcContract({
   fillLogin: { input: fillLoginSchema, output: fillOutputSchema },
   stop: { input: ownedSchema, output: sessionSchema },
   close: { input: ownedSchema, output: sessionSchema },
+  takeover: { input: ownedSchema, output: z.null() },
+  release: { input: ownedSchema, output: z.null() },
+  input: { input: inputSchema, output: z.null() },
 });
 export const runtimeStateSchema = z.discriminatedUnion("status", [
   z
@@ -147,6 +215,7 @@ export const hostContract = defineRpcContract({
         connectionUrl: z.string().url().optional(),
         expiresAt: z.number().int(),
         idleTimeoutMs: z.number().int().positive(),
+        profileName: profileNameSchema.optional(),
       })
       .strict(),
     output: z.null(),
@@ -174,6 +243,12 @@ export const hostContract = defineRpcContract({
   },
   close: {
     input: z.object({ sessionId: sessionIdSchema }).strict(),
+    output: z.null(),
+  },
+  input: {
+    input: z
+      .object({ sessionId: sessionIdSchema, event: previewInputEventSchema })
+      .strict(),
     output: z.null(),
   },
 });

@@ -26,6 +26,7 @@ import {
   type BrowserCliMethod,
   type BrowserCliRequest,
 } from "./cli.js";
+import { ControlGate } from "./control-gate.js";
 import { previewDirective } from "./preview-directive.js";
 import { createOpenRouterBrowserJevProvider, runJevGoal } from "./jev.js";
 
@@ -61,6 +62,20 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
   const desktop = bb.sdk.experimental_desktopBrowsers;
   const active = new Map<string, RecordEntry>();
   const busy = new Map<string, number>();
+  const controlGates = new Map<string, ControlGate>();
+  const CONTROL_CLIENT = "human";
+  function controlGate(sessionId: string): ControlGate {
+    let gate = controlGates.get(sessionId);
+    if (!gate) {
+      gate = new ControlGate();
+      controlGates.set(sessionId, gate);
+    }
+    return gate;
+  }
+  function sanitizeProfileName(value: string): string {
+    const cleaned = value.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^[._-]+/, "");
+    return (cleaned === "" ? "default" : cleaned).slice(0, 120);
+  }
   const pending = new Set<Promise<void>>();
   const cleanup = new Map<string, Promise<Session>>();
   const subscriptions = new Map<string, { dispose(): void }>();
@@ -107,6 +122,8 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       else active.set(session.id, record);
       subscriptions.get(session.id)?.dispose();
       subscriptions.delete(session.id);
+      controlGates.get(session.id)?.dispose();
+      controlGates.delete(session.id);
       session.state = state;
       record.cleanupPending = true;
       await save(record);
@@ -185,11 +202,15 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
     }
     signal = AbortSignal.any([signal, threadLifecycle.signal]);
     signal.throwIfAborted();
-    await bb.sdk.threads.get({ threadId: input.threadId });
+    const thread = await bb.sdk.threads.get({ threadId: input.threadId });
     if (active.size >= 64)
       throw new Error(
         "Browser session limit reached; close an existing session",
       );
+    const profileName =
+      input.selection.backend === "local"
+        ? sanitizeProfileName(thread.projectId)
+        : undefined;
     const now = Date.now();
     const session: Session = {
       id: randomUUID(),
@@ -297,6 +318,7 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
           ...(connectionUrl === undefined ? {} : { connectionUrl }),
           expiresAt: session.expiresAt,
           idleTimeoutMs,
+          ...(profileName === undefined ? {} : { profileName }),
         },
         { hostId: session.hostId, signal },
       );
@@ -344,14 +366,16 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       throw new Error("Session stopped or expired; open a new session");
     busy.set(input.sessionId, (busy.get(input.sessionId) ?? 0) + 1);
     try {
-      const result = await host.call(
-        "run",
-        {
-          sessionId: input.sessionId,
-          script: input.script,
-          timeoutMs: input.timeoutMs,
-        },
-        { hostId: record.session.hostId, signal },
+      const result = await controlGate(input.sessionId).runAgent(signal, () =>
+        host.call(
+          "run",
+          {
+            sessionId: input.sessionId,
+            script: input.script,
+            timeoutMs: input.timeoutMs,
+          },
+          { hostId: record.session.hostId, signal },
+        ),
       );
       if (result.exitCode === 124) await finish(record, "stopped");
       return result;
@@ -418,12 +442,13 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
     signal: AbortSignal,
   ): Promise<PreviewOutput> {
     const { session } = await owned(input.threadId, input.sessionId);
+    const controlled = controlGates.get(input.sessionId)?.owns(CONTROL_CLIENT) ?? false;
     if (
       session.backend !== "local" ||
       session.state !== "ready" ||
       Date.now() >= session.expiresAt
     )
-      return { session, frame: null };
+      return { session, frame: null, controlled };
     const { frame } = await host.call(
       "preview",
       {
@@ -434,7 +459,49 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       },
       { hostId: session.hostId, signal },
     );
-    return { session, frame };
+    return { session, frame, controlled };
+  }
+  async function takeover(
+    input: z.output<typeof rpcContract.takeover.input>,
+    signal: AbortSignal,
+  ): Promise<null> {
+    const record = await owned(input.threadId, input.sessionId);
+    if (record.session.backend !== "local" || record.session.state !== "ready")
+      throw new Error(
+        "Interactive control is available only for local headless sessions",
+      );
+    const owner = await controlGate(input.sessionId).acquire(
+      CONTROL_CLIENT,
+      signal,
+    );
+    if (owner === "busy")
+      throw new Error("Another person already controls this session");
+    return null;
+  }
+  async function release(
+    input: z.output<typeof rpcContract.release.input>,
+  ): Promise<null> {
+    await owned(input.threadId, input.sessionId);
+    controlGates.get(input.sessionId)?.release(CONTROL_CLIENT);
+    return null;
+  }
+  async function sendInput(
+    request: z.output<typeof rpcContract.input.input>,
+    signal: AbortSignal,
+  ): Promise<null> {
+    const record = await owned(request.threadId, request.sessionId);
+    if (!controlGates.get(request.sessionId)?.owns(CONTROL_CLIENT))
+      throw new Error("Take over the session before sending input");
+    if (record.session.backend !== "local" || record.session.state !== "ready")
+      throw new Error(
+        "Interactive control is available only for local headless sessions",
+      );
+    await host.call(
+      "input",
+      { sessionId: request.sessionId, event: request.event },
+      { hostId: record.session.hostId, signal },
+    );
+    return null;
   }
   async function fillLogin(
     input: z.output<typeof rpcContract.fillLogin.input>,
@@ -536,6 +603,9 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         finish(await owned(input.threadId, input.sessionId), "stopped"),
       close: async (input) =>
         finish(await owned(input.threadId, input.sessionId), "closed"),
+      takeover: (input) => takeover(input, signal),
+      release: (input) => release(input),
+      input: (input) => sendInput(input, signal),
     };
   }
   bb.rpc.register(rpcContract, handlers(lifecycle.signal));
@@ -580,20 +650,26 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
   ) {
     try {
       const input = { ...request.input };
-      if (request.method === "open" && input.selection) {
-        const target = input.selection.hostId.trim();
+      const resolveHostId = async (target: string): Promise<string> => {
+        const trimmed = target.trim();
         const hosts = await bb.sdk.hosts.list({ signal: context.signal });
-        const idMatch = hosts.find((candidate) => candidate.id === target);
+        const idMatch = hosts.find((candidate) => candidate.id === trimmed);
         const matches = idMatch
           ? [idMatch]
-          : hosts.filter((candidate) => candidate.name === target);
+          : hosts.filter((candidate) => candidate.name === trimmed);
         if (matches.length === 0)
-          throw new Error(`Machine '${target}' was not found`);
+          throw new Error(`Machine '${trimmed}' was not found`);
         if (matches.length > 1)
           throw new Error(
-            `Machine name '${target}' is ambiguous; use an exact host ID`,
+            `Machine name '${trimmed}' is ambiguous; use an exact host ID`,
           );
-        input.selection = { ...input.selection, hostId: matches[0].id };
+        return matches[0].id;
+      };
+      if (request.method === "open" && input.selection) {
+        input.selection = {
+          ...input.selection,
+          hostId: await resolveHostId(input.selection.hostId),
+        };
       }
       if (request.scriptFile) {
         if (!request.scriptHost)

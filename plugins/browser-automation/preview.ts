@@ -1,5 +1,6 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
-import type { PreviewFrame, PreviewSize } from "./contracts.js";
+import type { PreviewFrame, PreviewInputEvent, PreviewSize } from "./contracts.js";
 
 const messageSchema = z.object({
   id: z.number().int().optional(),
@@ -55,6 +56,7 @@ export interface PreviewSource {
     signal: AbortSignal,
     size: PreviewSize,
   ): Promise<PreviewFrame | null>;
+  dispatch(event: PreviewInputEvent, signal: AbortSignal): Promise<void>;
   close(): void;
 }
 
@@ -365,6 +367,93 @@ export function createPreview(
         waiters.add(waiter);
         signal.addEventListener("abort", abort, { once: true });
       });
+    },
+    async dispatch(event, signal) {
+      signal.throwIfAborted();
+      if (closed)
+        throw new Error("Browser session stopped; open a new session");
+      touch();
+      connect();
+      fullSizeUntil = Date.now() + timing.fullSizeHoldMs;
+      const deadline = AbortSignal.any([signal, AbortSignal.timeout(5_000)]);
+      while (!socket || !cast) {
+        deadline.throwIfAborted();
+        if (socket) select(socket);
+        await selection.catch(() => {});
+        if (socket && cast) break;
+        await delay(25, undefined, { signal: deadline }).catch(() => {});
+      }
+      const connection = socket;
+      const sessionId = cast.sessionId;
+      switch (event.type) {
+        case "mouseMove":
+          await send(
+            connection,
+            "Input.dispatchMouseEvent",
+            { x: event.x, y: event.y, type: "mouseMoved", button: "none" },
+            sessionId,
+          );
+          break;
+        case "mouseDown":
+        case "mouseUp":
+          await send(
+            connection,
+            "Input.dispatchMouseEvent",
+            {
+              x: event.x,
+              y: event.y,
+              type: event.type === "mouseDown" ? "mousePressed" : "mouseReleased",
+              button: event.button,
+              clickCount: event.clickCount,
+            },
+            sessionId,
+          );
+          break;
+        case "wheel":
+          await send(
+            connection,
+            "Input.dispatchMouseEvent",
+            {
+              x: event.x,
+              y: event.y,
+              type: "mouseWheel",
+              deltaX: event.deltaX,
+              deltaY: event.deltaY,
+            },
+            sessionId,
+          );
+          break;
+        case "keyDown":
+          await send(
+            connection,
+            "Input.dispatchKeyEvent",
+            {
+              type: event.text ? "keyDown" : "rawKeyDown",
+              key: event.key,
+              code: event.code,
+              modifiers: event.modifiers,
+              ...(event.text === undefined ? {} : { text: event.text }),
+            },
+            sessionId,
+          );
+          break;
+        case "keyUp":
+          await send(
+            connection,
+            "Input.dispatchKeyEvent",
+            {
+              type: "keyUp",
+              key: event.key,
+              code: event.code,
+              modifiers: event.modifiers,
+            },
+            sessionId,
+          );
+          break;
+        case "insertText":
+          await send(connection, "Input.insertText", { text: event.text }, sessionId);
+          break;
+      }
     },
     close() {
       if (closed) return;

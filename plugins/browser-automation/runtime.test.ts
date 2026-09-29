@@ -10,7 +10,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { decodeOutput, runtimeEnvironment } from "./runtime.js";
+import { decodeOutput, profileDirectory, runtimeEnvironment } from "./runtime.js";
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -174,5 +174,12 @@ describe("runtime output boundary", () => {
         "1.0.0-test",
       ),
     ).rejects.toThrow("escaped");
+  });
+});
+describe("persistent profile directory", () => {
+  it("scopes a named profile under the host's persistent data directory", () => {
+    expect(profileDirectory("/data/browser-automation", "acme-project")).toBe(
+      "/data/browser-automation/profiles/acme-project",
+    );
   });
 });
