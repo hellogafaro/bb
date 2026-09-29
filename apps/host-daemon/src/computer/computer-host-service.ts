@@ -1,6 +1,6 @@
 import { constants } from "node:fs";
 import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
-import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -27,6 +27,7 @@ import {
   type CuaTransport,
 } from "./computer-transport.js";
 import { appBundlePathForBinary, COMPUTER_APP_BUNDLE_ID } from "./computer-driver-bundle.js";
+import { COMPUTER_APP_HELPER_BUNDLE_ID } from "./computer-app-bundle.js";
 import {
   MACOS_PRIVACY_PANES,
   MACOS_TCC_SERVICES,
@@ -35,7 +36,8 @@ import {
   type ComputerPermissionState,
   type ComputerPermissionStatus,
 } from "./computer-permissions.js";
-import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
+import { computerDriverPlatformKey, ensureProvisionedDriver } from "./computer-driver-provisioning.js";
+import { ensureProvisionedComputerApp, type ComputerAppState } from "./computer-app-provisioning.js";
 import { PersistentCuaTransport } from "./computer-driver-session.js";
 import { DriverCaptureFrameSource, desktopCapture, LiveStream, type ComputerFrameSource } from "./computer-live.js";
 import {
@@ -60,6 +62,15 @@ function daemonEnv(): Record<string, string> {
       process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=${homedir()}/.cache/at-spi/bus`,
     XAUTHORITY: process.env.XAUTHORITY ?? "/run/bb-xvfb/Xauthority",
   });
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function candidateBinaryPaths(dataDir: string): string[] {
@@ -133,12 +144,14 @@ class DriverController {
   #windowGrants = new WindowGrantSet();
   #runDirGrants = new PathGrantSet();
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
+  #computerAppCache = new Map<string, Promise<ComputerAppState>>();
   #restartRequired = true;
   #stoppedListeners = new Set<() => void>();
   #renewal: ResolvedManifestRenewalOptions;
   #manifestWrittenAt: number | null = null;
   #lastCallAt: number | null = null;
   #renewalInFlight: Promise<void> | null = null;
+  #computerAppFactory: ((dataDir: string) => Promise<ComputerAppState>) | undefined;
 
   constructor(
     spawnProcess: SpawnFn,
@@ -146,12 +159,14 @@ class DriverController {
     fetchImpl?: typeof fetch,
     platform: NodeJS.Platform = process.platform,
     manifestRenewal?: ManifestRenewalOptions,
+    computerAppFactory?: (dataDir: string) => Promise<ComputerAppState>,
   ) {
     this.#spawnProcess = spawnProcess;
     this.#logger = logger;
     this.#fetchImpl = fetchImpl;
     this.#platform = platform;
     this.#renewal = resolveManifestRenewal(manifestRenewal);
+    this.#computerAppFactory = computerAppFactory;
   }
 
   get windowGrants(): WindowGrantSet {
@@ -207,8 +222,41 @@ class DriverController {
     return (await this.#resolveBinaryPath(dataDir)).path;
   }
 
+  /**
+   * Resolves whether darwin has a pinned bb-computer-helper release available
+   * (see computer-app-provisioning.ts): when it does, the daemon spawns the
+   * embedded-driver bb Computer.app so cua-driver inherits the helper's TCC
+   * grants; otherwise it falls back to the existing cua-driver-only bundle.
+   * A no-op ("legacy") on every non-darwin platform.
+   */
+  async #resolveComputerApp(dataDir: string): Promise<ComputerAppState> {
+    if (this.#platform !== "darwin") return { kind: "legacy", driverPath: await this.binaryPath(dataDir) };
+    let cached = this.#computerAppCache.get(dataDir);
+    if (cached === undefined) {
+      cached =
+        this.#computerAppFactory?.(dataDir) ??
+        ensureProvisionedComputerApp({
+          dataDir,
+          logger: this.#logger,
+          platformKey: computerDriverPlatformKey(this.#platform),
+          fetchImpl: this.#fetchImpl,
+        });
+      this.#computerAppCache.set(dataDir, cached);
+    }
+    return cached;
+  }
+
+  #embeddedDriverSocketPath(dataDir: string): string {
+    return join(dataDir, "computer", "driver.sock");
+  }
+
+  #embeddedVideoSocketPath(dataDir: string): string {
+    return join(dataDir, "computer", "video.sock");
+  }
+
   async installDriver(dataDir: string): Promise<void> {
     this.#resolutionCache.delete(dataDir);
+    this.#computerAppCache.delete(dataDir);
     await this.#resolveBinaryPath(dataDir);
   }
 
@@ -233,8 +281,18 @@ class DriverController {
   }
 
   async daemonRunning(dataDir: string): Promise<boolean> {
+    const appState = await this.#resolveComputerApp(dataDir);
+    if (appState.kind === "embedded") {
+      return pathExists(this.#embeddedDriverSocketPath(dataDir));
+    }
     const status = await this.runProbe(dataDir, ["status"]);
     return status.code === 0;
+  }
+
+  /** Extra CLI args needed to address the embedded daemon's private socket; empty on the legacy path. */
+  async #daemonAddressArgs(dataDir: string): Promise<string[]> {
+    const appState = await this.#resolveComputerApp(dataDir);
+    return appState.kind === "embedded" ? ["--socket", this.#embeddedDriverSocketPath(dataDir), "--embedded"] : [];
   }
 
   #manifestPath(dataDir: string): string {
@@ -284,6 +342,10 @@ class DriverController {
   }
 
   async #spawnDaemon(dataDir: string): Promise<void> {
+    const appState = await this.#resolveComputerApp(dataDir);
+    if (appState.kind === "embedded") {
+      return this.#spawnEmbeddedDaemon(dataDir, appState);
+    }
     const resolution = await this.#resolveBinaryPath(dataDir);
     const baseArgs =
       PERMISSION_MODE === "bounded"
@@ -320,8 +382,70 @@ class DriverController {
     throw new CuaError("The bb computer driver did not start within 5 seconds", "setup-required");
   }
 
+  /**
+   * Spawns the embedded-driver bb Computer.app via LaunchServices, same as the
+   * legacy path, so the HELPER (not the daemon) is the responsible process
+   * LaunchServices attributes TCC grants to. The helper then spawns
+   * `cua-driver serve --embedded` itself as a direct child, inheriting those
+   * grants without a second prompt (see EMBEDDING.md in the vendor cua-driver
+   * skill pack, and apps/computer-macos/Sources/BBComputerHelper).
+   */
+  async #spawnEmbeddedDaemon(dataDir: string, appState: Extract<ComputerAppState, { kind: "embedded" }>): Promise<void> {
+    const driverSocket = this.#embeddedDriverSocketPath(dataDir);
+    const videoSocket = this.#embeddedVideoSocketPath(dataDir);
+    await mkdir(join(dataDir, "computer"), { recursive: true });
+    await rm(driverSocket, { force: true }).catch(() => {});
+    await rm(videoSocket, { force: true }).catch(() => {});
+    const args = ["serve", "--socket", driverSocket, "--video-socket", videoSocket];
+    if (PERMISSION_MODE === "bounded") {
+      args.push("--capability-manifest", this.#manifestPath(dataDir));
+    }
+    const spawnState: { failure: Error | null } = { failure: null };
+    const child = this.#spawnProcess("/usr/bin/open", ["-n", "-g", "-a", appState.bundleDir, "--args", ...args], {
+      stdio: "ignore",
+      env: daemonEnv(),
+    });
+    child.on("error", (error) => {
+      spawnState.failure = error;
+      if (this.#daemonProcess === child) this.#daemonProcess = null;
+    });
+    child.on("close", (code) => {
+      if (code !== 0) spawnState.failure = new Error(`open exited with code ${code ?? "signal"} launching ${appState.bundleDir}`);
+    });
+    this.#daemonProcess = child;
+    child.unref();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (spawnState.failure !== null) {
+        throw new CuaError(`The bb Computer helper is unavailable: ${spawnState.failure.message}`, "setup-required");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (await pathExists(driverSocket)) return;
+    }
+    throw new CuaError("The bb Computer helper did not open its driver socket within 5 seconds", "setup-required");
+  }
+
   onStopped(listener: () => void): void {
     this.#stoppedListeners.add(listener);
+  }
+
+  /** Builds the `cua-driver mcp` launch descriptor the persistent MCP session connects with. */
+  async mcpLaunch(dataDir: string): Promise<{ command: string; args: string[]; env: Record<string, string> }> {
+    const appState = await this.#resolveComputerApp(dataDir);
+    const command = await this.binaryPath(dataDir);
+    if (appState.kind === "embedded") {
+      return {
+        command,
+        args: ["mcp", "--embedded", "--socket", this.#embeddedDriverSocketPath(dataDir)],
+        env: { ...daemonEnv(), CUA_DRIVER_EMBEDDED: "1", CUA_DRIVER_HOST_BUNDLE_ID: COMPUTER_APP_HELPER_BUNDLE_ID },
+      };
+    }
+    return { command, args: ["mcp", "--socket", await this.socketPath(dataDir)], env: daemonEnv() };
+  }
+
+  embeddedVideoSocketPathIfActive(dataDir: string): Promise<string | null> {
+    return this.#resolveComputerApp(dataDir).then((appState) =>
+      appState.kind === "embedded" ? this.#embeddedVideoSocketPath(dataDir) : null,
+    );
   }
 
   async socketPath(dataDir: string): Promise<string> {
@@ -335,7 +459,15 @@ class DriverController {
 
   async #stopDaemon(dataDir: string): Promise<void> {
     for (const listener of this.#stoppedListeners) listener();
-    await this.runProbe(dataDir, ["stop"]);
+    const appState = await this.#resolveComputerApp(dataDir);
+    if (appState.kind === "embedded") {
+      // The embedded daemon isn't "installed" in cua-driver's own registry (it
+      // runs at our private socket path), so `cua-driver stop` can't find it;
+      // signal the helper app directly, identified by its unique socket arg.
+      await this.#runQuiet("/usr/bin/pkill", ["-f", this.#embeddedDriverSocketPath(dataDir)]);
+    } else {
+      await this.runProbe(dataDir, ["stop"]);
+    }
     if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) this.#daemonProcess.kill("SIGTERM");
     this.#daemonProcess = null;
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -377,9 +509,13 @@ class DriverController {
   }
 
   async #permissionStatus(dataDir: string, healthStdout: string | null): Promise<ComputerPermissionStatus> {
-    const health = healthStdout ?? (await this.runProbe(dataDir, ["call", "health_report"], "{}")).stdout;
+    const addressArgs = await this.#daemonAddressArgs(dataDir);
+    const health = healthStdout ?? (await this.runProbe(dataDir, ["call", "health_report", ...addressArgs], "{}")).stdout;
     const fromHealth = parseHealthPermissionStatus(health);
     if (fromHealth.accessibility !== "unknown" && fromHealth.screenRecording !== "unknown") return fromHealth;
+    // Embedded mode's `permissions status` still answers with the standalone
+    // com.trycua.driver identity (see EMBEDDING.md), so it's only useful here
+    // as the legacy-path fallback; health_report above already covers embedded.
     const status = await this.runProbe(dataDir, ["permissions", "status", "--json"]);
     const fromStatus = parseComputerPermissionStatus(status.stdout);
     return {
@@ -410,9 +546,18 @@ class DriverController {
           ? "screen-recording"
           : null);
     if (target === null) return;
+    const appState = await this.#resolveComputerApp(dataDir);
+    if (appState.kind === "embedded") {
+      // Ask the helper itself to request the grant: it calls
+      // AXIsProcessTrustedWithOptions/CGRequestScreenCaptureAccess as the
+      // responsible process, which is what actually raises (and attributes)
+      // the system prompt. See apps/computer-macos Permissions.swift.
+      await this.#runQuiet("/usr/bin/open", ["-n", "-g", "-a", appState.bundleDir, "--args", "permissions", "request", target]);
+    }
     const pane = target === "screen-recording" ? MACOS_PRIVACY_PANES.screenRecording : MACOS_PRIVACY_PANES.accessibility;
     await this.#runQuiet("/usr/bin/open", [pane]);
-    const bundle = usable ? appBundlePathForBinary(resolution.path) : null;
+    const bundle =
+      appState.kind === "embedded" ? appState.bundleDir : usable ? appBundlePathForBinary(resolution.path) : null;
     if (bundle !== null) await this.#runQuiet("/usr/bin/open", ["-R", bundle]);
   }
 
@@ -451,8 +596,9 @@ class DriverController {
       },
     ];
     if (running) {
-      const windows = await this.runProbe(dataDir, ["call", "list_windows"], JSON.stringify({ on_screen_only: true }));
-      const health = await this.runProbe(dataDir, ["call", "health_report"], "{}");
+      const addressArgs = await this.#daemonAddressArgs(dataDir);
+      const windows = await this.runProbe(dataDir, ["call", "list_windows", ...addressArgs], JSON.stringify({ on_screen_only: true }));
+      const health = await this.runProbe(dataDir, ["call", "health_report", ...addressArgs], "{}");
       let windowCount = -1;
       let refusalMessage: string | null = null;
       try {
@@ -517,6 +663,7 @@ export interface ComputerHostServiceOptions {
   };
   platform?: NodeJS.Platform;
   manifestRenewal?: ManifestRenewalOptions;
+  computerAppFactory?: (dataDir: string) => Promise<ComputerAppState>;
 }
 
 const HUMAN_INPUT_SESSION = "bb-human";
@@ -546,6 +693,7 @@ export class ComputerHostService {
       options.driverFetchImpl,
       options.platform,
       options.manifestRenewal,
+      options.computerAppFactory,
     );
     const renewalHooks = {
       ensureFresh: () => this.#driver.ensureManifestFresh(this.#dataDir),
@@ -557,11 +705,7 @@ export class ComputerHostService {
       new PersistentCuaTransport({
         launch: async () => {
           await this.#driver.ensureDaemon(this.#dataDir);
-          return {
-            command: await this.#driver.binaryPath(this.#dataDir),
-            args: ["mcp", "--socket", await this.#driver.socketPath(this.#dataDir)],
-            env: daemonEnv(),
-          };
+          return this.#driver.mcpLaunch(this.#dataDir);
         },
       });
     this.#liveTransport = new RenewingCuaTransport(rawLiveTransport, renewalHooks);

@@ -345,6 +345,132 @@ describe("ComputerHostService requestPermissions", () => {
   });
 });
 
+describe("ComputerHostService with the embedded bb Computer.app helper", () => {
+  let dataDir: string;
+  let previousOverride: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    process.env.CUA_DRIVER_PATH = join(dataDir, "legacy-cua-driver");
+    await writeFile(process.env.CUA_DRIVER_PATH, "#!/bin/sh\n");
+    await chmod(process.env.CUA_DRIVER_PATH, 0o755);
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  function embeddedFactory(bundleDir: string) {
+    return async () =>
+      ({
+        kind: "embedded" as const,
+        driverPath: process.env.CUA_DRIVER_PATH!,
+        bundleDir,
+        helperExecutablePath: join(bundleDir, "Contents", "MacOS", "bb-computer-helper"),
+        changed: false,
+      });
+  }
+
+  function fakeChild() {
+    const child = new EventEmitter() as EventEmitter & {
+      stdin: { end(): void };
+      stdout: { setEncoding(): void; on(): void };
+      exitCode: number | null;
+      unref(): void;
+      kill(): boolean;
+    };
+    child.stdin = { end() {} };
+    child.stdout = { setEncoding() {}, on() {} };
+    child.exitCode = null;
+    child.unref = () => {};
+    child.kill = () => true;
+    return child;
+  }
+
+  it("launches the helper bundle with --socket/--video-socket and treats the socket file as readiness", async () => {
+    const bundleDir = join(dataDir, "computer-app", "bb Computer.app");
+    const launches: { command: string; args: readonly string[] }[] = [];
+    const spawnProcess = ((command: string, args: readonly string[]): unknown => {
+      const child = fakeChild();
+      if (command === "/usr/bin/open") {
+        launches.push({ command, args });
+        const socketIndex = args.indexOf("--socket");
+        const socketPath = args[socketIndex + 1] as string;
+        queueMicrotask(async () => {
+          await writeFile(socketPath, "");
+          child.exitCode = 0;
+          child.emit("close", 0);
+        });
+      } else {
+        queueMicrotask(() => child.emit("close", 0));
+      }
+      return child;
+    }) as SpawnFn;
+
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new FakeTransport(),
+      spawnProcess,
+      driverFetchImpl: networkDisabledFetch,
+      platform: "darwin",
+      computerAppFactory: embeddedFactory(bundleDir),
+    });
+
+    const report = await service.installDriver();
+    expect(launches).toHaveLength(1);
+    expect(launches[0]?.args.slice(0, 5)).toEqual(["-n", "-g", "-a", bundleDir, "--args"]);
+    expect(launches[0]?.args).toContain("serve");
+    expect(launches[0]?.args).toContain("--video-socket");
+    expect(report.probes.find((probe) => probe.id === "service")?.status).toBe("ok");
+    service.dispose();
+  });
+
+  it("asks the helper to request the permission directly, before opening the settings pane", async () => {
+    const bundleDir = join(dataDir, "computer-app", "bb Computer.app");
+    const calls: { command: string; args: readonly string[] }[] = [];
+    const spawnProcess = ((command: string, args: readonly string[]): unknown => {
+      calls.push({ command, args });
+      const child = fakeChild();
+      const socketIndex = args.indexOf("--socket");
+      if (socketIndex !== -1) {
+        const socketPath = args[socketIndex + 1] as string;
+        queueMicrotask(async () => {
+          await writeFile(socketPath, "");
+          child.exitCode = 0;
+          child.emit("close", 0);
+        });
+      } else {
+        queueMicrotask(() => child.emit("close", 0));
+      }
+      return child;
+    }) as SpawnFn;
+
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new FakeTransport(),
+      spawnProcess,
+      driverFetchImpl: networkDisabledFetch,
+      platform: "darwin",
+      computerAppFactory: embeddedFactory(bundleDir),
+    });
+
+    await service.requestPermissions({ permission: "accessibility" });
+    expect(calls).toContainEqual({
+      command: "/usr/bin/open",
+      args: ["-n", "-g", "-a", bundleDir, "--args", "permissions", "request", "accessibility"],
+    });
+    expect(calls).toContainEqual({ command: "/usr/bin/open", args: ["-R", bundleDir] });
+    service.dispose();
+  });
+});
+
 describe("ComputerHostService recordStart", () => {
   let dataDir: string;
   let fakeHome: string;
