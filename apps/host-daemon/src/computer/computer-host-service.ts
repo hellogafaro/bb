@@ -153,6 +153,7 @@ class DriverController {
   #lastCallAt: number | null = null;
   #renewalInFlight: Promise<void> | null = null;
   #computerAppFactory: ((dataDir: string) => Promise<ComputerAppState>) | undefined;
+  #lifecycleLock: Promise<unknown> = Promise.resolve();
 
   constructor(
     spawnProcess: SpawnFn,
@@ -317,17 +318,26 @@ class DriverController {
 
   async renewManifestAfterLapse(dataDir: string): Promise<void> {
     if (this.#renewalInFlight !== null) return this.#renewalInFlight;
-    const renewing = (async () => {
+    const renewing = this.#withLifecycleLock(async () => {
       await this.#writeManifestFile(dataDir);
       await this.#stopDaemon(dataDir);
       await this.#spawnDaemon(dataDir);
-    })();
+    });
     this.#renewalInFlight = renewing;
     try {
       await renewing;
     } finally {
       if (this.#renewalInFlight === renewing) this.#renewalInFlight = null;
     }
+  }
+
+  #withLifecycleLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.#lifecycleLock.then(fn, fn);
+    this.#lifecycleLock = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   noteDriverCallSucceeded(): void {
@@ -458,6 +468,10 @@ class DriverController {
   }
 
   async ensureDaemon(dataDir: string): Promise<void> {
+    return this.#withLifecycleLock(() => this.#ensureDaemonLocked(dataDir));
+  }
+
+  async #ensureDaemonLocked(dataDir: string): Promise<void> {
     if (this.#restartRequired) {
       this.#restartRequired = false;
       await this.#stopDaemon(dataDir).catch(() => {});
@@ -474,9 +488,11 @@ class DriverController {
     if (PERMISSION_MODE !== "bounded") return;
     if (this.#windowGrants.has(pid, windowId)) return;
     this.#windowGrants.add(pid, windowId);
-    await this.#writeManifestFile(dataDir);
-    await this.#stopDaemon(dataDir);
-    await this.#spawnDaemon(dataDir);
+    await this.#withLifecycleLock(async () => {
+      await this.#writeManifestFile(dataDir);
+      await this.#stopDaemon(dataDir);
+      await this.#spawnDaemon(dataDir);
+    });
   }
 
   async ensureRunDirGranted(dataDir: string, outputDir: string): Promise<void> {
@@ -484,9 +500,11 @@ class DriverController {
     if (PERMISSION_MODE !== "bounded") return;
     if (this.#runDirGrants.has(outputDir)) return;
     this.#runDirGrants.add(outputDir);
-    await this.#writeManifestFile(dataDir);
-    await this.#stopDaemon(dataDir);
-    await this.#spawnDaemon(dataDir);
+    await this.#withLifecycleLock(async () => {
+      await this.#writeManifestFile(dataDir);
+      await this.#stopDaemon(dataDir);
+      await this.#spawnDaemon(dataDir);
+    });
   }
 
   async #permissionStatus(dataDir: string, healthStdout: string | null): Promise<ComputerPermissionStatus> {
@@ -536,8 +554,10 @@ class DriverController {
   }
 
   async restartDaemon(dataDir: string): Promise<void> {
-    await this.#stopDaemon(dataDir).catch(() => {});
-    await this.#spawnDaemon(dataDir);
+    await this.#withLifecycleLock(async () => {
+      await this.#stopDaemon(dataDir).catch(() => {});
+      await this.#spawnDaemon(dataDir);
+    });
   }
 
   async doctorReport(dataDir: string): Promise<ComputerDoctorReport> {
@@ -647,30 +667,76 @@ interface DesktopSize {
   readonly height: number;
 }
 
-class PreferEmbeddedVideoFrameSource implements ComputerFrameSource {
+const VIDEO_AVAILABILITY_POLL_MS = 3_000;
+
+export class PreferEmbeddedVideoFrameSource implements ComputerFrameSource {
   readonly #videoSocketPath: () => Promise<string | null>;
   readonly #video: ComputerFrameSource;
   readonly #fallback: ComputerFrameSource;
+  readonly #pollMs: number;
   #active: ComputerFrameSource | null = null;
 
-  constructor(videoSocketPath: () => Promise<string | null>, video: ComputerFrameSource, fallback: ComputerFrameSource) {
+  constructor(
+    videoSocketPath: () => Promise<string | null>,
+    video: ComputerFrameSource,
+    fallback: ComputerFrameSource,
+    pollMs: number = VIDEO_AVAILABILITY_POLL_MS,
+  ) {
     this.#videoSocketPath = videoSocketPath;
     this.#video = video;
     this.#fallback = fallback;
+    this.#pollMs = pollMs;
   }
 
   requestKeyframe(): void {
     this.#active?.requestKeyframe?.();
   }
 
-  async stream(profile: ComputerLiveProfile, onFrame: Parameters<ComputerFrameSource["stream"]>[1], signal: AbortSignal): Promise<void> {
+  async #videoAvailable(): Promise<boolean> {
     const path = await this.#videoSocketPath();
-    const source = path !== null && (await pathExists(path)) ? this.#video : this.#fallback;
-    this.#active = source;
+    return path !== null && (await pathExists(path));
+  }
+
+  async stream(profile: ComputerLiveProfile, onFrame: Parameters<ComputerFrameSource["stream"]>[1], signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
+      if (await this.#videoAvailable()) {
+        this.#active = this.#video;
+        try {
+          await this.#video.stream(profile, onFrame, signal);
+          return;
+        } catch {
+          if (signal.aborted) return;
+        } finally {
+          if (this.#active === this.#video) this.#active = null;
+        }
+      }
+      await this.#streamFallbackUntilVideoAvailable(profile, onFrame, signal);
+      if (signal.aborted) return;
+    }
+  }
+
+  async #streamFallbackUntilVideoAvailable(
+    profile: ComputerLiveProfile,
+    onFrame: Parameters<ComputerFrameSource["stream"]>[1],
+    signal: AbortSignal,
+  ): Promise<void> {
+    const fallbackController = new AbortController();
+    const onOuterAbort = () => fallbackController.abort();
+    signal.addEventListener("abort", onOuterAbort, { once: true });
+    const poll = setInterval(() => {
+      this.#videoAvailable()
+        .then((available) => {
+          if (available) fallbackController.abort();
+        })
+        .catch(() => {});
+    }, this.#pollMs);
+    this.#active = this.#fallback;
     try {
-      return await source.stream(profile, onFrame, signal);
+      await this.#fallback.stream(profile, onFrame, fallbackController.signal);
     } finally {
-      if (this.#active === source) this.#active = null;
+      clearInterval(poll);
+      signal.removeEventListener("abort", onOuterAbort);
+      if (this.#active === this.#fallback) this.#active = null;
     }
   }
 }

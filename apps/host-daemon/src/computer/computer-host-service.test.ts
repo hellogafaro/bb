@@ -2,9 +2,10 @@ import { EventEmitter } from "node:events";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CuaError, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
-import { ComputerHostService, mapFramePoint, type SpawnFn } from "./computer-host-service.js";
+import { ComputerHostService, mapFramePoint, PreferEmbeddedVideoFrameSource, type SpawnFn } from "./computer-host-service.js";
+import type { ComputerFrameSource } from "./computer-live.js";
 
 const testLogger = { debug: () => {}, warn: () => {} };
 const noLive = { sendFrame: () => {}, sendStatus: () => {} };
@@ -981,5 +982,127 @@ describe("ComputerHostService doctor capture probe", () => {
     expect(capture?.status).toBe("ok");
 
     service.dispose();
+  });
+});
+
+describe("ComputerHostService embedded helper launch concurrency", () => {
+  let dataDir: string;
+  let previousOverride: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    process.env.CUA_DRIVER_PATH = join(dataDir, "legacy-cua-driver");
+    await writeFile(process.env.CUA_DRIVER_PATH, "#!/bin/sh\n");
+    await chmod(process.env.CUA_DRIVER_PATH, 0o755);
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  function embeddedFactory(bundleDir: string) {
+    return async () =>
+      ({
+        kind: "embedded" as const,
+        driverPath: process.env.CUA_DRIVER_PATH!,
+        bundleDir,
+        helperExecutablePath: join(bundleDir, "Contents", "MacOS", "bb-computer-helper"),
+        changed: false,
+      });
+  }
+
+  function fakeChild() {
+    const child = new EventEmitter() as EventEmitter & {
+      stdin: { end(): void };
+      stdout: { setEncoding(): void; on(): void };
+      exitCode: number | null;
+      unref(): void;
+      kill(): boolean;
+    };
+    child.stdin = { end() {} };
+    child.stdout = { setEncoding() {}, on() {} };
+    child.exitCode = null;
+    child.unref = () => {};
+    child.kill = () => true;
+    return child;
+  }
+
+  it("only launches one helper process when two callers race to ensure the daemon is running", async () => {
+    const bundleDir = join(dataDir, "computer-app", "bb Computer.app");
+    let launchCount = 0;
+    const spawnProcess = ((command: string, args: readonly string[]): unknown => {
+      const child = fakeChild();
+      if (command === "/usr/bin/open") {
+        launchCount += 1;
+        const socketIndex = args.indexOf("--socket");
+        const socketPath = args[socketIndex + 1] as string;
+        // Simulate a helper that takes a little while to open its driver socket,
+        // giving a concurrent ensureDaemon() call a chance to race the spawn.
+        setTimeout(async () => {
+          await writeFile(socketPath, "");
+          child.exitCode = 0;
+          child.emit("close", 0);
+        }, 20);
+      } else {
+        queueMicrotask(() => child.emit("close", 0));
+      }
+      return child;
+    }) as SpawnFn;
+
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new FakeTransport(),
+      spawnProcess,
+      driverFetchImpl: networkDisabledFetch,
+      platform: "darwin",
+      computerAppFactory: embeddedFactory(bundleDir),
+    });
+
+    await Promise.all([service.warmUp(), service.warmUp()]);
+    expect(launchCount).toBe(1);
+
+    service.dispose();
+  });
+});
+
+describe("PreferEmbeddedVideoFrameSource", () => {
+  function recordingSource(): ComputerFrameSource & { streamCalls: number } {
+    const source = {
+      streamCalls: 0,
+      async stream(_profile, _onFrame, signal): Promise<void> {
+        source.streamCalls += 1;
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) return resolve();
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      },
+    } as ComputerFrameSource & { streamCalls: number };
+    return source;
+  }
+
+  it("streams from the fallback while the video socket is absent, then switches to video once it appears", async () => {
+    const video = recordingSource();
+    const fallback = recordingSource();
+    const dir = await mkdtemp(join(tmpdir(), "video-socket-"));
+    const socketPath = join(dir, "video.sock");
+    const source = new PreferEmbeddedVideoFrameSource(async () => socketPath, video, fallback, 5);
+
+    const controller = new AbortController();
+    const done = source.stream("full", () => {}, controller.signal);
+
+    await vi.waitFor(() => expect(fallback.streamCalls).toBe(1));
+    expect(video.streamCalls).toBe(0);
+
+    await writeFile(socketPath, "");
+    await vi.waitFor(() => expect(video.streamCalls).toBe(1));
+
+    controller.abort();
+    await done;
+    await rm(dir, { recursive: true, force: true });
   });
 });
