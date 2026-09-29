@@ -40,6 +40,7 @@ export interface ConfirmGoalCompleteRequest {
   readonly goal: string;
   readonly observation: Observation;
   readonly recentSummaries: readonly string[];
+  readonly threshold: number;
 }
 
 export interface ConfirmGoalCompleteResponse {
@@ -206,7 +207,12 @@ const NOUL_TRUE_THRESHOLD = 0.5;
 // Speculative "this step will finish the goal" and its post-action confirmation both need
 // strong evidence before the loop stops: at 0.5 Jev ended runs on a single focus_window/done
 // guess (confidence ~0.6) after nothing in the goal had actually happened yet.
-const GOAL_COMPLETE_THRESHOLD = 0.8;
+export const GOAL_COMPLETE_THRESHOLD = 0.8;
+// When Jev's action head itself already chose "done", its post-action confirmation only needs
+// to agree rather than independently clear the higher speculative bar: replaying real done/not-done
+// runs put every not-done confirmation at 0.02-0.18 and every finished one at 0.57-0.88, so 0.5
+// separates them cleanly without the false escalations the 0.8 bar caused on genuinely finished runs.
+export const DONE_CONFIRM_THRESHOLD = 0.5;
 
 const TARGET_HEAD_KEY: Record<TargetOperationKind | "press_key", string> = {
   click: "click_target",
@@ -469,7 +475,7 @@ export class JevDecisionProvider implements DecisionProvider {
     };
     const { answers } = await this.#call(state, questions, request.runId, signal);
     const probability = parseNoul(answers.goal_now_complete);
-    return { complete: probability >= GOAL_COMPLETE_THRESHOLD, probability };
+    return { complete: probability >= request.threshold, probability };
   }
 
   async #call(

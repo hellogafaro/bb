@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  DONE_CONFIRM_THRESHOLD,
   EscalateToAgentError,
+  GOAL_COMPLETE_THRESHOLD,
   JevDecisionProvider,
   createDecisionBackend,
   extractTextCandidates,
@@ -464,11 +466,17 @@ describe("JevDecisionProvider", () => {
     expect(atDecision.goalCompleteAfter).toBe(true);
   });
 
-  it("confirmGoalComplete asks a single fresh noul question against the post-action observation and recent_outcomes, gated at 0.8", async () => {
+  it("confirmGoalComplete asks a single fresh noul question against the post-action observation and recent_outcomes, gated at the caller-supplied threshold", async () => {
     const { fetchImpl, calls } = fakeSystemOne({ goal_now_complete: noulAnswer(0.65) });
     const provider = new JevDecisionProvider({ endpoint: "https://openrouter.ai/api/alpha/decisions", model: "~typesafe/jev-latest", apiKey: "key", fetchImpl });
     const result = await provider.confirmGoalComplete(
-      { runId: "run-1", goal: "Save the file", observation, recentSummaries: ["step 1: clicked 'Save' (button) -> same window, no title change"] },
+      {
+        runId: "run-1",
+        goal: "Save the file",
+        observation,
+        recentSummaries: ["step 1: clicked 'Save' (button) -> same window, no title change"],
+        threshold: GOAL_COMPLETE_THRESHOLD,
+      },
       new AbortController().signal,
     );
     expect(result).toEqual({ complete: false, probability: 0.65 });
@@ -488,10 +496,33 @@ describe("JevDecisionProvider", () => {
       fetchImpl: highConfidence.fetchImpl,
     });
     const confidentResult = await confidentProvider.confirmGoalComplete(
-      { runId: "run-1", goal: "Save the file", observation, recentSummaries: [] },
+      { runId: "run-1", goal: "Save the file", observation, recentSummaries: [], threshold: GOAL_COMPLETE_THRESHOLD },
       new AbortController().signal,
     );
     expect(confidentResult).toEqual({ complete: true, probability: 0.9 });
+  });
+
+  it("confirmGoalComplete accepts the same probability at the lower done-path threshold that the speculative threshold would reject", async () => {
+    const { fetchImpl } = fakeSystemOne({ goal_now_complete: noulAnswer(0.6) });
+    const provider = new JevDecisionProvider({ endpoint: "https://openrouter.ai/api/alpha/decisions", model: "~typesafe/jev-latest", apiKey: "key", fetchImpl });
+    const doneResult = await provider.confirmGoalComplete(
+      { runId: "run-1", goal: "Save the file", observation, recentSummaries: [], threshold: DONE_CONFIRM_THRESHOLD },
+      new AbortController().signal,
+    );
+    expect(doneResult).toEqual({ complete: true, probability: 0.6 });
+
+    const { fetchImpl: speculativeFetch } = fakeSystemOne({ goal_now_complete: noulAnswer(0.6) });
+    const speculativeProvider = new JevDecisionProvider({
+      endpoint: "https://openrouter.ai/api/alpha/decisions",
+      model: "~typesafe/jev-latest",
+      apiKey: "key",
+      fetchImpl: speculativeFetch,
+    });
+    const speculativeResult = await speculativeProvider.confirmGoalComplete(
+      { runId: "run-1", goal: "Save the file", observation, recentSummaries: [], threshold: GOAL_COMPLETE_THRESHOLD },
+      new AbortController().signal,
+    );
+    expect(speculativeResult).toEqual({ complete: false, probability: 0.6 });
   });
 });
 

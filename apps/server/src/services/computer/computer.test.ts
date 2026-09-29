@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { runJevLoop, type JevLoopIo, type RunRecord } from "./computer.js";
 import {
+  DONE_CONFIRM_THRESHOLD,
   EscalateToAgentError,
+  GOAL_COMPLETE_THRESHOLD,
   type ConfirmGoalCompleteRequest,
   type ConfirmGoalCompleteResponse,
   type DecisionProvider,
@@ -90,6 +92,28 @@ class ScriptedProvider implements DecisionProvider {
     this.confirmRequests.push(request);
     const complete = this.#confirmResults[this.confirmRequests.length - 1] ?? true;
     return { complete, probability: complete ? 1 : 0 };
+  }
+}
+
+class ProbabilityScriptedProvider implements DecisionProvider {
+  #script: DecisionResponse[];
+  #probabilities: number[];
+  requests: DecisionRequest[] = [];
+  confirmRequests: ConfirmGoalCompleteRequest[] = [];
+  constructor(script: DecisionResponse[], probabilities: number[]) {
+    this.#script = script;
+    this.#probabilities = probabilities;
+  }
+  async decide(request: DecisionRequest): Promise<DecisionResponse> {
+    this.requests.push(request);
+    const next = this.#script[this.requests.length - 1];
+    if (next === undefined) throw new Error("ProbabilityScriptedProvider ran out of answers");
+    return next;
+  }
+  async confirmGoalComplete(request: ConfirmGoalCompleteRequest): Promise<ConfirmGoalCompleteResponse> {
+    this.confirmRequests.push(request);
+    const probability = this.#probabilities[this.confirmRequests.length - 1] ?? 1;
+    return { complete: probability >= request.threshold, probability };
   }
 }
 
@@ -307,6 +331,62 @@ describe("runJevLoop", () => {
     await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
     expect(run.status.state).toBe("done");
     expect(provider.requests).toHaveLength(2);
+  });
+
+  it("accepts done at the lower 0.5 bar when Jev's own operation choice was done", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ProbabilityScriptedProvider(
+      [{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }],
+      [0.6],
+    );
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(run.status.state).toBe("done");
+    expect(provider.confirmRequests).toHaveLength(1);
+    expect(provider.confirmRequests[0]!.threshold).toBe(DONE_CONFIRM_THRESHOLD);
+  });
+
+  it("does not finish when the provider chose done but confirmation stays below the 0.5 bar", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ProbabilityScriptedProvider(
+      [
+        { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
+        { operationChoiceId: "wait", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
+      ],
+      [0.3],
+    );
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(run.status.state).not.toBe("done");
+    expect(provider.confirmRequests).toHaveLength(1);
+  });
+
+  it("keeps the higher 0.8 bar for the speculative goalCompleteAfter path, unlike the done path", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ProbabilityScriptedProvider(
+      [
+        { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: true, goalCompleteProbability: 1, confidence: null, costUsd: null, servedModel: null },
+        { operationChoiceId: "wait", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
+      ],
+      [0.6],
+    );
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(run.status.state).not.toBe("done");
+    expect(provider.confirmRequests).toHaveLength(1);
+    expect(provider.confirmRequests[0]!.threshold).toBe(GOAL_COMPLETE_THRESHOLD);
   });
 
   it("escalates to the agent, without retrying, when the provider cannot find literal text to type", async () => {

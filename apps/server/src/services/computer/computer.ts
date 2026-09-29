@@ -13,7 +13,9 @@ import { ComputerLiveHub } from "./live.js";
 import { copyIntoEvidence, writeEvidence } from "./evidence.js";
 import {
   createDecisionBackend,
+  DONE_CONFIRM_THRESHOLD,
   EscalateToAgentError,
+  GOAL_COMPLETE_THRESHOLD,
   type DecisionRequest,
   type DecisionResponse,
   operationChoices,
@@ -534,6 +536,7 @@ export async function runJevLoop(
               goal: input.goal,
               observation: finalObservation,
               recentSummaries: [...recentSummaries],
+              threshold: DONE_CONFIRM_THRESHOLD,
             },
             signal,
           );
@@ -569,6 +572,7 @@ export async function runJevLoop(
               goal: input.goal,
               observation: finalObservation,
               recentSummaries: [...recentSummaries],
+              threshold: GOAL_COMPLETE_THRESHOLD,
             },
             signal,
           );
