@@ -65,6 +65,31 @@ describe("TargetTable", () => {
     expect(text?.value).toBe("notes.txt");
   });
 
+  it("falls back to the accessible description when a toolbar button reports no label", async () => {
+    const unlabelledButton: CuaToolResult = {
+      structuredContent: {
+        window_title: "Editor",
+        snapshot_id: "s4",
+        elements: [
+          {
+            element_index: 0,
+            role: "button",
+            label: "",
+            description: "Open Tab",
+            enabled: true,
+            actions: ["press"],
+            frame: { x: 0, y: 0, w: 20, h: 20 },
+          },
+        ],
+      },
+    };
+    const transport = new FakeTransport({ list_windows: windowsResponse, get_window_state: unlabelledButton });
+    const table = new TargetTable();
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(observation.targets).toHaveLength(1);
+    expect(observation.targets[0]?.name).toBe("Open Tab");
+  });
+
   it("rejects an action against a stale snapshotId", async () => {
     const transport = new FakeTransport({ list_windows: windowsResponse, get_window_state: stateResponse });
     const table = new TargetTable();
@@ -132,6 +157,45 @@ describe("TargetTable", () => {
     const second = await table.reobserve(transport, new AbortController().signal);
     expect(second.title).toBe("jev-test (new tab)");
     expect(table.window?.windowId).toBe(2);
+  });
+
+  it("grants the initial window before observing it", async () => {
+    const transport = new FakeTransport({ list_windows: windowsResponse, get_window_state: stateResponse });
+    const calls: string[] = [];
+    const table = new TargetTable(async (pid, windowId) => {
+      calls.push(`grant:${pid}:${windowId}`);
+    });
+    await table.observe(transport, new AbortController().signal);
+    expect(calls).toEqual(["grant:100:1"]);
+  });
+
+  it("grants a newly appeared window before reobserving it, so a new window appearing gets granted then observed and acted on", async () => {
+    let windows = [{ pid: 100, window_id: 1, title: "jev-test", app_name: "xfce4-terminal", is_on_screen: true, z_index: 1 }];
+    const calls: string[] = [];
+    class SwitchingTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "list_windows") return { structuredContent: { windows } };
+        if (tool === "get_window_state") {
+          const top = windows[windows.length - 1]!;
+          calls.push(`observe:${top.pid}:${top.window_id}`);
+          return { structuredContent: { window_title: top.title, snapshot_id: `s-${top.window_id}`, elements: [] } };
+        }
+        throw new Error(`No fake response for ${tool}`);
+      }
+    }
+    const transport = new SwitchingTransport();
+    const table = new TargetTable(async (pid, windowId) => {
+      calls.push(`grant:${pid}:${windowId}`);
+    });
+    await table.observe(transport, new AbortController().signal);
+
+    windows = [
+      ...windows,
+      { pid: 100, window_id: 2, title: "jev-test (new tab)", app_name: "xfce4-terminal", is_on_screen: true, z_index: 2 },
+    ];
+    await table.reobserve(transport, new AbortController().signal);
+
+    expect(calls).toEqual(["grant:100:1", "observe:100:1", "grant:100:2", "observe:100:2"]);
   });
 
   it("gives a generic hint for a non-Chromium window with zero elements", async () => {

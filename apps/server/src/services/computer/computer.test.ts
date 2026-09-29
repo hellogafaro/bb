@@ -335,6 +335,80 @@ describe("runJevLoop", () => {
     expect(step.timingsMs.act).toBeGreaterThanOrEqual(0);
   });
 
+  it("passes the decision provider a specific, cumulative outcome naming the target's role/label and what changed, not a generic 'Executed click'", async () => {
+    const first = observationFixture({ title: "jev-test" });
+    const second = observationFixture({ title: "jev-test (new tab)" });
+    const decisions: DecisionResponse[] = [
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0.1, confidence: 0.9, costUsd: null, servedModel: null },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0.1, confidence: 0.9, costUsd: null, servedModel: null },
+    ];
+    const provider = new ScriptedProvider(decisions);
+    let observeCalls = 0;
+    const io: JevLoopIo = {
+      observe: async () => {
+        observeCalls += 1;
+        return observeCalls === 1 ? first : second;
+      },
+      act: async () => outcomeFixture({ state: "completed", observation: second, summary: "Executed click" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 2 }), provider, io);
+    expect(provider.requests[1]!.recentSummaries).toEqual([
+      "step 1: clicked 'Save' (button) -> window changed to 'jev-test (new tab)'",
+    ]);
+  });
+
+  it("names typed text and a pressed Enter submit in the recent outcome", async () => {
+    const observation = observationFixture({ targets: [] });
+    const decisions: DecisionResponse[] = [
+      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo ok", submit: true, submitProbability: 1, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
+    ];
+    const provider = new ScriptedProvider(decisions);
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async (_deps, _hostId, action) =>
+        outcomeFixture({ state: "completed", observation, summary: `did ${(action as { kind: string }).kind}` }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(provider.requests[1]!.recentSummaries).toEqual([
+      "step 1: typed 'echo ok' into the focused window and pressed Enter -> same window, no title change",
+    ]);
+  });
+
+  it("keeps recentSummaries bounded to the last 8 outcomes", async () => {
+    const decisions: DecisionResponse[] = Array.from({ length: 10 }, () => ({
+      operationChoiceId: "click" as const,
+      targetChoiceId: "t0",
+      typedText: null,
+      submit: false,
+      submitProbability: null,
+      goalCompleteAfter: false,
+      goalCompleteProbability: 0,
+      confidence: 0.9,
+      costUsd: null,
+      servedModel: null,
+    }));
+    const provider = new ScriptedProvider(decisions);
+    let observeCalls = 0;
+    const io: JevLoopIo = {
+      observe: async () => {
+        observeCalls += 1;
+        // A different title each step keeps this from tripping the no-progress
+        // escalation, which is exercised separately; this test is only about bounding.
+        return observationFixture({ title: `window-${observeCalls}` });
+      },
+      act: async (_deps, _hostId, _action) => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 10 }), provider, io);
+    const lastRequest = provider.requests[provider.requests.length - 1]!;
+    expect(lastRequest.recentSummaries).toHaveLength(8);
+    expect(lastRequest.recentSummaries[0]).toMatch(/^step 2:/);
+    expect(lastRequest.recentSummaries[7]).toMatch(/^step 9:/);
+  });
+
   it("keeps the latest observation on the run status so an escalation can be continued without re-observing", async () => {
     const observation = observationFixture();
     const provider = new ScriptedProvider([

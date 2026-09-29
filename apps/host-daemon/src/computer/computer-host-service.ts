@@ -745,7 +745,7 @@ export class ComputerHostService {
   readonly #dataDir: string;
   readonly #driver: DriverController;
   readonly #transport: CuaTransport;
-  readonly #table = new TargetTable();
+  readonly #table: TargetTable;
   readonly #platform: NodeJS.Platform;
   readonly #liveTransport: CuaTransport & { close(): void };
   readonly #live: LiveStream;
@@ -763,6 +763,7 @@ export class ComputerHostService {
       options.manifestRenewal,
       options.computerAppFactory,
     );
+    this.#table = new TargetTable((pid, windowId) => this.#driver.ensureWindowGranted(this.#dataDir, pid, windowId));
     const renewalHooks = {
       ensureFresh: () => this.#driver.ensureManifestFresh(this.#dataDir),
       renewAfterLapse: () => this.#driver.renewManifestAfterLapse(this.#dataDir),
@@ -988,8 +989,6 @@ export class ComputerHostService {
   async observe(input: { appId?: string }): Promise<ComputerObservation> {
     const signal = new AbortController().signal;
     await this.#driver.ensureDaemon(this.#dataDir);
-    const window = await findWindow(this.#transport, signal, input.appId);
-    await this.#driver.ensureWindowGranted(this.#dataDir, window.pid, window.windowId);
     return this.#table.observe(this.#transport, signal, input.appId);
   }
 

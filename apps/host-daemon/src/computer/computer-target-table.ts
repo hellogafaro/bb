@@ -14,6 +14,7 @@ interface CuaElement {
   readonly element_token?: string;
   readonly role?: string;
   readonly label?: string;
+  readonly description?: string;
   readonly value?: unknown;
   readonly enabled?: boolean;
   readonly actions?: string[];
@@ -102,11 +103,18 @@ export async function findWindow(
   return new DesktopWindow(chosen.pid, windowId, String(chosen.title ?? ""));
 }
 
+export type EnsureWindowGranted = (pid: number, windowId: number) => Promise<void>;
+
 export class TargetTable {
   #bindings = new Map<string, Binding>();
   #snapshotId = "";
   #window: DesktopWindow | null = null;
   #appId: string | undefined;
+  readonly #ensureGranted: EnsureWindowGranted | undefined;
+
+  constructor(ensureGranted?: EnsureWindowGranted) {
+    this.#ensureGranted = ensureGranted;
+  }
 
   get window(): DesktopWindow | null {
     return this.#window;
@@ -125,6 +133,10 @@ export class TargetTable {
   }
 
   async #observeWindow(transport: CuaTransport, signal: AbortSignal, window: DesktopWindow): Promise<ComputerObservation> {
+    // The window found here may not be the one the daemon's capability manifest was last
+    // granted for (a new tab, a new window, a popup); grant it before touching the driver
+    // so the driver doesn't refuse observe/act as "outside the capability manifest".
+    await this.#ensureGranted?.(window.pid, window.windowId);
     this.#window = window;
     const result = await transport.call(
       "get_window_state",
@@ -148,7 +160,9 @@ export class TargetTable {
     for (const element of elements) {
       if (!Number.isInteger(element.element_index) || element.enabled === false) continue;
       const allowedOperations = allowedOperationsFor(element);
-      const name = String(element.label ?? "").replace(/\s+/gu, " ").trim().slice(0, 300);
+      const rawLabel = element.label ?? "";
+      const rawName = rawLabel.trim().length > 0 ? rawLabel : (element.description ?? "");
+      const name = rawName.replace(/\s+/gu, " ").trim().slice(0, 300);
       if (allowedOperations.length === 0 || name.length === 0) continue;
       const targetId = `t${index}_${sha256(`${element.element_index}:${element.role ?? ""}:${name}`).slice(0, 12)}`;
       bindings.set(targetId, {

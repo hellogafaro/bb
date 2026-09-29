@@ -304,6 +304,73 @@ function actionKey(operation: Operation): string {
   return JSON.stringify(clone);
 }
 
+// Keep this bounded but longer than a single stuck-loop window (NO_PROGRESS_ESCALATION_STEPS):
+// Jev otherwise re-clicks a control it already used a few steps ago because that outcome
+// scrolled out of recent_outcomes, not because it made progress since.
+const MAX_RECENT_OUTCOMES = 8;
+
+function targetLabel(observation: Observation, operation: Operation): string | null {
+  if (!("targetId" in operation) || operation.targetId === null || operation.targetId === undefined) return null;
+  const target = observation.targets.find((candidate) => candidate.targetId === operation.targetId);
+  if (target === undefined) return null;
+  const name = target.name.trim().length > 0 ? target.name : "(unlabeled)";
+  return `'${name}' (${target.role})`;
+}
+
+function describeAction(operation: Operation, observation: Observation, typedText: string | null): string {
+  const label = targetLabel(observation, operation);
+  switch (operation.kind) {
+    case "click":
+      return `clicked ${label ?? "an element"}`;
+    case "double_click":
+      return `double-clicked ${label ?? "an element"}`;
+    case "type":
+      return `typed '${typedText ?? ""}' into ${label ?? "an element"}`;
+    case "set_value":
+      return `set ${label ?? "an element"} to '${typedText ?? ""}'`;
+    case "select":
+      return `selected '${typedText ?? ""}' in ${label ?? "an element"}`;
+    case "scroll":
+      return `scrolled ${label ?? "the window"} ${operation.direction}`;
+    case "type_window":
+      return `typed '${typedText ?? ""}' into the focused window`;
+    case "press_key":
+      return `pressed ${operation.key}`;
+    case "hotkey":
+      return `pressed ${operation.keys.join("+")}`;
+    case "focus_window":
+      return "brought the window to focus";
+    case "wait":
+      return "waited for the UI to settle";
+    case "done":
+      return "marked the goal complete";
+    case "blocked":
+      return "reported blocked";
+  }
+}
+
+function describeWindowChange(before: Observation, outcome: ActionOutcome): string {
+  if (outcome.state === "error") return `failed: ${outcome.summary}`;
+  if (outcome.state === "blocked") return `blocked: ${outcome.summary}`;
+  const after = outcome.observation;
+  if (after === null) return "no new observation was taken";
+  if (after.title !== before.title) return `window changed to '${after.title}'`;
+  return "same window, no title change";
+}
+
+function describeStepOutcome(
+  step: number,
+  operation: Operation,
+  before: Observation,
+  typedText: string | null,
+  outcome: ActionOutcome,
+  submitted: boolean,
+): string {
+  const action = describeAction(operation, before, typedText);
+  const submitSuffix = submitted ? " and pressed Enter" : "";
+  return `step ${step}: ${action}${submitSuffix} -> ${describeWindowChange(before, outcome)}`;
+}
+
 function pushTrace(run: RunRecord, entry: RunStatus["trace"][number]): void {
   const trace = [...run.status.trace, entry];
   if (trace.length > 50) trace.shift();
@@ -336,6 +403,7 @@ export async function runJevLoop(
       let operation: Operation | null = null;
       let outcome: ActionOutcome | null = null;
       let lastDecision: DecisionResponse | null = null;
+      let typedText: string | null = null;
       let decideMs = 0;
       let actMs = 0;
       for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -357,7 +425,7 @@ export async function runJevLoop(
             runId: run.status.runId,
             goal: input.goal,
             observation: observationResult,
-            recentSummaries,
+            recentSummaries: [...recentSummaries],
             operationChoices: opChoices,
           },
           signal,
@@ -379,7 +447,7 @@ export async function runJevLoop(
           });
           return;
         }
-        const typedText = validateTypedText(decision.typedText);
+        typedText = validateTypedText(decision.typedText);
         operation = verifyTargetFresh(observationResult, toOperation(decision, observationResult, typedText));
         touchRun(run, { state: "acting" });
         const actStart = Date.now();
@@ -394,17 +462,19 @@ export async function runJevLoop(
       }
       if (operation === null || outcome === null || lastDecision === null) throw new Error("Jev loop failed to produce an action");
       const decision = lastDecision;
+      let submitted = false;
       if (decision.submit && outcome.state === "completed" && SUBMIT_OPERATIONS.has(operation.kind)) {
         touchRun(run, { state: "acting" });
         const submitStart = Date.now();
         const submitOutcome = await io.act(deps, input.hostId, { kind: "press_key", key: "Enter" }, signal);
         actMs += Date.now() - submitStart;
+        submitted = submitOutcome.state === "completed";
         outcome = { ...submitOutcome, summary: `${outcome.summary}; then ${submitOutcome.summary}` };
       }
       if (outcome.observation !== null) touchRun(run, { lastObservation: outcome.observation });
       run.status.steps += 1;
-      recentSummaries.push(outcome.summary);
-      if (recentSummaries.length > 5) recentSummaries.shift();
+      recentSummaries.push(describeStepOutcome(run.status.steps, operation, observationResult, typedText, outcome, submitted));
+      if (recentSummaries.length > MAX_RECENT_OUTCOMES) recentSummaries.shift();
 
       const currentWindowKey = windowKey(observationResult);
       const currentActionKey = actionKey(operation);
