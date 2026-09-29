@@ -27,19 +27,20 @@ Quick help stays in a personal chat. A deliverable or external commitment become
 | --- | --- |
 | **Intake** | Capture requests from messages, email, meetings, forms, or direct chat. Preserve the original content and channel details. |
 | **Context** | Create or enrich a concise Notion task with the desired outcome, source thread, relevant history, assets, and repo when useful. Keep the solution open. |
-| **Orchestration** | Start and resume a durable run, coordinate dependencies, route decisions and approvals, and keep the task moving. No standing PM agent is required. |
+| **Orchestration** | The attended agent coordinates: hand each place to its owning agent, run independent work in parallel, and bring decisions to the person. Write a BB workflow only when durability or fan-out earns it. No standing PM agent is required. |
 | **Execution** | Inspect, write a proportional plan and independent “done” checks before acting, execute, self-check, and attach evidence. Use milestones for complex work. |
 | **Review** | Fresh context checks the artifact and real outcome. Record findings in Notion, send failures back for repair, and repeat until accepted or a limit is reached. |
 | **Communication** | Draft the right update for the right people in the original channel, obtain required approval, send, confirm delivery, and comment on the Notion task. |
 
 ## Operating rules
 
-- Start with “create a task from this” or “work on this” plus a source or task link. The system chooses the steps and agent profile. No agent selector is required.
+- Start with “create a task from this” or “work on this” plus a source or task link. The attended agent chooses the steps and agent profile; no agent selector is required.
 - A task is a short brief plus natural-language bullets. Keep the original message or meeting link and conversation ID so the reply goes to the right place.
-- Run independent tasks in parallel. Sequence work that changes the same code, document, account, or other shared resource.
-- The executor leaves a short handoff: result, checks run, evidence, open issues, and actual work time. Reviewers have fresh context and can use browser or computer use to test behavior.
+- Run independent tasks in parallel. Isolate work first (own worktree, branch, file, or draft), then sequence the shared writes that remain.
+- Write the done checks before acting. The executor leaves a short handoff: result, checks run (each done check verified, failed, or unverified, with evidence; unverified is not a pass), evidence, open issues, and actual work time. Reviewers have fresh context and can use browser or computer use to test behavior.
+- A workflow is a tool for durable steps or parallel fan-out, not the default shape of a run; it uses `ask()` for decisions when one is running.
 - Failed review creates corrective work automatically. Escalate only when a decision, missing access, or time or cost limit blocks progress.
-- Review depth follows impact. Consequential plans, changes, and deployments need approval when appropriate. Every external message needs approval of its exact text, recipients, channel, and attachments before sending.
+- Review grades against the same done checks. Depth follows impact, and high-impact work gets a second reviewer on the other provider. Consequential plans, changes, and deployments need approval when appropriate. Every external message needs approval of its exact text, recipients, channel, and attachments before sending.
 - Log actual work time, never agent runtime. Notion records progress, evidence, review, time, and who received the final update. BB keeps run history without becoming a second task list.
 
 ## Shared capabilities
@@ -56,7 +57,7 @@ Notion and search; durable sessions; agents with role profiles, models, tools, s
    - **Settings.** Browser, Plugin marketplaces, Community, and Files are not in the settings navigation or search, and their old routes open General. Updates stays because it reads our own releases.
    - **Built-in browser.** Back. The new-tab "Browser" action, the in-app link setting, and the browser tab deck with its address bar, find bar, and new-tab screen are restored, and the `browser.*` commands are in the palette. The built-in `browser-automation` plugin is enabled by default, giving threads and the CLI control of the same tab.
    - **Sidebar, files, and composer.** The status thread list is the only sidebar list, with no Move to section. Files open only in BB's viewer. The composer shows the agent picker in place of the model and permission controls, and the prompt banner has no workspace changes section.
-3. **Prove one full run.** Done. Every thread reads the core operating model (`packages/templates/src/templates/operating-model.md`): six places work can pass through, ownership by agent, effort, and output. A run is a BB workflow the agent writes for the task, with workers as the owning agents and `ask()` decisions in the inbox; the workflows plugin gained the `agent` option and `ask()` for this. Two real tasks went from request to a closed Notion task with one approval each.
+3. **Prove one full run.** Done. Every thread reads the core operating model (`packages/templates/src/templates/operating-model.md`): six places work can pass through, ownership by agent, effort, and output. Agents orchestrate: the attended agent hands each place to its owning agent and writes a BB workflow only when durability or fan-out earns it, with workers as the owning agents and `ask()` decisions in the inbox when one is running; the workflows plugin gained the `agent` option and `ask()` for this. Two real tasks went from request to a closed Notion task with one approval each.
 4. **Expand intake and coverage.** Add email, WhatsApp, meetings, and other sources one at a time. Apply the same run to coding, marketing, and other work. Track failures and improve skills and checks from real cases.
 
 ## Base decision
