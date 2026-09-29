@@ -516,8 +516,8 @@ export function controlStatus(
 
 export function createComputerLiveHub(deps: WorkSessionDeps): ComputerLiveHub {
   const hub = new ComputerLiveHub({
-    sendDemand: (hostId, profile) =>
-      deps.hub.sendDaemonMessage(hostId, { type: "computer.live.demand", profile }),
+    sendDemand: (hostId, profile, options) =>
+      deps.hub.sendDaemonMessage(hostId, { type: "computer.live.demand", profile, resync: options?.resync }),
     input: (hostId, input: ComputerHumanInput) =>
       callHostOnlineRpcForWork(deps, {
         hostId,

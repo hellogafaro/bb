@@ -846,7 +846,8 @@ export async function createHostDaemonApp(
       });
     },
     onTerminalMessage: (message) => terminalManager.handleMessage(message),
-    onComputerLiveDemand: (message) => computer.setLiveDemand(message?.profile ?? null),
+    onComputerLiveDemand: (message) =>
+      computer.setLiveDemand(message?.profile ?? null, { resync: message?.resync }),
     onSessionOpened: async (session) => {
       sessionState.value = session.sessionId;
       connectTunnel.replaceAuthoritativeShareSet(session.connectShares);

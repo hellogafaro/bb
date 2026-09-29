@@ -430,6 +430,7 @@ export const computerLiveDemandMessageSchema = z
   .object({
     type: z.literal("computer.live.demand"),
     profile: computerLiveProfileSchema.nullable(),
+    resync: z.boolean().optional(),
   })
   .strict();
 export type ComputerLiveDemandMessage = z.infer<typeof computerLiveDemandMessageSchema>;

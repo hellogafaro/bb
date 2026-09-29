@@ -54,7 +54,7 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
     const socket = fakeSocket();
 
     hub.attach("host-1", socket, { clientId: "client-1", profile: "full" });
-    expect(sendDemand).toHaveBeenCalledWith("host-1", "full");
+    expect(sendDemand).toHaveBeenCalledWith("host-1", "full", { resync: true });
     expect(hub.viewerCount("host-1")).toBe(1);
 
     hub.detach("host-1", socket);
@@ -70,10 +70,10 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
 
     hub.attach("host-1", fullSocket, { clientId: "client-1", profile: "full" });
     hub.attach("host-1", thumbSocket, { clientId: "client-2", profile: "thumbnail" });
-    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "full");
+    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "full", { resync: true });
 
     hub.detach("host-1", fullSocket);
-    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "thumbnail");
+    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "thumbnail", { resync: undefined });
 
     hub.detach("host-1", thumbSocket);
     expect(sendDemand).toHaveBeenLastCalledWith("host-1", null);
@@ -93,6 +93,48 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
     socket.sent.length = 0;
     hub.handleDaemonFrame("host-1", frame);
     expect(socket.sent).not.toContain(frame);
+  });
+
+  it("sends a new subscriber the cached frame immediately even though the screen has not changed", () => {
+    const { deps } = buildDeps();
+    const hub = new ComputerLiveHub(deps);
+    const firstSocket = fakeSocket();
+    hub.attach("host-1", firstSocket, { clientId: "client-1", profile: "full" });
+
+    const frame = new Uint8Array([1, 2, 3]) as Uint8Array<ArrayBuffer>;
+    hub.handleDaemonFrame("host-1", frame);
+    expect(firstSocket.sent.filter((entry) => entry === frame)).toHaveLength(1);
+
+    const secondSocket = fakeSocket();
+    hub.attach("host-1", secondSocket, { clientId: "client-2", profile: "full" });
+    expect(secondSocket.sent.filter((entry) => entry === frame)).toHaveLength(1);
+
+    const thirdSocket = fakeSocket();
+    hub.attach("host-1", thirdSocket, { clientId: "client-3", profile: "full" });
+    expect(thirdSocket.sent.filter((entry) => entry === frame)).toHaveLength(1);
+  });
+
+  it("does not send a cached frame to the first-ever subscriber of a host", () => {
+    const { deps } = buildDeps();
+    const hub = new ComputerLiveHub(deps);
+    const socket = fakeSocket();
+    hub.attach("host-1", socket, { clientId: "client-1", profile: "full" });
+
+    const binaryFrames = socket.sent.filter((entry) => entry instanceof Uint8Array);
+    expect(binaryFrames).toHaveLength(0);
+  });
+
+  it("asks the daemon to resync the unchanged-frame check whenever a subscriber joins", () => {
+    const { deps, sendDemand } = buildDeps();
+    const hub = new ComputerLiveHub(deps);
+    const firstSocket = fakeSocket();
+    hub.attach("host-1", firstSocket, { clientId: "client-1", profile: "full" });
+    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "full", { resync: true });
+
+    sendDemand.mockClear();
+    const secondSocket = fakeSocket();
+    hub.attach("host-1", secondSocket, { clientId: "client-2", profile: "full" });
+    expect(sendDemand).toHaveBeenLastCalledWith("host-1", "full", { resync: true });
   });
 });
 

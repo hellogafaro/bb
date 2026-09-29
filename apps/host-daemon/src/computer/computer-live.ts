@@ -148,7 +148,7 @@ export class LiveStream {
     return this.#active?.profile ?? null;
   }
 
-  setDemand(profile: ComputerLiveProfile | null): void {
+  setDemand(profile: ComputerLiveProfile | null, options?: { resync?: boolean }): void {
     if (this.#expiry !== null) clearTimeout(this.#expiry);
     this.#expiry = null;
     if (profile === null) {
@@ -157,7 +157,10 @@ export class LiveStream {
     }
     this.#expiry = setTimeout(() => this.setDemand(null), this.#options.demandTtlMs ?? 15_000);
     this.#expiry.unref?.();
-    if (this.#active?.profile === profile) return;
+    if (this.#active?.profile === profile) {
+      if (options?.resync) this.#lastBytes = null;
+      return;
+    }
     this.#stop();
     const active: ActiveStream = { profile, controller: new AbortController() };
     this.#active = active;

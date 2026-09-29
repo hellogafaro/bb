@@ -580,8 +580,8 @@ export class ComputerHostService {
     });
   }
 
-  setLiveDemand(profile: ComputerLiveProfile | null): void {
-    this.#live.setDemand(profile);
+  setLiveDemand(profile: ComputerLiveProfile | null, options?: { resync?: boolean }): void {
+    this.#live.setDemand(profile, options);
   }
 
   input(input: { input: ComputerHumanInput }): Promise<{ summary: string }> {

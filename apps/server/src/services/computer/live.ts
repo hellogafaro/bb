@@ -18,7 +18,7 @@ export interface ComputerLiveSocket {
 }
 
 export interface ComputerLiveHubDeps {
-  sendDemand(hostId: string, profile: ComputerLiveProfile | null): boolean;
+  sendDemand(hostId: string, profile: ComputerLiveProfile | null, options?: { resync?: boolean }): boolean;
   input(hostId: string, input: ComputerHumanInput): Promise<unknown>;
   clipboardRead(hostId: string): Promise<{ text: string | null }>;
   clipboardWrite(hostId: string, text: string, paste: boolean): Promise<unknown>;
@@ -42,6 +42,7 @@ interface HostLive {
   state: ComputerLiveState;
   message: string | null;
   demanded: ComputerLiveProfile | null;
+  lastFrame: Uint8Array<ArrayBuffer> | null;
   ticker: ReturnType<typeof setInterval> | null;
   ticks: number;
   unsubscribeControl: () => void;
@@ -70,6 +71,7 @@ export class ComputerLiveHub {
         state: "starting",
         message: null,
         demanded: null,
+        lastFrame: null,
         ticker: null,
         ticks: 0,
         unsubscribeControl: this.#deps.controlGate(hostId).onChange(() => this.broadcastStatus(hostId)),
@@ -88,7 +90,8 @@ export class ComputerLiveHub {
       movesInFlight: 0,
     };
     host.viewers.add(viewer);
-    this.#syncDemand(hostId, host, false);
+    this.#syncDemand(hostId, host, { renew: false, resync: true });
+    if (host.lastFrame !== null) this.#sendFrame(viewer, host.lastFrame);
     this.#sendStatus(hostId, host, viewer);
   }
 
@@ -97,7 +100,7 @@ export class ComputerLiveHub {
     if (host === undefined) return;
     for (const viewer of host.viewers) if (viewer.socket === socket) host.viewers.delete(viewer);
     if (host.viewers.size > 0) {
-      this.#syncDemand(hostId, host, false);
+      this.#syncDemand(hostId, host, { renew: false });
       return;
     }
     if (host.ticker !== null) clearInterval(host.ticker);
@@ -112,19 +115,18 @@ export class ComputerLiveHub {
 
   handleDaemonConnected(hostId: string): void {
     const host = this.#hosts.get(hostId);
-    if (host !== undefined) this.#syncDemand(hostId, host, true);
+    if (host !== undefined) this.#syncDemand(hostId, host, { renew: true, resync: true });
   }
 
   handleDaemonFrame(hostId: string, frame: Uint8Array<ArrayBuffer>): void {
     const host = this.#hosts.get(hostId);
     if (host === undefined) return;
+    host.lastFrame = frame;
     const now = this.#now();
     for (const viewer of host.viewers) {
       if (viewer.profile === "thumbnail" && now - viewer.lastFrameAt < THUMBNAIL_FRAME_INTERVAL_MS) continue;
       if ((viewer.socket.raw?.bufferedAmount ?? 0) > VIEWER_HIGH_WATER_BYTES) continue;
-      viewer.lastFrameAt = now;
-      viewer.frameTimes.push(now);
-      viewer.socket.send(frame);
+      this.#sendFrame(viewer, frame);
     }
   }
 
@@ -202,18 +204,25 @@ export class ComputerLiveHub {
     const host = this.#hosts.get(hostId);
     if (host === undefined) return;
     host.ticks += 1;
-    if (host.ticks % DEMAND_RENEW_TICKS === 0) this.#syncDemand(hostId, host, true);
+    if (host.ticks % DEMAND_RENEW_TICKS === 0) this.#syncDemand(hostId, host, { renew: true });
     this.broadcastStatus(hostId);
   }
 
-  #syncDemand(hostId: string, host: HostLive, renew: boolean): void {
+  #syncDemand(hostId: string, host: HostLive, options: { renew: boolean; resync?: boolean }): void {
     const profile = [...host.viewers].some((viewer) => viewer.profile === "full") ? "full" : "thumbnail";
-    if (!renew && host.demanded === profile) return;
+    if (!options.renew && !options.resync && host.demanded === profile) return;
     host.demanded = profile;
-    if (!this.#deps.sendDemand(hostId, profile)) {
+    if (!this.#deps.sendDemand(hostId, profile, { resync: options.resync })) {
       host.state = "error";
       host.message = "The machine is offline";
     }
+  }
+
+  #sendFrame(viewer: Viewer, frame: Uint8Array<ArrayBuffer>): void {
+    const now = this.#now();
+    viewer.lastFrameAt = now;
+    viewer.frameTimes.push(now);
+    viewer.socket.send(frame);
   }
 
   #sendStatus(hostId: string, host: HostLive, viewer: Viewer): void {
