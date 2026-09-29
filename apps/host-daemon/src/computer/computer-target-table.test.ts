@@ -65,6 +65,23 @@ describe("TargetTable", () => {
     expect(text?.value).toBe("notes.txt");
   });
 
+  it("treats a menubar's menu role with a click action as a click target", async () => {
+    const menuResponse: CuaToolResult = {
+      structuredContent: {
+        window_title: "Editor",
+        snapshot_id: "s5",
+        elements: [
+          { element_index: 0, role: "menu", label: "File", enabled: true, actions: ["click"], frame: { x: 0, y: 0, w: 40, h: 20 } },
+        ],
+      },
+    };
+    const transport = new FakeTransport({ list_windows: windowsResponse, get_window_state: menuResponse });
+    const table = new TargetTable();
+    const observation = await table.observe(transport, new AbortController().signal);
+    const menu = observation.targets.find((target) => target.name === "File");
+    expect(menu?.allowedOperations).toContain("click");
+  });
+
   it("falls back to the accessible description when a toolbar button reports no label", async () => {
     const unlabelledButton: CuaToolResult = {
       structuredContent: {

@@ -52,7 +52,18 @@ function allowedOperationsFor(element: CuaElement): ComputerTarget["allowedOpera
   const role = (element.role ?? "").toLocaleLowerCase();
   const actions = element.actions ?? [];
   const ops: ComputerTarget["allowedOperations"] = [];
-  const clickable = ["button", "link", "check box", "checkbox", "radio button", "radio", "menu item", "tab"];
+  const clickable = [
+    "button",
+    "link",
+    "check box",
+    "checkbox",
+    "radio button",
+    "radio",
+    "menu item",
+    "menu",
+    "menu bar item",
+    "tab",
+  ];
   const typable = ["text", "entry", "password text", "searchbox", "combobox"];
   if (clickable.includes(role) && actions.some((a) => ["press", "click", "check", "jump", "doDefault"].includes(a))) {
     ops.push("click", "double_click");

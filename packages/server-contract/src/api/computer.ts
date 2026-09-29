@@ -64,6 +64,7 @@ export const computerRunStepTraceSchema = z
     textCandidate: z.string().max(2_000).nullable(),
     submitProbability: z.number().nullable(),
     goalCompleteProbability: z.number(),
+    confirmProbability: z.number().nullable(),
     outcomeState: z.string().max(40),
     outcomeSummary: z.string().max(2_000),
     costUsd: z.number().nullable(),

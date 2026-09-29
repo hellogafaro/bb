@@ -258,11 +258,10 @@ const GOAL_COMPLETE_NOUL_CRITERIA = {
   true: "The chosen operation is expected to fully satisfy the goal; no further step will be needed afterward.",
   false: "Further steps will still be needed after the chosen operation.",
 };
-const CONFIRM_GOAL_COMPLETE_INSTRUCTIONS =
-  "Is the goal now fully complete? Judge only by what recent_outcomes and the current observation confirm already happened, not by what the next step could accomplish.";
+const CONFIRM_GOAL_COMPLETE_INSTRUCTIONS = "Has every concrete step the goal names been performed, according to recent_outcomes?";
 const CONFIRM_GOAL_COMPLETE_NOUL_CRITERIA = {
-  true: "Every concrete step the goal named has already happened; the current observation shows the goal is fully satisfied right now.",
-  false: "At least one concrete step the goal named has not been confirmed to happen yet.",
+  true: "recent_outcomes shows every concrete step the goal named was performed without error.",
+  false: "At least one concrete step the goal named is missing from recent_outcomes or failed.",
 };
 
 const MAX_TEXT_CANDIDATES = 6;

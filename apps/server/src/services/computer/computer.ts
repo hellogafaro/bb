@@ -377,6 +377,13 @@ function pushTrace(run: RunRecord, entry: RunStatus["trace"][number]): void {
   touchRun(run, { trace });
 }
 
+function setLastTraceConfirmProbability(run: RunRecord, confirmProbability: number): void {
+  if (run.status.trace.length === 0) return;
+  const trace = [...run.status.trace];
+  trace[trace.length - 1] = { ...trace[trace.length - 1], confirmProbability };
+  touchRun(run, { trace });
+}
+
 function escalationSummary(run: RunStatus, reason: string): string {
   return `Completed ${run.steps} step(s) toward "${run.goal}". Last action: ${run.lastSummary ?? "none"}. ${reason} Continue from the current observation with computer_observe/computer_act instead of restarting the goal.`;
 }
@@ -473,8 +480,10 @@ export async function runJevLoop(
       }
       if (outcome.observation !== null) touchRun(run, { lastObservation: outcome.observation });
       run.status.steps += 1;
-      recentSummaries.push(describeStepOutcome(run.status.steps, operation, observationResult, typedText, outcome, submitted));
-      if (recentSummaries.length > MAX_RECENT_OUTCOMES) recentSummaries.shift();
+      if (operation.kind !== "done") {
+        recentSummaries.push(describeStepOutcome(run.status.steps, operation, observationResult, typedText, outcome, submitted));
+        if (recentSummaries.length > MAX_RECENT_OUTCOMES) recentSummaries.shift();
+      }
 
       const currentWindowKey = windowKey(observationResult);
       const currentActionKey = actionKey(operation);
@@ -499,6 +508,7 @@ export async function runJevLoop(
         textCandidate: decision.typedText,
         submitProbability: decision.submitProbability,
         goalCompleteProbability: decision.goalCompleteProbability,
+        confirmProbability: null,
         outcomeState: outcome.state,
         outcomeSummary: outcome.summary,
         costUsd: decision.costUsd,
@@ -527,6 +537,7 @@ export async function runJevLoop(
             },
             signal,
           );
+          setLastTraceConfirmProbability(run, confirmation.probability);
           if (confirmation.complete) {
             touchRun(run, { state: "done" });
             return;
@@ -561,6 +572,7 @@ export async function runJevLoop(
             },
             signal,
           );
+          setLastTraceConfirmProbability(run, confirmation.probability);
           if (confirmation.complete) {
             touchRun(run, { state: "done" });
             return;
