@@ -163,6 +163,8 @@ class RecordingDesktopBrowserViewManager implements DesktopBrowserViewManager {
     this.evaluateCalls.push(call);
     return { ok: true, value: "evaluated" };
   }
+
+  rejectWebauthnRequest(): void {}
   public readonly setVisibleWithoutFocusCalls: SetVisibleCall[] = [];
   public readonly stopCalls: TabCommandCall[] = [];
 

@@ -218,7 +218,9 @@ import {
 } from "./desktop-window-command-ipc.js";
 import {
   createDesktopBrowserViewManager,
+  type DesktopBrowserTabProfile,
   type DesktopBrowserViewManager,
+  type DesktopBrowserWebauthnRequestArgs,
 } from "./desktop-browser-view.js";
 import { resolveDesktopBrowserAppCommand } from "./desktop-browser-shortcuts.js";
 import { registerDesktopBrowserIpc } from "./desktop-browser-main-ipc.js";
@@ -226,8 +228,18 @@ import {
   createDesktopFindViewManager,
   type DesktopFindViewManager,
 } from "./desktop-find-view.js";
+import {
+  createDesktopWebauthnViewManager,
+  type DesktopWebauthnViewManager,
+} from "./desktop-webauthn-view.js";
+import { pickWebauthnImportSource } from "./webauthn-import-pick.js";
 import { createBrowserImportService } from "./browser-import/browser-import.js";
 import { readMacAppIcon } from "./browser-import/mac-app-icon.js";
+import {
+  DESKTOP_BROWSER_IMPORT_FAILURE_COPY,
+  isRetryableDesktopBrowserImportReason,
+  type DesktopBrowserImportFailureReason,
+} from "@bb/host-daemon-contract";
 import {
   createDesktopBrowserBroker,
   type DesktopBrowserBroker,
@@ -387,6 +399,7 @@ const logViewerCopyRequestSchema = z
 let desktopWindowFactory: DesktopWindowFactory | null = null;
 let desktopBrowserViewManager: DesktopBrowserViewManager | null = null;
 let desktopFindViewManager: DesktopFindViewManager | null = null;
+let desktopWebauthnViewManager: DesktopWebauthnViewManager | null = null;
 let desktopBrowserBroker: DesktopBrowserBroker | null = null;
 let desktopBrowserBrokerClient: ReturnType<
   typeof createDesktopBrowserBrokerClient
@@ -1146,6 +1159,7 @@ function registerApplicationWindow(browserWindow: DesktopBrowserWindow): void {
   });
   browserWindow.on("closed", () => {
     desktopFindViewManager?.releaseWindow(webContentsId);
+    desktopWebauthnViewManager?.releaseWindow(webContentsId);
     desktopBrowserBroker?.releaseWindow(webContentsId);
     applicationWindowWebContentsIds.delete(webContentsId);
     splitNavigationEnabledWebContentsIds.delete(webContentsId);
@@ -2241,6 +2255,7 @@ async function finishQuit(): Promise<void> {
   desktopAutoUpdateService?.stop();
   desktopBrowserViewManager?.destroyAll();
   desktopFindViewManager?.destroyAll();
+  desktopWebauthnViewManager?.destroyAll();
   await desktopWindowFactory?.persistOpenWindows();
   await stopOwnedRuntime();
 }
@@ -2802,6 +2817,11 @@ async function runDesktopApp(): Promise<void> {
     "dist",
     "find-bar-preload.cjs",
   );
+  const webauthnPromptPreloadPath = join(
+    paths.appPath,
+    "dist",
+    "webauthn-prompt-preload.cjs",
+  );
   const resolvedExistingServerDialogPreloadPath = join(
     paths.appPath,
     "dist",
@@ -2841,6 +2861,10 @@ async function runDesktopApp(): Promise<void> {
   assertPathExists({
     label: "find bar preload script",
     path: findBarPreloadPath,
+  });
+  assertPathExists({
+    label: "webauthn prompt preload script",
+    path: webauthnPromptPreloadPath,
   });
   assertPathExists({
     label: "server URL dialog preload script",
@@ -2986,6 +3010,164 @@ async function runDesktopApp(): Promise<void> {
     }
     desktopFindViewManager?.open(browserWindow, parsed.data);
   });
+  const browserImportService = createBrowserImportService({
+    context: {
+      platform: process.platform,
+      home: homedir(),
+      configHome: process.env.XDG_CONFIG_HOME,
+      excludedDirectories: [app.getPath("userData")],
+    },
+    resolveIcon: (appPath) => readMacAppIcon(appPath),
+    log(message, details) {
+      desktopLogger.info(
+        `[desktop] ${message}${details ? ` ${JSON.stringify(details)}` : ""}`,
+      );
+    },
+  });
+  interface WebauthnPromptContext {
+    requestId: number;
+    url: string;
+    profile: DesktopBrowserTabProfile;
+    browserLabel: string;
+  }
+  const webauthnPromptContext = new Map<string, WebauthnPromptContext>();
+  function webauthnPromptContextKey(
+    hostWindow: { webContents: { id: number } },
+    tabId: string,
+  ): string {
+    return `${hostWindow.webContents.id}:${tabId}`;
+  }
+  function webauthnPromptHost(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.host.length > 0 ? parsed.host : url;
+    } catch {
+      return url;
+    }
+  }
+  function showWebauthnError(
+    hostWindow: BrowserWindow,
+    tabId: string,
+    context: WebauthnPromptContext,
+    reason: DesktopBrowserImportFailureReason | null,
+  ): void {
+    desktopWebauthnViewManager?.setState({
+      hostWindow,
+      tabId,
+      state: {
+        stage: "error",
+        host: webauthnPromptHost(context.url),
+        browserLabel: context.browserLabel,
+        message:
+          reason === null
+            ? "No importable browser was found on this machine."
+            : DESKTOP_BROWSER_IMPORT_FAILURE_COPY[reason],
+        retryable: reason !== null && isRetryableDesktopBrowserImportReason(reason),
+      },
+    });
+  }
+  async function handleWebauthnRequest(
+    requestArgs: DesktopBrowserWebauthnRequestArgs,
+  ): Promise<void> {
+    const hostWindow = requestArgs.hostWindow as BrowserWindow;
+    const sources = await browserImportService.listSources().catch(() => []);
+    const pick = pickWebauthnImportSource(sources);
+    const browserLabel = pick.ok ? pick.source.name : "your browser";
+    webauthnPromptContext.set(
+      webauthnPromptContextKey(hostWindow, requestArgs.tabId),
+      {
+        requestId: requestArgs.requestId,
+        url: requestArgs.url,
+        profile: requestArgs.profile,
+        browserLabel,
+      },
+    );
+    desktopWebauthnViewManager?.open({
+      hostWindow,
+      tabId: requestArgs.tabId,
+      tabBounds: requestArgs.bounds,
+      state: {
+        stage: "ask",
+        host: webauthnPromptHost(requestArgs.url),
+        browserLabel,
+      },
+    });
+  }
+  async function runWebauthnImport(
+    hostWindow: BrowserWindow,
+    tabId: string,
+  ): Promise<void> {
+    const key = webauthnPromptContextKey(hostWindow, tabId);
+    const context = webauthnPromptContext.get(key);
+    if (context === undefined) {
+      return;
+    }
+    desktopWebauthnViewManager?.setState({
+      hostWindow,
+      tabId,
+      state: {
+        stage: "importing",
+        host: webauthnPromptHost(context.url),
+        browserLabel: context.browserLabel,
+      },
+    });
+    const sources = await browserImportService.listSources().catch(() => []);
+    const pick = pickWebauthnImportSource(sources);
+    if (!pick.ok) {
+      showWebauthnError(hostWindow, tabId, context, pick.reason);
+      return;
+    }
+    const manager = desktopBrowserViewManager;
+    if (manager === null) {
+      return;
+    }
+    const outcome = await browserImportService.importCookies(
+      { sourceId: pick.source.id, sourceProfileDirectory: pick.profile.directory },
+      manager.profileSession(context.profile),
+    );
+    if (!outcome.ok) {
+      showWebauthnError(hostWindow, tabId, context, outcome.reason);
+      return;
+    }
+    webauthnPromptContext.delete(key);
+    desktopWebauthnViewManager?.close(hostWindow, tabId);
+    manager.reload({ hostWindow, tabId });
+  }
+  desktopWebauthnViewManager = createDesktopWebauthnViewManager({
+    preloadPath: webauthnPromptPreloadPath,
+    onAction({ hostWindow, tabId, action }) {
+      const nativeHostWindow = hostWindow as BrowserWindow;
+      const key = webauthnPromptContextKey(nativeHostWindow, tabId);
+      const context = webauthnPromptContext.get(key);
+      if (context === undefined) {
+        return;
+      }
+      if (action === "cancel") {
+        webauthnPromptContext.delete(key);
+        desktopBrowserViewManager?.rejectWebauthnRequest({
+          hostWindow: nativeHostWindow,
+          tabId,
+          requestId: context.requestId,
+        });
+        desktopWebauthnViewManager?.close(nativeHostWindow, tabId);
+        return;
+      }
+      if (action === "continue") {
+        void shell.openExternal(context.url);
+        desktopWebauthnViewManager?.setState({
+          hostWindow: nativeHostWindow,
+          tabId,
+          state: {
+            stage: "handoff",
+            host: webauthnPromptHost(context.url),
+            browserLabel: context.browserLabel,
+          },
+        });
+        return;
+      }
+      void runWebauthnImport(nativeHostWindow, tabId);
+    },
+  });
   desktopBrowserViewManager = createDesktopBrowserViewManager({
     pagePreloadPath: browserPagePreloadPath,
     dispatchAppCommand({ command, hostWebContentsId }) {
@@ -3020,22 +3202,25 @@ async function runDesktopApp(): Promise<void> {
           splitNavigationCommandsByWebContentsId.get(hostWebContentsId),
       });
     },
+    onWebauthnRequest(requestArgs) {
+      void handleWebauthnRequest(requestArgs);
+    },
+    onTabBoundsChanged({ hostWindow, tabId, bounds }) {
+      desktopWebauthnViewManager?.layout({
+        hostWindow: hostWindow as BrowserWindow,
+        tabId,
+        tabBounds: bounds,
+      });
+    },
+    onTabClosed({ hostWindow, tabId }) {
+      const nativeHostWindow = hostWindow as BrowserWindow;
+      webauthnPromptContext.delete(
+        webauthnPromptContextKey(nativeHostWindow, tabId),
+      );
+      desktopWebauthnViewManager?.close(nativeHostWindow, tabId);
+    },
   });
   registerDesktopBrowserIpc(desktopBrowserViewManager);
-  const browserImportService = createBrowserImportService({
-    context: {
-      platform: process.platform,
-      home: homedir(),
-      configHome: process.env.XDG_CONFIG_HOME,
-      excludedDirectories: [app.getPath("userData")],
-    },
-    resolveIcon: (appPath) => readMacAppIcon(appPath),
-    log(message, details) {
-      desktopLogger.info(
-        `[desktop] ${message}${details ? ` ${JSON.stringify(details)}` : ""}`,
-      );
-    },
-  });
   desktopBrowserBroker = createDesktopBrowserBroker({
     manager: desktopBrowserViewManager,
     product: `Chrome/${process.versions.chrome}`,

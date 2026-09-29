@@ -166,6 +166,7 @@ interface FakeWebContentsEventMap {
   "did-start-loading": FakeVoidWebContentsListener;
   "did-stop-loading": FakeVoidWebContentsListener;
   "did-finish-load": FakeVoidWebContentsListener;
+  "dom-ready": FakeVoidWebContentsListener;
   "did-navigate": FakeDidNavigateListener;
   "did-navigate-in-page": FakeDidNavigateInPageListener;
   "did-start-navigation": FakeVoidWebContentsListener;
@@ -406,6 +407,7 @@ const electronMock = vi.hoisted(() => {
       "did-start-loading": [],
       "did-stop-loading": [],
       "did-finish-load": [],
+      "dom-ready": [],
       "did-navigate": [],
       "did-navigate-in-page": [],
       "did-start-navigation": [],
@@ -1116,6 +1118,76 @@ describe("browser page scripts", () => {
         data: { type: "state", active: true },
       },
     ]);
+  });
+
+  it("routes a webauthn-request guest message to onWebauthnRequest instead of forwarding it as a page message", () => {
+    const onWebauthnRequest = vi.fn();
+    const manager = createDesktopBrowserViewManager({
+      pagePreloadPath: "/app/dist/browser-page-preload.cjs",
+      onWebauthnRequest,
+    });
+    const hostWindow = new FakeHostWindow({
+      contentBounds: { width: 700, height: 450 },
+      webContentsId: 94,
+    });
+    attachBrowserTab({
+      manager,
+      hostWindow,
+      tabId: "browser:a",
+      url: "https://example.com/login",
+    });
+    const view = requireFakeView(0);
+
+    view.webContents.emitIpc(BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL, {
+      channel: "webauthn-request",
+      data: { requestId: 1, mode: "get" },
+    });
+    view.webContents.emitIpc(BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL, {
+      channel: "webauthn-request",
+      data: { requestId: "not-a-number", mode: "get" },
+    });
+
+    expect(onWebauthnRequest).toHaveBeenCalledTimes(1);
+    expect(onWebauthnRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostWindow,
+        tabId: "browser:a",
+        profile: { kind: "personal" },
+        url: "https://example.com/login",
+        requestId: 1,
+        mode: "get",
+      }),
+    );
+    const forwardedAsPageMessage = hostWindow.webContents.sentChannels.some(
+      (channel) => channel === BB_DESKTOP_BROWSER_PAGE_MESSAGE_CHANNEL,
+    );
+    expect(forwardedAsPageMessage).toBe(false);
+  });
+
+  it("rejectWebauthnRequest runs the page-world reject callback for the requesting tab", async () => {
+    const manager = createDesktopBrowserViewManager({
+      pagePreloadPath: "/app/dist/browser-page-preload.cjs",
+    });
+    const hostWindow = new FakeHostWindow({
+      contentBounds: { width: 700, height: 450 },
+      webContentsId: 95,
+    });
+    attachBrowserTab({
+      manager,
+      hostWindow,
+      tabId: "browser:a",
+      url: "https://example.com/",
+    });
+    const view = requireFakeView(0);
+
+    manager.rejectWebauthnRequest({ hostWindow, tabId: "browser:a", requestId: 7 });
+    await Promise.resolve();
+
+    expect(view.webContents.executeJavaScriptCalls).toHaveLength(1);
+    expect(view.webContents.executeJavaScriptCalls[0]).toContain(
+      "__bbWebauthnReject",
+    );
+    expect(view.webContents.executeJavaScriptCalls[0]).toContain("7");
   });
 
   it("keeps isolated page scripts unavailable without the page preload", async () => {

@@ -11,9 +11,11 @@ take precedence over names; unknown or ambiguous names fail before opening a ses
 
 Choose `--backend local --headless --machine <host-id>` for headless Chrome on
 an enrolled host. Prefer `--backend desktop --machine <host-id> --desktop
-<instance-id>` when a desktop client is connected on that host: it drives the
-user's real browser, which supports passkeys and QR/hybrid WebAuthn natively.
-Choose desktop for a new dedicated desktop automation tab. Starting desktop
+<instance-id>` when a desktop client is connected on that host: it drives a
+tab in BB's own in-app desktop browser. That in-app browser is Electron and
+has no native passkey or QR/hybrid WebAuthn UI, so a passkey button there
+prompts the user to continue in their real system browser instead of hanging;
+see below. Choose desktop for a new dedicated desktop automation tab. Starting desktop
 control opens the side panel and selects the browser tab only if its thread is
 already focused. New or activated controller pages follow the same rule;
 automation does not switch threads or bring the desktop window forward. While
@@ -122,8 +124,17 @@ standard question tool) to open the live preview lightbox and press Take over,
 complete the step, and press it again to give back control; agent runs on that
 session pause automatically while a person holds control, and resume once they
 release it. Headless takeover has no Bluetooth proximity on the host, so it
-cannot complete a passkey or QR/hybrid WebAuthn prompt; use the desktop backend
-and its own Take over (in the side panel) for those instead.
+cannot complete a passkey or QR/hybrid WebAuthn prompt.
+
+A passkey button in either backend cannot be completed in-session: local
+headless Chrome and BB's in-app desktop browser both lack the native WebAuthn
+account picker and hybrid QR dialog. Ask the user to press Take over (desktop:
+in the side panel; local headless: the live preview lightbox), click the
+site's passkey button themselves, and follow the in-tab "Continue in your
+browser" prompt to finish the passkey in their real system browser and bring
+the resulting sign-in back to BB. If the user already signed in elsewhere, run
+`bb browser import-cookies --into automation:project:<projectId>` after they
+confirm instead of waiting on the page.
 
 A local headless `open` returns a `previewDirective`, for example
 `::browser-preview{session="<session-id>"}`. Copy it into your next message

@@ -18,6 +18,11 @@
       "dependsOn": ["topo"],
       "passThroughEnv": ["DISPLAY"]
     },
+    "@bb/desktop#smoke:webauthn": {
+      "cache": false,
+      "dependsOn": ["topo"],
+      "passThroughEnv": ["DISPLAY"]
+    },
     "@bb/web#build": {
       "inputs": [
         "$TURBO_DEFAULT$",

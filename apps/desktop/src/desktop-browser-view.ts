@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { z } from "zod";
 import { captureDesktopBrowserPage } from "./desktop-browser-capture.js";
 import {
   BrowserWindow,
@@ -57,6 +58,14 @@ import {
   evaluatePopupRate,
   isAllowedBrowserUrl,
 } from "./desktop-browser-policy.js";
+import {
+  BB_WEBAUTHN_REQUEST_CHANNEL,
+  BB_WEBAUTHN_REJECT_GLOBAL_KEY,
+  buildWebauthnMainWorldHookSource,
+  type BbWebauthnRequestMessage,
+} from "./webauthn-hook.js";
+
+const webauthnMainWorldHookSource = buildWebauthnMainWorldHookSource();
 
 const POPUP_RATE_WINDOW_MS = 10_000;
 const POPUP_RATE_MAX_IN_WINDOW = 3;
@@ -176,6 +185,7 @@ interface BrowserViewEntry {
   webContents: WebContents;
   view: WebContentsView;
   hostWindow: DesktopBrowserHostWindow;
+  tabId: string;
   threadId: string;
   generation: string;
   profile: DesktopBrowserTabProfile;
@@ -233,6 +243,16 @@ interface DispatchDesktopBrowserAppCommandArgs {
   hostWebContentsId: number;
 }
 
+export interface DesktopBrowserWebauthnRequestArgs {
+  hostWindow: DesktopBrowserHostWindow;
+  tabId: string;
+  profile: DesktopBrowserTabProfile;
+  url: string;
+  bounds: BbDesktopBrowserViewBounds;
+  requestId: number;
+  mode: BbWebauthnRequestMessage["mode"];
+}
+
 export interface CreateDesktopBrowserViewManagerArgs {
   dispatchAppCommand: (args: DispatchDesktopBrowserAppCommandArgs) => void;
   focusHostWebContents: (hostWebContentsId: number) => void;
@@ -242,6 +262,16 @@ export interface CreateDesktopBrowserViewManagerArgs {
     input: AppShortcutInput,
     hostWebContentsId: number,
   ) => AppCommandId | null;
+  onWebauthnRequest?: (args: DesktopBrowserWebauthnRequestArgs) => void;
+  onTabBoundsChanged?: (args: {
+    hostWindow: DesktopBrowserHostWindow;
+    tabId: string;
+    bounds: BbDesktopBrowserViewBounds;
+  }) => void;
+  onTabClosed?: (args: {
+    hostWindow: DesktopBrowserHostWindow;
+    tabId: string;
+  }) => void;
 }
 
 interface HostScopedRequestArgs<TRequest> {
@@ -323,6 +353,7 @@ export interface DesktopBrowserViewManager {
   evaluate(
     args: HostScopedRequestArgs<BbDesktopBrowserEvaluateRequest>,
   ): Promise<BbDesktopBrowserEvaluateResult>;
+  rejectWebauthnRequest(args: HostScopedTabArgs & { requestId: number }): void;
   beginWindowResize(hostWindow: DesktopBrowserHostWindow): void;
   endWindowResize(hostWindow: DesktopBrowserHostWindow): void;
   prepareWindowReload(hostWindow: DesktopBrowserHostWindow): void;
@@ -342,6 +373,13 @@ const BB_DESKTOP_BROWSER_MAX_PAGE_MESSAGE_LENGTH = 1_000_000;
 const guestPageMessageSchema = bbDesktopBrowserPageMessageSchema.omit({
   tabId: true,
 });
+
+const webauthnRequestMessageSchema = z
+  .object({
+    requestId: z.number().int().positive(),
+    mode: z.enum(["get", "create"]),
+  })
+  .strict();
 
 export function browserPageEvaluationSource(
   request: BbDesktopBrowserEvaluateRequest,
@@ -667,6 +705,9 @@ export function createDesktopBrowserViewManager(
     webContents.on("page-title-updated", notifyAutomationTabs);
 
     if (pagePreloadPath !== null) {
+      webContents.on("dom-ready", () => {
+        webContents.executeJavaScript(webauthnMainWorldHookSource).catch(() => {});
+      });
       webContents.ipc.on(
         BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL,
         (_event, payload: unknown) => {
@@ -676,6 +717,23 @@ export function createDesktopBrowserViewManager(
             JSON.stringify(parsed.data.data).length >
               BB_DESKTOP_BROWSER_MAX_PAGE_MESSAGE_LENGTH
           ) {
+            return;
+          }
+          if (parsed.data.channel === BB_WEBAUTHN_REQUEST_CHANNEL) {
+            const webauthnRequest = webauthnRequestMessageSchema.safeParse(
+              parsed.data.data,
+            );
+            if (webauthnRequest.success) {
+              args.onWebauthnRequest?.({
+                hostWindow,
+                tabId,
+                profile: entry.profile,
+                url: webContents.getURL(),
+                bounds: entry.desiredBounds,
+                requestId: webauthnRequest.data.requestId,
+                mode: webauthnRequest.data.mode,
+              });
+            }
             return;
           }
           send(hostWindow, BB_DESKTOP_BROWSER_PAGE_MESSAGE_CHANNEL, {
@@ -884,6 +942,7 @@ export function createDesktopBrowserViewManager(
       view,
       webContents: view.webContents,
       hostWindow: args.hostWindow,
+      tabId: args.tabId,
       threadId: args.threadId,
       generation: randomUUID(),
       profile: { ...args.profile },
@@ -943,6 +1002,7 @@ export function createDesktopBrowserViewManager(
     if (!hostWindow.isDestroyed()) {
       hostWindow.contentView.removeChildView(entry.view);
     }
+    args.onTabClosed?.({ hostWindow, tabId: entry.tabId });
     disposeEntry(key, entry);
   }
 
@@ -1240,6 +1300,19 @@ export function createDesktopBrowserViewManager(
         };
       }
     },
+    rejectWebauthnRequest({ hostWindow, tabId, requestId }) {
+      withEntry({ hostWindow, tabId }, (entry) => {
+        entry.webContents
+          .executeJavaScript(
+            `(() => { const reject = window[${JSON.stringify(
+              BB_WEBAUTHN_REJECT_GLOBAL_KEY,
+            )}]; if (typeof reject === "function") reject(${JSON.stringify(
+              requestId,
+            )}); })()`,
+          )
+          .catch(() => {});
+      });
+    },
     navigate({ hostWindow, request }) {
       withEntry({ hostWindow, tabId: request.tabId }, (entry) => {
         resetEntryRendererRecovery(entry);
@@ -1280,6 +1353,11 @@ export function createDesktopBrowserViewManager(
     setBounds({ hostWindow, request }) {
       withEntry({ hostWindow, tabId: request.tabId }, (entry) => {
         setEntryDesiredBounds({ bounds: request.bounds, entry, hostWindow });
+        args.onTabBoundsChanged?.({
+          hostWindow,
+          tabId: request.tabId,
+          bounds: request.bounds,
+        });
       });
     },
     findInPage({ hostWindow, request }) {

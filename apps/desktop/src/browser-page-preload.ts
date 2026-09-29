@@ -4,16 +4,28 @@ import {
   BB_DESKTOP_BROWSER_PAGE_BRIDGE_KEY,
   BB_DESKTOP_BROWSER_PAGE_WORLD_ID,
 } from "./desktop-browser-ipc.js";
+import { BB_WEBAUTHN_REQUEST_CHANNEL } from "./webauthn-hook.js";
+
+function postMessage(channel: unknown, data: unknown): void {
+  ipcRenderer.send(BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL, {
+    channel,
+    data,
+  });
+}
 
 contextBridge.exposeInIsolatedWorld(
   BB_DESKTOP_BROWSER_PAGE_WORLD_ID,
   BB_DESKTOP_BROWSER_PAGE_BRIDGE_KEY,
   {
-    postMessage(channel: unknown, data: unknown): void {
-      ipcRenderer.send(BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL, {
-        channel,
-        data,
-      });
-    },
+    postMessage,
   },
 );
+
+document.addEventListener(BB_WEBAUTHN_REQUEST_CHANNEL, (event) => {
+  const detail = (event as CustomEvent<string>).detail;
+  try {
+    postMessage(BB_WEBAUTHN_REQUEST_CHANNEL, JSON.parse(detail));
+  } catch {
+    return;
+  }
+});
