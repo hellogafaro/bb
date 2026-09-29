@@ -15,6 +15,7 @@ class ManualFrameSource implements ComputerFrameSource {
 
 function frame(bytes: number[], capturedAt: number): CapturedFrame {
   return {
+    kind: "image",
     bytes: new Uint8Array(bytes),
     mimeType: "image/png",
     width: 10,
