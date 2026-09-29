@@ -296,4 +296,70 @@ describe("runJevGoal", () => {
       }),
     ).toMatchObject({ state: "done" });
   });
+
+  it("retries a decision once after a malformed or invalid response, then succeeds", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        if (decideCalls === 1) throw new Error("OpenRouter Jev returned malformed JSON");
+        return decision({ action: "done", answer: "recovered" });
+      },
+    };
+    const result = await runJevGoal({
+      goal: "recover from a truncated decision",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () => observationResult("generic [ref=e1]"),
+    });
+    expect(decideCalls).toBe(2);
+    expect(result.state).toBe("done");
+    expect(result.answer).toBe("recovered");
+  });
+
+  it("does not retry an HTTP error", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        throw new Error("OpenRouter Jev returned HTTP 500");
+      },
+    };
+    await expect(
+      runJevGoal({
+        goal: "fail fast on an HTTP error",
+        maxSteps: 5,
+        stepTimeoutMs: 1_000,
+        signal: new AbortController().signal,
+        provider,
+        runScript: async () => observationResult("generic [ref=e1]"),
+      }),
+    ).rejects.toThrow("OpenRouter Jev returned HTTP 500");
+    expect(decideCalls).toBe(1);
+  });
+
+  it("does not retry an abort error", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        const error = new Error("The operation was aborted");
+        error.name = "AbortError";
+        throw error;
+      },
+    };
+    await expect(
+      runJevGoal({
+        goal: "fail fast on an abort error",
+        maxSteps: 5,
+        stepTimeoutMs: 1_000,
+        signal: new AbortController().signal,
+        provider,
+        runScript: async () => observationResult("generic [ref=e1]"),
+      }),
+    ).rejects.toThrow("The operation was aborted");
+    expect(decideCalls).toBe(1);
+  });
 });

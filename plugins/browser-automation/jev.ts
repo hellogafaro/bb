@@ -82,7 +82,7 @@ const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/compl
 const JEV_ROUTER_MODEL = "typesafe/jev-router";
 
 const SYSTEM_PROMPT =
-  "You are Jev, the fast decision step of a browser automation loop. You receive a goal, the current page's URL and title, an ARIA accessibility snapshot with element refs like [ref=e6], and recent action outcomes. Pick exactly one next action. Use ref for click/double_click/fill/select/scroll actions, choosing a ref that literally appears in the snapshot. Use value for fill/select text. Use url only for goto. Use key only for press_key. Set submit true only when pressing Enter right after fill should submit the field (a search box or single-field form). Set goal_complete_after true only when this action is expected to fully satisfy the goal. Always fill answer with your best current answer to the goal given what you know so far; it is used verbatim if this is the final step.";
+  "You are Jev, the fast decision step of a browser automation loop. You receive a goal, the current page's URL and title, an ARIA accessibility snapshot with element refs like [ref=e6], and recent action outcomes. Pick exactly one next action. Use ref for click/double_click/fill/select/scroll actions, choosing a ref that literally appears in the snapshot. Use value for fill/select text. Use url only for goto. Use key only for press_key. Set submit true only when pressing Enter right after fill should submit the field (a search box or single-field form). Set goal_complete_after true only when this action is expected to fully satisfy the goal. Always fill answer with your best current answer to the goal given what you know so far; it is used verbatim if this is the final step. Keep answer short: one sentence, no more than 200 characters.";
 
 export interface OpenRouterBrowserJevOptions {
   readonly apiKey: string;
@@ -144,7 +144,7 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
           type: "json_schema",
           json_schema: { name: "browser_decision", strict: true, schema },
         },
-        max_tokens: 600,
+        max_tokens: 1_000,
         reasoning: { effort: "low" },
       }),
       signal: AbortSignal.any([timeout, signal]),
@@ -292,6 +292,32 @@ function clampStepTarget(target: string | null): string | null {
   return target.length > MAX_STEP_TARGET_LENGTH ? target.slice(0, MAX_STEP_TARGET_LENGTH) : target;
 }
 
+const RETRYABLE_DECISION_ERROR_MESSAGES = [
+  "OpenRouter Jev response omitted content",
+  "OpenRouter Jev returned malformed JSON",
+  "OpenRouter Jev omitted a decision",
+  "OpenRouter Jev returned an invalid action",
+];
+
+function isRetryableDecisionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === "AbortError") return false;
+  return RETRYABLE_DECISION_ERROR_MESSAGES.some((message) => error.message.startsWith(message));
+}
+
+async function decideWithRetry(
+  provider: JevProvider,
+  request: JevDecisionRequest,
+  signal: AbortSignal,
+): Promise<JevDecision> {
+  try {
+    return await provider.decide(request, signal);
+  } catch (error) {
+    if (signal.aborted || !isRetryableDecisionError(error)) throw error;
+    return provider.decide(request, signal);
+  }
+}
+
 export interface RunJevGoalArgs {
   readonly goal: string;
   readonly maxSteps: number;
@@ -322,7 +348,8 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
       }
     }
     args.signal.throwIfAborted();
-    const decision = await args.provider.decide(
+    const decision = await decideWithRetry(
+      args.provider,
       {
         goal: args.goal,
         observation: { url: stepResult.url, title: stepResult.title, snapshot: stepResult.snapshot },
