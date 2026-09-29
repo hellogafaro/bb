@@ -1,12 +1,15 @@
 import type {
   ComputerFrame,
   ComputerImageMimeType,
+  ComputerLiveFrameHeader,
   ComputerLiveProfile,
   ComputerLiveState,
+  ComputerVideoCodec,
 } from "@bb/host-daemon-contract";
 import { extractDesktopImage, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
 
-export interface CapturedFrame {
+export interface CapturedImageFrame {
+  readonly kind: "image";
   readonly bytes: Uint8Array;
   readonly mimeType: ComputerImageMimeType;
   readonly width: number;
@@ -15,6 +18,28 @@ export interface CapturedFrame {
   readonly originalHeight: number;
   readonly capturedAt: number;
 }
+
+export interface CapturedVideoConfigFrame {
+  readonly kind: "video-config";
+  readonly bytes: Uint8Array;
+  readonly codec: ComputerVideoCodec;
+  readonly width: number;
+  readonly height: number;
+  readonly capturedAt: number;
+}
+
+export interface CapturedVideoFrame {
+  readonly kind: "video-frame";
+  readonly bytes: Uint8Array;
+  readonly codec: ComputerVideoCodec;
+  readonly width: number;
+  readonly height: number;
+  readonly keyframe: boolean;
+  readonly ptsMicros: number;
+  readonly capturedAt: number;
+}
+
+export type CapturedFrame = CapturedImageFrame | CapturedVideoConfigFrame | CapturedVideoFrame;
 
 export interface ComputerFrameSource {
   stream(
@@ -36,12 +61,13 @@ export const LIVE_PROFILES: Readonly<Record<ComputerLiveProfile, LiveProfileSett
 
 export const LIVE_CAPTURE_SESSION = "bb-live";
 
-export function desktopCapture(result: CuaToolResult, capturedAt: number): CapturedFrame {
+export function desktopCapture(result: CuaToolResult, capturedAt: number): CapturedImageFrame {
   const image = extractDesktopImage(result);
   if (image === null) {
     throw new Error("The driver returned a desktop capture without an image");
   }
   return {
+    kind: "image",
     bytes: Buffer.from(image.base64, "base64"),
     mimeType: image.mimeType,
     width: image.width,
@@ -210,22 +236,48 @@ export class LiveStream {
 
   #publish(frame: CapturedFrame): void {
     this.#options.onFrame?.(frame);
-    const previous = this.#lastBytes;
-    if (previous !== null && sameBytes(previous, frame.bytes)) return;
-    this.#lastBytes = frame.bytes;
+    if (frame.kind === "image") {
+      const previous = this.#lastBytes;
+      if (previous !== null && sameBytes(previous, frame.bytes)) return;
+      this.#lastBytes = frame.bytes;
+    }
     this.#sequence += 1;
-    this.#options.sendFrame({
-      header: {
-        sequence: this.#sequence,
+    this.#options.sendFrame({ header: frameHeaderFor(frame, this.#sequence), body: frame.bytes });
+  }
+}
+
+function frameHeaderFor(frame: CapturedFrame, sequence: number): ComputerLiveFrameHeader {
+  switch (frame.kind) {
+    case "image":
+      return {
+        sequence,
         capturedAt: frame.capturedAt,
         mimeType: frame.mimeType,
         width: frame.width,
         height: frame.height,
         originalWidth: frame.originalWidth,
         originalHeight: frame.originalHeight,
-      },
-      body: frame.bytes,
-    });
+      };
+    case "video-config":
+      return {
+        kind: "video-config",
+        sequence,
+        capturedAt: frame.capturedAt,
+        codec: frame.codec,
+        width: frame.width,
+        height: frame.height,
+      };
+    case "video-frame":
+      return {
+        kind: "video-frame",
+        sequence,
+        capturedAt: frame.capturedAt,
+        codec: frame.codec,
+        width: frame.width,
+        height: frame.height,
+        keyframe: frame.keyframe,
+        ptsMicros: frame.ptsMicros,
+      };
   }
 }
 

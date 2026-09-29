@@ -40,6 +40,7 @@ import { computerDriverPlatformKey, ensureProvisionedDriver } from "./computer-d
 import { ensureProvisionedComputerApp, type ComputerAppState } from "./computer-app-provisioning.js";
 import { PersistentCuaTransport } from "./computer-driver-session.js";
 import { DriverCaptureFrameSource, desktopCapture, LiveStream, type ComputerFrameSource } from "./computer-live.js";
+import { VideoSocketFrameSource } from "./computer-video-source.js";
 import {
   buildCapabilityManifest,
   MANIFEST_EXPIRES_AFTER_MS,
@@ -673,6 +674,34 @@ interface DesktopSize {
   readonly height: number;
 }
 
+/**
+ * Streams H.264 from the bb Computer helper's video socket when darwin is
+ * running the embedded bundle and the socket is actually up yet, falling
+ * back to the PNG DriverCaptureFrameSource otherwise (helper not installed,
+ * or its video capture hasn't started/failed permissions). Re-checked on
+ * every LiveStream retry, so a helper that comes up mid-session upgrades the
+ * next reconnect without restarting the whole live view.
+ */
+class PreferEmbeddedVideoFrameSource implements ComputerFrameSource {
+  readonly #videoSocketPath: () => Promise<string | null>;
+  readonly #video: ComputerFrameSource;
+  readonly #fallback: ComputerFrameSource;
+
+  constructor(videoSocketPath: () => Promise<string | null>, video: ComputerFrameSource, fallback: ComputerFrameSource) {
+    this.#videoSocketPath = videoSocketPath;
+    this.#video = video;
+    this.#fallback = fallback;
+  }
+
+  async stream(profile: ComputerLiveProfile, onFrame: Parameters<ComputerFrameSource["stream"]>[1], signal: AbortSignal): Promise<void> {
+    const path = await this.#videoSocketPath();
+    if (path !== null && (await pathExists(path))) {
+      return this.#video.stream(profile, onFrame, signal);
+    }
+    return this.#fallback.stream(profile, onFrame, signal);
+  }
+}
+
 export class ComputerHostService {
   readonly #dataDir: string;
   readonly #driver: DriverController;
@@ -713,13 +742,22 @@ export class ComputerHostService {
     this.#transport = options.transportFactory
       ? new RenewingCuaTransport(options.transportFactory(), renewalHooks)
       : this.#liveTransport;
+    const pngSource = new DriverCaptureFrameSource({ transport: this.#liveTransport });
+    const defaultSource = new PreferEmbeddedVideoFrameSource(
+      () => this.#driver.embeddedVideoSocketPathIfActive(this.#dataDir),
+      new VideoSocketFrameSource({ socketPath: async () => (await this.#driver.embeddedVideoSocketPathIfActive(this.#dataDir))! }),
+      pngSource,
+    );
     this.#live = new LiveStream({
-      source: options.liveFrameSourceFactory?.(this.#liveTransport) ?? new DriverCaptureFrameSource({ transport: this.#liveTransport }),
+      source: options.liveFrameSourceFactory?.(this.#liveTransport) ?? defaultSource,
       prepare: () => this.#driver.ensureDaemon(this.#dataDir),
       sendFrame: options.live.sendFrame,
       sendStatus: options.live.sendStatus,
       onFrame: (frame) => {
-        this.#desktopSize = { width: frame.originalWidth, height: frame.originalHeight };
+        this.#desktopSize =
+          frame.kind === "image"
+            ? { width: frame.originalWidth, height: frame.originalHeight }
+            : { width: frame.width, height: frame.height };
       },
     });
   }
