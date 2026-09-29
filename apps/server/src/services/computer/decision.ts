@@ -35,8 +35,21 @@ export interface DecisionResponse {
   readonly servedModel: string | null;
 }
 
+export interface ConfirmGoalCompleteRequest {
+  readonly runId: string;
+  readonly goal: string;
+  readonly observation: Observation;
+  readonly recentSummaries: readonly string[];
+}
+
+export interface ConfirmGoalCompleteResponse {
+  readonly complete: boolean;
+  readonly probability: number;
+}
+
 export interface DecisionProvider {
   decide(request: DecisionRequest, signal: AbortSignal): Promise<DecisionResponse>;
+  confirmGoalComplete(request: ConfirmGoalCompleteRequest, signal: AbortSignal): Promise<ConfirmGoalCompleteResponse>;
 }
 
 const TARGETLESS_OPERATIONS = ["wait", "done", "blocked", "hotkey", "type_window", "press_key", "focus_window"];
@@ -190,6 +203,10 @@ export class EscalateToAgentError extends Error {}
 
 const NONE_TARGET = "none";
 const NOUL_TRUE_THRESHOLD = 0.5;
+// Speculative "this step will finish the goal" and its post-action confirmation both need
+// strong evidence before the loop stops: at 0.5 Jev ended runs on a single focus_window/done
+// guess (confidence ~0.6) after nothing in the goal had actually happened yet.
+const GOAL_COMPLETE_THRESHOLD = 0.8;
 
 const TARGET_HEAD_KEY: Record<TargetOperationKind | "press_key", string> = {
   click: "click_target",
@@ -211,9 +228,9 @@ const OPERATION_DESCRIPTIONS: Record<OperationKind, string> = {
   hotkey: "Press Escape as a general-purpose dismiss/cancel action; use only when no other operation fits.",
   type_window: "Type literal text into the currently focused window with no specific element targeted (for example, a terminal).",
   press_key: "Press a single named key (Enter, Escape, Tab, or a copy/paste/select-all shortcut); prefer clicking a visible on-screen control over this when one exists for the same purpose.",
-  focus_window: "Bring the current window to focus and take no other action this step.",
+  focus_window: "Bring the current window to focus and take no other action this step. Do not choose this to skip past concrete steps the goal names (a click, a typed command, a new tab/window) that recent_outcomes does not yet show as done.",
   wait: "Take no action this step and wait briefly for the UI to settle.",
-  done: "The goal is already fully satisfied; take no further action.",
+  done: "Every concrete step the goal names has already happened, per recent_outcomes and the current observation; take no further action. Do not choose this because a remaining step merely looks reachable from here.",
   blocked: "No safe next step is available; stop and escalate to a human or agent.",
 };
 
@@ -240,6 +257,12 @@ const GOAL_COMPLETE_INSTRUCTIONS =
 const GOAL_COMPLETE_NOUL_CRITERIA = {
   true: "The chosen operation is expected to fully satisfy the goal; no further step will be needed afterward.",
   false: "Further steps will still be needed after the chosen operation.",
+};
+const CONFIRM_GOAL_COMPLETE_INSTRUCTIONS =
+  "Is the goal now fully complete? Judge only by what recent_outcomes and the current observation confirm already happened, not by what the next step could accomplish.";
+const CONFIRM_GOAL_COMPLETE_NOUL_CRITERIA = {
+  true: "Every concrete step the goal named has already happened; the current observation shows the goal is fully satisfied right now.",
+  false: "At least one concrete step the goal named has not been confirmed to happen yet.",
 };
 
 const MAX_TEXT_CANDIDATES = 6;
@@ -413,7 +436,7 @@ export class JevDecisionProvider implements DecisionProvider {
         : null;
     const submit = submitProbability !== null && submitProbability >= NOUL_TRUE_THRESHOLD;
     const goalCompleteProbability = parseNoul(answers.goal_complete_after);
-    const goalCompleteAfter = goalCompleteProbability >= NOUL_TRUE_THRESHOLD;
+    const goalCompleteAfter = goalCompleteProbability >= GOAL_COMPLETE_THRESHOLD;
 
     return {
       operationChoiceId,
@@ -427,6 +450,27 @@ export class JevDecisionProvider implements DecisionProvider {
       costUsd,
       servedModel,
     };
+  }
+
+  async confirmGoalComplete(
+    request: ConfirmGoalCompleteRequest,
+    signal: AbortSignal,
+  ): Promise<ConfirmGoalCompleteResponse> {
+    const questions: Record<string, SystemOneQuestion> = {
+      goal_now_complete: {
+        type: "noul",
+        instructions: CONFIRM_GOAL_COMPLETE_INSTRUCTIONS,
+        criteria: CONFIRM_GOAL_COMPLETE_NOUL_CRITERIA,
+      },
+    };
+    const state = {
+      goal: request.goal,
+      observation: { title: request.observation.title, targets: request.observation.targets },
+      recent_outcomes: request.recentSummaries,
+    };
+    const { answers } = await this.#call(state, questions, request.runId, signal);
+    const probability = parseNoul(answers.goal_now_complete);
+    return { complete: probability >= GOAL_COMPLETE_THRESHOLD, probability };
   }
 
   async #call(

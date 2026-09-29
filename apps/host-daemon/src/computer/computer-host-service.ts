@@ -74,6 +74,17 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
+// process.kill(pid, 0) sends no signal; it only checks whether the pid is reachable, so it is
+// safe to use as a liveness probe for pruning grants left behind by terminals/apps that exited.
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function candidateBinaryPaths(dataDir: string): string[] {
   return [
     join(homedir(), ".local", "bin", "cua-driver"),
@@ -126,6 +137,7 @@ interface ResolvedManifestRenewalOptions {
 }
 
 const DEFAULT_RENEWAL_MARGIN_MS = 5 * 60 * 1000;
+const STOP_PROBE_TIMEOUT_MS = 5_000;
 
 function resolveManifestRenewal(options: ManifestRenewalOptions | undefined): ResolvedManifestRenewalOptions {
   return {
@@ -152,6 +164,7 @@ class DriverController {
   #manifestWrittenAt: number | null = null;
   #lastCallAt: number | null = null;
   #renewalInFlight: Promise<void> | null = null;
+  #daemonGeneration = 0;
   #computerAppFactory: ((dataDir: string) => Promise<ComputerAppState>) | undefined;
   #lifecycleLock: Promise<unknown> = Promise.resolve();
 
@@ -345,6 +358,7 @@ class DriverController {
   }
 
   async #spawnDaemon(dataDir: string): Promise<void> {
+    this.#daemonGeneration += 1;
     const appState = await this.#resolveComputerApp(dataDir);
     if (appState.kind === "embedded") {
       return this.#spawnEmbeddedDaemon(dataDir, appState);
@@ -457,7 +471,9 @@ class DriverController {
     if (appState.kind === "embedded") {
       await this.#runQuiet("/usr/bin/pkill", ["-f", this.#embeddedDriverSocketPath(dataDir)]);
     } else {
-      await this.runProbe(dataDir, ["stop"]);
+      // A daemon wedged mid-request (see isStuckDriverCallError) may never answer "stop" either;
+      // don't let that block recovery forever, fall through to killing the tracked process below.
+      await Promise.race([this.runProbe(dataDir, ["stop"]), new Promise((resolve) => setTimeout(resolve, STOP_PROBE_TIMEOUT_MS))]);
     }
     if (this.#daemonProcess !== null && this.#daemonProcess.exitCode === null) this.#daemonProcess.kill("SIGTERM");
     this.#daemonProcess = null;
@@ -483,16 +499,24 @@ class DriverController {
     await this.#spawnDaemon(dataDir);
   }
 
-  async ensureWindowGranted(dataDir: string, pid: number, windowId: number): Promise<void> {
+  // Returns whether this call restarted the daemon (a fresh spawn, whether from ensureDaemon's
+  // first start or this window's own grant). Callers use that to know the accessibility bridge
+  // may still be cold: cua-driver logs "AT-SPI listener initialization did not complete within
+  // 3000 ms; continuing in the background" on a fresh spawn, and a get_window_state call made
+  // immediately after can come back with only the window itself and none of its children.
+  async ensureWindowGranted(dataDir: string, pid: number, windowId: number): Promise<boolean> {
+    const generationBefore = this.#daemonGeneration;
     await this.ensureDaemon(dataDir);
-    if (PERMISSION_MODE !== "bounded") return;
-    if (this.#windowGrants.has(pid, windowId)) return;
+    if (PERMISSION_MODE !== "bounded") return this.#daemonGeneration !== generationBefore;
+    if (this.#windowGrants.has(pid, windowId)) return this.#daemonGeneration !== generationBefore;
+    this.#windowGrants.pruneDead(isProcessAlive);
     this.#windowGrants.add(pid, windowId);
     await this.#withLifecycleLock(async () => {
       await this.#writeManifestFile(dataDir);
       await this.#stopDaemon(dataDir);
       await this.#spawnDaemon(dataDir);
     });
+    return true;
   }
 
   async ensureRunDirGranted(dataDir: string, outputDir: string): Promise<void> {

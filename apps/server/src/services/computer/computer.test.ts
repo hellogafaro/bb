@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { runJevLoop, type JevLoopIo, type RunRecord } from "./computer.js";
-import { EscalateToAgentError, type DecisionProvider, type DecisionRequest, type DecisionResponse } from "./decision.js";
+import {
+  EscalateToAgentError,
+  type ConfirmGoalCompleteRequest,
+  type ConfirmGoalCompleteResponse,
+  type DecisionProvider,
+  type DecisionRequest,
+  type DecisionResponse,
+} from "./decision.js";
 import type {
   ComputerActionOutcome as ActionOutcome,
   ComputerObservation as Observation,
@@ -66,15 +73,23 @@ function outcomeFixture(overrides: Partial<ActionOutcome> = {}): ActionOutcome {
 
 class ScriptedProvider implements DecisionProvider {
   #script: DecisionResponse[];
+  #confirmResults: boolean[];
   requests: DecisionRequest[] = [];
-  constructor(script: DecisionResponse[]) {
+  confirmRequests: ConfirmGoalCompleteRequest[] = [];
+  constructor(script: DecisionResponse[], confirmResults: boolean[] = []) {
     this.#script = script;
+    this.#confirmResults = confirmResults;
   }
   async decide(request: DecisionRequest): Promise<DecisionResponse> {
     this.requests.push(request);
     const next = this.#script[this.requests.length - 1];
     if (next === undefined) throw new Error("ScriptedProvider ran out of answers");
     return next;
+  }
+  async confirmGoalComplete(request: ConfirmGoalCompleteRequest): Promise<ConfirmGoalCompleteResponse> {
+    this.confirmRequests.push(request);
+    const complete = this.#confirmResults[this.confirmRequests.length - 1] ?? true;
+    return { complete, probability: complete ? 1 : 0 };
   }
 }
 
@@ -232,7 +247,7 @@ describe("runJevLoop", () => {
     expect(actedActions).not.toContainEqual({ kind: "press_key", key: "Enter" });
   });
 
-  it("finishes as done after one verification observe when goalCompleteAfter is true, without another decide()", async () => {
+  it("finishes as done after one verification observe and a fresh confirmation question, when goalCompleteAfter is true, without another decide()", async () => {
     const observation = observationFixture({ targets: [] });
     const provider = new ScriptedProvider([
       { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: true, goalCompleteProbability: 1, confidence: null, costUsd: null, servedModel: null },
@@ -250,6 +265,27 @@ describe("runJevLoop", () => {
     expect(run.status.state).toBe("done");
     expect(observeCalls).toBe(2);
     expect(provider.requests).toHaveLength(1);
+    expect(provider.confirmRequests).toHaveLength(1);
+  });
+
+  it("does not finish and keeps looping when goalCompleteAfter is true but the fresh confirmation question says the goal is not yet complete", async () => {
+    const observation = observationFixture({ targets: [] });
+    const provider = new ScriptedProvider(
+      [
+        { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: true, goalCompleteProbability: 1, confidence: null, costUsd: null, servedModel: null },
+        { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
+      ],
+      [false],
+    );
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 2 }), provider, io);
+    expect(run.status.state).not.toBe("done");
+    expect(provider.confirmRequests).toHaveLength(1);
+    expect(provider.requests).toHaveLength(2);
   });
 
   it("continues the loop normally when the goalCompleteAfter verification observe is inconsistent", async () => {
@@ -280,6 +316,9 @@ describe("runJevLoop", () => {
       decide: async () => {
         decideCalls += 1;
         throw new EscalateToAgentError("no candidate text fits the goal");
+      },
+      confirmGoalComplete: async () => {
+        throw new Error("confirmGoalComplete should not be called");
       },
     };
     const io: JevLoopIo = {

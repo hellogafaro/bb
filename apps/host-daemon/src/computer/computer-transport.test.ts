@@ -5,6 +5,7 @@ import {
   extractDesktopImage,
   extractMcpImage,
   isLapsedManifestError,
+  isStuckDriverCallError,
   parseCuaResult,
   RenewingCuaTransport,
   type CuaToolResult,
@@ -65,6 +66,18 @@ describe("isLapsedManifestError", () => {
   it("does not flag unrelated driver errors", () => {
     const error = new CuaError("stale observation: window no longer visible", "stale-observation");
     expect(isLapsedManifestError(error)).toBe(false);
+  });
+});
+
+describe("isStuckDriverCallError", () => {
+  it("recognizes a driver call that timed out instead of failing fast", () => {
+    const error = new CuaError("Cua tool get_window_state failed: Request timed out", "provider-unavailable", true);
+    expect(isStuckDriverCallError(error)).toBe(true);
+  });
+
+  it("does not flag unrelated driver errors", () => {
+    const error = new CuaError("stale observation: window no longer visible", "stale-observation");
+    expect(isStuckDriverCallError(error)).toBe(false);
   });
 });
 
@@ -151,6 +164,25 @@ describe("RenewingCuaTransport", () => {
     };
     const transport = new RenewingCuaTransport(inner, renewalHooks);
     const result = await transport.call("health_report", {}, new AbortController().signal);
+    expect(result.structuredContent).toEqual({ ok: true });
+    expect(attempts).toBe(2);
+    expect(renewalHooks.calls).toEqual(["ensureFresh", "renewAfterLapse", "noteSuccess"]);
+  });
+
+  it("renews and retries once when a driver call times out, since a stuck daemon needs a restart, not just a reconnect", async () => {
+    const renewalHooks = hooks();
+    let attempts = 0;
+    const inner: CuaTransport = {
+      call: async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new CuaError("Cua tool get_window_state failed: Request timed out", "provider-unavailable", true);
+        }
+        return { structuredContent: { ok: true } };
+      },
+    };
+    const transport = new RenewingCuaTransport(inner, renewalHooks);
+    const result = await transport.call("get_window_state", {}, new AbortController().signal);
     expect(result.structuredContent).toEqual({ ok: true });
     expect(attempts).toBe(2);
     expect(renewalHooks.calls).toEqual(["ensureFresh", "renewAfterLapse", "noteSuccess"]);

@@ -103,7 +103,20 @@ export async function findWindow(
   return new DesktopWindow(chosen.pid, windowId, String(chosen.title ?? ""));
 }
 
-export type EnsureWindowGranted = (pid: number, windowId: number) => Promise<void>;
+// Returns whether granting this window required a fresh daemon spawn/restart (true), so the
+// caller knows the accessibility bridge may still be warming up and an empty element list is
+// worth a short retry rather than trusting it immediately.
+export type EnsureWindowGranted = (pid: number, windowId: number) => Promise<boolean | void>;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// After a fresh daemon spawn, cua-driver's AT-SPI listener can still be attaching in the
+// background (it logs "continuing in the background" rather than blocking startup on it); the
+// very next get_window_state call can come back with only the window itself and no children.
+// A short bounded retry covers that race without adding latency once the daemon is warm.
+const POST_RESTART_RETRY_DELAYS_MS = [200, 400, 800, 1600];
 
 export class TargetTable {
   #bindings = new Map<string, Binding>();
@@ -136,8 +149,33 @@ export class TargetTable {
     // The window found here may not be the one the daemon's capability manifest was last
     // granted for (a new tab, a new window, a popup); grant it before touching the driver
     // so the driver doesn't refuse observe/act as "outside the capability manifest".
-    await this.#ensureGranted?.(window.pid, window.windowId);
+    const restarted = (await this.#ensureGranted?.(window.pid, window.windowId)) === true;
     this.#window = window;
+    let snapshot = await this.#fetchWindowState(transport, signal, window);
+    if (restarted) {
+      for (const delayMs of POST_RESTART_RETRY_DELAYS_MS) {
+        if (snapshot.targets.length > 0) break;
+        await wait(delayMs);
+        snapshot = await this.#fetchWindowState(transport, signal, window);
+      }
+    }
+    this.#bindings = snapshot.bindings;
+    this.#snapshotId = snapshot.snapshotId;
+    return {
+      surface: "desktop",
+      title: snapshot.title,
+      snapshotId: snapshot.snapshotId,
+      observedAt: Date.now(),
+      targets: snapshot.targets,
+      hint: snapshot.targets.length === 0 ? zeroElementHint(snapshot.title) : null,
+    };
+  }
+
+  async #fetchWindowState(
+    transport: CuaTransport,
+    signal: AbortSignal,
+    window: DesktopWindow,
+  ): Promise<{ bindings: Map<string, Binding>; snapshotId: string; title: string; targets: ComputerTarget[] }> {
     const result = await transport.call(
       "get_window_state",
       {
@@ -191,17 +229,8 @@ export class TargetTable {
       index += 1;
       if (targets.length >= 200) break;
     }
-    this.#bindings = bindings;
-    this.#snapshotId = snapshotId;
     const title = String(data.window_title ?? window.title ?? "").slice(0, 500);
-    return {
-      surface: "desktop",
-      title,
-      snapshotId,
-      observedAt: Date.now(),
-      targets,
-      hint: targets.length === 0 ? zeroElementHint(title) : null,
-    };
+    return { bindings, snapshotId, title, targets };
   }
 
   resolveTarget(targetId: string, snapshotId: string): { pid: number; window_id: number; element_index: number; element_token?: string; snapshot_id?: string } {

@@ -185,6 +185,16 @@ export function isRecoverableSessionError(error: unknown): boolean {
   return error instanceof Error && RECOVERABLE_SESSION_PATTERN.test(error.message);
 }
 
+// A driver call that times out (rather than erroring quickly) means the daemon's own request
+// handling is stuck, not just this one call: reusing the same connection just queues the next
+// call behind the same stuck one. Restarting the daemon, the same recovery already used for a
+// lapsed manifest, is the only thing that reliably unsticks it.
+const STUCK_DRIVER_CALL_PATTERN = /request timed out/iu;
+
+export function isStuckDriverCallError(error: unknown): boolean {
+  return error instanceof Error && STUCK_DRIVER_CALL_PATTERN.test(error.message);
+}
+
 export interface ManifestRenewalHooks {
   ensureFresh(): Promise<void>;
   renewAfterLapse(): Promise<void>;
@@ -207,7 +217,7 @@ export class RenewingCuaTransport implements CuaTransport {
       this.#hooks.noteSuccess();
       return result;
     } catch (error) {
-      if (!isLapsedManifestError(error)) throw error;
+      if (!isLapsedManifestError(error) && !isStuckDriverCallError(error)) throw error;
       await this.#hooks.renewAfterLapse();
       const result = await this.#inner.call(tool, input, signal);
       this.#hooks.noteSuccess();

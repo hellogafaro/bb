@@ -77,6 +77,16 @@ export class WindowGrantSet {
     return true;
   }
 
+  // Terminals and other short-lived apps exit between runs; without pruning, their dead
+  // pids linger in the bounded (MAX_GRANTED_WINDOWS-sized) grant set and can evict the
+  // still-live window a new run actually needs, or bloat the manifest with unreachable
+  // windows the driver will refuse to resolve anyway.
+  pruneDead(isAlive: (pid: number) => boolean): void {
+    for (const [key, grant] of this.#grants) {
+      if (!isAlive(grant.pid)) this.#grants.delete(key);
+    }
+  }
+
   list(): WindowGrant[] {
     return [...this.#grants.values()];
   }

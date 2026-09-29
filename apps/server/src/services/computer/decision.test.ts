@@ -171,6 +171,9 @@ class ScriptedProvider implements DecisionProvider {
     if (next === undefined) throw new Error("Scripted provider ran out of answers");
     return next;
   }
+  async confirmGoalComplete(): Promise<{ complete: boolean; probability: number }> {
+    throw new Error("confirmGoalComplete is not scripted in this fixture");
+  }
 }
 
 describe("ScriptedProvider fixture", () => {
@@ -428,6 +431,67 @@ describe("JevDecisionProvider", () => {
     const pending = provider.decide(decisionRequest, abort.signal);
     abort.abort(new Error("cancelled"));
     await expect(pending).rejects.toThrow("cancelled");
+  });
+
+  it("only treats goal_complete_after as true at or above 0.8, not the 0.5 threshold used for submit", async () => {
+    const belowThreshold = fakeSystemOne({
+      operation: choiceAnswer("click"),
+      click_target: choiceAnswer("t2"),
+      goal_complete_after: noulAnswer(0.65),
+    });
+    const belowProvider = new JevDecisionProvider({
+      endpoint: "https://openrouter.ai/api/alpha/decisions",
+      model: "~typesafe/jev-latest",
+      apiKey: "key",
+      fetchImpl: belowThreshold.fetchImpl,
+    });
+    const belowDecision = await belowProvider.decide(decisionRequest, new AbortController().signal);
+    expect(belowDecision.goalCompleteProbability).toBe(0.65);
+    expect(belowDecision.goalCompleteAfter).toBe(false);
+
+    const atThreshold = fakeSystemOne({
+      operation: choiceAnswer("click"),
+      click_target: choiceAnswer("t2"),
+      goal_complete_after: noulAnswer(0.8),
+    });
+    const atProvider = new JevDecisionProvider({
+      endpoint: "https://openrouter.ai/api/alpha/decisions",
+      model: "~typesafe/jev-latest",
+      apiKey: "key",
+      fetchImpl: atThreshold.fetchImpl,
+    });
+    const atDecision = await atProvider.decide(decisionRequest, new AbortController().signal);
+    expect(atDecision.goalCompleteAfter).toBe(true);
+  });
+
+  it("confirmGoalComplete asks a single fresh noul question against the post-action observation and recent_outcomes, gated at 0.8", async () => {
+    const { fetchImpl, calls } = fakeSystemOne({ goal_now_complete: noulAnswer(0.65) });
+    const provider = new JevDecisionProvider({ endpoint: "https://openrouter.ai/api/alpha/decisions", model: "~typesafe/jev-latest", apiKey: "key", fetchImpl });
+    const result = await provider.confirmGoalComplete(
+      { runId: "run-1", goal: "Save the file", observation, recentSummaries: ["step 1: clicked 'Save' (button) -> same window, no title change"] },
+      new AbortController().signal,
+    );
+    expect(result).toEqual({ complete: false, probability: 0.65 });
+    expect(calls).toHaveLength(1);
+    const body = calls[0]!.body;
+    expect(Object.keys(body.questions as Record<string, unknown>)).toEqual(["goal_now_complete"]);
+    expect(body.state).toMatchObject({
+      goal: "Save the file",
+      recent_outcomes: ["step 1: clicked 'Save' (button) -> same window, no title change"],
+    });
+
+    const highConfidence = fakeSystemOne({ goal_now_complete: noulAnswer(0.9) });
+    const confidentProvider = new JevDecisionProvider({
+      endpoint: "https://openrouter.ai/api/alpha/decisions",
+      model: "~typesafe/jev-latest",
+      apiKey: "key",
+      fetchImpl: highConfidence.fetchImpl,
+    });
+    const confidentResult = await confidentProvider.confirmGoalComplete(
+      { runId: "run-1", goal: "Save the file", observation, recentSummaries: [] },
+      new AbortController().signal,
+    );
+    expect(confidentResult).toEqual({ complete: true, probability: 0.9 });
   });
 });
 

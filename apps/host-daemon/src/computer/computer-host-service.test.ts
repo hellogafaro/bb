@@ -818,6 +818,39 @@ describe("ComputerHostService manifest renewal", () => {
 
     service.dispose();
   });
+
+  it("renews and retries once when a driver call times out instead of failing fast, the same recovery as a lapsed manifest", async () => {
+    const log: string[] = [];
+    let calls = 0;
+    class StuckThenRecoveredTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        log.push(tool);
+        calls += 1;
+        if (calls === 1) {
+          throw new CuaError("Cua tool get_window_state failed: Request timed out", "provider-unavailable", true);
+        }
+        return { structuredContent: { text: "clip" } };
+      }
+      close(): void {}
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      liveTransportFactory: () => new StuckThenRecoveredTransport(),
+      spawnProcess: statefulLoggingSpawn(log),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    const result = await service.clipboardRead();
+    expect(result.text).toBe("clip");
+    expect(calls).toBe(2);
+    expect(log).toEqual(["clipboard_read", "stop", "serve", "clipboard_read"]);
+
+    service.dispose();
+  });
+
 });
 
 describe("ComputerHostService desktop capture", () => {

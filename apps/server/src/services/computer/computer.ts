@@ -506,16 +506,32 @@ export async function runJevLoop(
       });
 
       if (operation.kind === "done") {
+        let finalObservation: Observation;
         try {
-          const finalObservation = await io.observe(deps, input.hostId, undefined);
-          touchRun(run, { state: "done", lastObservation: finalObservation });
+          finalObservation = await io.observe(deps, input.hostId, undefined);
         } catch (error) {
           touchRun(run, {
             state: "error",
             lastSummary: error instanceof Error ? error.message : String(error),
           });
+          return;
         }
-        return;
+        touchRun(run, { lastObservation: finalObservation });
+        try {
+          const confirmation = await provider.confirmGoalComplete(
+            {
+              runId: run.status.runId,
+              goal: input.goal,
+              observation: finalObservation,
+              recentSummaries: [...recentSummaries],
+            },
+            signal,
+          );
+          if (confirmation.complete) {
+            touchRun(run, { state: "done" });
+            return;
+          }
+        } catch {}
       }
       if (operation.kind === "blocked" || outcome.state === "blocked") {
         touchRun(run, { state: "blocked" });
@@ -535,8 +551,20 @@ export async function runJevLoop(
       if (decision.goalCompleteAfter && outcome.state !== "error") {
         try {
           const finalObservation = await io.observe(deps, input.hostId, undefined);
-          touchRun(run, { state: "done", lastObservation: finalObservation });
-          return;
+          touchRun(run, { lastObservation: finalObservation });
+          const confirmation = await provider.confirmGoalComplete(
+            {
+              runId: run.status.runId,
+              goal: input.goal,
+              observation: finalObservation,
+              recentSummaries: [...recentSummaries],
+            },
+            signal,
+          );
+          if (confirmation.complete) {
+            touchRun(run, { state: "done" });
+            return;
+          }
         } catch {}
       }
     }

@@ -214,4 +214,80 @@ describe("TargetTable", () => {
     expect(observation.hint).not.toMatch(/force-renderer-accessibility/);
     expect(observation.hint).not.toBeNull();
   });
+
+  it("retries get_window_state after a fresh grant restart when the accessibility bridge is still cold, instead of trusting an empty first result", async () => {
+    let stateCalls = 0;
+    class ColdStartTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "list_windows") return windowsResponse;
+        if (tool === "get_window_state") {
+          stateCalls += 1;
+          // The daemon just restarted: cua-driver's AT-SPI listener is still attaching, so the
+          // first couple of calls see only the window itself, with none of its children yet.
+          if (stateCalls < 3) {
+            return {
+              structuredContent: {
+                window_title: "Editor",
+                snapshot_id: `cold-${stateCalls}`,
+                elements: [{ element_index: 0, role: "window", label: "Editor", enabled: true, actions: ["activate"] }],
+              },
+            };
+          }
+          return stateResponse;
+        }
+        throw new Error(`No fake response for ${tool}`);
+      }
+    }
+    const transport = new ColdStartTransport();
+    const table = new TargetTable(async () => true);
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(stateCalls).toBe(3);
+    expect(observation.targets).toHaveLength(2);
+    expect(observation.hint).toBeNull();
+  });
+
+  it("does not retry when the grant did not restart the daemon, even if the window reports zero elements", async () => {
+    let stateCalls = 0;
+    class WarmTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "list_windows") return windowsResponse;
+        if (tool === "get_window_state") {
+          stateCalls += 1;
+          return { structuredContent: { window_title: "Editor", snapshot_id: "warm", elements: [] } };
+        }
+        throw new Error(`No fake response for ${tool}`);
+      }
+    }
+    const transport = new WarmTransport();
+    const table = new TargetTable(async () => false);
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(stateCalls).toBe(1);
+    expect(observation.targets).toHaveLength(0);
+  });
+
+  it("gives up and returns whatever it has after exhausting retries, without hanging the caller forever", async () => {
+    let stateCalls = 0;
+    class NeverWarmsUpTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "list_windows") return windowsResponse;
+        if (tool === "get_window_state") {
+          stateCalls += 1;
+          return {
+            structuredContent: {
+              window_title: "Editor",
+              snapshot_id: `cold-${stateCalls}`,
+              elements: [{ element_index: 0, role: "window", label: "Editor", enabled: true, actions: ["activate"] }],
+            },
+          };
+        }
+        throw new Error(`No fake response for ${tool}`);
+      }
+    }
+    const transport = new NeverWarmsUpTransport();
+    const table = new TargetTable(async () => true);
+    const observation = await table.observe(transport, new AbortController().signal);
+    expect(stateCalls).toBe(5);
+    expect(observation.targets).toHaveLength(0);
+    expect(observation.hint).not.toBeNull();
+  });
 });

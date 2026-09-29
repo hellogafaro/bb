@@ -68,6 +68,24 @@ describe("WindowGrantSet", () => {
     expect(grants.has(8, 8)).toBe(true);
     expect(grants.list()).toHaveLength(8);
   });
+
+  it("drops grants for pids that are no longer alive, so a fresh terminal doesn't lose its slot to a dead one", () => {
+    const grants = new WindowGrantSet();
+    grants.add(100, 1);
+    grants.add(200, 2);
+    grants.pruneDead((pid) => pid !== 100);
+    expect(grants.has(100, 1)).toBe(false);
+    expect(grants.has(200, 2)).toBe(true);
+    expect(grants.list()).toEqual([{ pid: 200, windowId: 2 }]);
+  });
+
+  it("never prunes live pids, even when every current grant is still alive", () => {
+    const grants = new WindowGrantSet();
+    grants.add(1, 1);
+    grants.add(2, 2);
+    grants.pruneDead(() => true);
+    expect(grants.list()).toHaveLength(2);
+  });
 });
 
 describe("PathGrantSet", () => {
