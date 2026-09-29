@@ -99,12 +99,53 @@ describe("computer panel machine picker", () => {
 
     fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
 
-    await view.findByText(/Controlled by/);
+    await view.findByText("View only");
     expect(liveMock).toHaveBeenCalledWith(
       expect.objectContaining({ hostId: "host-a", profile: "full" }),
     );
     expect(view.queryByText("Workstation")).toBeNull();
   });
+
+  it.each([
+    { control: "agent" as const, runId: null, label: "View only", buttons: ["Take control"] },
+    {
+      control: "agent" as const,
+      runId: "run-1",
+      label: "Agent is using this computer",
+      buttons: ["Take control", "Stop agent"],
+    },
+    { control: "you" as const, runId: null, label: "You're in control", buttons: ["Stop control"] },
+    {
+      control: "other" as const,
+      runId: null,
+      label: "Someone else is in control",
+      buttons: ["Take control"],
+    },
+  ])(
+    "shows '$label' with the right buttons for control=$control runId=$runId",
+    async ({ control, runId, label, buttons }) => {
+      machinesMock.mockResolvedValue({ machines: [machine()], currentHostId: "host-a" });
+      doctorMock.mockResolvedValue(readyDoctor());
+      const connection = fakeLiveConnection();
+      liveMock.mockReturnValue(connection);
+
+      const view = render(<ComputerPanel threadId="thread-1" isActive={true} />);
+
+      fireEvent.click(await view.findByRole("button", { name: /Workstation/ }));
+      await view.findByText("View only");
+      connection.emitStatus({ state: "live", message: null, control, runId, fps: 0 });
+
+      await view.findByText(label);
+      for (const buttonName of buttons) {
+        view.getByRole("button", { name: buttonName });
+      }
+      if (control === "other") {
+        expect(view.getByRole("button", { name: "Take control" }).hasAttribute("disabled")).toBe(
+          true,
+        );
+      }
+    },
+  );
 
   it("shows the doctor probes when a machine is not ready", async () => {
     machinesMock.mockResolvedValue({ machines: [machine()], currentHostId: "host-a" });

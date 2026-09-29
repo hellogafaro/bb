@@ -83,22 +83,24 @@ function useDoctorReport(hostId: string) {
   return report;
 }
 
+function controlStatusLabel(control: ComputerControlOwner, runId: string | null): string {
+  if (control === "you") return "You're in control";
+  if (control === "other") return "Someone else is in control";
+  if (runId !== null) return "Agent is using this computer";
+  return "View only";
+}
+
 function ControlBanner({
   hostId,
   clientId,
   control,
   runId,
-  readClipboard,
-  writeClipboard,
 }: {
   hostId: string;
   clientId: string;
   control: ComputerControlOwner;
   runId: string | null;
-  readClipboard: () => Promise<string | null>;
-  writeClipboard: (text: string, paste: boolean) => Promise<void>;
 }) {
-  const [clipboardError, setClipboardError] = useState<string | null>(null);
   const takeControl = () => {
     sdk.computer.takeControl({ hostId, clientId }).catch(() => {});
   };
@@ -108,61 +110,18 @@ function ControlBanner({
   const stop = () => {
     if (runId !== null) sdk.computer.cancel({ runId }).catch(() => {});
   };
-  const copyFromMachine = async () => {
-    setClipboardError(null);
-    try {
-      const text = await readClipboard();
-      if (text !== null) await navigator.clipboard.writeText(text);
-    } catch (error) {
-      setClipboardError(error instanceof Error ? error.message : String(error));
-    }
-  };
-  const pasteToMachine = async () => {
-    setClipboardError(null);
-    try {
-      const text = await navigator.clipboard.readText();
-      await writeClipboard(text, true);
-    } catch (error) {
-      setClipboardError(error instanceof Error ? error.message : String(error));
-    }
-  };
-  const label =
-    control === "you"
-      ? "Controlled by you"
-      : control === "other"
-        ? "Controlled by another session"
-        : runId !== null
-          ? "Controlled by the agent — a run is active"
-          : "Controlled by the agent when a run is active";
+  const label = controlStatusLabel(control, runId);
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs">
-      <span className="truncate text-muted-foreground">{clipboardError ?? label}</span>
+      <span className="truncate text-muted-foreground">{label}</span>
       <div className="flex shrink-0 gap-2">
-        {control === "you" ? (
-          <>
-            <button
-              type="button"
-              onClick={copyFromMachine}
-              className="rounded border border-border px-2 py-1 hover:bg-background"
-            >
-              Copy from machine
-            </button>
-            <button
-              type="button"
-              onClick={pasteToMachine}
-              className="rounded border border-border px-2 py-1 hover:bg-background"
-            >
-              Paste to machine
-            </button>
-          </>
-        ) : null}
-        {runId !== null ? (
+        {control === "agent" && runId !== null ? (
           <button
             type="button"
             onClick={stop}
             className="rounded border border-destructive px-2 py-1 text-destructive hover:bg-destructive/10"
           >
-            Stop
+            Stop agent
           </button>
         ) : null}
         {control === "you" ? (
@@ -171,7 +130,7 @@ function ControlBanner({
             onClick={release}
             className="rounded border border-border px-2 py-1 hover:bg-background"
           >
-            Release
+            Stop control
           </button>
         ) : (
           <button
@@ -327,10 +286,8 @@ function MachineWorkspace({
         clientId={clientId}
         control={live.control}
         runId={live.runId}
-        readClipboard={live.readClipboard}
-        writeClipboard={live.writeClipboard}
       />
-      <ComputerLiveStage live={live} interactive />
+      <ComputerLiveStage live={live} interactive isMac={report.platform === "darwin"} />
     </>
   );
 }

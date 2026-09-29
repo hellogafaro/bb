@@ -133,15 +133,18 @@ Live view and human input:
 The Computer tab in the thread's side panel shows a pushed live view over a
 WebSocket (not polled) and streams only while someone has it open; the app
 captures pointer and keyboard events there and maps them into human input
-for you. `bb computer input` sends one human input (`click`, `drag`, `scroll`,
-`move`, `type`, `key`) over that same live channel for scripting — hold
-control with `take-control` first, using the same `--client` ID, or it is
-rejected. `--input`'s `frame` field is the pixel size you are reasoning in
-(e.g. the desktop's real resolution); coordinates are mapped to the actual
-screen from it. `bb computer clipboard` reads or writes the machine's text
-clipboard over the same channel; `--action write --paste` also presses the
-platform paste shortcut after writing. Both close the live connection after
-one call — they are not for continuous streaming.
+for you. When a person holds control from the Computer tab, its copy, cut,
+and paste keyboard shortcuts sync transparently with their own OS
+clipboard — no separate clipboard buttons. `bb computer input` sends one
+human input (`click`, `drag`, `scroll`, `move`, `type`, `key`) over that same
+live channel for scripting — hold control with `take-control` first, using
+the same `--client` ID, or it is rejected. `--input`'s `frame` field is the
+pixel size you are reasoning in (e.g. the desktop's real resolution);
+coordinates are mapped to the actual screen from it. `bb computer clipboard`
+reads or writes the machine's text clipboard over the same channel for
+scripting; `--action write --paste` also presses the platform paste shortcut
+after writing. Both close the live connection after one call — they are not
+for continuous streaming.
 
 Browser windows are observed and acted on through the same commands; the
 browser binding is not yet implemented, so treat non-desktop targets as

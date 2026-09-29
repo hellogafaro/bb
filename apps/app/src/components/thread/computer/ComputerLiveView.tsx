@@ -7,7 +7,6 @@ import type {
   ComputerPointerButton,
 } from "@bb/host-daemon-contract";
 import type { ComputerControlOwner } from "@bb/server-contract";
-import { cn } from "@bb/shared-ui/lib/utils";
 import { sdk } from "@/lib/sdk";
 
 type ComputerLiveConnection = ReturnType<typeof sdk.computer.live>;
@@ -199,12 +198,18 @@ const DRAG_THRESHOLD_PX = 4;
 const DOUBLE_CLICK_WINDOW_MS = 400;
 const DOUBLE_CLICK_DISTANCE_PX = 6;
 
+function clipboardModifier(isMac: boolean): ComputerKeyModifier {
+  return isMac ? "meta" : "ctrl";
+}
+
 export function ComputerLiveStage({
   live,
   interactive = false,
+  isMac = false,
 }: {
   live: ComputerLiveHandle;
   interactive?: boolean;
+  isMac?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const keyCaptureRef = useRef<HTMLTextAreaElement>(null);
@@ -331,6 +336,11 @@ export function ComputerLiveStage({
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!canControl) return;
+      const isClipboardShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        (event.key === "c" || event.key === "x" || event.key === "v");
+      if (isClipboardShortcut) return;
       const special = resolveKeyName(event.key);
       const modifiers = keyModifiers(event);
       const isShortcut = event.ctrlKey || event.metaKey || event.altKey;
@@ -350,6 +360,42 @@ export function ComputerLiveStage({
       void live.perform({ kind: "type", text });
     },
     [canControl, live],
+  );
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!canControl) return;
+      event.preventDefault();
+      const text = event.clipboardData.getData("text/plain");
+      if (text.length === 0) return;
+      void live.writeClipboard(text, true);
+    },
+    [canControl, live],
+  );
+
+  const handleCopyOrCut = useCallback(
+    (key: "c" | "x", event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!canControl) return;
+      event.preventDefault();
+      const textBlob = live
+        .perform({ kind: "key", key, modifiers: [clipboardModifier(isMac)] })
+        .then(() => live.readClipboard())
+        .then((text) => new Blob([text ?? ""], { type: "text/plain" }));
+      if (typeof ClipboardItem !== "undefined") {
+        void navigator.clipboard
+          .write([new ClipboardItem({ "text/plain": textBlob })])
+          .catch(async () => {
+            const text = await (await textBlob).text();
+            await navigator.clipboard.writeText(text).catch(() => {});
+          });
+      } else {
+        void textBlob
+          .then((blob) => blob.text())
+          .then((text) => navigator.clipboard.writeText(text))
+          .catch(() => {});
+      }
+    },
+    [canControl, live, isMac],
   );
 
   return (
@@ -372,20 +418,23 @@ export function ComputerLiveStage({
           src={live.frameUrl}
           alt="Live machine view"
           draggable={false}
-          className={cn("max-h-full max-w-full object-contain", canControl && "cursor-none")}
+          className="max-h-full max-w-full object-contain"
         />
       )}
       {interactive ? (
         <textarea
           ref={keyCaptureRef}
           aria-label="Computer keyboard input"
-          className="absolute inset-0 h-full w-full resize-none opacity-0"
+          className="absolute inset-0 h-full w-full cursor-default resize-none opacity-0"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
           disabled={!canControl}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
+          onPaste={handlePaste}
+          onCopy={(event) => handleCopyOrCut("c", event)}
+          onCut={(event) => handleCopyOrCut("x", event)}
         />
       ) : null}
     </div>
@@ -398,13 +447,15 @@ export function ComputerLiveView({
   profile = "thumbnail",
   clientId,
   interactive = false,
+  isMac = false,
 }: {
   hostId: string;
   active: boolean;
   profile?: ComputerLiveProfile;
   clientId: string;
   interactive?: boolean;
+  isMac?: boolean;
 }) {
   const live = useComputerLive(hostId, { active, profile, clientId });
-  return <ComputerLiveStage live={live} interactive={interactive} />;
+  return <ComputerLiveStage live={live} interactive={interactive} isMac={isMac} />;
 }
