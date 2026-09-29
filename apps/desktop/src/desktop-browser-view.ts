@@ -251,6 +251,7 @@ export interface DesktopBrowserWebauthnRequestArgs {
   bounds: BbDesktopBrowserViewBounds;
   requestId: number;
   mode: BbWebauthnRequestMessage["mode"];
+  options: unknown;
 }
 
 export interface CreateDesktopBrowserViewManagerArgs {
@@ -354,6 +355,9 @@ export interface DesktopBrowserViewManager {
     args: HostScopedRequestArgs<BbDesktopBrowserEvaluateRequest>,
   ): Promise<BbDesktopBrowserEvaluateResult>;
   rejectWebauthnRequest(args: HostScopedTabArgs & { requestId: number }): void;
+  resolveWebauthnRequest(
+    args: HostScopedTabArgs & { requestId: number; resolveScript: string },
+  ): void;
   beginWindowResize(hostWindow: DesktopBrowserHostWindow): void;
   endWindowResize(hostWindow: DesktopBrowserHostWindow): void;
   prepareWindowReload(hostWindow: DesktopBrowserHostWindow): void;
@@ -378,6 +382,7 @@ const webauthnRequestMessageSchema = z
   .object({
     requestId: z.number().int().positive(),
     mode: z.enum(["get", "create"]),
+    options: z.unknown(),
   })
   .strict();
 
@@ -734,6 +739,7 @@ export function createDesktopBrowserViewManager(
                 bounds: entry.desiredBounds,
                 requestId: webauthnRequest.data.requestId,
                 mode: webauthnRequest.data.mode,
+                options: webauthnRequest.data.options,
               });
             }
             return;
@@ -1313,6 +1319,11 @@ export function createDesktopBrowserViewManager(
             )}); })()`,
           )
           .catch(() => {});
+      });
+    },
+    resolveWebauthnRequest({ hostWindow, tabId, resolveScript }) {
+      withEntry({ hostWindow, tabId }, (entry) => {
+        entry.webContents.executeJavaScript(resolveScript).catch(() => {});
       });
     },
     navigate({ hostWindow, request }) {

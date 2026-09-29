@@ -1,0 +1,27 @@
+name: Build Webauthn Helper
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-webauthn-helper-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: macOS arm64 bb-webauthn-helper (compile check)
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify arm64 runner
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Build bb-webauthn-helper
+        run: ./apps/webauthn-macos/build.sh "$RUNNER_TEMP/bb-webauthn-helper"

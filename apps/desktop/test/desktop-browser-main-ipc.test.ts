@@ -165,6 +165,7 @@ class RecordingDesktopBrowserViewManager implements DesktopBrowserViewManager {
   }
 
   rejectWebauthnRequest(): void {}
+  resolveWebauthnRequest(): void {}
   public readonly setVisibleWithoutFocusCalls: SetVisibleCall[] = [];
   public readonly stopCalls: TabCommandCall[] = [];
 

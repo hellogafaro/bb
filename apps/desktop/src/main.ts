@@ -231,6 +231,19 @@ import {
   createDesktopWebauthnViewManager,
   type DesktopWebauthnViewManager,
 } from "./desktop-webauthn-view.js";
+import { BB_WEBAUTHN_RESOLVE_GLOBAL_KEY } from "./webauthn-hook.js";
+import { isWebauthnNativeBridgeAvailable } from "./webauthn-native/webauthn-native-entitlement.js";
+import {
+  runNativeWebauthnRequest,
+  webauthnHelperExecutablePath,
+} from "./webauthn-native/webauthn-native-bridge.js";
+import { serializedPublicKeyOptionsSchema } from "./webauthn-native/webauthn-native-protocol.js";
+import { mapPublicKeyOptionsToNativeRequest } from "./webauthn-native/webauthn-option-mapping.js";
+import {
+  buildCreateCredentialPayload,
+  buildGetCredentialPayload,
+  buildWebauthnResolveScript,
+} from "./webauthn-native/webauthn-result-mapping.js";
 import { createBrowserImportService } from "./browser-import/browser-import.js";
 import { readMacAppIcon } from "./browser-import/mac-app-icon.js";
 import {
@@ -3039,10 +3052,10 @@ async function runDesktopApp(): Promise<void> {
     clearWebauthnNoticeTimer(webauthnNoticeKey(hostWindow, tabId));
     desktopWebauthnViewManager?.close(hostWindow, tabId);
   }
-  function handleWebauthnRequest(
+  function rejectWebauthnRequestWithNotice(
+    hostWindow: BrowserWindow,
     requestArgs: DesktopBrowserWebauthnRequestArgs,
   ): void {
-    const hostWindow = requestArgs.hostWindow as BrowserWindow;
     const { tabId } = requestArgs;
     desktopBrowserViewManager?.rejectWebauthnRequest({
       hostWindow,
@@ -3064,6 +3077,61 @@ async function runDesktopApp(): Promise<void> {
         desktopWebauthnViewManager?.close(hostWindow, tabId);
       }, WEBAUTHN_NOTICE_AUTO_HIDE_MS),
     );
+  }
+  async function handleWebauthnRequest(
+    requestArgs: DesktopBrowserWebauthnRequestArgs,
+  ): Promise<void> {
+    const hostWindow = requestArgs.hostWindow as BrowserWindow;
+    if (
+      isWebauthnNativeBridgeAvailable({
+        platform: process.platform,
+        resourcesPath: process.resourcesPath,
+        env: process.env,
+      })
+    ) {
+      const parsedOptions = serializedPublicKeyOptionsSchema.safeParse(
+        requestArgs.options,
+      );
+      if (parsedOptions.success) {
+        try {
+          const origin = new URL(requestArgs.url).origin;
+          const { nativeRequest, clientDataJson } =
+            mapPublicKeyOptionsToNativeRequest(
+              parsedOptions.data,
+              origin,
+              false,
+            );
+          const response = await runNativeWebauthnRequest(
+            webauthnHelperExecutablePath(process.resourcesPath),
+            nativeRequest,
+          );
+          if (response.ok) {
+            const payload =
+              response.mode === "get"
+                ? buildGetCredentialPayload(response, clientDataJson)
+                : buildCreateCredentialPayload(response, clientDataJson);
+            desktopBrowserViewManager?.resolveWebauthnRequest({
+              hostWindow,
+              tabId: requestArgs.tabId,
+              requestId: requestArgs.requestId,
+              resolveScript: buildWebauthnResolveScript(
+                BB_WEBAUTHN_RESOLVE_GLOBAL_KEY,
+                requestArgs.requestId,
+                payload,
+              ),
+            });
+            return;
+          }
+        } catch (error) {
+          desktopLogger.warn(
+            `[desktop] native passkey bridge failed, falling back to the in-tab notice: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+    }
+    rejectWebauthnRequestWithNotice(hostWindow, requestArgs);
   }
   desktopWebauthnViewManager = createDesktopWebauthnViewManager({
     preloadPath: webauthnPromptPreloadPath,
@@ -3106,7 +3174,7 @@ async function runDesktopApp(): Promise<void> {
       });
     },
     onWebauthnRequest(requestArgs) {
-      handleWebauthnRequest(requestArgs);
+      void handleWebauthnRequest(requestArgs);
     },
     onTabBoundsChanged({ hostWindow, tabId, bounds }) {
       desktopWebauthnViewManager?.layout({
