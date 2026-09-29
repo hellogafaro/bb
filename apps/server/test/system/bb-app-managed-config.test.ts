@@ -64,7 +64,7 @@ function createRuntimeConfig(): ServerRuntimeConfig {
     appVersion: "0.0.0-test",
     builtinSkillsRootPath: "/tmp/bb-test/builtin-skills",
     computerOpenRouterApiKey: "",
-    computerOpenRouterDecisionModel: "typesafe/jev-router",
+    computerOpenRouterDecisionModel: "~typesafe/jev-latest",
     computerTypesafeApiKey: "",
     computerTypesafeEndpoint: "https://api.typesafe.ai/v1/systemone",
     computerTypesafeModel: "jev-1",

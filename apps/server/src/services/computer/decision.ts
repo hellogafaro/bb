@@ -15,6 +15,7 @@ export interface Choice {
 }
 
 export interface DecisionRequest {
+  readonly runId: string;
   readonly goal: string;
   readonly observation: Observation;
   readonly recentSummaries: readonly string[];
@@ -28,6 +29,8 @@ export interface DecisionResponse {
   readonly submit: boolean;
   readonly goalCompleteAfter: boolean;
   readonly confidence: number | null;
+  readonly costUsd: number | null;
+  readonly servedModel: string | null;
 }
 
 export interface DecisionProvider {
@@ -163,101 +166,28 @@ interface ChoiceAnswer {
 }
 
 function parseChoice(value: unknown, allowed: ReadonlySet<string>): ChoiceAnswer {
-  if (value === null || typeof value !== "object") throw new Error("TypeSafe System One omitted a choice");
+  if (value === null || typeof value !== "object") throw new Error("System One omitted a choice");
   const answer = value as { choice?: unknown; confidence?: unknown };
   if (typeof answer.choice !== "string" || !allowed.has(answer.choice)) {
-    throw new Error("TypeSafe System One returned an invalid choice");
+    throw new Error("System One returned an invalid choice");
   }
   const confidence = typeof answer.confidence === "number" && Number.isFinite(answer.confidence) ? answer.confidence : 1;
   return { choice: answer.choice, confidence };
 }
 
-export class JevDecisionProvider implements DecisionProvider {
-  readonly #options: Required<Omit<JevProviderOptions, "fetchImpl">> & { fetchImpl: typeof fetch };
-
-  constructor(options: JevProviderOptions) {
-    if (options.apiKey.trim().length === 0) throw new Error("TypeSafe API key is missing");
-    this.#options = { ...options, timeoutMs: options.timeoutMs ?? 30_000, fetchImpl: options.fetchImpl ?? fetch };
+function parseNoul(value: unknown): number {
+  if (value === null || typeof value !== "object") throw new Error("System One omitted a noul");
+  const answer = value as { noul?: unknown };
+  if (typeof answer.noul !== "number" || !Number.isFinite(answer.noul)) {
+    throw new Error("System One returned an invalid noul");
   }
-
-  async decide(request: DecisionRequest, signal: AbortSignal): Promise<DecisionResponse> {
-    const state = {
-      goal: request.goal,
-      observation: { title: request.observation.title, targets: request.observation.targets },
-      recent_outcomes: request.recentSummaries,
-    };
-    const operationIds = new Set(request.operationChoices.map((choice) => choice.choiceId));
-    const first = await this.#call(state, {
-      operation: {
-        type: "choice",
-        instructions: "Which supplied operation makes the most progress toward goal? Select only a supplied ID.",
-        criteria: Object.fromEntries(request.operationChoices.map((choice) => [choice.choiceId, choice.label])),
-      },
-    }, signal);
-    const operation = parseChoice(first.operation, operationIds);
-    const compatibleTargets = choicesForOperation(operation.choice as OperationKind, request.observation.targets);
-    if (compatibleTargets.length === 0) {
-      return {
-        operationChoiceId: operation.choice,
-        targetChoiceId: null,
-        typedText: null,
-        submit: false,
-        goalCompleteAfter: false,
-        confidence: operation.confidence,
-      };
-    }
-    const targetResult = await this.#call(
-      { ...state, selected_operation: operation.choice },
-      {
-        target: {
-          type: "choice",
-          instructions: "For the selected operation, which compatible supplied target best advances goal?",
-          criteria: Object.fromEntries(compatibleTargets.map((choice) => [choice.choiceId, choice.label])),
-        },
-      },
-      signal,
-    );
-    const target = parseChoice(targetResult.target, new Set(compatibleTargets.map((choice) => choice.choiceId)));
-    return {
-      operationChoiceId: operation.choice,
-      targetChoiceId: target.choice,
-      typedText: null,
-      submit: false,
-      goalCompleteAfter: false,
-      confidence: Math.min(operation.confidence, target.confidence),
-    };
-  }
-
-  async #call(state: unknown, questions: Record<string, unknown>, signal: AbortSignal): Promise<Record<string, unknown>> {
-    const timeout = AbortSignal.timeout(this.#options.timeoutMs);
-    const response = await this.#options.fetchImpl(this.#options.endpoint, {
-      method: "POST",
-      headers: { authorization: `Bearer ${this.#options.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ state, model: this.#options.model, questions }),
-      signal: AbortSignal.any([timeout, signal]),
-    });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`TypeSafe System One returned HTTP ${response.status}`);
-    const parsed = JSON.parse(text) as { answers?: unknown };
-    if (parsed.answers === null || typeof parsed.answers !== "object") throw new Error("TypeSafe System One omitted typed answers");
-    return parsed.answers as Record<string, unknown>;
-  }
+  return answer.noul;
 }
 
-export interface OpenRouterProviderOptions {
-  readonly endpoint?: string;
-  readonly model: string;
-  readonly apiKey: string;
-  readonly timeoutMs?: number;
-  readonly fetchImpl?: typeof fetch;
-}
-
-const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-const OPENROUTER_JEV_SYSTEM_PROMPT =
-  "You are Jev, the decision step of a desktop automation loop. You receive a goal, the current window's target table, recent action outcomes, and questions. Answer every question by selecting exactly one of its supplied choice IDs. Each target question only applies when its matching operation is chosen; otherwise answer it with \"none\".";
+export class EscalateToAgentError extends Error {}
 
 const NONE_TARGET = "none";
+const NOUL_TRUE_THRESHOLD = 0.5;
 
 const TARGET_HEAD_KEY: Record<TargetOperationKind | "press_key", string> = {
   click: "click_target",
@@ -269,9 +199,25 @@ const TARGET_HEAD_KEY: Record<TargetOperationKind | "press_key", string> = {
   press_key: "press_key_choice",
 };
 
+const OPERATION_DESCRIPTIONS: Record<OperationKind, string> = {
+  click: "Single left-click the chosen on-screen target element.",
+  double_click: "Double-click the chosen on-screen target element.",
+  type: "Type literal text into the chosen target text field, appending to any existing content.",
+  set_value: "Directly replace the chosen target element's value with literal text.",
+  select: "Choose an option by literal text in the chosen target dropdown/combobox.",
+  scroll: "Scroll the chosen target element or its container.",
+  hotkey: "Press Escape as a general-purpose dismiss/cancel action; use only when no other operation fits.",
+  type_window: "Type literal text into the currently focused window with no specific element targeted (for example, a terminal).",
+  press_key: "Press a single named key (Enter, Escape, Tab, or a copy/paste/select-all shortcut); prefer clicking a visible on-screen control over this when one exists for the same purpose.",
+  focus_window: "Bring the current window to focus and take no other action this step.",
+  wait: "Take no action this step and wait briefly for the UI to settle.",
+  done: "The goal is already fully satisfied; take no further action.",
+  blocked: "No safe next step is available; stop and escalate to a human or agent.",
+};
+
 const TYPED_TEXT_HEAD_OPERATIONS = ["type", "set_value", "select", "type_window"] as const;
-const TYPED_TEXT_INSTRUCTIONS =
-  'The literal text to type or set, when the chosen operation is "type", "set_value", "select", or "type_window". Empty string otherwise.';
+const TEXT_CANDIDATE_INSTRUCTIONS =
+  'Which locally extracted candidate is the literal text to type or set, when the chosen operation is "type", "set_value", "select", or "type_window"? Answer "none" if no candidate fits.';
 const MAX_TYPED_TEXT_LENGTH = 2_000;
 
 export function validateTypedText(raw: string | null): string | null {
@@ -282,22 +228,73 @@ export function validateTypedText(raw: string | null): string | null {
 
 export const SUBMIT_OPERATIONS = ["type", "set_value", "type_window"] as const;
 const SUBMIT_INSTRUCTIONS =
-  'True only if, right after this text is typed, pressing Enter should submit it (a command line, search box, or single-field form); otherwise false. Ignored unless operation is "type", "set_value", or "type_window".';
+  'Should pressing Enter right after this text is typed submit it? Ignored unless operation is "type", "set_value", or "type_window".';
+const SUBMIT_NOUL_CRITERIA = {
+  true: "This is a command line, search box, or single-field form where pressing Enter right after typing should submit it.",
+  false: "Pressing Enter after typing should not happen automatically this step.",
+};
 const GOAL_COMPLETE_INSTRUCTIONS =
-  "True if performing the chosen operation is expected to fully satisfy the goal, so no further step will be needed afterward; otherwise false.";
+  "Is performing the chosen operation expected to fully satisfy the goal, so no further step will be needed afterward?";
+const GOAL_COMPLETE_NOUL_CRITERIA = {
+  true: "The chosen operation is expected to fully satisfy the goal; no further step will be needed afterward.",
+  false: "Further steps will still be needed after the chosen operation.",
+};
 
-function parseOpenRouterContent(text: string, provider: string): string {
-  const parsed = JSON.parse(text) as { choices?: Array<{ message?: { content?: unknown } }> };
-  const content = parsed.choices?.[0]?.message?.content;
-  if (typeof content !== "string") throw new Error(`${provider} response omitted content`);
-  return content;
+const MAX_TEXT_CANDIDATES = 6;
+const QUOTED_TEXT_PATTERN = /"([^"]+)"|'([^']+)'/g;
+const TEXT_CUE_PATTERNS: readonly RegExp[] = [
+  /\bthe command:\s*(.+)$/i,
+  /\btype the command\s+(.+)$/i,
+  /\bsearch for\s+(.+)$/i,
+  /\btype\s*:?\s+(.+)$/i,
+  /\benter\s*:?\s+(.+)$/i,
+];
+const TEXT_CANDIDATE_STOP_PHRASES = [
+  " and press",
+  " then press",
+  " and hit",
+  " then hit",
+  " and click",
+  " then click",
+  ", then",
+  ". ",
+];
+
+function trimTextCandidate(raw: string): string {
+  let text = raw.trim();
+  let cut = text.length;
+  for (const stop of TEXT_CANDIDATE_STOP_PHRASES) {
+    const index = text.toLowerCase().indexOf(stop);
+    if (index !== -1 && index < cut) cut = index;
+  }
+  return text
+    .slice(0, cut)
+    .trim()
+    .replace(/^[:\-]+/, "")
+    .trim()
+    .replace(/[.,;:]+$/, "");
 }
 
-function requireChoice(answers: Record<string, unknown>, key: string, allowed: readonly Choice[]): string {
-  const value = answers[key];
-  if (typeof value !== "string") throw new Error(`OpenRouter Jev omitted the ${key} choice`);
-  if (!allowed.some((choice) => choice.choiceId === value)) throw new Error(`OpenRouter Jev returned an invalid ${key} choice`);
-  return value;
+export function extractTextCandidates(goal: string): string[] {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const addCandidate = (raw: string): void => {
+    const text = trimTextCandidate(raw);
+    if (text.length === 0 || seen.has(text)) return;
+    seen.add(text);
+    candidates.push(text);
+  };
+  for (const match of goal.matchAll(QUOTED_TEXT_PATTERN)) {
+    addCandidate(match[1] ?? match[2] ?? "");
+  }
+  for (const pattern of TEXT_CUE_PATTERNS) {
+    const match = pattern.exec(goal);
+    if (match?.[1] !== undefined) {
+      addCandidate(match[1]);
+      break;
+    }
+  }
+  return candidates.slice(0, MAX_TEXT_CANDIDATES);
 }
 
 interface TargetHead {
@@ -305,17 +302,20 @@ interface TargetHead {
   readonly targets: readonly Choice[];
 }
 
-export class OpenRouterJevDecisionProvider implements DecisionProvider {
-  readonly #options: Required<Omit<OpenRouterProviderOptions, "fetchImpl" | "endpoint">> & { endpoint: string; fetchImpl: typeof fetch };
+function targetCriterion(target: Target): { readonly role: string; readonly label: string; readonly value: string | null } {
+  return { role: target.role, label: target.name, value: target.value };
+}
 
-  constructor(options: OpenRouterProviderOptions) {
-    if (options.apiKey.trim().length === 0) throw new Error("OpenRouter API key is missing");
-    this.#options = {
-      ...options,
-      endpoint: options.endpoint ?? OPENROUTER_CHAT_COMPLETIONS_URL,
-      timeoutMs: options.timeoutMs ?? 30_000,
-      fetchImpl: options.fetchImpl ?? fetch,
-    };
+type SystemOneQuestion =
+  | { readonly type: "choice"; readonly instructions: string; readonly criteria: Record<string, unknown> }
+  | { readonly type: "noul"; readonly instructions: string; readonly criteria: { readonly true: string; readonly false: string } };
+
+export class JevDecisionProvider implements DecisionProvider {
+  readonly #options: Required<Omit<JevProviderOptions, "fetchImpl">> & { fetchImpl: typeof fetch };
+
+  constructor(options: JevProviderOptions) {
+    if (options.apiKey.trim().length === 0) throw new Error("Jev API key is missing");
+    this.#options = { ...options, timeoutMs: options.timeoutMs ?? 30_000, fetchImpl: options.fetchImpl ?? fetch };
   }
 
   async decide(request: DecisionRequest, signal: AbortSignal): Promise<DecisionResponse> {
@@ -328,165 +328,116 @@ export class OpenRouterJevDecisionProvider implements DecisionProvider {
       headByOperation.set(choice.choiceId, { key: TARGET_HEAD_KEY[kind as TargetOperationKind | "press_key"], targets: compatible });
       return true;
     });
-    if (offeredOperations.length === 0) throw new Error("OpenRouter Jev has no eligible operations to offer");
+    if (offeredOperations.length === 0) throw new Error("Jev has no eligible operations to offer");
     const needsTypedText = offeredOperations.some((choice) => (TYPED_TEXT_HEAD_OPERATIONS as readonly string[]).includes(choice.choiceId));
     const needsSubmit = offeredOperations.some((choice) => (SUBMIT_OPERATIONS as readonly string[]).includes(choice.choiceId));
+    const candidates = needsTypedText ? extractTextCandidates(request.goal) : [];
 
-    const questions: Record<string, { instructions: string; choices: Record<string, string> } | { instructions: string }> = {
+    const questions: Record<string, SystemOneQuestion> = {
       operation: {
+        type: "choice",
         instructions: "Which supplied operation makes the most progress toward goal? Select only a supplied ID.",
-        choices: Object.fromEntries(offeredOperations.map((choice) => [choice.choiceId, choice.label])),
+        criteria: Object.fromEntries(offeredOperations.map((choice) => [choice.choiceId, OPERATION_DESCRIPTIONS[choice.choiceId as OperationKind]])),
       },
     };
-    const properties: Record<string, { type: "string"; enum: string[] } | { type: "string" } | { type: "boolean" }> = {
-      operation: { type: "string", enum: offeredOperations.map((choice) => choice.choiceId) },
-    };
     for (const [operationId, head] of headByOperation) {
+      const isPressKey = operationId === "press_key";
       questions[head.key] = {
+        type: "choice",
         instructions: `If operation is "${operationId}", which compatible supplied choice best advances goal? Answer "${NONE_TARGET}" when a different operation was chosen.`,
-        choices: {
-          ...Object.fromEntries(head.targets.map((choice) => [choice.choiceId, choice.label])),
+        criteria: {
+          ...Object.fromEntries(
+            head.targets.map((choice) => {
+              if (isPressKey) return [choice.choiceId, choice.label];
+              const target = request.observation.targets.find((candidate) => candidate.targetId === choice.choiceId);
+              return [choice.choiceId, target === undefined ? choice.label : targetCriterion(target)];
+            }),
+          ),
           [NONE_TARGET]: "Not applicable; a different operation was chosen",
         },
       };
-      properties[head.key] = { type: "string", enum: [...head.targets.map((choice) => choice.choiceId), NONE_TARGET] };
     }
     if (needsTypedText) {
-      questions.text = { instructions: TYPED_TEXT_INSTRUCTIONS };
-      properties.text = { type: "string" };
+      questions.text_candidate = {
+        type: "choice",
+        instructions: TEXT_CANDIDATE_INSTRUCTIONS,
+        criteria: {
+          ...Object.fromEntries(candidates.map((text, index) => [`c${index}`, text])),
+          [NONE_TARGET]: "No extracted candidate fits",
+        },
+      };
     }
     if (needsSubmit) {
-      questions.submit = { instructions: SUBMIT_INSTRUCTIONS };
-      properties.submit = { type: "boolean" };
+      questions.submit = { type: "noul", instructions: SUBMIT_INSTRUCTIONS, criteria: SUBMIT_NOUL_CRITERIA };
     }
-    questions.goal_complete_after = { instructions: GOAL_COMPLETE_INSTRUCTIONS };
-    properties.goal_complete_after = { type: "boolean" };
+    questions.goal_complete_after = { type: "noul", instructions: GOAL_COMPLETE_INSTRUCTIONS, criteria: GOAL_COMPLETE_NOUL_CRITERIA };
 
     const state = {
       goal: request.goal,
       observation: { title: request.observation.title, targets: request.observation.targets },
       recent_outcomes: request.recentSummaries,
-      questions,
     };
-    const timeout = AbortSignal.timeout(this.#options.timeoutMs);
-    const response = await this.#options.fetchImpl(this.#options.endpoint, {
-      method: "POST",
-      headers: { authorization: `Bearer ${this.#options.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: this.#options.model,
-        messages: [
-          { role: "system", content: OPENROUTER_JEV_SYSTEM_PROMPT },
-          { role: "user", content: JSON.stringify(state) },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "decision",
-            strict: true,
-            schema: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
-          },
-        },
-        max_tokens: 1000,
-        reasoning: { effort: "low" },
-      }),
-      signal: AbortSignal.any([timeout, signal]),
-    });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`OpenRouter Jev returned HTTP ${response.status}`);
-    let answers: unknown;
-    try {
-      answers = JSON.parse(parseOpenRouterContent(text, "OpenRouter Jev"));
-    } catch (error) {
-      if (error instanceof SyntaxError) throw new Error("OpenRouter Jev returned malformed JSON");
-      throw error;
-    }
-    if (answers === null || typeof answers !== "object") throw new Error("OpenRouter Jev omitted typed answers");
-    const record = answers as Record<string, unknown>;
-    const operationChoiceId = requireChoice(record, "operation", offeredOperations);
-    const typedText = needsTypedText ? validateTypedText(typeof record.text === "string" ? record.text : null) : null;
-    const submit =
-      needsSubmit && (SUBMIT_OPERATIONS as readonly string[]).includes(operationChoiceId) && record.submit === true;
-    const goalCompleteAfter = record.goal_complete_after === true;
+    const { answers, costUsd, servedModel } = await this.#call(state, questions, request.runId, signal);
+
+    const operationIds = new Set(offeredOperations.map((choice) => choice.choiceId));
+    const operation = parseChoice(answers.operation, operationIds);
+    const operationChoiceId = operation.choice;
+
     const head = headByOperation.get(operationChoiceId);
-    if (head === undefined) return { operationChoiceId, targetChoiceId: null, typedText, submit, goalCompleteAfter, confidence: null };
-    const targetValue = record[head.key];
-    if (typeof targetValue !== "string" || !head.targets.some((choice) => choice.choiceId === targetValue)) {
-      throw new Error(`OpenRouter Jev selected ${operationChoiceId} but its target head returned an invalid target`);
+    let targetChoiceId: string | null = null;
+    let confidence = operation.confidence;
+    if (head !== undefined) {
+      const allowed = new Set([...head.targets.map((choice) => choice.choiceId), NONE_TARGET]);
+      const target = parseChoice(answers[head.key], allowed);
+      targetChoiceId = target.choice === NONE_TARGET ? null : target.choice;
+      confidence = Math.min(confidence, target.confidence);
     }
-    return { operationChoiceId, targetChoiceId: targetValue, typedText, submit, goalCompleteAfter, confidence: null };
-  }
-}
 
-export interface TextHelperInput {
-  readonly goal: string;
-  readonly targetLabel: string;
-}
+    let typedText: string | null = null;
+    if (needsTypedText && (TYPED_TEXT_HEAD_OPERATIONS as readonly string[]).includes(operationChoiceId)) {
+      const candidateAllowed = new Set([...candidates.map((_, index) => `c${index}`), NONE_TARGET]);
+      const textAnswer = parseChoice(answers.text_candidate, candidateAllowed);
+      if (textAnswer.choice === NONE_TARGET) {
+        throw new EscalateToAgentError(
+          `Jev selected "${operationChoiceId}" but no literal text candidate extracted from the goal fits; escalating to the agent to type it.`,
+        );
+      }
+      typedText = validateTypedText(candidates[Number(textAnswer.choice.slice(1))] ?? null);
+    }
 
-function textHelperCacheKey(input: TextHelperInput): string {
-  return JSON.stringify(input);
-}
+    const submit =
+      needsSubmit &&
+      (SUBMIT_OPERATIONS as readonly string[]).includes(operationChoiceId) &&
+      parseNoul(answers.submit) >= NOUL_TRUE_THRESHOLD;
+    const goalCompleteAfter = parseNoul(answers.goal_complete_after) >= NOUL_TRUE_THRESHOLD;
 
-const TEXT_HELPER_SYSTEM_PROMPT =
-  "You write short, literal text to type into a single UI field for a desktop automation loop. Respond only with the requested JSON.";
-
-export class OpenRouterTextGenerator {
-  readonly #options: Required<Omit<OpenRouterProviderOptions, "fetchImpl" | "endpoint">> & { endpoint: string; fetchImpl: typeof fetch };
-  #cache: { key: string; value: string } | null = null;
-
-  constructor(options: OpenRouterProviderOptions) {
-    if (options.apiKey.trim().length === 0) throw new Error("OpenRouter API key is missing");
-    this.#options = {
-      ...options,
-      endpoint: options.endpoint ?? OPENROUTER_CHAT_COMPLETIONS_URL,
-      timeoutMs: options.timeoutMs ?? 20_000,
-      fetchImpl: options.fetchImpl ?? fetch,
-    };
+    return { operationChoiceId, targetChoiceId, typedText, submit, goalCompleteAfter, confidence, costUsd, servedModel };
   }
 
-  async generate(input: TextHelperInput, signal: AbortSignal): Promise<string> {
-    const key = textHelperCacheKey(input);
-    if (this.#cache !== null && this.#cache.key === key) return this.#cache.value;
+  async #call(
+    state: unknown,
+    questions: Record<string, SystemOneQuestion>,
+    sessionId: string,
+    signal: AbortSignal,
+  ): Promise<{ readonly answers: Record<string, unknown>; readonly costUsd: number | null; readonly servedModel: string | null }> {
     const timeout = AbortSignal.timeout(this.#options.timeoutMs);
     const response = await this.#options.fetchImpl(this.#options.endpoint, {
       method: "POST",
       headers: { authorization: `Bearer ${this.#options.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: this.#options.model,
-        temperature: 0.2,
-        max_tokens: 200,
-        reasoning: { enabled: false },
-        messages: [
-          { role: "system", content: TEXT_HELPER_SYSTEM_PROMPT },
-          { role: "user", content: `Goal: ${input.goal}\nTarget field: ${input.targetLabel}\nReturn the exact text to type into this field.` },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "typed_text",
-            strict: true,
-            schema: { type: "object", properties: { text: { type: "string" } }, required: ["text"], additionalProperties: false },
-          },
-        },
-      }),
+      body: JSON.stringify({ state, model: this.#options.model, questions, session_id: sessionId }),
       signal: AbortSignal.any([timeout, signal]),
     });
     const text = await response.text();
-    if (!response.ok) throw new Error(`OpenRouter returned HTTP ${response.status}`);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(parseOpenRouterContent(text, "OpenRouter"));
-    } catch (error) {
-      if (error instanceof SyntaxError) throw new Error("OpenRouter text helper returned malformed JSON");
-      throw error;
-    }
-    if (parsed === null || typeof parsed !== "object" || typeof (parsed as { text?: unknown }).text !== "string") {
-      throw new Error("OpenRouter text helper omitted text");
-    }
-    const value = (parsed as { text: string }).text;
-    this.#cache = { key, value };
-    return value;
+    if (!response.ok) throw new Error(`System One returned HTTP ${response.status}`);
+    const parsed = JSON.parse(text) as { answers?: unknown; usage?: { cost?: unknown }; model?: unknown };
+    if (parsed.answers === null || typeof parsed.answers !== "object") throw new Error("System One omitted typed answers");
+    const costUsd = typeof parsed.usage?.cost === "number" && Number.isFinite(parsed.usage.cost) ? parsed.usage.cost : null;
+    const servedModel = typeof parsed.model === "string" ? parsed.model : null;
+    return { answers: parsed.answers as Record<string, unknown>, costUsd, servedModel };
   }
 }
+
+const OPENROUTER_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 
 export type DecisionConfig = Pick<
   ServerRuntimeConfig,
@@ -500,12 +451,9 @@ export type DecisionConfig = Pick<
 
 export interface DecisionBackend {
   readonly provider: DecisionProvider;
-  readonly textGenerator: OpenRouterTextGenerator | null;
 }
 
 export function createDecisionBackend(config: DecisionConfig, fetchImpl?: typeof fetch): DecisionBackend | null {
-  const openRouterApiKey =
-    config.computerOpenRouterApiKey.trim().length > 0 ? config.computerOpenRouterApiKey : config.openRouterApiKey;
   if (config.computerTypesafeApiKey.trim().length > 0) {
     return {
       provider: new JevDecisionProvider({
@@ -514,15 +462,17 @@ export function createDecisionBackend(config: DecisionConfig, fetchImpl?: typeof
         apiKey: config.computerTypesafeApiKey,
         fetchImpl,
       }),
-      textGenerator:
-        openRouterApiKey.trim().length > 0
-          ? new OpenRouterTextGenerator({ model: config.computerOpenRouterDecisionModel, apiKey: openRouterApiKey, fetchImpl })
-          : null,
     };
   }
+  const openRouterApiKey =
+    config.computerOpenRouterApiKey.trim().length > 0 ? config.computerOpenRouterApiKey : config.openRouterApiKey;
   if (openRouterApiKey.trim().length === 0) return null;
   return {
-    provider: new OpenRouterJevDecisionProvider({ model: config.computerOpenRouterDecisionModel, apiKey: openRouterApiKey, fetchImpl }),
-    textGenerator: null,
+    provider: new JevDecisionProvider({
+      endpoint: OPENROUTER_DECISIONS_URL,
+      model: config.computerOpenRouterDecisionModel,
+      apiKey: openRouterApiKey,
+      fetchImpl,
+    }),
   };
 }

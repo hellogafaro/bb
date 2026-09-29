@@ -13,9 +13,9 @@ import { ComputerLiveHub } from "./live.js";
 import { copyIntoEvidence, writeEvidence } from "./evidence.js";
 import {
   createDecisionBackend,
+  EscalateToAgentError,
   type DecisionRequest,
   type DecisionResponse,
-  type OpenRouterTextGenerator,
   operationChoices,
   postActionWaitMs,
   toOperation,
@@ -270,7 +270,6 @@ export interface JevLoopIo {
 
 const defaultJevLoopIo: JevLoopIo = { observe, act };
 
-const TYPED_TEXT_OPERATIONS = new Set(["type", "set_value", "select", "type_window"]);
 const SUBMIT_OPERATIONS = new Set(["type", "set_value", "type_window"]);
 
 async function decideWithRetry(
@@ -281,7 +280,7 @@ async function decideWithRetry(
   try {
     return await provider.decide(request, signal);
   } catch (error) {
-    if (signal.aborted) throw error;
+    if (signal.aborted || error instanceof EscalateToAgentError) throw error;
     return provider.decide(request, signal);
   }
 }
@@ -291,7 +290,6 @@ export async function runJevLoop(
   run: RunRecord,
   input: StartInput,
   provider: DecisionProvider,
-  textGenerator: OpenRouterTextGenerator | null,
   io: JevLoopIo = defaultJevLoopIo,
 ) {
   const signal = run.abort.signal;
@@ -320,6 +318,7 @@ export async function runJevLoop(
         const decision = await decideWithRetry(
           provider,
           {
+            runId: run.status.runId,
             goal: input.goal,
             observation: observationResult,
             recentSummaries,
@@ -328,6 +327,14 @@ export async function runJevLoop(
           signal,
         );
         lastDecision = decision;
+        touchRun(run, {
+          jevCostUsd: run.status.jevCostUsd + (decision.costUsd ?? 0),
+          jevModel: decision.servedModel ?? run.status.jevModel,
+        });
+        deps.logger.debug(
+          { runId: run.status.runId, model: decision.servedModel, costUsd: decision.costUsd },
+          "Jev decision cost",
+        );
         if (decision.confidence !== null && decision.confidence < 0.35) {
           touchRun(run, {
             state: "escalated",
@@ -335,21 +342,7 @@ export async function runJevLoop(
           });
           return;
         }
-        let typedText = validateTypedText(decision.typedText);
-        if (typedText === null && textGenerator !== null && TYPED_TEXT_OPERATIONS.has(decision.operationChoiceId)) {
-          const target = observationResult.targets.find(
-            (candidate) => candidate.targetId === decision.targetChoiceId,
-          );
-          typedText = validateTypedText(
-            await textGenerator.generate(
-              {
-                goal: input.goal,
-                targetLabel: target === undefined ? "" : `${target.role}: ${target.name}`,
-              },
-              signal,
-            ),
-          );
-        }
+        const typedText = validateTypedText(decision.typedText);
         operation = verifyTargetFresh(observationResult, toOperation(decision, observationResult, typedText));
         touchRun(run, { state: "acting" });
         outcome = await io.act(deps, input.hostId, operation, signal);
@@ -419,10 +412,14 @@ export async function runJevLoop(
     }
   } catch (error) {
     if (!signal.aborted) {
-      touchRun(run, {
-        state: "error",
-        lastSummary: error instanceof Error ? error.message : String(error),
-      });
+      if (error instanceof EscalateToAgentError) {
+        touchRun(run, { state: "escalated", lastSummary: error.message });
+      } else {
+        touchRun(run, {
+          state: "error",
+          lastSummary: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 }
@@ -445,6 +442,8 @@ export async function start(
     steps: 0,
     noProgressSteps: 0,
     lastSummary: null,
+    jevCostUsd: 0,
+    jevModel: null,
     startedAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -469,7 +468,7 @@ export async function start(
     });
     return run.status;
   }
-  void runJevLoop(deps, run, input, backend.provider, backend.textGenerator);
+  void runJevLoop(deps, run, input, backend.provider);
   return run.status;
 }
 

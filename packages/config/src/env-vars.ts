@@ -271,26 +271,25 @@ export const COMPUTER_TYPESAFE_MODEL_ENV = defineEnvVar<string>({
 
 export const COMPUTER_OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
   description:
-    "OpenRouter API key used by Computer's jev-mode decision loop, for decisions when no TypeSafe key is set and for typed text. Empty falls back to OPENROUTER_API_KEY; jev mode needs one of these keys or a TypeSafe key. Only the Jev router model may be used through OpenRouter for Computer.",
+    "OpenRouter API key used by Computer's jev-mode decision loop against OpenRouter's Decisions API, when no TypeSafe key is set. Empty falls back to OPENROUTER_API_KEY; jev mode needs one of these keys or a TypeSafe key. Only Jev may be used through OpenRouter for Computer.",
   name: "COMPUTER_OPENROUTER_API_KEY",
   parse: parseStringEnvValue,
 });
 
-const COMPUTER_JEV_ROUTER_MODEL = "typesafe/jev-router";
+const COMPUTER_JEV_LATEST_ALIAS = "~typesafe/jev-latest";
+const COMPUTER_JEV_PINNED_MODEL_PATTERN = /^typesafe\/jev-[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/;
 
 function parseComputerOpenRouterDecisionModel(args: EnvVarParseArgs): string {
   const trimmed = args.value.trim();
-  if (trimmed !== COMPUTER_JEV_ROUTER_MODEL) {
-    throw new Error(
-      `${args.name} must be "${COMPUTER_JEV_ROUTER_MODEL}"; no other OpenRouter model is supported for Computer`,
-    );
-  }
-  return trimmed;
+  if (trimmed === COMPUTER_JEV_LATEST_ALIAS || COMPUTER_JEV_PINNED_MODEL_PATTERN.test(trimmed)) return trimmed;
+  throw new Error(
+    `${args.name} must be "${COMPUTER_JEV_LATEST_ALIAS}" or a pinned "typesafe/jev-*" model id; no other OpenRouter model is supported for Computer`,
+  );
 }
 
 export const COMPUTER_OPENROUTER_DECISION_MODEL_ENV = defineEnvVar<string>({
   description:
-    "OpenRouter model id used for Computer's jev-mode decisions (and, when a TypeSafe key is also set, for typed text) when no TypeSafe key is set for decisions. Must be \"typesafe/jev-router\"; no other OpenRouter model is supported for Computer.",
+    'OpenRouter model id used for Computer\'s jev-mode decisions against OpenRouter\'s Decisions API, when no TypeSafe key is set. Must be a pinned "typesafe/jev-*" id (default "typesafe/jev-1.13", pinned for stable thresholds) or the "~typesafe/jev-latest" alias; no other OpenRouter model is supported for Computer.',
   name: "COMPUTER_OPENROUTER_DECISION_MODEL",
   parse: parseComputerOpenRouterDecisionModel,
 });
@@ -419,7 +418,7 @@ export const DEFAULT_COMPUTER_TYPESAFE_ENDPOINT =
   "https://api.typesafe.ai/v1/systemone";
 export const DEFAULT_COMPUTER_TYPESAFE_MODEL = "jev-1";
 export const DEFAULT_COMPUTER_OPENROUTER_API_KEY = "";
-export const DEFAULT_COMPUTER_OPENROUTER_DECISION_MODEL = "typesafe/jev-router";
+export const DEFAULT_COMPUTER_OPENROUTER_DECISION_MODEL = "typesafe/jev-1.13";
 export const DEFAULT_BB_POSTHOG_API_KEY =
   "phc_tejoYoNLV6vG8QAd5eYXXvcsENFYnP4brpZDGqG7zvpy";
 export const DEFAULT_BB_TELEMETRY = true;

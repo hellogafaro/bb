@@ -62,6 +62,8 @@ export const computerRunStatusSchema = z
     steps: z.number().int().nonnegative(),
     noProgressSteps: z.number().int().nonnegative(),
     lastSummary: z.string().max(2_000).nullable(),
+    jevCostUsd: z.number().nonnegative(),
+    jevModel: z.string().max(200).nullable(),
     startedAt: z.number().int(),
     updatedAt: z.number().int(),
   })
