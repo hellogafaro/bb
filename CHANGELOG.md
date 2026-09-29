@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.44.3
+
+The desktop app is now signed and notarized, and passkey buttons in BB's browser fail cleanly.
+
+- **Signed and notarized.** bb for Mac is signed with a Developer ID and notarized by Apple. Downloads no longer show "bb is damaged", and in-app updates install normally. On first launch macOS may ask you once to allow bb's permissions again.
+- **Passkeys in BB's browser.** Clicking a passkey button shows "Passkeys aren't available in BB's browser yet — use another sign-in option", and the site offers its other sign-in methods. The earlier open-in-browser handoff is gone. Native passkeys (Touch ID, iCloud Keychain, security keys, and phone sign-in) are built and turn on once Apple approves the entitlement.
+
 ## 0.44.2
 
 Browser automation gets a fast Jev loop, a safe login form, and saved logins; the Computer tab goes live; passkeys no longer hang in the desktop browser.

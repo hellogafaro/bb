@@ -4,6 +4,10 @@ type ReleaseMeta = {
 };
 
 export const RELEASE_META: Record<string, ReleaseMeta> = {
+  "0.44.3": {
+    date: "September 29, 2026",
+    headline: "Signed and notarized desktop app, clean passkey fallback",
+  },
   "0.44.2": {
     date: "September 29, 2026",
     headline: "Fast Jev browser automation, live Computer, and passkey handoff",
