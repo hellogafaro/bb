@@ -13,9 +13,19 @@ APP_NAME="bb Computer.app"
 BUNDLE_ID="app.getbb.computer"
 EXECUTABLE_NAME="bb-computer-helper"
 
-swift build --package-path "$SCRIPT_DIR" -c release
+# Space-separated target triples' architectures, e.g. "arm64" or "arm64 x86_64"
+# for a universal binary. Defaults to the host's own architecture.
+ARCHS="${BB_COMPUTER_ARCHS:-$(uname -m | sed 's/x86_64/x86_64/;s/arm64/arm64/')}"
+ARCH_FLAGS=""
+for arch in $ARCHS; do
+  ARCH_FLAGS="$ARCH_FLAGS --arch $arch"
+done
 
-BUILT_BINARY="$(swift build --package-path "$SCRIPT_DIR" -c release --show-bin-path)/BBComputerHelper"
+# shellcheck disable=SC2086
+swift build --package-path "$SCRIPT_DIR" -c release $ARCH_FLAGS
+
+# shellcheck disable=SC2086
+BUILT_BINARY="$(swift build --package-path "$SCRIPT_DIR" -c release $ARCH_FLAGS --show-bin-path)/BBComputerHelper"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR/$APP_NAME/Contents/MacOS"
