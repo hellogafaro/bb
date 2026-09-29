@@ -222,17 +222,25 @@ Agents discover the commands through the skill and CLI help.
 
 `bb browser-automation do <session-id> "<natural-language task>"` drives the session's `"main"` page toward
 a goal with a fast Jev decision loop, instead of a hand-written script. Each step runs one DevBrowser script
-that both performs the previous step's action (click, double_click, fill, select, press_key, scroll, or
-goto by ref) and takes a fresh interactive ARIA snapshot for the next decision, so acting and observing cost
-one script run per step rather than two. An OpenRouter call (`jev.ts`, `OpenRouterBrowserJevProvider`)
-picks the next action from that snapshot with a single structured-output request: the action, its ref or
-value, whether to press Enter after typing, whether the goal will be complete after this action, and a
-running best-effort answer, so most goals finish without a verification round trip. The API key and model
-come from the `COMPUTER_OPENROUTER_API_KEY` (falling back to `OPENROUTER_API_KEY`) and
-`COMPUTER_OPENROUTER_DECISION_MODEL` environment variables read by the plugin's server process, the same
-ones Computer's Jev loop uses; `do` fails fast with a clear error when neither key is set. The loop stops
-at `--max-steps` (default 20, max 40) or `--timeout-ms` (default 120000, max 300000), whichever comes
-first, and every step script runs through the same `run` handler as scripted `run` calls, so it shares
+that both performs the previous step's action (click, fill, select, press_enter, scroll_down, scroll_up, or
+goto by ref) and takes a fresh interactive ARIA snapshot plus the page's visible text for the next decision,
+so acting and observing cost one script run per step rather than two. Decisions go through OpenRouter's
+Decisions API (`jev.ts`, `TypeSafeDecisionsJevProvider`), which runs TypeSafe's Jev model directly
+(`typesafe/jev-1.13`) rather than routing through a chat model: one request asks a speculative operation
+choice (click, fill, select, press_enter, scroll_down, scroll_up, goto, done, or blocked) plus a
+`click_target`/`fill_target`/`select_target` choice for each compatible operation, built from the snapshot's
+refs as `id -> "role: name (value)"`, capped around 240; only the target matching the chosen operation is
+executed. The Decisions API returns choices, not free text, so a fill value, a goto URL, or the final answer
+on `done` is filled in separately by a small, fast text model (`inception/mercury-2.5`, reasoning disabled,
+strict `{"text"}` JSON output) fed the goal and the visible page text — mirroring Computer's
+`JevDecisionProvider` + `OpenRouterTextGenerator` split. After each action the loop settles briefly (about
+50ms, 200ms after a fill) and waits for the page to finish loading only when the URL actually changed,
+instead of an unconditional fixed wait. A malformed or invalid Decisions API answer, or a timed-out decision
+call (about 10s), is retried once. The API key comes from `COMPUTER_OPENROUTER_API_KEY` (falling back to
+`OPENROUTER_API_KEY`); the decision model is overridable via `COMPUTER_OPENROUTER_DECISION_MODEL`, the same
+environment variables Computer's Jev loop reads; `do` fails fast with a clear error when no key is set. The
+loop stops at `--max-steps` (default 20, max 40) or `--timeout-ms` (default 120000, max 300000), whichever
+comes first, and every step script runs through the same `run` handler as scripted `run` calls, so it shares
 session run serialization, per-run error handling, and cancellation with the rest of the plugin. The result
 is `{state, answer, steps, image}`: `state` is `done`, `blocked`, or `max_steps`; `steps` is one entry per
 action taken; `image` is a final JPEG screenshot in the session's capture directory, read the same way as

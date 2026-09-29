@@ -36,9 +36,9 @@ bb browser-automation open --backend desktop --machine <host-id> --desktop <inst
 ```
 
 For a multi-step task described in words ("search this site for X and report the price"), prefer `do`: it
-runs a fast Jev decision loop that observes the page, picks the next click/fill/select/press_key/scroll/goto
-step, and repeats until the goal is done, blocked, or the step limit is reached. It needs an OpenRouter API
-key configured on the server; it fails fast with a clear error otherwise.
+runs a fast Jev decision loop that observes the page, picks the next click/fill/select/press_enter/
+scroll_down/scroll_up/goto step, and repeats until the goal is done, blocked, or the step limit is reached.
+It needs an OpenRouter API key configured on the server; it fails fast with a clear error otherwise.
 
 ```sh
 bb browser-automation do <session-id> "search for wireless mice and report the top result's price" --json
