@@ -48,11 +48,11 @@ afterEach(() => {
 });
 
 describe("resolveComposerAgent", () => {
-  it("uses the remembered agent for the project, else the default", () => {
+  it("uses the selected agent, else the default", () => {
     expect(resolveComposerAgent([bb, coder], coder.id)).toBe(coder);
-    expect(resolveComposerAgent([bb, coder], undefined)).toBe(bb);
+    expect(resolveComposerAgent([bb, coder], null)).toBe(bb);
     expect(resolveComposerAgent([bb, coder], "agent_deleted01")).toBe(bb);
-    expect(resolveComposerAgent([], undefined)).toBeNull();
+    expect(resolveComposerAgent([], null)).toBeNull();
   });
 });
 
@@ -104,14 +104,17 @@ describe("useApplyComposerAgent", () => {
 });
 
 describe("useComposerAgent", () => {
-  function setup() {
+  function setup(agents: Agent[] = [bb, coder]) {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { enabled: false, retry: false } },
     });
-    queryClient.setQueryData(agentsQueryKey(), [bb, coder]);
+    queryClient.setQueryData(agentsQueryKey(), agents);
     const store = createStore();
     const hook = renderHook(
-      ({ projectId }: { projectId: string }) => useComposerAgent(projectId),
+      ({ projectId }: { projectId: string }) => {
+        void projectId;
+        return useComposerAgent();
+      },
       {
         initialProps: { projectId: "proj_a" },
         wrapper: ({ children }) => (
@@ -121,17 +124,15 @@ describe("useComposerAgent", () => {
         ),
       },
     );
-    return { hook, store };
+    return { hook, store, queryClient };
   }
 
-  it("uses the per-project memory when nothing was explicitly picked", () => {
+  it("defaults to the first agent when nothing was picked yet", () => {
     const { hook } = setup();
-    expect(hook.result.current.selected).toBe(bb);
-    act(() => hook.rerender({ projectId: "proj_b" }));
     expect(hook.result.current.selected).toBe(bb);
   });
 
-  it("carries an explicit pick across a project switch and remembers it for the new project", () => {
+  it("keeps the user's picked agent selected across a project change", () => {
     const { hook } = setup();
     act(() => hook.result.current.select(coder.id));
     expect(hook.result.current.selected).toBe(coder);
@@ -139,7 +140,19 @@ describe("useComposerAgent", () => {
     act(() => hook.rerender({ projectId: "proj_b" }));
     expect(hook.result.current.selected).toBe(coder);
 
-    act(() => hook.rerender({ projectId: "proj_a" }));
+    act(() => hook.rerender({ projectId: "proj_c" }));
     expect(hook.result.current.selected).toBe(coder);
+  });
+
+  it("falls back to the deterministic default agent only once the picked agent is actually unavailable", async () => {
+    const { hook, queryClient } = setup();
+    act(() => hook.result.current.select(coder.id));
+    expect(hook.result.current.selected).toBe(coder);
+
+    act(() => hook.rerender({ projectId: "proj_b" }));
+    expect(hook.result.current.selected).toBe(coder);
+
+    act(() => queryClient.setQueryData(agentsQueryKey(), [bb]));
+    await vi.waitFor(() => expect(hook.result.current.selected).toBe(bb));
   });
 });

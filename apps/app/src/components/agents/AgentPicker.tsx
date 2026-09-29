@@ -278,7 +278,6 @@ export const AgentPicker = memo(function AgentPicker({
                       agent={entry}
                       providers={providers}
                       className="min-w-0 flex-1"
-                      showIcon={false}
                     />
                   </span>
                 }

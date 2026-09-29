@@ -4,9 +4,10 @@ import { atomWithStorage } from "jotai/utils";
 import type { Agent, ReasoningLevel } from "@bb/domain";
 import { defaultAgent, useAgents } from "@/hooks/queries/agent-queries";
 
-export const composerAgentByProjectAtom = atomWithStorage<
-  Record<string, string>
->("bb:composer-agent-by-project", {});
+export const composerAgentIdAtom = atomWithStorage<string | null>(
+  "bb:composer-agent",
+  null,
+);
 
 export interface ComposerAgentSelection {
   agents: readonly Agent[];
@@ -16,38 +17,24 @@ export interface ComposerAgentSelection {
 
 export function resolveComposerAgent(
   agents: readonly Agent[],
-  rememberedAgentId: string | undefined,
+  selectedAgentId: string | null,
 ): Agent | null {
-  const remembered =
-    rememberedAgentId === undefined
+  const selected =
+    selectedAgentId === null
       ? undefined
-      : agents.find((agent) => agent.id === rememberedAgentId);
-  return remembered ?? defaultAgent(agents);
+      : agents.find((agent) => agent.id === selectedAgentId);
+  return selected ?? defaultAgent(agents);
 }
 
-export function useComposerAgent(projectId: string): ComposerAgentSelection {
+export function useComposerAgent(): ComposerAgentSelection {
   const agentsQuery = useAgents();
-  const [byProject, setByProject] = useAtom(composerAgentByProjectAtom);
+  const [selectedAgentId, setSelectedAgentId] = useAtom(composerAgentIdAtom);
   const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
-  const explicitAgentIdRef = useRef<string | null>(null);
-  const rememberedAgentId = explicitAgentIdRef.current ?? byProject[projectId];
-  const selected = resolveComposerAgent(agents, rememberedAgentId);
+  const selected = resolveComposerAgent(agents, selectedAgentId);
   const select = useCallback(
-    (agentId: string) => {
-      explicitAgentIdRef.current = agentId;
-      setByProject((current) => ({ ...current, [projectId]: agentId }));
-    },
-    [projectId, setByProject],
+    (agentId: string) => setSelectedAgentId(agentId),
+    [setSelectedAgentId],
   );
-  useEffect(() => {
-    const explicitAgentId = explicitAgentIdRef.current;
-    if (explicitAgentId === null) return;
-    setByProject((current) =>
-      current[projectId] === explicitAgentId
-        ? current
-        : { ...current, [projectId]: explicitAgentId },
-    );
-  }, [projectId, setByProject]);
   return { agents, selected, select };
 }
 

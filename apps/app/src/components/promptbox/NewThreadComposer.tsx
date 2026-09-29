@@ -874,7 +874,7 @@ export function NewThreadComposer({
     clearReuseEnvironment,
   } = creationOptions;
   const selectedThreadModel = activeModel?.model ?? selectedModel;
-  const composerAgent = useComposerAgent(projectId);
+  const composerAgent = useComposerAgent();
   const submittedAgent = composerAgent.selected;
   useApplyComposerAgent({
     agent: seed?.providerId === undefined ? submittedAgent : null,
