@@ -78,18 +78,18 @@ jobs:
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           set -euo pipefail
 
           REQUIRED_SECRET_NAMES=(
             "MACOS_CERTIFICATE_P12"
             "MACOS_CERTIFICATE_PASSWORD"
-            "APPLE_ID"
-            "APPLE_APP_PASSWORD"
-            "APPLE_TEAM_ID"
+            "APPLE_API_KEY_P8"
+            "APPLE_API_KEY_ID"
+            "APPLE_API_ISSUER"
           )
           PRESENT_SECRET_NAMES=()
           MISSING_SECRET_NAMES=()
@@ -115,15 +115,41 @@ jobs:
 
           echo "has_signing_secrets=$HAS_SIGNING_SECRETS" >> "$GITHUB_OUTPUT"
 
+      - name: Write Apple API key
+        id: apple_api_key
+        uses: ./.github/actions/write-apple-api-key
+        with:
+          p8-content: ${{ secrets.APPLE_API_KEY_P8 }}
+
       - name: Package arm64 desktop artifacts
         env:
           CSC_LINK: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           CSC_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY: ${{ steps.apple_api_key.outputs.path }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: pnpm exec turbo run desktop:build --filter=@bb/desktop --force --output-logs=new-only
+
+      - name: Remove Apple API key file
+        if: always()
+        run: rm -f "${{ steps.apple_api_key.outputs.path }}"
+
+      - name: Verify macOS code signing and notarization
+        if: steps.signing.outputs.has_signing_secrets == 'true'
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$(find apps/desktop/release -maxdepth 2 -name '*.app' -print -quit)"
+          if [[ -z "$APP_PATH" ]]; then
+            echo "::error::No packaged .app found under apps/desktop/release."
+            exit 1
+          fi
+
+          echo "Verifying $APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          spctl -a -vv "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
 
       - name: Smoke test packaged desktop app
         run: pnpm exec turbo run smoke:packaged --filter=@bb/desktop --force --output-logs=new-only

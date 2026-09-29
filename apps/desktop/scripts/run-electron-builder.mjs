@@ -26,11 +26,11 @@ const electronBuilderBin = resolve(
 );
 
 const codeSigningKeys = ["CSC_LINK", "CSC_KEY_PASSWORD"];
-const notarizationKeys = [
-  "APPLE_ID",
-  "APPLE_APP_SPECIFIC_PASSWORD",
-  "APPLE_TEAM_ID",
-];
+// App Store Connect API key auth for notarytool. APPLE_API_KEY is a filesystem
+// path to the .p8 key (written by CI to a runner-local temp file), not the key
+// contents; electron-builder/@electron/notarize reads these three env vars
+// directly, so no config wiring is needed beyond `mac.notarize: true`.
+const notarizationKeys = ["APPLE_API_KEY", "APPLE_API_KEY_ID", "APPLE_API_ISSUER"];
 const requiredSigningEnvironmentKeys = [
   ...codeSigningKeys,
   ...notarizationKeys,

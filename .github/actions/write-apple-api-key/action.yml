@@ -1,0 +1,36 @@
+name: Write Apple API key
+description: >
+  Write an App Store Connect API key (.p8) to a runner-local temp file for
+  electron-builder notarization, without ever printing its contents. Emits an
+  empty path when no key is provided, so callers can fall back to unsigned or
+  keychain-signed builds.
+inputs:
+  p8-content:
+    description: PEM contents of the App Store Connect API key (.p8).
+    required: false
+    default: ""
+outputs:
+  path:
+    description: Absolute path to the written key file, or empty when no key was provided.
+    value: ${{ steps.write.outputs.path }}
+runs:
+  using: composite
+  steps:
+    - id: write
+      shell: bash
+      env:
+        APPLE_API_KEY_P8: ${{ inputs.p8-content }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${APPLE_API_KEY_P8:-}" ]]; then
+          echo "path=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        KEY_PATH="${RUNNER_TEMP:-/tmp}/apple-api-key-$$.p8"
+        (
+          umask 077
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$KEY_PATH"
+        )
+        echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"

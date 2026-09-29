@@ -303,9 +303,16 @@ GitHub Actions secrets:
 | `MACOS_CERTIFICATE_P12`      | Base64-encoded `.p12` exported from Keychain Access for a `Developer ID Application` certificate and its private key. On macOS: `base64 -i DeveloperID.p12 -o certificate.base64.txt`. |
 | `MACOS_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12`.                                                                                                                                               |
 | `MACOS_CERTIFICATE_NAME`     | Optional certificate common name, without the `Developer ID Application:` prefix. Leave unset when the `.p12` contains a single usable identity and electron-builder can derive it.    |
-| `APPLE_ID`                   | Apple ID email for the Developer Program account.                                                                                                                                      |
-| `APPLE_APP_PASSWORD`         | App-specific password from `appleid.apple.com` under Sign-In and Security.                                                                                                             |
-| `APPLE_TEAM_ID`              | Developer Team ID from `developer.apple.com/account` membership details.                                                                                                               |
+| `APPLE_API_KEY_P8`           | PEM contents of an App Store Connect API key (`.p8`) with at least the Developer role, generated at `appstoreconnect.apple.com/access/api`.                                            |
+| `APPLE_API_KEY_ID`           | Key ID shown next to the API key in App Store Connect.                                                                                                                                 |
+| `APPLE_API_ISSUER`           | Issuer ID shown at the top of the App Store Connect API keys page.                                                                                                                     |
+
+Notarization authenticates with this App Store Connect API key rather than an
+Apple ID and app-specific password. CI writes `APPLE_API_KEY_P8` to a
+runner-local temp file (`.github/actions/write-apple-api-key`, `umask 077`,
+removed after packaging) and passes its path as `APPLE_API_KEY`, alongside
+`APPLE_API_KEY_ID` and `APPLE_API_ISSUER`, which electron-builder and
+`@electron/notarize` read directly as `notarytool` credentials.
 
 Once those secrets are present, the next `Build Desktop` workflow run with
 `publish=true` and `release_channel=stable` signs the `.app`, notarizes it, and

@@ -144,9 +144,9 @@ const workspacePackageJsonSchema = z
   .passthrough();
 
 const signingEnvironmentKeys = [
-  "APPLE_APP_SPECIFIC_PASSWORD",
-  "APPLE_ID",
-  "APPLE_TEAM_ID",
+  "APPLE_API_ISSUER",
+  "APPLE_API_KEY",
+  "APPLE_API_KEY_ID",
   "CSC_IDENTITY_AUTO_DISCOVERY",
   "CSC_KEY_PASSWORD",
   "CSC_LINK",
@@ -647,7 +647,7 @@ describe("electron-builder signing config", () => {
 
   it("rejects partial signing secret sets", async () => {
     const partialAppleCredentials = await runConfigScript({
-      APPLE_ID: "sawyer@example.com",
+      APPLE_API_KEY: "/tmp/apple-api-key.p8",
       CSC_KEY_PASSWORD: "p12-password",
       CSC_LINK: "base64-p12",
     });
@@ -657,18 +657,18 @@ describe("electron-builder signing config", () => {
       "Incomplete macOS signing/notarization environment.",
     );
     expect(partialAppleCredentials.stderr).toContain(
-      "Present: CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID.",
+      "Present: CSC_LINK, CSC_KEY_PASSWORD, APPLE_API_KEY.",
     );
     expect(partialAppleCredentials.stderr).toContain(
-      "Missing: APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID.",
+      "Missing: APPLE_API_KEY_ID, APPLE_API_ISSUER.",
     );
   });
 
   it("enables app signing and notarization when signing and Apple credentials are complete", async () => {
     const completeAppleCredentials = await readResolvedConfig({
-      APPLE_APP_SPECIFIC_PASSWORD: "app-password",
-      APPLE_ID: "sawyer@example.com",
-      APPLE_TEAM_ID: "TEAMID1234",
+      APPLE_API_ISSUER: "issuer-uuid",
+      APPLE_API_KEY: "/tmp/apple-api-key.p8",
+      APPLE_API_KEY_ID: "KEYID1234",
       CSC_KEY_PASSWORD: "p12-password",
       CSC_LINK: "base64-p12",
       CSC_NAME: "Sawyer Hood (TEAMID1234)",
