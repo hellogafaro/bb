@@ -39,7 +39,7 @@ describe("parseSnapshotTargets", () => {
     ]);
   });
 
-  it("skips unnamed elements and de-duplicates refs, and caps at maxTargets", () => {
+  it("keeps unnamed elements (checkboxes, native selects), de-duplicates refs, and caps at maxTargets", () => {
     const snapshot = `
 - generic [ref=e1]
 - link "Home" [ref=e2]
@@ -47,10 +47,29 @@ describe("parseSnapshotTargets", () => {
 - link "About" [ref=e3]
 `;
     expect(parseSnapshotTargets(snapshot).map((t) => t.ref)).toEqual([
+      "e1",
       "e2",
       "e3",
     ]);
     expect(parseSnapshotTargets(snapshot, 1)).toHaveLength(1);
+  });
+
+  it("parses an unlabeled checkbox and a native select with no quoted name", () => {
+    const snapshot = `
+- heading "Checkboxes" [level=3] [ref=e9]
+- checkbox [ref=e11]
+- checkbox [checked] [ref=e12]
+- combobox [ref=e10]:
+  - option "Option 1"
+  - option "Option 2"
+`;
+    const targets = parseSnapshotTargets(snapshot);
+    expect(targets).toEqual([
+      { ref: "e9", role: "heading", name: "Checkboxes", attrs: "[level=3]" },
+      { ref: "e11", role: "checkbox", name: "", attrs: "" },
+      { ref: "e12", role: "checkbox", name: "", attrs: "[checked]" },
+      { ref: "e10", role: "combobox", name: "", attrs: "" },
+    ]);
   });
 });
 
@@ -747,6 +766,29 @@ describe("runJevGoal", () => {
       }),
     ).rejects.toThrow("OpenRouter Decisions API returned HTTP 500");
     expect(decideCalls).toBe(1);
+  });
+
+  it("degrades to blocked instead of crashing the run when a retryable error fails twice in a row", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        throw new RetryableJevDecisionError(
+          "OpenRouter Decisions API returned an invalid click target",
+        );
+      },
+    };
+    const result = await runJevGoal({
+      goal: "click something that keeps failing validation",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () => observationResult("generic [ref=e1]"),
+    });
+    expect(decideCalls).toBe(2);
+    expect(result.state).toBe("blocked");
+    expect(result.answer).toContain("invalid click target");
   });
 
   it("does not retry once the run signal is already aborted", async () => {

@@ -47,6 +47,13 @@ function cleanRef(value: unknown): string | null {
   return typeof value === "string" && REF_PATTERN.test(value) ? value : null;
 }
 
+const URL_PATTERN = /https?:\/\/[^\s"'<>]+/;
+
+export function extractLiteralUrl(text: string): string | null {
+  const match = text.match(URL_PATTERN);
+  return match === null ? null : match[0].replace(/[.,;:!?)]+$/, "");
+}
+
 export class RetryableJevDecisionError extends Error {}
 
 const OPENROUTER_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
@@ -58,10 +65,10 @@ const MAX_TARGETS = 240;
 const NONE_TARGET = "none";
 
 const OPERATION_INSTRUCTIONS =
-  'Which operation makes the most progress toward the goal from the current page? "done" requires the answer to already be visible in visible_text or the snapshot; "blocked" only when no supported operation can make progress (for example a CAPTCHA or a login wall). Do not repeat a step that already satisfied the goal.';
+  'Which operation makes the most progress toward the goal from the current page? Prefer clicking, filling, or selecting a directly relevant offered element over scrolling or navigating; scroll only when the element you need is not among the offered targets. "goto" is only for a URL literally given in the goal or already visible as text on the page; never invent or guess a URL, and never use "goto" to choose a dropdown option, follow a link, or open an item named in the goal — click or select the matching offered target instead. Do not repeat an action from recent_outcomes that already ran with no effect on the goal. "done" requires the answer to already be visible in visible_text, the snapshot, or page.title (for example page.title alone answers a goal asking for the page title or heading when nothing on the page repeats it); "blocked" only when no supported operation can make progress (for example a CAPTCHA or a login wall). Do not repeat a step that already satisfied the goal.';
 
 function targetInstructions(operation: string): string {
-  return `Choose the best offered element for this operation if the operation selected above is "${operation}"; another question decides which operation to execute. Answer "none" when a different operation was chosen.`;
+  return `Choose the best offered element for this operation if the operation selected above is "${operation}"; another question decides which operation to execute. Answer "none" when a different operation was chosen. Never choose a target that recent_outcomes shows was already filled or selected with the value the goal needs; when several similar fields are offered, choose the next one that still needs a value.`;
 }
 
 interface SnapshotTarget {
@@ -71,7 +78,8 @@ interface SnapshotTarget {
   readonly attrs: string;
 }
 
-const SNAPSHOT_TARGET_PATTERN = /-\s+(\w+)\s+"([^"]*)"([^\n]*)\[ref=(\w+)\]/g;
+const SNAPSHOT_TARGET_PATTERN =
+  /-\s+(\w+)\s+(?:"([^"]*)"\s*)?([^\n]*)\[ref=(\w+)\]/g;
 
 export function parseSnapshotTargets(
   snapshot: string,
@@ -81,16 +89,11 @@ export function parseSnapshotTargets(
   const seen = new Set<string>();
   for (const match of snapshot.matchAll(SNAPSHOT_TARGET_PATTERN)) {
     const [, role, name, attrs, ref] = match;
-    if (
-      role === undefined ||
-      name === undefined ||
-      attrs === undefined ||
-      ref === undefined
-    )
+    if (role === undefined || attrs === undefined || ref === undefined)
       continue;
-    if (name.length === 0 || seen.has(ref)) continue;
+    if (seen.has(ref)) continue;
     seen.add(ref);
-    targets.push({ ref, role, name, attrs: attrs.trim() });
+    targets.push({ ref, role, name: name ?? "", attrs: attrs.trim() });
     if (targets.length >= maxTargets) break;
   }
   return targets;
@@ -111,7 +114,8 @@ function targetValueHint(attrs: string): string {
 
 function targetLabel(target: SnapshotTarget): string {
   const hint = targetValueHint(target.attrs);
-  const base = `${target.role}: ${target.name}`;
+  const base =
+    target.name.length > 0 ? `${target.role}: ${target.name}` : target.role;
   return (hint.length > 0 ? `${base} (${hint})` : base).slice(0, 120);
 }
 
@@ -352,14 +356,17 @@ export class TypeSafeDecisionsJevProvider implements JevProvider {
         return { action, ref, value, url: null, answer: "" };
       }
       if (action === "goto") {
-        const url = await this.#textGenerator.generate(
-          {
-            goal: request.goal,
-            instructions: "Return the exact URL to navigate to next.",
-            context: request.observation.text,
-          },
-          signal,
-        );
+        const url =
+          extractLiteralUrl(request.goal) ??
+          extractLiteralUrl(request.observation.text) ??
+          (await this.#textGenerator.generate(
+            {
+              goal: request.goal,
+              instructions: "Return the exact URL to navigate to next.",
+              context: request.observation.text,
+            },
+            signal,
+          ));
         return { action, ref: null, value: null, url, answer: "" };
       }
       if (action === "done") {
@@ -367,8 +374,8 @@ export class TypeSafeDecisionsJevProvider implements JevProvider {
           {
             goal: request.goal,
             instructions:
-              "Return the final answer to the goal, based on the visible page text.",
-            context: request.observation.text,
+              "Return the final answer to the goal. Answer precisely what was asked (for example a heading, a status message, or a price), not unrelated surrounding text. The accessibility snapshot shows element roles such as heading/link/text; the visible text is the page's plain text near the viewport; the page title is the browser tab's title and may be the best answer when nothing on the page repeats it.",
+            context: `Page title: ${request.observation.title}\n\nAccessibility snapshot:\n${request.observation.snapshot}\n\nVisible text:\n${request.observation.text}`,
           },
           signal,
         );
@@ -561,6 +568,10 @@ const MAX_VISIBLE_TEXT_CHARS = 3_000;
 
 const VISIBLE_TEXT_EXTRACTOR = `(maxChars) => {
   function collapse(value) { return value.replace(/\\s+/g, " ").trim(); }
+  function isBlock(el) {
+    const display = window.getComputedStyle(el).display;
+    return display !== "inline" && display !== "inline-block";
+  }
   const vh = window.innerHeight || document.documentElement.clientHeight || 0;
   const top = -vh;
   const bottom = vh * 2;
@@ -572,17 +583,24 @@ const VISIBLE_TEXT_EXTRACTOR = `(maxChars) => {
       if (!parent) return NodeFilter.FILTER_REJECT;
       const style = window.getComputedStyle(parent);
       if (style.display === "none" || style.visibility === "hidden") return NodeFilter.FILTER_REJECT;
-      const rect = parent.getBoundingClientRect();
-      if (rect.bottom < top || rect.top > bottom) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
+  const seenBlocks = new Set();
   const parts = [];
   let length = 0;
   let node;
   while ((node = walker.nextNode())) {
-    parts.push(node.nodeValue);
-    length += node.nodeValue.length;
+    let block = node.parentElement;
+    while (block && block !== document.body && !isBlock(block)) block = block.parentElement;
+    if (!block || seenBlocks.has(block)) continue;
+    seenBlocks.add(block);
+    const rect = block.getBoundingClientRect();
+    if (rect.bottom < top || rect.top > bottom) continue;
+    const blockText = collapse(block.innerText || block.textContent || "");
+    if (!blockText) continue;
+    parts.push(blockText);
+    length += blockText.length;
     if (length > maxChars) break;
   }
   let combined = collapse(parts.join(" "));
@@ -683,7 +701,19 @@ async function decideWithRetry(
     return await provider.decide(request, signal);
   } catch (error) {
     if (signal.aborted || !isRetryableDecisionError(error)) throw error;
-    return provider.decide(request, signal);
+    try {
+      return await provider.decide(request, signal);
+    } catch (retryError) {
+      if (signal.aborted || !isRetryableDecisionError(retryError))
+        throw retryError;
+      return {
+        action: "blocked",
+        ref: null,
+        value: null,
+        url: null,
+        answer: `Blocked: the decision service returned an invalid answer twice in a row (${(retryError as Error).message}).`,
+      };
+    }
   }
 }
 
