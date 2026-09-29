@@ -60,6 +60,19 @@ final class VideoSocketServer {
     listener.newConnectionHandler = { [weak self] connection in
       self?.accept(connection)
     }
+    listener.stateUpdateHandler = { [weak self] state in
+      guard let self else { return }
+      switch state {
+      case .ready:
+        FileHandle.standardError.write("bb Computer: video socket listening at \(self.path)\n".data(using: .utf8)!)
+      case .failed(let error):
+        FileHandle.standardError.write("bb Computer: video socket failed to listen at \(self.path): \(error)\n".data(using: .utf8)!)
+      case .cancelled:
+        FileHandle.standardError.write("bb Computer: video socket listener cancelled\n".data(using: .utf8)!)
+      default:
+        break
+      }
+    }
     listener.start(queue: queue)
     self.listener = listener
   }
@@ -70,10 +83,14 @@ final class VideoSocketServer {
     connection.stateUpdateHandler = { [weak self] state in
       switch state {
       case .ready:
+        FileHandle.standardError.write("bb Computer: video viewer connected\n".data(using: .utf8)!)
         self?.onViewerConnected?()
         self?.receiveCommand(on: connection)
       case .failed, .cancelled:
-        if self?.connection === connection { self?.connection = nil }
+        if self?.connection === connection {
+          self?.connection = nil
+          FileHandle.standardError.write("bb Computer: video viewer disconnected\n".data(using: .utf8)!)
+        }
       default:
         break
       }

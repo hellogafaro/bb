@@ -68,10 +68,19 @@ case "serve":
   }
 
   let captureTask = Task {
-    do {
-      try await capture.start()
-    } catch {
-      FileHandle.standardError.write("bb Computer: video capture failed: \(error)\n".data(using: .utf8)!)
+    var attempt = 0
+    while !Task.isCancelled {
+      do {
+        try await capture.start()
+        FileHandle.standardError.write("bb Computer: video capture started\n".data(using: .utf8)!)
+        return
+      } catch {
+        attempt += 1
+        FileHandle.standardError.write(
+          "bb Computer: video capture failed to start (attempt \(attempt)), will retry: \(error)\n".data(using: .utf8)!
+        )
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+      }
     }
   }
   _ = captureTask
