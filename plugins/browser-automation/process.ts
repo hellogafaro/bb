@@ -58,13 +58,22 @@ export function execute(
   args: string[],
   env: NodeJS.ProcessEnv,
   signal: AbortSignal,
+  stdin?: string,
 ): Promise<string> {
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let child;
+    if (stdin === undefined) {
+      child = spawn(command, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+    } else {
+      const piped = spawn(command, args, {
+        env,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      piped.stdin.on("error", () => {});
+      piped.stdin.end(stdin);
+      child = piped;
+    }
     let stdout = "";
     let bytes = 0;
     let failure: Error | null = null;

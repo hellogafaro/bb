@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { supervise } from "./process.js";
+import { execute, supervise } from "./process.js";
 
 describe("process ownership", () => {
   it.each([false, true])(
@@ -129,6 +129,31 @@ try {
       await rm(root, { recursive: true, force: true });
     }
   }, 12_000);
+  it("passes a script to execute() over stdin so it never appears in spawn argv", async () => {
+    const root = await mkdtemp(join(tmpdir(), "db-execute-stdin-"));
+    const argvFile = join(root, "argv.json");
+    const stdinFile = join(root, "stdin.txt");
+    const secret = "hunter2-stdin-only-marker";
+    const code = `
+const fs = require("node:fs");
+fs.writeFileSync(${JSON.stringify(argvFile)}, JSON.stringify(process.argv));
+fs.writeFileSync(${JSON.stringify(stdinFile)}, fs.readFileSync(0, "utf8"));
+`;
+    try {
+      await execute(
+        process.execPath,
+        ["-e", code],
+        process.env,
+        AbortSignal.timeout(5000),
+        secret,
+      );
+      const argv = JSON.parse(await readFile(argvFile, "utf8")) as string[];
+      expect(argv.join(" ")).not.toContain(secret);
+      expect(await readFile(stdinFile, "utf8")).toBe(secret);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 10_000);
   it("kills a TERM-resistant child group without touching another session", async () => {
     const root = await mkdtemp(join(tmpdir(), "db-supervisor-"));
     const code =

@@ -293,11 +293,10 @@ export async function createRuntime(args: {
               "--timeout",
               String(Math.ceil(timeoutMs / 1000)),
               "--quiet-page",
-              "-e",
-              script,
             ],
             env,
             deadline,
+            script,
           );
           const output = await decodeOutput(
             stdout,
