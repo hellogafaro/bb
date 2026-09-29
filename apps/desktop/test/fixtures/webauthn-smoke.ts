@@ -75,16 +75,13 @@ async function main() {
   const window = new BrowserWindow({ width: 900, height: 700, show: true });
   await window.loadURL("data:text/html,<title>Trusted app sentinel</title>");
 
+  const NOTICE_MESSAGE =
+    "Passkeys aren't available in BB's browser yet — use another sign-in option";
   let capturedRequest: DesktopBrowserWebauthnRequestArgs | null = null;
   const promptManager = createDesktopWebauthnViewManager({
     preloadPath: config.webauthnPromptPreloadPath,
     onAction({ hostWindow, tabId, action }) {
-      if (action !== "cancel") return;
-      manager.rejectWebauthnRequest({
-        hostWindow: hostWindow as unknown as BrowserWindow,
-        tabId,
-        requestId: capturedRequest?.requestId ?? 0,
-      });
+      if (action !== "dismiss") return;
       promptManager.close(hostWindow, tabId);
     },
   });
@@ -95,15 +92,16 @@ async function main() {
     resolveAppCommand: () => null,
     onWebauthnRequest(request) {
       capturedRequest = request;
+      manager.rejectWebauthnRequest({
+        hostWindow: request.hostWindow as unknown as BrowserWindow,
+        tabId: request.tabId,
+        requestId: request.requestId,
+      });
       promptManager.open({
         hostWindow: request.hostWindow,
         tabId: request.tabId,
         tabBounds: request.bounds,
-        state: {
-          stage: "ask",
-          host: new URL(request.url).host,
-          browserLabel: "your browser",
-        },
+        state: { stage: "notice", message: NOTICE_MESSAGE },
       });
     },
   });
@@ -185,25 +183,25 @@ async function main() {
     (capturedRequest as DesktopBrowserWebauthnRequestArgs).mode,
     "get",
   );
-  const statusWhilePending = await tabView.webContents.executeJavaScript(
+  const statusAfterClick = await tabView.webContents.executeJavaScript(
     "document.querySelector('#status').textContent",
   );
-  assert.equal(statusWhilePending, "pending");
+  assert.equal(statusAfterClick, "rejected:NotAllowedError");
   passed(
-    "clicking the passkey button never hangs: the page promise stays pending and a webauthn-request reaches the host instead of Electron's missing WebAuthn UI",
+    "clicking the passkey button rejects immediately with NotAllowedError so the site falls back to its own sign-in options, instead of hanging on Electron's missing WebAuthn UI",
   );
 
   const promptView = findViewByUrlPrefix(
     window,
     "data:text/html;charset=utf-8",
   );
-  assert(promptView !== undefined, "Prompt banner was not opened");
+  assert(promptView !== undefined, "Notice banner was not opened");
   const promptMessage = await promptView.webContents.executeJavaScript(
     "document.querySelector('#bb-webauthn-message').textContent",
   );
-  assert(promptMessage.includes("wants a passkey"));
+  assert.equal(promptMessage, NOTICE_MESSAGE);
   passed(
-    "the in-tab prompt banner renders with the site's host and a Continue/Cancel choice",
+    "the in-tab notice banner renders explaining passkeys aren't available yet",
   );
 
   await new Promise<void>((resolve) => setTimeout(resolve, 500));
@@ -222,9 +220,8 @@ async function main() {
   });
   await bannerWindow.loadURL(promptView.webContents.getURL());
   bannerWindow.webContents.send(BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL, {
-    stage: "ask",
-    host: new URL(url).host,
-    browserLabel: "your browser",
+    stage: "notice",
+    message: NOTICE_MESSAGE,
   });
   await new Promise<void>((resolve) => setTimeout(resolve, 1000));
   const bannerScreenshot = await bannerWindow.webContents.capturePage();
@@ -235,20 +232,19 @@ async function main() {
   );
   bannerWindow.destroy();
   passed(
-    "captured the tab and the passkey banner via webContents.capturePage()",
+    "captured the tab and the passkey notice banner via webContents.capturePage()",
   );
 
   await promptView.webContents.executeJavaScript(
-    "document.querySelector('#bb-webauthn-cancel').click(); undefined",
+    "document.querySelector('#bb-webauthn-dismiss').click(); undefined",
   );
   await new Promise<void>((resolve) => setTimeout(resolve, 300));
-  const statusAfterCancel = await tabView.webContents.executeJavaScript(
-    "document.querySelector('#status').textContent",
+  assert.equal(
+    findViewByUrlPrefix(window, "data:text/html;charset=utf-8"),
+    undefined,
+    "Dismiss must close the notice banner",
   );
-  assert.equal(statusAfterCancel, "rejected:NotAllowedError");
-  passed(
-    "clicking Cancel in the real prompt banner rejects the page's promise with NotAllowedError so the site falls back to its normal sign-in flow",
-  );
+  passed("clicking Dismiss closes the notice banner");
 
   promptManager.destroyAll();
   manager.destroyAll();

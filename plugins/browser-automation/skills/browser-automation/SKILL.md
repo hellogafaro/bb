@@ -14,8 +14,8 @@ an enrolled host. Prefer `--backend desktop --machine <host-id> --desktop
 <instance-id>` when a desktop client is connected on that host: it drives a
 tab in BB's own in-app desktop browser. That in-app browser is Electron and
 has no native passkey or QR/hybrid WebAuthn UI, so a passkey button there
-prompts the user to continue in their real system browser instead of hanging;
-see below. Choose desktop for a new dedicated desktop automation tab. Starting desktop
+rejects immediately with a small in-tab notice instead of hanging; see below.
+Choose desktop for a new dedicated desktop automation tab. Starting desktop
 control opens the side panel and selects the browser tab only if its thread is
 already focused. New or activated controller pages follow the same rule;
 automation does not switch threads or bring the desktop window forward. While
@@ -128,13 +128,13 @@ cannot complete a passkey or QR/hybrid WebAuthn prompt.
 
 A passkey button in either backend cannot be completed in-session: local
 headless Chrome and BB's in-app desktop browser both lack the native WebAuthn
-account picker and hybrid QR dialog. Ask the user to press Take over (desktop:
-in the side panel; local headless: the live preview lightbox), click the
-site's passkey button themselves, and follow the in-tab "Continue in your
-browser" prompt to finish the passkey in their real system browser and bring
-the resulting sign-in back to BB. If the user already signed in elsewhere, run
-`bb browser import-cookies --into automation:project:<projectId>` after they
-confirm instead of waiting on the page.
+account picker and hybrid QR dialog. In the desktop backend the button rejects
+immediately and the tab shows a small "Passkeys aren't available" notice. Ask
+the user to press Take over (desktop: in the side panel; local headless: the
+live preview lightbox) and pick another sign-in option the site offers
+(password, email code, other SSO). If the user already signed in elsewhere,
+run `bb browser import-cookies --into automation:project:<projectId>` after
+they confirm instead of waiting on the page.
 
 A local headless `open` returns a `previewDirective`, for example
 `::browser-preview{session="<session-id>"}`. Copy it into your next message

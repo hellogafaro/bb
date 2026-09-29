@@ -9,7 +9,7 @@ function renderWebauthnPromptView(): string {
     http-equiv="Content-Security-Policy"
     content="default-src 'none'; style-src 'unsafe-inline'; img-src data:"
   />
-  <title>Passkey handoff</title>
+  <title>Passkey notice</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -48,10 +48,6 @@ function renderWebauthnPromptView(): string {
       white-space: nowrap;
     }
 
-    .message[data-tone="error"] {
-      color: color-mix(in srgb, #f04438 82%, CanvasText);
-    }
-
     .actions {
       align-items: center;
       display: flex;
@@ -61,25 +57,13 @@ function renderWebauthnPromptView(): string {
 
     button {
       background: transparent;
-      border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+      border: 1px solid transparent;
       border-radius: 6px;
-      color: CanvasText;
+      color: color-mix(in srgb, CanvasText 65%, transparent);
       cursor: default;
       font: inherit;
       height: 26px;
       padding: 0 10px;
-    }
-
-    button[data-action="cancel"] {
-      background: transparent;
-      border-color: transparent;
-      color: color-mix(in srgb, CanvasText 65%, transparent);
-    }
-
-    button[data-primary="true"] {
-      background: color-mix(in srgb, CanvasText 92%, Canvas);
-      border-color: transparent;
-      color: Canvas;
     }
 
     button:hover {
@@ -91,14 +75,7 @@ function renderWebauthnPromptView(): string {
   <div class="bar" role="status" aria-live="polite">
     <span id="bb-webauthn-message" class="message"></span>
     <div class="actions">
-      <button
-        id="bb-webauthn-primary"
-        type="button"
-        data-primary="true"
-      ></button>
-      <button id="bb-webauthn-cancel" type="button" data-action="cancel">
-        Cancel
-      </button>
+      <button id="bb-webauthn-dismiss" type="button">Dismiss</button>
     </div>
   </div>
 </body>

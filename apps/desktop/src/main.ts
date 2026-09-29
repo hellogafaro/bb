@@ -218,7 +218,6 @@ import {
 } from "./desktop-window-command-ipc.js";
 import {
   createDesktopBrowserViewManager,
-  type DesktopBrowserTabProfile,
   type DesktopBrowserViewManager,
   type DesktopBrowserWebauthnRequestArgs,
 } from "./desktop-browser-view.js";
@@ -232,14 +231,8 @@ import {
   createDesktopWebauthnViewManager,
   type DesktopWebauthnViewManager,
 } from "./desktop-webauthn-view.js";
-import { pickWebauthnImportSource } from "./webauthn-import-pick.js";
 import { createBrowserImportService } from "./browser-import/browser-import.js";
 import { readMacAppIcon } from "./browser-import/mac-app-icon.js";
-import {
-  DESKTOP_BROWSER_IMPORT_FAILURE_COPY,
-  isRetryableDesktopBrowserImportReason,
-  type DesktopBrowserImportFailureReason,
-} from "@bb/host-daemon-contract";
 import {
   createDesktopBrowserBroker,
   type DesktopBrowserBroker,
@@ -3022,152 +3015,60 @@ async function runDesktopApp(): Promise<void> {
       );
     },
   });
-  interface WebauthnPromptContext {
-    requestId: number;
-    url: string;
-    profile: DesktopBrowserTabProfile;
-    browserLabel: string;
-  }
-  const webauthnPromptContext = new Map<string, WebauthnPromptContext>();
-  function webauthnPromptContextKey(
+  const WEBAUTHN_NOTICE_MESSAGE =
+    "Passkeys aren't available in BB's browser yet — use another sign-in option";
+  const WEBAUTHN_NOTICE_AUTO_HIDE_MS = 6000;
+  const webauthnNoticeTimers = new Map<string, NodeJS.Timeout>();
+  function webauthnNoticeKey(
     hostWindow: { webContents: { id: number } },
     tabId: string,
   ): string {
     return `${hostWindow.webContents.id}:${tabId}`;
   }
-  function webauthnPromptHost(url: string): string {
-    try {
-      const parsed = new URL(url);
-      return parsed.host.length > 0 ? parsed.host : url;
-    } catch {
-      return url;
+  function clearWebauthnNoticeTimer(key: string): void {
+    const timer = webauthnNoticeTimers.get(key);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      webauthnNoticeTimers.delete(key);
     }
   }
-  function showWebauthnError(
+  function closeWebauthnNotice(
     hostWindow: BrowserWindow,
     tabId: string,
-    context: WebauthnPromptContext,
-    reason: DesktopBrowserImportFailureReason | null,
   ): void {
-    desktopWebauthnViewManager?.setState({
+    clearWebauthnNoticeTimer(webauthnNoticeKey(hostWindow, tabId));
+    desktopWebauthnViewManager?.close(hostWindow, tabId);
+  }
+  function handleWebauthnRequest(
+    requestArgs: DesktopBrowserWebauthnRequestArgs,
+  ): void {
+    const hostWindow = requestArgs.hostWindow as BrowserWindow;
+    const { tabId } = requestArgs;
+    desktopBrowserViewManager?.rejectWebauthnRequest({
       hostWindow,
       tabId,
-      state: {
-        stage: "error",
-        host: webauthnPromptHost(context.url),
-        browserLabel: context.browserLabel,
-        message:
-          reason === null
-            ? "No importable browser was found on this machine."
-            : DESKTOP_BROWSER_IMPORT_FAILURE_COPY[reason],
-        retryable:
-          reason !== null && isRetryableDesktopBrowserImportReason(reason),
-      },
+      requestId: requestArgs.requestId,
     });
-  }
-  async function handleWebauthnRequest(
-    requestArgs: DesktopBrowserWebauthnRequestArgs,
-  ): Promise<void> {
-    const hostWindow = requestArgs.hostWindow as BrowserWindow;
-    const sources = await browserImportService.listSources().catch(() => []);
-    const pick = pickWebauthnImportSource(sources);
-    const browserLabel = pick.ok ? pick.source.name : "your browser";
-    webauthnPromptContext.set(
-      webauthnPromptContextKey(hostWindow, requestArgs.tabId),
-      {
-        requestId: requestArgs.requestId,
-        url: requestArgs.url,
-        profile: requestArgs.profile,
-        browserLabel,
-      },
-    );
+    const key = webauthnNoticeKey(hostWindow, tabId);
+    clearWebauthnNoticeTimer(key);
     desktopWebauthnViewManager?.open({
       hostWindow,
-      tabId: requestArgs.tabId,
-      tabBounds: requestArgs.bounds,
-      state: {
-        stage: "ask",
-        host: webauthnPromptHost(requestArgs.url),
-        browserLabel,
-      },
-    });
-  }
-  async function runWebauthnImport(
-    hostWindow: BrowserWindow,
-    tabId: string,
-  ): Promise<void> {
-    const key = webauthnPromptContextKey(hostWindow, tabId);
-    const context = webauthnPromptContext.get(key);
-    if (context === undefined) {
-      return;
-    }
-    desktopWebauthnViewManager?.setState({
-      hostWindow,
       tabId,
-      state: {
-        stage: "importing",
-        host: webauthnPromptHost(context.url),
-        browserLabel: context.browserLabel,
-      },
+      tabBounds: requestArgs.bounds,
+      state: { stage: "notice", message: WEBAUTHN_NOTICE_MESSAGE },
     });
-    const sources = await browserImportService.listSources().catch(() => []);
-    const pick = pickWebauthnImportSource(sources);
-    if (!pick.ok) {
-      showWebauthnError(hostWindow, tabId, context, pick.reason);
-      return;
-    }
-    const manager = desktopBrowserViewManager;
-    if (manager === null) {
-      return;
-    }
-    const outcome = await browserImportService.importCookies(
-      {
-        sourceId: pick.source.id,
-        sourceProfileDirectory: pick.profile.directory,
-      },
-      manager.profileSession(context.profile),
+    webauthnNoticeTimers.set(
+      key,
+      setTimeout(() => {
+        webauthnNoticeTimers.delete(key);
+        desktopWebauthnViewManager?.close(hostWindow, tabId);
+      }, WEBAUTHN_NOTICE_AUTO_HIDE_MS),
     );
-    if (!outcome.ok) {
-      showWebauthnError(hostWindow, tabId, context, outcome.reason);
-      return;
-    }
-    webauthnPromptContext.delete(key);
-    desktopWebauthnViewManager?.close(hostWindow, tabId);
-    manager.reload({ hostWindow, tabId });
   }
   desktopWebauthnViewManager = createDesktopWebauthnViewManager({
     preloadPath: webauthnPromptPreloadPath,
-    onAction({ hostWindow, tabId, action }) {
-      const nativeHostWindow = hostWindow as BrowserWindow;
-      const key = webauthnPromptContextKey(nativeHostWindow, tabId);
-      const context = webauthnPromptContext.get(key);
-      if (context === undefined) {
-        return;
-      }
-      if (action === "cancel") {
-        webauthnPromptContext.delete(key);
-        desktopBrowserViewManager?.rejectWebauthnRequest({
-          hostWindow: nativeHostWindow,
-          tabId,
-          requestId: context.requestId,
-        });
-        desktopWebauthnViewManager?.close(nativeHostWindow, tabId);
-        return;
-      }
-      if (action === "continue") {
-        void shell.openExternal(context.url);
-        desktopWebauthnViewManager?.setState({
-          hostWindow: nativeHostWindow,
-          tabId,
-          state: {
-            stage: "handoff",
-            host: webauthnPromptHost(context.url),
-            browserLabel: context.browserLabel,
-          },
-        });
-        return;
-      }
-      void runWebauthnImport(nativeHostWindow, tabId);
+    onAction({ hostWindow, tabId }) {
+      closeWebauthnNotice(hostWindow as BrowserWindow, tabId);
     },
   });
   desktopBrowserViewManager = createDesktopBrowserViewManager({
@@ -3205,7 +3106,7 @@ async function runDesktopApp(): Promise<void> {
       });
     },
     onWebauthnRequest(requestArgs) {
-      void handleWebauthnRequest(requestArgs);
+      handleWebauthnRequest(requestArgs);
     },
     onTabBoundsChanged({ hostWindow, tabId, bounds }) {
       desktopWebauthnViewManager?.layout({
@@ -3215,11 +3116,7 @@ async function runDesktopApp(): Promise<void> {
       });
     },
     onTabClosed({ hostWindow, tabId }) {
-      const nativeHostWindow = hostWindow as BrowserWindow;
-      webauthnPromptContext.delete(
-        webauthnPromptContextKey(nativeHostWindow, tabId),
-      );
-      desktopWebauthnViewManager?.close(nativeHostWindow, tabId);
+      closeWebauthnNotice(hostWindow as BrowserWindow, tabId);
     },
   });
   registerDesktopBrowserIpc(desktopBrowserViewManager);

@@ -147,10 +147,11 @@ Acquiring control opens the side panel and selects its browser tab only when
 the owning thread is already focused. New or activated controller pages
 follow the same rule. Automation does not switch threads or bring the desktop
 window forward. While controlled, a desktop tab never takes keyboard focus
-from the composer or other apps; press Take over to type into it, complete a
-captcha, or handle a passkey button through the "Continue in your browser"
-handoff prompt (the in-app browser has no native WebAuthn UI), then press
-Take over again to give control back. Pass
+from the composer or other apps; press Take over to type into it or complete a
+captcha, then press Take over again to give control back. A passkey button in
+the in-app browser rejects immediately with a small non-blocking notice,
+since Electron has no native WebAuthn UI; the site falls back to its own
+sign-in options (see below). Pass
 `--tab <tab-id>` only for an explicit handoff of an existing tab. This grants the
 existing profile's browsing authority, including its authenticated cookies;
 release preserves that tab and login. Plugin-created tabs in its dedicated
@@ -187,9 +188,9 @@ where the agent cannot. Neither backend can complete a native passkey or
 QR/hybrid WebAuthn prompt in-session: headless Chrome has no Bluetooth
 proximity on the machine running the browser, and BB's in-app desktop browser
 (Electron) has no native WebAuthn UI at all. In the desktop backend, a passkey
-button instead shows an in-tab "Continue in your browser" prompt so the user
-can finish the passkey in their real system browser and bring the sign-in
-back; press Take over and click the button to trigger it.
+button instead rejects immediately and shows a small in-tab notice, so the
+site falls back to its own sign-in options (password, email code, other SSO);
+ask the user to pick one of those instead.
 Runs on that session (`run`, `pages`, `screenshot`)
 pause automatically while a person holds control, backed by the same
 control-gate pattern used for the Computer tab's human-control stream

@@ -116,7 +116,7 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys aren't available yet" },
     });
 
     const view = electronMock.createdViews.at(-1);
@@ -129,7 +129,7 @@ describe("createDesktopWebauthnViewManager", () => {
     expect(host.contentView.views).toEqual([view]);
     expect(view?.visible).toBe(true);
     expect(view?.sendCalls.at(-1)).toMatchObject({
-      payload: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      payload: { stage: "notice", message: "Passkeys aren't available yet" },
     });
   });
 
@@ -144,13 +144,13 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys aren't available yet" },
     });
     manager.open({
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "handoff", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys aren't available yet" },
     });
 
     expect(electronMock.createdViews.length).toBe(1);
@@ -167,7 +167,7 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
     const view = electronMock.createdViews.at(-1);
     const listener = electronMock.listeners.get(
@@ -175,12 +175,12 @@ describe("createDesktopWebauthnViewManager", () => {
     );
     expect(listener).toBeDefined();
 
-    listener?.({ sender: { id: view!.webContents.id } }, { action: "cancel" });
+    listener?.({ sender: { id: view!.webContents.id } }, { action: "dismiss" });
 
     expect(onAction).toHaveBeenCalledWith({
       hostWindow: host,
       tabId: "tab-1",
-      action: "cancel",
+      action: "dismiss",
     });
   });
 
@@ -195,7 +195,7 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
     const view = electronMock.createdViews.at(-1);
     const listener = electronMock.listeners.get(
@@ -206,7 +206,7 @@ describe("createDesktopWebauthnViewManager", () => {
       { sender: { id: view!.webContents.id } },
       { action: "not-a-real-action" },
     );
-    listener?.({ sender: { id: 99999 } }, { action: "cancel" });
+    listener?.({ sender: { id: 99999 } }, { action: "dismiss" });
 
     expect(onAction).not.toHaveBeenCalled();
   });
@@ -221,7 +221,7 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
     const view = electronMock.createdViews.at(-1);
 
@@ -241,13 +241,13 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
     manager.open({
       hostWindow: host,
       tabId: "tab-2",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
 
     manager.releaseWindow(host.webContents.id);
@@ -268,7 +268,7 @@ describe("createDesktopWebauthnViewManager", () => {
       hostWindow: host,
       tabId: "tab-1",
       tabBounds: TAB_BOUNDS,
-      state: { stage: "ask", host: "example.com", browserLabel: "Chrome" },
+      state: { stage: "notice", message: "Passkeys are not available yet" },
     });
     const view = electronMock.createdViews.at(-1);
     const nextBounds: WebauthnViewBounds = {

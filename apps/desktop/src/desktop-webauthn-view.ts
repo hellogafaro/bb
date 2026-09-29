@@ -30,7 +30,7 @@ export interface WebauthnViewHostWindow {
 export interface WebauthnPromptActionArgs {
   hostWindow: WebauthnViewHostWindow;
   tabId: string;
-  action: "continue" | "bring-to-bb" | "retry" | "cancel";
+  action: "dismiss";
 }
 
 export interface CreateDesktopWebauthnViewManagerArgs {
