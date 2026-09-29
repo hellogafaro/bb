@@ -55,8 +55,9 @@ function authorize(
   deps: WorkSessionDeps,
   scope: ExperimentalDesktopBrowserScope,
 ) {
-  requirePublicThread(deps.db, scope.threadId);
+  const thread = requirePublicThread(deps.db, scope.threadId);
   requireNonDestroyedHostWithStatus(deps, scope.hostId);
+  return thread;
 }
 
 function sameScope(
@@ -233,7 +234,7 @@ export async function createDesktopBrowserTab(
   deps: WorkSessionDeps,
   input: ExperimentalDesktopBrowserCreateRequest,
 ) {
-  authorize(deps, input);
+  const thread = authorize(deps, input);
   const result = await callHostOnlineRpcForWork(deps, {
     hostId: input.hostId,
     timeoutMs: 15000,
@@ -243,7 +244,7 @@ export async function createDesktopBrowserTab(
       tabId: randomUUID(),
       url: input.url,
       presentation: input.presentation,
-      profile: { kind: "automation", id: randomUUID() },
+      profile: { kind: "automation", id: `project:${thread.projectId}` },
     },
   });
   try {

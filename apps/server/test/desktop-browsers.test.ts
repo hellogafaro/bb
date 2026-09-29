@@ -349,12 +349,12 @@ describe("desktop browser public API", () => {
         threadId: test.scope.threadId,
         url: "about:blank",
         presentation: "hidden",
-        profile: { kind: "automation", id: expect.any(String) },
+        profile: { kind: "automation", id: `project:${test.project.id}` },
       });
       expect(tab.tabId).toMatch(/^[0-9a-f-]{36}$/u);
       expect(tab.profile).toEqual({
         kind: "automation",
-        id: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+        id: `project:${test.project.id}`,
       });
       expect(test.stored()).toEqual([
         expect.objectContaining({
