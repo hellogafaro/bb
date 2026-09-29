@@ -108,6 +108,32 @@ describe("TargetTable", () => {
     expect(observation.hint).toMatch(/browser binding/);
   });
 
+  it("follows a newly topmost window on reobserve instead of staying pinned to the previously observed one", async () => {
+    let windows = [{ pid: 100, window_id: 1, title: "jev-test", app_name: "xfce4-terminal", is_on_screen: true, z_index: 1 }];
+    class SwitchingTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "list_windows") return { structuredContent: { windows } };
+        if (tool === "get_window_state") {
+          const top = windows[windows.length - 1]!;
+          return { structuredContent: { window_title: top.title, snapshot_id: `s-${top.window_id}`, elements: [] } };
+        }
+        throw new Error(`No fake response for ${tool}`);
+      }
+    }
+    const transport = new SwitchingTransport();
+    const table = new TargetTable();
+    const first = await table.observe(transport, new AbortController().signal);
+    expect(first.title).toBe("jev-test");
+
+    windows = [
+      ...windows,
+      { pid: 100, window_id: 2, title: "jev-test (new tab)", app_name: "xfce4-terminal", is_on_screen: true, z_index: 2 },
+    ];
+    const second = await table.reobserve(transport, new AbortController().signal);
+    expect(second.title).toBe("jev-test (new tab)");
+    expect(table.window?.windowId).toBe(2);
+  });
+
   it("gives a generic hint for a non-Chromium window with zero elements", async () => {
     const nativeWindow: CuaToolResult = {
       structuredContent: {

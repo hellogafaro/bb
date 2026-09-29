@@ -272,6 +272,11 @@ const defaultJevLoopIo: JevLoopIo = { observe, act };
 
 const SUBMIT_OPERATIONS = new Set(["type", "set_value", "type_window"]);
 
+// Below this many steps in a row where the window hasn't changed and Jev keeps repeating
+// the same action, it is spinning without making progress; escalating quickly here
+// (instead of burning the full step budget) is what lets the calling agent take over fast.
+const NO_PROGRESS_ESCALATION_STEPS = 5;
+
 async function decideWithRetry(
   provider: DecisionProvider,
   request: DecisionRequest,
@@ -285,6 +290,30 @@ async function decideWithRetry(
   }
 }
 
+// Keyed on the window title alone, not the target-table snapshotId: the snapshotId can
+// churn from harmless redraw noise (cursor blink, timestamps) even when nothing about the
+// window changed, which would mask a real stuck loop. A title change (new tab, new window,
+// a dialog opening) is a much more reliable "something changed" signal.
+function windowKey(observation: Observation): string {
+  return observation.title;
+}
+
+function actionKey(operation: Operation): string {
+  const clone: Record<string, unknown> = { ...operation };
+  delete clone.snapshotId;
+  return JSON.stringify(clone);
+}
+
+function pushTrace(run: RunRecord, entry: RunStatus["trace"][number]): void {
+  const trace = [...run.status.trace, entry];
+  if (trace.length > 50) trace.shift();
+  touchRun(run, { trace });
+}
+
+function escalationSummary(run: RunStatus, reason: string): string {
+  return `Completed ${run.steps} step(s) toward "${run.goal}". Last action: ${run.lastSummary ?? "none"}. ${reason} Continue from the current observation with computer_observe/computer_act instead of restarting the goal.`;
+}
+
 export async function runJevLoop(
   deps: WorkSessionDeps,
   run: RunRecord,
@@ -295,14 +324,20 @@ export async function runJevLoop(
   const signal = run.abort.signal;
   const recentSummaries: string[] = [];
   let noProgress = 0;
+  let previousWindowKey: string | null = null;
+  let previousActionKey: string | null = null;
   touchRun(run, { state: "observing" });
   try {
     while (run.status.steps < input.maxSteps && !signal.aborted) {
+      const observeStart = Date.now();
       let observationResult = await io.observe(deps, input.hostId, undefined);
-      touchRun(run, { state: "deciding" });
+      const observeMs = Date.now() - observeStart;
+      touchRun(run, { state: "deciding", lastObservation: observationResult });
       let operation: Operation | null = null;
       let outcome: ActionOutcome | null = null;
       let lastDecision: DecisionResponse | null = null;
+      let decideMs = 0;
+      let actMs = 0;
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const opChoices = operationChoices(
           input.allowedOperations,
@@ -315,6 +350,7 @@ export async function runJevLoop(
           });
           return;
         }
+        const decideStart = Date.now();
         const decision = await decideWithRetry(
           provider,
           {
@@ -326,6 +362,7 @@ export async function runJevLoop(
           },
           signal,
         );
+        decideMs += Date.now() - decideStart;
         lastDecision = decision;
         touchRun(run, {
           jevCostUsd: run.status.jevCostUsd + (decision.costUsd ?? 0),
@@ -338,17 +375,19 @@ export async function runJevLoop(
         if (decision.confidence !== null && decision.confidence < 0.35) {
           touchRun(run, {
             state: "escalated",
-            lastSummary: `Low confidence (${decision.confidence.toFixed(2)}); escalating to the agent`,
+            lastSummary: escalationSummary(run.status, `Low confidence (${decision.confidence.toFixed(2)}).`),
           });
           return;
         }
         const typedText = validateTypedText(decision.typedText);
         operation = verifyTargetFresh(observationResult, toOperation(decision, observationResult, typedText));
         touchRun(run, { state: "acting" });
+        const actStart = Date.now();
         outcome = await io.act(deps, input.hostId, operation, signal);
+        actMs += Date.now() - actStart;
         if (outcome.state === "stale" && outcome.observation !== null && attempt === 0) {
           observationResult = outcome.observation;
-          touchRun(run, { state: "deciding" });
+          touchRun(run, { state: "deciding", lastObservation: observationResult });
           continue;
         }
         break;
@@ -357,25 +396,49 @@ export async function runJevLoop(
       const decision = lastDecision;
       if (decision.submit && outcome.state === "completed" && SUBMIT_OPERATIONS.has(operation.kind)) {
         touchRun(run, { state: "acting" });
+        const submitStart = Date.now();
         const submitOutcome = await io.act(deps, input.hostId, { kind: "press_key", key: "Enter" }, signal);
+        actMs += Date.now() - submitStart;
         outcome = { ...submitOutcome, summary: `${outcome.summary}; then ${submitOutcome.summary}` };
       }
+      if (outcome.observation !== null) touchRun(run, { lastObservation: outcome.observation });
       run.status.steps += 1;
       recentSummaries.push(outcome.summary);
       if (recentSummaries.length > 5) recentSummaries.shift();
-      if (
-        outcome.state === "completed" &&
-        outcome.observation?.snapshotId === observationResult.snapshotId
-      ) {
-        noProgress += 1;
-      } else {
-        noProgress = 0;
-      }
+
+      const currentWindowKey = windowKey(observationResult);
+      const currentActionKey = actionKey(operation);
+      const stuck = currentWindowKey === previousWindowKey && currentActionKey === previousActionKey;
+      noProgress = stuck ? noProgress + 1 : 0;
+      previousWindowKey = currentWindowKey;
+      previousActionKey = currentActionKey;
+
       touchRun(run, { lastSummary: outcome.summary, noProgressSteps: noProgress });
+
+      const waitMs = operation.kind === "done" || operation.kind === "blocked" ? 0 : postActionWaitMs(operation, observationResult);
+      pushTrace(run, {
+        step: run.status.steps,
+        windowTitle: observationResult.title,
+        targetCount: observationResult.targets.length,
+        offeredOperations: operationChoices(input.allowedOperations, observationResult.targets).map(
+          (choice) => choice.choiceId as Operation["kind"],
+        ),
+        chosenOperation: operation.kind,
+        chosenTargetId: "targetId" in operation ? (operation.targetId ?? null) : null,
+        chosenConfidence: decision.confidence,
+        textCandidate: decision.typedText,
+        submitProbability: decision.submitProbability,
+        goalCompleteProbability: decision.goalCompleteProbability,
+        outcomeState: outcome.state,
+        outcomeSummary: outcome.summary,
+        costUsd: decision.costUsd,
+        timingsMs: { observe: observeMs, decide: decideMs, act: actMs, wait: waitMs },
+      });
+
       if (operation.kind === "done") {
         try {
-          await io.observe(deps, input.hostId, undefined);
-          touchRun(run, { state: "done" });
+          const finalObservation = await io.observe(deps, input.hostId, undefined);
+          touchRun(run, { state: "done", lastObservation: finalObservation });
         } catch (error) {
           touchRun(run, {
             state: "error",
@@ -388,18 +451,21 @@ export async function runJevLoop(
         touchRun(run, { state: "blocked" });
         return;
       }
-      if (noProgress >= 3) {
+      if (noProgress >= NO_PROGRESS_ESCALATION_STEPS) {
         touchRun(run, {
           state: "escalated",
-          lastSummary: "No progress after 3 steps; escalating to the agent",
+          lastSummary: escalationSummary(
+            run.status,
+            `No progress after ${NO_PROGRESS_ESCALATION_STEPS} steps (same window, repeating the same action).`,
+          ),
         });
         return;
       }
-      await wait(postActionWaitMs(operation, observationResult), signal);
+      await wait(waitMs, signal);
       if (decision.goalCompleteAfter && outcome.state !== "error") {
         try {
-          await io.observe(deps, input.hostId, undefined);
-          touchRun(run, { state: "done" });
+          const finalObservation = await io.observe(deps, input.hostId, undefined);
+          touchRun(run, { state: "done", lastObservation: finalObservation });
           return;
         } catch {}
       }
@@ -407,13 +473,13 @@ export async function runJevLoop(
     if (!signal.aborted) {
       touchRun(run, {
         state: "escalated",
-        lastSummary: "Reached the step limit; escalating to the agent",
+        lastSummary: escalationSummary(run.status, "Reached the step limit."),
       });
     }
   } catch (error) {
     if (!signal.aborted) {
       if (error instanceof EscalateToAgentError) {
-        touchRun(run, { state: "escalated", lastSummary: error.message });
+        touchRun(run, { state: "escalated", lastSummary: escalationSummary(run.status, error.message) });
       } else {
         touchRun(run, {
           state: "error",
@@ -442,6 +508,8 @@ export async function start(
     steps: 0,
     noProgressSteps: 0,
     lastSummary: null,
+    lastObservation: null,
+    trace: [],
     jevCostUsd: 0,
     jevModel: null,
     startedAt: Date.now(),

@@ -122,6 +122,23 @@ with `cancel` when done or stuck. Poll `status` for a jev run's state
 and take over with `observe`/`act` whenever it escalates. `active-run`
 reports the running run ID for a machine, if any.
 
+Use `start` first for any concrete UI goal instead of driving
+`observe`/`act` yourself — it is faster on the straightforward steps and
+only falls back to you when it is genuinely stuck. A run escalates quickly,
+after a handful of steps without progress (repeating the same window and
+action) rather than burning its whole step budget, and after opening a new
+tab or window it keeps following whichever window is now topmost instead of
+staying pinned to the one it started on. Every `status` response carries
+`lastObservation` — the freshest target table the run has seen — so pick up
+with `observe`/`act` from there instead of re-observing or redoing what the
+run already did; `lastSummary` on an escalated or errored run says what was
+completed and why it stopped. `status` also carries a bounded `trace` of the
+run's most recent steps (window title and target count, the operations
+offered, the chosen operation/target and its confidence, the extracted text
+candidate, the `submit`/`goalCompleteAfter` probabilities, the action
+outcome, per-step timings, and cost) for diagnosing exactly where a run got
+stuck.
+
 Human takeover:
 
   bb computer take-control --host <id> --client <id> [--json]

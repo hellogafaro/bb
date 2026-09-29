@@ -58,50 +58,50 @@ describe("targetChoices", () => {
 
 describe("toOperation", () => {
   it("maps a click decision to a click operation carrying the current snapshotId", () => {
-    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.9, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.9, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, null);
     expect(operation).toEqual({ kind: "click", targetId: "t0", snapshotId: "snap-1" });
   });
 
   it("blocks a click decision with no target instead of guessing one", () => {
-    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.9, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "click", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.9, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, null);
     expect(operation.kind).toBe("blocked");
   });
 
   it("carries generated text into a type operation and never into any other kind", () => {
-    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, "hello world");
     expect(operation).toMatchObject({ kind: "type", text: "hello world" });
   });
 
   it("blocks type instead of typing an empty or invalid string", () => {
-    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, null);
     expect(operation.kind).toBe("blocked");
   });
 
   it("maps type_window to a targetless type operation carrying the given text", () => {
-    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, "echo hello-from-jev");
     expect(operation).toEqual({ kind: "type_window", text: "echo hello-from-jev" });
   });
 
   it("blocks type_window when no valid text was produced", () => {
-    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null };
+    const decision: DecisionResponse = { operationChoiceId: "type_window", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null };
     const operation = toOperation(decision, observation, null);
     expect(operation.kind).toBe("blocked");
   });
 
   it("maps press_key to the chosen key, defaulting to Enter with no choice", () => {
     const chosen = toOperation(
-      { operationChoiceId: "press_key", targetChoiceId: "Escape", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null },
+      { operationChoiceId: "press_key", targetChoiceId: "Escape", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null },
       observation,
       null,
     );
     expect(chosen).toEqual({ kind: "press_key", key: "Escape" });
     const defaulted = toOperation(
-      { operationChoiceId: "press_key", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null },
+      { operationChoiceId: "press_key", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null },
       observation,
       null,
     );
@@ -110,7 +110,7 @@ describe("toOperation", () => {
 
   it("maps focus_window to a targetless operation", () => {
     const operation = toOperation(
-      { operationChoiceId: "focus_window", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.8, costUsd: null, servedModel: null },
+      { operationChoiceId: "focus_window", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.8, costUsd: null, servedModel: null },
       observation,
       null,
     );
@@ -120,30 +120,30 @@ describe("toOperation", () => {
 
 describe("verifyTargetFresh", () => {
   it("passes through an operation whose target is still in the observation", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, observation, null);
     expect(verifyTargetFresh(observation, operation)).toEqual(operation);
   });
 
   it("blocks instead of executing against a target that vanished from the observation", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "gone", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "gone", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, observation, null);
     const guarded = verifyTargetFresh(observation, operation);
     expect(guarded.kind).toBe("blocked");
   });
 
   it("leaves target-less operations untouched", () => {
-    const operation = toOperation({ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, observation, null);
+    const operation = toOperation({ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, observation, null);
     expect(verifyTargetFresh(observation, operation)).toEqual(operation);
   });
 });
 
 describe("postActionWaitMs", () => {
   it("caps a non-type action to 50ms", () => {
-    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, observation, null);
+    const operation = toOperation({ operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, observation, null);
     expect(postActionWaitMs(operation, observation)).toBe(50);
   });
 
   it("caps typing into a plain text field to 50ms", () => {
-    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, observation, "hi");
+    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t1", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, observation, "hi");
     expect(postActionWaitMs(operation, observation)).toBe(50);
   });
 
@@ -154,7 +154,7 @@ describe("postActionWaitMs", () => {
         { index: 0, targetId: "t3", role: "searchbox", name: "Search", value: "", bounds: null, ref: null, allowedOperations: ["type"] },
       ],
     };
-    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t3", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }, comboObservation, "hi");
+    const operation = toOperation({ operationChoiceId: "type", targetChoiceId: "t3", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }, comboObservation, "hi");
     expect(postActionWaitMs(operation, comboObservation)).toBe(200);
   });
 });
@@ -176,8 +176,8 @@ class ScriptedProvider implements DecisionProvider {
 describe("ScriptedProvider fixture", () => {
   it("replays exactly the scripted decisions in order", async () => {
     const provider = new ScriptedProvider([
-      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
-      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
     ]);
     const first = await provider.decide();
     const second = await provider.decide();
@@ -260,7 +260,7 @@ describe("JevDecisionProvider", () => {
     });
     const provider = new JevDecisionProvider({ endpoint: "https://openrouter.ai/api/alpha/decisions", model: "~typesafe/jev-latest", apiKey: "key", fetchImpl });
     const decision = await provider.decide(decisionRequest, new AbortController().signal);
-    expect(decision).toEqual({ operationChoiceId: "click", targetChoiceId: "t2", typedText: null, submit: false, goalCompleteAfter: false, confidence: 0.98, costUsd: null, servedModel: null });
+    expect(decision).toEqual({ operationChoiceId: "click", targetChoiceId: "t2", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0.05, confidence: 0.98, costUsd: null, servedModel: null });
     expect(calls).toHaveLength(1);
     const questions = calls[0]!.body.questions as Record<string, { type: string; criteria: Record<string, unknown> }>;
     expect(questions.click_target!.criteria).toEqual({

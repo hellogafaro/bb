@@ -52,6 +52,35 @@ export type ComputerRunState = z.infer<typeof computerRunStateSchema>;
 export const computerRunModeSchema = z.enum(["agent", "jev"]);
 export type ComputerRunMode = z.infer<typeof computerRunModeSchema>;
 
+export const computerRunStepTraceSchema = z
+  .object({
+    step: z.number().int().nonnegative(),
+    windowTitle: z.string().max(500),
+    targetCount: z.number().int().nonnegative(),
+    offeredOperations: z.array(computerOperationKindSchema).max(20),
+    chosenOperation: computerOperationKindSchema,
+    chosenTargetId: z.string().max(80).nullable(),
+    chosenConfidence: z.number().nullable(),
+    textCandidate: z.string().max(2_000).nullable(),
+    submitProbability: z.number().nullable(),
+    goalCompleteProbability: z.number(),
+    outcomeState: z.string().max(40),
+    outcomeSummary: z.string().max(2_000),
+    costUsd: z.number().nullable(),
+    timingsMs: z
+      .object({
+        observe: z.number().nonnegative(),
+        decide: z.number().nonnegative(),
+        act: z.number().nonnegative(),
+        wait: z.number().nonnegative(),
+      })
+      .strict(),
+  })
+  .strict();
+export type ComputerRunStepTrace = z.infer<typeof computerRunStepTraceSchema>;
+
+export const COMPUTER_RUN_TRACE_MAX_STEPS = 50;
+
 export const computerRunStatusSchema = z
   .object({
     runId: computerRunIdSchema,
@@ -62,6 +91,8 @@ export const computerRunStatusSchema = z
     steps: z.number().int().nonnegative(),
     noProgressSteps: z.number().int().nonnegative(),
     lastSummary: z.string().max(2_000).nullable(),
+    lastObservation: computerObservationWithHostSchema.nullable(),
+    trace: z.array(computerRunStepTraceSchema).max(COMPUTER_RUN_TRACE_MAX_STEPS),
     jevCostUsd: z.number().nonnegative(),
     jevModel: z.string().max(200).nullable(),
     startedAt: z.number().int(),

@@ -106,19 +106,22 @@ export class TargetTable {
   #bindings = new Map<string, Binding>();
   #snapshotId = "";
   #window: DesktopWindow | null = null;
+  #appId: string | undefined;
 
   get window(): DesktopWindow | null {
     return this.#window;
   }
 
   async observe(transport: CuaTransport, signal: AbortSignal, appId?: string): Promise<ComputerObservation> {
+    this.#appId = appId;
     const window = await findWindow(transport, signal, appId);
     return this.#observeWindow(transport, signal, window);
   }
 
   async reobserve(transport: CuaTransport, signal: AbortSignal): Promise<ComputerObservation> {
     if (this.#window === null) throw new CuaError("No window has been observed yet", "stale-observation", true);
-    return this.#observeWindow(transport, signal, this.#window);
+    const window = await findWindow(transport, signal, this.#appId);
+    return this.#observeWindow(transport, signal, window);
   }
 
   async #observeWindow(transport: CuaTransport, signal: AbortSignal, window: DesktopWindow): Promise<ComputerObservation> {

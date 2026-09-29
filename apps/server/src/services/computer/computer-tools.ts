@@ -70,11 +70,12 @@ const COMPUTER_TOOL_DEFINITIONS = {
   },
   computer_start: {
     description:
-      "Start a goal-driven run on a machine. Defaults to jev mode when a TypeSafe or OpenRouter (Jev-router) key is configured: it runs a typed-choice decision loop in the background, deciding through TypeSafe when a TypeSafe key is configured and otherwise through Jev on OpenRouter. Without either key it falls back to agent mode, which immediately escalates: drive the goal yourself with computer_observe/computer_act and report computer_status. Pass mode explicitly to override the default.",
+      "Start a goal-driven run on a machine; use this first for any concrete UI goal instead of driving computer_observe/computer_act yourself. Defaults to jev mode when a TypeSafe or OpenRouter (Jev-router) key is configured: it runs a typed-choice decision loop in the background, deciding through TypeSafe when a TypeSafe key is configured and otherwise through Jev on OpenRouter. Without either key it falls back to agent mode, which immediately escalates: drive the goal yourself with computer_observe/computer_act and report computer_status. Pass mode explicitly to override the default. On escalation (including the no-key fallback), computer_status's lastObservation is the current state after everything Jev already did — call computer_observe/computer_act from there instead of restarting the goal.",
     parameters: startParameters,
   },
   computer_status: {
-    description: "Read a run's status (state, step count, last action summary).",
+    description:
+      "Read a run's status: state, step count, last action summary, the current lastObservation to continue from on escalation, and a bounded per-step trace (offered operations, chosen operation/target, confidence, and timings) for diagnosing a stuck or failed run.",
     parameters: statusParameters,
   },
   computer_cancel: {

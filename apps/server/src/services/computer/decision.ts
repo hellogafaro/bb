@@ -27,7 +27,9 @@ export interface DecisionResponse {
   readonly targetChoiceId: string | null;
   readonly typedText: string | null;
   readonly submit: boolean;
+  readonly submitProbability: number | null;
   readonly goalCompleteAfter: boolean;
+  readonly goalCompleteProbability: number;
   readonly confidence: number | null;
   readonly costUsd: number | null;
   readonly servedModel: string | null;
@@ -405,13 +407,26 @@ export class JevDecisionProvider implements DecisionProvider {
       typedText = validateTypedText(candidates[Number(textAnswer.choice.slice(1))] ?? null);
     }
 
-    const submit =
-      needsSubmit &&
-      (SUBMIT_OPERATIONS as readonly string[]).includes(operationChoiceId) &&
-      parseNoul(answers.submit) >= NOUL_TRUE_THRESHOLD;
-    const goalCompleteAfter = parseNoul(answers.goal_complete_after) >= NOUL_TRUE_THRESHOLD;
+    const submitProbability =
+      needsSubmit && (SUBMIT_OPERATIONS as readonly string[]).includes(operationChoiceId)
+        ? parseNoul(answers.submit)
+        : null;
+    const submit = submitProbability !== null && submitProbability >= NOUL_TRUE_THRESHOLD;
+    const goalCompleteProbability = parseNoul(answers.goal_complete_after);
+    const goalCompleteAfter = goalCompleteProbability >= NOUL_TRUE_THRESHOLD;
 
-    return { operationChoiceId, targetChoiceId, typedText, submit, goalCompleteAfter, confidence, costUsd, servedModel };
+    return {
+      operationChoiceId,
+      targetChoiceId,
+      typedText,
+      submit,
+      submitProbability,
+      goalCompleteAfter,
+      goalCompleteProbability,
+      confidence,
+      costUsd,
+      servedModel,
+    };
   }
 
   async #call(

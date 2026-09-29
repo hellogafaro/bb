@@ -50,6 +50,8 @@ function runFixture(): RunRecord {
     steps: 0,
     noProgressSteps: 0,
     lastSummary: null,
+    lastObservation: null,
+    trace: [],
     jevCostUsd: 0,
     jevModel: null,
     startedAt: Date.now(),
@@ -81,8 +83,8 @@ describe("runJevLoop", () => {
     const initial = observationFixture();
     const fresh = observationFixture({ snapshotId: "snap-2" });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
-      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
     ]);
     let observeCalls = 0;
     let actCalls = 0;
@@ -108,7 +110,7 @@ describe("runJevLoop", () => {
 
   it("re-observes before reporting DONE and escalates to error instead if that re-observe fails", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }]);
     let observeCalls = 0;
     const io: JevLoopIo = {
       observe: async () => {
@@ -125,7 +127,7 @@ describe("runJevLoop", () => {
 
   it("does not report done when the verification re-observe fails", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }]);
     let observeCalls = 0;
     const io: JevLoopIo = {
       observe: async () => {
@@ -143,7 +145,7 @@ describe("runJevLoop", () => {
 
   it("blocks instead of acting when the provider returns a target that is not in the observation", async () => {
     const observation = observationFixture();
-    const provider = new ScriptedProvider([{ operationChoiceId: "click", targetChoiceId: "ghost", typedText: null, submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null }]);
+    const provider = new ScriptedProvider([{ operationChoiceId: "click", targetChoiceId: "ghost", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null }]);
     let actedOperation: unknown = null;
     const io: JevLoopIo = {
       observe: async () => observation,
@@ -167,8 +169,8 @@ describe("runJevLoop", () => {
       targets: [{ index: 0, targetId: "t1", role: "text", name: "Filename", value: "", bounds: null, ref: null, allowedOperations: ["type"] }],
     });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "type", targetChoiceId: "t1", typedText: "hello.txt", submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
-      { operationChoiceId: "type", targetChoiceId: "t1", typedText: "hello.txt", submit: false, goalCompleteAfter: false, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "type", targetChoiceId: "t1", typedText: "hello.txt", submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
+      { operationChoiceId: "type", targetChoiceId: "t1", typedText: "hello.txt", submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 1, costUsd: null, servedModel: null },
     ]);
     let actCalls = 0;
     const io: JevLoopIo = {
@@ -190,7 +192,7 @@ describe("runJevLoop", () => {
   it("presses Enter immediately after a submit:true type_window, without spending another decide() on it", async () => {
     const observation = observationFixture({ targets: [] });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, goalCompleteAfter: false, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, submitProbability: 1, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
     ]);
     const actedActions: unknown[] = [];
     const io: JevLoopIo = {
@@ -213,8 +215,8 @@ describe("runJevLoop", () => {
   it("does not submit when the type action itself did not complete", async () => {
     const observation = observationFixture({ targets: [] });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, goalCompleteAfter: false, confidence: null, costUsd: null, servedModel: null },
-      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "type_window", targetChoiceId: null, typedText: "echo hi", submit: true, submitProbability: 1, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
     ]);
     const actedActions: unknown[] = [];
     const io: JevLoopIo = {
@@ -233,7 +235,7 @@ describe("runJevLoop", () => {
   it("finishes as done after one verification observe when goalCompleteAfter is true, without another decide()", async () => {
     const observation = observationFixture({ targets: [] });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, goalCompleteAfter: true, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: true, goalCompleteProbability: 1, confidence: null, costUsd: null, servedModel: null },
     ]);
     let observeCalls = 0;
     const io: JevLoopIo = {
@@ -253,8 +255,8 @@ describe("runJevLoop", () => {
   it("continues the loop normally when the goalCompleteAfter verification observe is inconsistent", async () => {
     const observation = observationFixture({ targets: [] });
     const provider = new ScriptedProvider([
-      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, goalCompleteAfter: true, confidence: null, costUsd: null, servedModel: null },
-      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, goalCompleteAfter: false, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "press_key", targetChoiceId: "Enter", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: true, goalCompleteProbability: 1, confidence: null, costUsd: null, servedModel: null },
+      { operationChoiceId: "done", targetChoiceId: null, typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: null, costUsd: null, servedModel: null },
     ]);
     let observeCalls = 0;
     const io: JevLoopIo = {
@@ -289,5 +291,152 @@ describe("runJevLoop", () => {
     expect(run.status.state).toBe("escalated");
     expect(run.status.lastSummary).toMatch(/no candidate text fits the goal/);
     expect(decideCalls).toBe(1);
+  });
+
+  it("records a bounded per-step trace with the offered operations, chosen target, probabilities, timings, and cost", async () => {
+    const observation = observationFixture();
+    const provider = new ScriptedProvider([
+      {
+        operationChoiceId: "click",
+        targetChoiceId: "t0",
+        typedText: null,
+        submit: false,
+        submitProbability: null,
+        goalCompleteAfter: false,
+        goalCompleteProbability: 0.2,
+        confidence: 0.9,
+        costUsd: 0.001,
+        servedModel: "typesafe/jev-1.13",
+      },
+    ]);
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "blocked", summary: "no safe next step" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(run.status.trace).toHaveLength(1);
+    const step = run.status.trace[0]!;
+    expect(step).toMatchObject({
+      step: 1,
+      windowTitle: "Editor",
+      targetCount: 1,
+      chosenOperation: "click",
+      chosenTargetId: "t0",
+      chosenConfidence: 0.9,
+      goalCompleteProbability: 0.2,
+      outcomeState: "blocked",
+      outcomeSummary: "no safe next step",
+      costUsd: 0.001,
+    });
+    expect(step.offeredOperations).toContain("click");
+    expect(step.timingsMs.observe).toBeGreaterThanOrEqual(0);
+    expect(step.timingsMs.decide).toBeGreaterThanOrEqual(0);
+    expect(step.timingsMs.act).toBeGreaterThanOrEqual(0);
+  });
+
+  it("keeps the latest observation on the run status so an escalation can be continued without re-observing", async () => {
+    const observation = observationFixture();
+    const provider = new ScriptedProvider([
+      { operationChoiceId: "click", targetChoiceId: "t0", typedText: null, submit: false, submitProbability: null, goalCompleteAfter: false, goalCompleteProbability: 0, confidence: 0.05, costUsd: null, servedModel: null },
+    ]);
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 5 }), provider, io);
+    expect(run.status.state).toBe("escalated");
+    expect(run.status.lastObservation).toEqual(observation);
+    expect(run.status.lastSummary).toMatch(/Completed 0 step\(s\) toward "Save the file"/);
+  });
+
+  it("escalates quickly once the same action repeats, well before the step limit, instead of spinning for 12 steps", async () => {
+    const observation = observationFixture();
+    const repeatedDecision: DecisionResponse = {
+      operationChoiceId: "click",
+      targetChoiceId: "t0",
+      typedText: null,
+      submit: false,
+      submitProbability: null,
+      goalCompleteAfter: false,
+      goalCompleteProbability: 0,
+      confidence: 0.9,
+      costUsd: null,
+      servedModel: null,
+    };
+    const provider = new ScriptedProvider(Array.from({ length: 12 }, () => repeatedDecision));
+    let actCalls = 0;
+    const io: JevLoopIo = {
+      observe: async () => observation,
+      act: async () => {
+        actCalls += 1;
+        return outcomeFixture({ state: "completed", observation, summary: `click attempt ${actCalls}` });
+      },
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 12 }), provider, io);
+    expect(run.status.state).toBe("escalated");
+    expect(run.status.lastSummary).toMatch(/No progress after 5 steps/);
+    expect(run.status.steps).toBeLessThan(12);
+  });
+
+  it("treats a changed window title as progress, even repeating the same click, instead of counting it toward the no-progress escalation", async () => {
+    const first = observationFixture({ title: "jev-test" });
+    const second = observationFixture({ title: "jev-test (new tab)" });
+    let observeCalls = 0;
+    const sameClickTwice = Array.from({ length: 2 }, () => ({
+      operationChoiceId: "click" as const,
+      targetChoiceId: "t0",
+      typedText: null,
+      submit: false,
+      submitProbability: null,
+      goalCompleteAfter: false,
+      goalCompleteProbability: 0,
+      confidence: 0.9,
+      costUsd: null,
+      servedModel: null,
+    }));
+    const provider = new ScriptedProvider(sameClickTwice);
+    const io: JevLoopIo = {
+      observe: async () => {
+        observeCalls += 1;
+        return observeCalls === 1 ? first : second;
+      },
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 2 }), provider, io);
+    expect(run.status.trace.map((entry) => entry.windowTitle)).toEqual(["jev-test", "jev-test (new tab)"]);
+    expect(run.status.noProgressSteps).toBe(0);
+  });
+
+  it("escalates on repeating the same click in the same window even though the target-table snapshotId changes on every observe", async () => {
+    let snapshotCounter = 0;
+    const provider = new ScriptedProvider(
+      Array.from({ length: 6 }, () => ({
+        operationChoiceId: "click" as const,
+        targetChoiceId: "t0",
+        typedText: null,
+        submit: false,
+        submitProbability: null,
+        goalCompleteAfter: false,
+        goalCompleteProbability: 0,
+        confidence: 0.9,
+        costUsd: null,
+        servedModel: null,
+      })),
+    );
+    const io: JevLoopIo = {
+      observe: async () => {
+        snapshotCounter += 1;
+        return observationFixture({ snapshotId: `noisy-${snapshotCounter}` });
+      },
+      act: async () => outcomeFixture({ state: "completed" }),
+    };
+    const run = runFixture();
+    await runJevLoop(fakeDeps, run, startInputFixture({ maxSteps: 6 }), provider, io);
+    expect(run.status.state).toBe("escalated");
+    expect(run.status.lastSummary).toMatch(/No progress after 5 steps/);
   });
 });
