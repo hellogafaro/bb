@@ -4,6 +4,10 @@ type ReleaseMeta = {
 };
 
 export const RELEASE_META: Record<string, ReleaseMeta> = {
+  "0.44.2": {
+    date: "September 29, 2026",
+    headline: "Fast Jev browser automation, live Computer, and passkey handoff",
+  },
   "0.44.1": {
     date: "September 27, 2026",
     headline: "Upstream 0.44.0 changes merged into the fork",

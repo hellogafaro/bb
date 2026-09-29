@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.44.2
+
+Browser automation gets a fast Jev loop, a safe login form, and saved logins; the Computer tab goes live; passkeys no longer hang in the desktop browser.
+
+- **Browser automation.** `bb browser-automation do <session> "<task>"` runs a task with Jev, OpenRouter's Decisions API with `typesafe/jev-1.13`. It is the only OpenRouter call, and a 7-task benchmark runs in about 16 seconds. `fill-login` asks you for a login in a masked form and types it into the page; the agent never sees the values. Each project keeps its browser logins across sessions, and you can take over a headless session's live preview.
+- **Passkeys in the desktop browser.** A passkey button now shows "Continue in your browser" instead of spinning. Finish the passkey there (Touch ID, iCloud Keychain, or the phone QR code), then "bring it to BB" copies the login into that tab's profile. Passkey autofill on page load is left alone.
+- **Computer.** The Computer tab streams live with full human control, uses the native bb Computer.app helper with H.264 video on macOS, syncs the clipboard, and runs its decision loop on Jev.
+- **Composer and threads.** The agent you pick stays selected when you switch projects, and the agent picker shows each model's logo. Child threads show as a subagent group and open in a composer window.
+- **Workflows.** Workflow workers run as BB agents and can ask a person for decisions.
+- **Mobile.** The composer's submit button and padding are fixed, and app zoom and rotation are locked.
+
 ## 0.44.1
 
 Upstream bb 0.44.0 changes merged into the fork.
