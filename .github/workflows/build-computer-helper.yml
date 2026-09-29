@@ -91,6 +91,11 @@ jobs:
           ASSET_DIR="${{ steps.package.outputs.asset_dir }}"
           codesign --force --options runtime --sign "$MACOS_CERTIFICATE_NAME" "$ASSET_DIR/bb-computer-helper"
           tar -czf "$ASSET_DIR/${{ steps.package.outputs.asset_name }}" -C "$ASSET_DIR" bb-computer-helper
+
+      - name: Compute release checksum
+        run: |
+          set -euo pipefail
+          ASSET_DIR="${{ steps.package.outputs.asset_dir }}"
           shasum -a 256 "$ASSET_DIR/${{ steps.package.outputs.asset_name }}" | tee "$ASSET_DIR/${{ steps.package.outputs.asset_name }}.sha256"
 
       - name: Upload workflow artifact

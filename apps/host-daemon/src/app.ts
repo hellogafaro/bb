@@ -129,6 +129,7 @@ interface CreateHostDaemonAppOptions {
   createWebSocket?: CreateReconnectingWebSocket;
   closeMachineAuthProxy?: () => Promise<void>;
   exitProcess?: (code: number) => void;
+  computerWarmUp?: (computer: ComputerHostService) => Promise<void>;
 }
 
 export interface HostDaemonApp {
@@ -717,7 +718,7 @@ export async function createHostDaemonApp(
       },
     },
   });
-  void computer.warmUp();
+  void (options.computerWarmUp ?? ((instance) => instance.warmUp()))(computer);
 
   const desktopBrowserBroker = await startDesktopBrowserBroker({
     dataDir: options.dataDir,

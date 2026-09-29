@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import type {
@@ -270,7 +270,9 @@ function MachineWorkspace({
   machineName: string;
   isActive: boolean;
 }) {
-  const clientId = useId();
+  const clientIdRef = useRef<string | null>(null);
+  if (clientIdRef.current === null) clientIdRef.current = crypto.randomUUID();
+  const clientId = clientIdRef.current;
   const report = useDoctorReport(hostId);
   const liveActive = useLiveActive(isActive) && report !== null && report.state === "ready";
   const live = useComputerLive(hostId, { active: liveActive, profile: "full", clientId });

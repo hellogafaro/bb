@@ -1,8 +1,9 @@
-import type {
-  ComputerHumanInput,
-  ComputerLiveProfile,
-  ComputerLiveState,
-  ComputerLiveStatusMessage,
+import {
+  decodeComputerFrame,
+  type ComputerHumanInput,
+  type ComputerLiveProfile,
+  type ComputerLiveState,
+  type ComputerLiveStatusMessage,
 } from "@bb/host-daemon-contract";
 import type {
   ComputerControlOwner,
@@ -43,6 +44,8 @@ interface HostLive {
   message: string | null;
   demanded: ComputerLiveProfile | null;
   lastFrame: Uint8Array<ArrayBuffer> | null;
+  lastVideoConfig: Uint8Array<ArrayBuffer> | null;
+  lastVideoKeyframe: Uint8Array<ArrayBuffer> | null;
   ticker: ReturnType<typeof setInterval> | null;
   ticks: number;
   unsubscribeControl: () => void;
@@ -72,6 +75,8 @@ export class ComputerLiveHub {
         message: null,
         demanded: null,
         lastFrame: null,
+        lastVideoConfig: null,
+        lastVideoKeyframe: null,
         ticker: null,
         ticks: 0,
         unsubscribeControl: this.#deps.controlGate(hostId).onChange(() => this.broadcastStatus(hostId)),
@@ -91,7 +96,9 @@ export class ComputerLiveHub {
     };
     host.viewers.add(viewer);
     this.#syncDemand(hostId, host, { renew: false, resync: true });
-    if (host.lastFrame !== null) this.#sendFrame(viewer, host.lastFrame);
+    if (host.lastVideoConfig !== null) this.#sendFrame(viewer, host.lastVideoConfig);
+    if (host.lastVideoKeyframe !== null) this.#sendFrame(viewer, host.lastVideoKeyframe);
+    else if (host.lastFrame !== null) this.#sendFrame(viewer, host.lastFrame);
     this.#sendStatus(hostId, host, viewer);
   }
 
@@ -121,10 +128,19 @@ export class ComputerLiveHub {
   handleDaemonFrame(hostId: string, frame: Uint8Array<ArrayBuffer>): void {
     const host = this.#hosts.get(hostId);
     if (host === undefined) return;
-    host.lastFrame = frame;
+    const decoded = decodeComputerFrame(frame);
+    if (decoded === null) return;
+    const header = decoded.header;
+    const isVideoConfig = header.kind === "video-config";
+    const isVideoKeyframe = header.kind === "video-frame" && header.keyframe;
+    const isUndecodableVideoInterframe = header.kind === "video-frame" && !header.keyframe;
+    if (isVideoConfig) host.lastVideoConfig = frame;
+    else if (isVideoKeyframe) host.lastVideoKeyframe = frame;
+    else if (header.kind === "image") host.lastFrame = frame;
     const now = this.#now();
     for (const viewer of host.viewers) {
-      if (viewer.profile === "thumbnail" && now - viewer.lastFrameAt < THUMBNAIL_FRAME_INTERVAL_MS) continue;
+      if (viewer.profile === "thumbnail" && isUndecodableVideoInterframe) continue;
+      if (viewer.profile === "thumbnail" && !isVideoConfig && now - viewer.lastFrameAt < THUMBNAIL_FRAME_INTERVAL_MS) continue;
       if ((viewer.socket.raw?.bufferedAmount ?? 0) > VIEWER_HIGH_WATER_BYTES) continue;
       this.#sendFrame(viewer, frame);
     }

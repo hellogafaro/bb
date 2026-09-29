@@ -276,11 +276,23 @@ export const COMPUTER_OPENROUTER_API_KEY_ENV = defineEnvVar<string>({
   parse: parseStringEnvValue,
 });
 
+const COMPUTER_JEV_ROUTER_MODEL = "typesafe/jev-router";
+
+function parseComputerOpenRouterDecisionModel(args: EnvVarParseArgs): string {
+  const trimmed = args.value.trim();
+  if (trimmed !== COMPUTER_JEV_ROUTER_MODEL) {
+    throw new Error(
+      `${args.name} must be "${COMPUTER_JEV_ROUTER_MODEL}"; no other OpenRouter model is supported for Computer`,
+    );
+  }
+  return trimmed;
+}
+
 export const COMPUTER_OPENROUTER_DECISION_MODEL_ENV = defineEnvVar<string>({
   description:
-    "OpenRouter model id used for Computer's jev-mode decisions (and, when a TypeSafe key is also set, for typed text) when no TypeSafe key is set for decisions. Must stay the Jev router model; no other OpenRouter model is supported for Computer.",
+    "OpenRouter model id used for Computer's jev-mode decisions (and, when a TypeSafe key is also set, for typed text) when no TypeSafe key is set for decisions. Must be \"typesafe/jev-router\"; no other OpenRouter model is supported for Computer.",
   name: "COMPUTER_OPENROUTER_DECISION_MODEL",
-  parse: parseStringEnvValue,
+  parse: parseComputerOpenRouterDecisionModel,
 });
 
 export const BB_POSTHOG_API_KEY_ENV = defineEnvVar<string>({

@@ -1,12 +1,5 @@
 import Foundation
 
-/// bb Computer helper — the responsible macOS process for the Computer feature.
-/// It owns the Accessibility and Screen Recording grants, spawns an embedded
-/// `cua-driver serve --embedded` child so the driver inherits those grants
-/// without a second permission prompt, and streams the display as H.264 over a
-/// local Unix domain socket to the host daemon. See EMBEDDING.md in the vendor
-/// cua-driver skill pack for the responsibility-chain contract this relies on.
-
 func fail(_ message: String, code: Int32 = 1) -> Never {
   FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
   exit(code)
@@ -67,6 +60,7 @@ case "serve":
   let socketServer = VideoSocketServer(path: videoSocketPath)
   let capture = VideoCapture(socketServer: socketServer)
   socketServer.onViewerConnected = { [weak capture] in capture?.requestKeyframe() }
+  socketServer.onKeyframeRequested = { [weak capture] in capture?.requestKeyframe() }
   do {
     try socketServer.start()
   } catch {
@@ -96,8 +90,6 @@ case "serve":
     signalSources.append(source)
   }
 
-  // The daemon watches for driver exit via its own probes; if the embedded
-  // child dies unexpectedly, exit so LaunchServices/the daemon can relaunch us.
   let watchdog = DispatchQueue(label: "app.getbb.computer.watchdog")
   watchdog.asyncAfter(deadline: .now() + 1) {
     func poll() {

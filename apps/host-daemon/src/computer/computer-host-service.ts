@@ -223,13 +223,6 @@ class DriverController {
     return (await this.#resolveBinaryPath(dataDir)).path;
   }
 
-  /**
-   * Resolves whether darwin has a pinned bb-computer-helper release available
-   * (see computer-app-provisioning.ts): when it does, the daemon spawns the
-   * embedded-driver bb Computer.app so cua-driver inherits the helper's TCC
-   * grants; otherwise it falls back to the existing cua-driver-only bundle.
-   * A no-op ("legacy") on every non-darwin platform.
-   */
   async #resolveComputerApp(dataDir: string): Promise<ComputerAppState> {
     if (this.#platform !== "darwin") return { kind: "legacy", driverPath: await this.binaryPath(dataDir) };
     let cached = this.#computerAppCache.get(dataDir);
@@ -290,7 +283,6 @@ class DriverController {
     return status.code === 0;
   }
 
-  /** Extra CLI args needed to address the embedded daemon's private socket; empty on the legacy path. */
   async #daemonAddressArgs(dataDir: string): Promise<string[]> {
     const appState = await this.#resolveComputerApp(dataDir);
     return appState.kind === "embedded" ? ["--socket", this.#embeddedDriverSocketPath(dataDir), "--embedded"] : [];
@@ -383,14 +375,6 @@ class DriverController {
     throw new CuaError("The bb computer driver did not start within 5 seconds", "setup-required");
   }
 
-  /**
-   * Spawns the embedded-driver bb Computer.app via LaunchServices, same as the
-   * legacy path, so the HELPER (not the daemon) is the responsible process
-   * LaunchServices attributes TCC grants to. The helper then spawns
-   * `cua-driver serve --embedded` itself as a direct child, inheriting those
-   * grants without a second prompt (see EMBEDDING.md in the vendor cua-driver
-   * skill pack, and apps/computer-macos/Sources/BBComputerHelper).
-   */
   async #spawnEmbeddedDaemon(dataDir: string, appState: Extract<ComputerAppState, { kind: "embedded" }>): Promise<void> {
     const driverSocket = this.#embeddedDriverSocketPath(dataDir);
     const videoSocket = this.#embeddedVideoSocketPath(dataDir);
@@ -429,7 +413,6 @@ class DriverController {
     this.#stoppedListeners.add(listener);
   }
 
-  /** Builds the `cua-driver mcp` launch descriptor the persistent MCP session connects with. */
   async mcpLaunch(dataDir: string): Promise<{ command: string; args: string[]; env: Record<string, string> }> {
     const appState = await this.#resolveComputerApp(dataDir);
     const command = await this.binaryPath(dataDir);
@@ -462,9 +445,6 @@ class DriverController {
     for (const listener of this.#stoppedListeners) listener();
     const appState = await this.#resolveComputerApp(dataDir);
     if (appState.kind === "embedded") {
-      // The embedded daemon isn't "installed" in cua-driver's own registry (it
-      // runs at our private socket path), so `cua-driver stop` can't find it;
-      // signal the helper app directly, identified by its unique socket arg.
       await this.#runQuiet("/usr/bin/pkill", ["-f", this.#embeddedDriverSocketPath(dataDir)]);
     } else {
       await this.runProbe(dataDir, ["stop"]);
@@ -514,9 +494,6 @@ class DriverController {
     const health = healthStdout ?? (await this.runProbe(dataDir, ["call", "health_report", ...addressArgs], "{}")).stdout;
     const fromHealth = parseHealthPermissionStatus(health);
     if (fromHealth.accessibility !== "unknown" && fromHealth.screenRecording !== "unknown") return fromHealth;
-    // Embedded mode's `permissions status` still answers with the standalone
-    // com.trycua.driver identity (see EMBEDDING.md), so it's only useful here
-    // as the legacy-path fallback; health_report above already covers embedded.
     const status = await this.runProbe(dataDir, ["permissions", "status", "--json"]);
     const fromStatus = parseComputerPermissionStatus(status.stdout);
     return {
@@ -549,10 +526,6 @@ class DriverController {
     if (target === null) return;
     const appState = await this.#resolveComputerApp(dataDir);
     if (appState.kind === "embedded") {
-      // Ask the helper itself to request the grant: it calls
-      // AXIsProcessTrustedWithOptions/CGRequestScreenCaptureAccess as the
-      // responsible process, which is what actually raises (and attributes)
-      // the system prompt. See apps/computer-macos Permissions.swift.
       await this.#runQuiet("/usr/bin/open", ["-n", "-g", "-a", appState.bundleDir, "--args", "permissions", "request", target]);
     }
     const pane = target === "screen-recording" ? MACOS_PRIVACY_PANES.screenRecording : MACOS_PRIVACY_PANES.accessibility;
@@ -674,18 +647,11 @@ interface DesktopSize {
   readonly height: number;
 }
 
-/**
- * Streams H.264 from the bb Computer helper's video socket when darwin is
- * running the embedded bundle and the socket is actually up yet, falling
- * back to the PNG DriverCaptureFrameSource otherwise (helper not installed,
- * or its video capture hasn't started/failed permissions). Re-checked on
- * every LiveStream retry, so a helper that comes up mid-session upgrades the
- * next reconnect without restarting the whole live view.
- */
 class PreferEmbeddedVideoFrameSource implements ComputerFrameSource {
   readonly #videoSocketPath: () => Promise<string | null>;
   readonly #video: ComputerFrameSource;
   readonly #fallback: ComputerFrameSource;
+  #active: ComputerFrameSource | null = null;
 
   constructor(videoSocketPath: () => Promise<string | null>, video: ComputerFrameSource, fallback: ComputerFrameSource) {
     this.#videoSocketPath = videoSocketPath;
@@ -693,12 +659,19 @@ class PreferEmbeddedVideoFrameSource implements ComputerFrameSource {
     this.#fallback = fallback;
   }
 
+  requestKeyframe(): void {
+    this.#active?.requestKeyframe?.();
+  }
+
   async stream(profile: ComputerLiveProfile, onFrame: Parameters<ComputerFrameSource["stream"]>[1], signal: AbortSignal): Promise<void> {
     const path = await this.#videoSocketPath();
-    if (path !== null && (await pathExists(path))) {
-      return this.#video.stream(profile, onFrame, signal);
+    const source = path !== null && (await pathExists(path)) ? this.#video : this.#fallback;
+    this.#active = source;
+    try {
+      return await source.stream(profile, onFrame, signal);
+    } finally {
+      if (this.#active === source) this.#active = null;
     }
-    return this.#fallback.stream(profile, onFrame, signal);
   }
 }
 
@@ -876,9 +849,7 @@ export class ComputerHostService {
     try {
       await this.#driver.ensureDaemon(this.#dataDir);
       await this.#liveTransport.call("health_report", {}, AbortSignal.timeout(15_000));
-    } catch {
-      // Best-effort: observe()/act() establish the session themselves if this did not finish in time.
-    }
+    } catch {}
   }
 
   async doctor(): Promise<ComputerDoctorReport> {

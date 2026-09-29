@@ -5,18 +5,11 @@ import type { ComputerLiveProfile } from "@bb/host-daemon-contract";
 const HEADER_BYTES = 24;
 const FRAME_TYPE_CONFIG = 1;
 const FRAME_TYPE_ACCESS_UNIT = 2;
+const REQUEST_KEYFRAME_COMMAND = Buffer.from([0x01]);
 
-/**
- * Parses the bb Computer helper's local video wire format (see
- * apps/computer-macos/Sources/BBComputerHelper/VideoSocketServer.swift):
- * a 24-byte little-endian header followed by `payloadLength` bytes, repeated
- * over a persistent Unix domain socket stream (no message framing at the
- * socket layer, so headers must be parsed out of a running byte buffer).
- */
 export class VideoFrameStreamParser {
   #buffer: Buffer = Buffer.alloc(0);
 
-  /** Feeds newly received bytes and returns every complete frame they contain. */
   push(chunk: Buffer): Array<CapturedVideoConfigFrame | CapturedVideoFrame> {
     this.#buffer = this.#buffer.length === 0 ? chunk : Buffer.concat([this.#buffer, chunk]);
     const frames: Array<CapturedVideoConfigFrame | CapturedVideoFrame> = [];
@@ -49,17 +42,16 @@ export interface VideoSocketFrameSourceOptions {
   readonly connectImpl?: (path: string) => Socket;
 }
 
-/**
- * Connects to the bb Computer helper's video Unix domain socket as a client
- * and streams parsed H.264 access units. Ignores `profile`: the helper always
- * captures at native resolution and full frame rate; there is no separate
- * thumbnail encode (unlike the PNG DriverCaptureFrameSource).
- */
 export class VideoSocketFrameSource implements ComputerFrameSource {
   readonly #options: VideoSocketFrameSourceOptions;
+  #activeSocket: Socket | null = null;
 
   constructor(options: VideoSocketFrameSourceOptions) {
     this.#options = options;
+  }
+
+  requestKeyframe(): void {
+    this.#activeSocket?.write(REQUEST_KEYFRAME_COMMAND);
   }
 
   async stream(
@@ -73,24 +65,26 @@ export class VideoSocketFrameSource implements ComputerFrameSource {
 
     await new Promise<void>((resolve, reject) => {
       const socket = connectImpl(path);
+      this.#activeSocket = socket;
       const onAbort = () => {
         socket.destroy();
       };
       signal.addEventListener("abort", onAbort, { once: true });
 
-      socket.on("connect", () => {
-        // Connecting is itself the helper's cue to force a keyframe (see
-        // VideoSocketServer.onViewerConnected), so no handshake is needed here.
-      });
+      const clearActiveSocket = () => {
+        if (this.#activeSocket === socket) this.#activeSocket = null;
+      };
       socket.on("data", (chunk: Buffer) => {
         for (const frame of parser.push(chunk)) onFrame(frame);
       });
       socket.on("error", (error) => {
         signal.removeEventListener("abort", onAbort);
+        clearActiveSocket();
         reject(error);
       });
       socket.on("close", () => {
         signal.removeEventListener("abort", onAbort);
+        clearActiveSocket();
         resolve();
       });
     });

@@ -1,16 +1,6 @@
 import Foundation
 import Network
 
-/// Frame wire format sent to the host daemon over a local Unix domain socket.
-/// Little-endian fixed 24-byte header followed by `payloadLength` bytes.
-///
-///   type            UInt8   1 = avcC config, 2 = video access unit
-///   flags           UInt8   bit0 = keyframe (type 2 only)
-///   reserved        UInt16
-///   width           UInt32  pixel width (Retina-native)
-///   height          UInt32  pixel height
-///   ptsMicros       Int64   presentation timestamp, capture-clock microseconds
-///   payloadLength   UInt32  bytes following the header
 enum VideoFrameType: UInt8 {
   case config = 1
   case accessUnit = 2
@@ -47,21 +37,14 @@ enum VideoSocketError: Error {
   case listenFailed
 }
 
-/// Listens on a Unix domain socket at `path` and accepts a single active viewer
-/// connection at a time (the host daemon). Frames sent while no viewer is
-/// connected are dropped by the caller (see `hasViewer`); the capture pipeline
-/// should skip encode work in that case instead of buffering, since the daemon
-/// only dials in while a Computer tab viewer is active.
 final class VideoSocketServer {
   private let path: String
   private let queue = DispatchQueue(label: "app.getbb.computer.video-socket")
   private var listener: NWListener?
   private var connection: NWConnection?
 
-  /// Invoked on the socket queue whenever a new viewer connection becomes ready,
-  /// so the encoder can force an IDR instead of making the joiner wait for the
-  /// next scheduled keyframe.
   var onViewerConnected: (() -> Void)?
+  var onKeyframeRequested: (() -> Void)?
 
   init(path: String) {
     self.path = path
@@ -88,6 +71,7 @@ final class VideoSocketServer {
       switch state {
       case .ready:
         self?.onViewerConnected?()
+        self?.receiveCommand(on: connection)
       case .failed, .cancelled:
         if self?.connection === connection { self?.connection = nil }
       default:
@@ -95,6 +79,17 @@ final class VideoSocketServer {
       }
     }
     connection.start(queue: queue)
+  }
+
+  private func receiveCommand(on connection: NWConnection) {
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { [weak self] data, _, isComplete, error in
+      guard let self, self.connection === connection else { return }
+      if data != nil {
+        self.onKeyframeRequested?()
+      }
+      guard !isComplete, error == nil else { return }
+      self.receiveCommand(on: connection)
+    }
   }
 
   var hasViewer: Bool {

@@ -407,6 +407,7 @@ async function createAppFixture(
     },
     fetchFn: fetchRecorder.fetchFn,
     createWebSocket: options.createWebSocket ?? createOpeningWebSocket(),
+    computerWarmUp: async () => undefined,
     ...(options.exitProcess ? { exitProcess: options.exitProcess } : {}),
     ...(options.closeMachineAuthProxy
       ? { closeMachineAuthProxy: options.closeMachineAuthProxy }

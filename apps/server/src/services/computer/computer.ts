@@ -408,9 +408,7 @@ export async function runJevLoop(
           await io.observe(deps, input.hostId, undefined);
           touchRun(run, { state: "done" });
           return;
-        } catch {
-          // The verification re-observe was inconsistent; continue the loop normally below.
-        }
+        } catch {}
       }
     }
     if (!signal.aborted) {

@@ -67,11 +67,6 @@ async function defaultSessionFactory(launch: DriverSessionLaunch, connectTimeout
   };
 }
 
-/**
- * Keeps a single `cua-driver mcp` session open across calls. Every call that fails because the
- * driver-side session ended (restarted daemon, crashed process, broken pipe) discards the session
- * and retries exactly once against a freshly opened one; a second failure is not retried again.
- */
 export class PersistentCuaTransport implements CuaTransport {
   readonly #options: PersistentCuaTransportOptions;
   readonly #sessionFactory: DriverSessionFactory;

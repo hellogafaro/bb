@@ -47,6 +47,7 @@ export interface ComputerFrameSource {
     onFrame: (frame: CapturedFrame) => void,
     signal: AbortSignal,
   ): Promise<void>;
+  requestKeyframe?(): void;
 }
 
 export interface LiveProfileSettings {
@@ -184,7 +185,10 @@ export class LiveStream {
     this.#expiry = setTimeout(() => this.setDemand(null), this.#options.demandTtlMs ?? 15_000);
     this.#expiry.unref?.();
     if (this.#active?.profile === profile) {
-      if (options?.resync) this.#lastBytes = null;
+      if (options?.resync) {
+        this.#lastBytes = null;
+        this.#options.source.requestKeyframe?.();
+      }
       return;
     }
     this.#stop();

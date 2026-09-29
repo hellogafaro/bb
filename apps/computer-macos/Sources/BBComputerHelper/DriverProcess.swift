@@ -17,10 +17,6 @@ final class DriverProcess {
     self.options = options
   }
 
-  /// Spawns `cua-driver serve --embedded` as a DIRECT child (Process/NSTask), never via
-  /// `open`/NSWorkspace, so the daemon stays inside this app's TCC responsibility chain.
-  /// See vendor doc: libs/cua-driver/rust/Skills/cua-driver/EMBEDDING.md ("Launching the
-  /// daemon-backed host").
   func start() throws {
     var arguments = ["serve", "--embedded", "--socket", options.driverSocketPath, "--host-bundle-id", bbComputerBundleId]
     if options.permissionMode == "bounded", let manifestPath = options.capabilityManifestPath {
@@ -41,7 +37,6 @@ final class DriverProcess {
     try process.run()
   }
 
-  /// Blocks until the driver's socket file exists or the deadline passes.
   func waitForSocket(timeout: TimeInterval) -> Bool {
     let deadline = Date().addingTimeInterval(timeout)
     while !FileManager.default.fileExists(atPath: options.driverSocketPath) {

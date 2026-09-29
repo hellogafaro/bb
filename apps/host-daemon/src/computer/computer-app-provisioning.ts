@@ -6,14 +6,6 @@ import { bundledComputerIconPath, isDarwinPlatformKey } from "./computer-driver-
 import { ensureProvisionedComputerHelper, type ComputerHelperPin } from "./computer-helper-provisioning.js";
 import { assembleComputerAppBundle, computerAppHelperExecutablePath } from "./computer-app-bundle.js";
 
-/**
- * Orchestrates provisioning the Computer feature's macOS surface: the pinned
- * cua-driver (always) plus, when a pinned bb-computer-helper release exists
- * for this platform, the embedded-driver bb Computer.app bundle described in
- * apps/computer-macos. Non-darwin platforms and darwin without a helper pin
- * both resolve to "legacy" — the existing cua-driver-only bundle/binary,
- * unchanged.
- */
 export type ComputerAppState =
   | { readonly kind: "legacy"; readonly driverPath: string }
   | {

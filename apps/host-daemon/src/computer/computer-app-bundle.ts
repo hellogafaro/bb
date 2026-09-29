@@ -5,14 +5,6 @@ import type { HostDaemonLogger } from "../logger.js";
 import { COMPUTER_APP_DISPLAY_NAME, COMPUTER_APP_ICON_FILE } from "./computer-driver-bundle.js";
 import { COMPUTER_HELPER_EXECUTABLE } from "./computer-helper-provisioning.js";
 
-/**
- * The embedded-driver bb Computer.app: main executable is the native Swift
- * helper (apps/computer-macos), which owns the macOS TCC grants and spawns
- * `cua-driver serve --embedded` as its own child so the driver inherits them
- * (see EMBEDDING.md in the vendor cua-driver skill pack). Distinct from the
- * legacy cua-driver-only bundle in computer-driver-bundle.ts, which stays the
- * fallback when the helper is unavailable (see computer-helper-provisioning.ts).
- */
 export const COMPUTER_APP_HELPER_BUNDLE_ID = "app.getbb.computer";
 const BUNDLE_NAME = `${COMPUTER_APP_DISPLAY_NAME}.app`;
 const DRIVER_EXECUTABLE = "cua-driver";
@@ -61,7 +53,6 @@ export interface AssembleComputerAppBundleArgs {
   readonly root: string;
   readonly helperVersion: string;
   readonly helperBinaryPath: string;
-  /** The already-provisioned cua-driver binary and its sibling files (dylibs, etc). */
   readonly driverBinaryDir: string;
   readonly iconPath: string | null;
   readonly spawnImpl: ArchiveSpawnFn;
@@ -69,12 +60,6 @@ export interface AssembleComputerAppBundleArgs {
   readonly sign?: boolean;
 }
 
-/**
- * Builds (or refreshes) the embedded-driver bb Computer.app under `root`,
- * copying the helper binary and a fresh copy of cua-driver (plus its sibling
- * files) into Contents/MacOS. Idempotent: re-copies only when content
- * differs, and re-signs only when something changed.
- */
 export async function assembleComputerAppBundle(args: AssembleComputerAppBundleArgs): Promise<{ changed: boolean }> {
   const bundleDir = join(args.root, BUNDLE_NAME);
   const contentsDir = join(bundleDir, "Contents");
@@ -120,9 +105,6 @@ export async function assembleComputerAppBundle(args: AssembleComputerAppBundleA
   return { changed };
 }
 
-/** Compares by size rather than content: these binaries are already verified by a
- *  checksummed pin (helper) or extracted from one (driver), so a size match is
- *  sufficient to skip a redundant copy without reading large files twice. */
 async function copyIfDifferent(source: string, target: string): Promise<boolean> {
   const sourceStat = await stat(source).catch(() => null);
   if (sourceStat === null) return false;

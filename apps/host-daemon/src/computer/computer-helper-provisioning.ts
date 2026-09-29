@@ -7,18 +7,6 @@ import { sha256Hex } from "../sha256-hex.js";
 import { extractArchive, type ArchiveSpawnFn } from "./computer-driver-archive.js";
 import type { HostDaemonLogger } from "../logger.js";
 
-/**
- * bb Computer.app's native helper: the responsible macOS process for the
- * Computer feature's Accessibility/Screen Recording grants (see
- * apps/computer-macos). Published as a checksummed release asset from this
- * repo, the same way COMPUTER_DRIVER_PINS pins the vendored cua-driver.
- *
- * COMPUTER_HELPER_PINS is intentionally empty until CI (see
- * .github/workflows/build-computer-helper.yml) publishes the first signed
- * release asset and this file is updated with its real sha256. Until then,
- * ensureProvisionedComputerHelper always reports "unpinned" and callers fall
- * back to the legacy cua-driver-only bb Computer.app bundle.
- */
 export interface ComputerHelperPin {
   readonly version: string;
   readonly asset: string;

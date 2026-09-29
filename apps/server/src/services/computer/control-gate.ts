@@ -4,7 +4,7 @@ export class ControlGate {
   readonly #leaseMs: number;
   #humanClientId: string | null = null;
   #expiresAt = 0;
-  #agentActive = false;
+  #agentActiveCount = 0;
   #waiters = new Set<() => void>();
   #listeners = new Set<() => void>();
   #expiryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -15,11 +15,11 @@ export class ControlGate {
 
   async runAgent<T>(signal: AbortSignal, operation: () => Promise<T>): Promise<T> {
     while (this.#activeHuman() !== null) await this.#wait(signal);
-    this.#agentActive = true;
+    this.#agentActiveCount += 1;
     try {
       return await operation();
     } finally {
-      this.#agentActive = false;
+      this.#agentActiveCount -= 1;
       this.#notify();
     }
   }
@@ -31,7 +31,7 @@ export class ControlGate {
       this.#renew();
       return "human";
     }
-    while (this.#agentActive) await this.#wait(signal);
+    while (this.#agentActiveCount > 0) await this.#wait(signal);
     if (this.#activeHuman() !== null) return this.#humanClientId === clientId ? "human" : "busy";
     this.#humanClientId = clientId;
     this.#renew();

@@ -18,10 +18,6 @@ enum BitrateTier {
   }
 }
 
-/// Captures the main display with ScreenCaptureKit at native pixel resolution and
-/// encodes it to H.264 (High profile, real-time, no B-frames) with VideoToolbox,
-/// emitting access units to a `VideoSocketServer`. A keyframe is forced whenever a
-/// viewer connects so a late joiner never waits for the next scheduled IDR.
 final class VideoCapture: NSObject, SCStreamOutput, SCStreamDelegate {
   private let socketServer: VideoSocketServer
   private let encodeQueue = DispatchQueue(label: "app.getbb.computer.video-encode")
@@ -31,12 +27,18 @@ final class VideoCapture: NSObject, SCStreamOutput, SCStreamDelegate {
   private var currentTier: BitrateTier = .high
   private var pendingKeyframe = true
   private let captureStart = DispatchTime.now()
+  private var restartAttempts = 0
+  private let maxRestartAttempts = 3
 
   init(socketServer: VideoSocketServer) {
     self.socketServer = socketServer
   }
 
   func start() async throws {
+    if let session = compressionSession {
+      VTCompressionSessionInvalidate(session)
+      compressionSession = nil
+    }
     let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
     guard let display = content.displays.first(where: { $0.displayID == CGMainDisplayID() }) ?? content.displays.first else {
       throw VideoCaptureError.noDisplay
@@ -62,6 +64,9 @@ final class VideoCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: encodeQueue)
     try await stream.startCapture()
     self.stream = stream
+    restartAttempts = 0
+    pendingKeyframe = true
+    sentConfig = false
   }
 
   func stop() async {
@@ -76,9 +81,11 @@ final class VideoCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     stream = nil
   }
 
-  /// Call when a viewer connects so the next frame is an IDR the decoder can start from.
   func requestKeyframe() {
-    encodeQueue.async { self.pendingKeyframe = true }
+    encodeQueue.async {
+      self.pendingKeyframe = true
+      self.sentConfig = false
+    }
   }
 
   func setBitrateTier(_ tier: BitrateTier) {
@@ -147,6 +154,20 @@ final class VideoCapture: NSObject, SCStreamOutput, SCStreamDelegate {
 
   func stream(_ stream: SCStream, didStopWithError error: Error) {
     FileHandle.standardError.write("bb Computer: capture stream stopped: \(error)\n".data(using: .utf8)!)
+    self.stream = nil
+    restartAttempts += 1
+    guard restartAttempts <= maxRestartAttempts else {
+      FileHandle.standardError.write("bb Computer: capture stream exceeded restart attempts, exiting\n".data(using: .utf8)!)
+      exit(1)
+    }
+    Task {
+      do {
+        try await self.start()
+      } catch {
+        FileHandle.standardError.write("bb Computer: capture restart failed: \(error)\n".data(using: .utf8)!)
+        exit(1)
+      }
+    }
   }
 
   fileprivate func handleEncodedFrame(_ sampleBuffer: CMSampleBuffer) {

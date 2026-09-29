@@ -1,7 +1,46 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ComputerLiveStatusMessage } from "@bb/host-daemon-contract";
+import { encodeComputerFrame, type ComputerLiveStatusMessage } from "@bb/host-daemon-contract";
 import { ControlGate } from "./control-gate.js";
 import { ComputerLiveHub, type ComputerLiveHubDeps, type ComputerLiveSocket } from "./live.js";
+
+function imageFrame(): Uint8Array<ArrayBuffer> {
+  return encodeComputerFrame({
+    header: {
+      kind: "image",
+      sequence: 1,
+      capturedAt: 0,
+      mimeType: "image/png",
+      width: 1,
+      height: 1,
+      originalWidth: 1,
+      originalHeight: 1,
+    },
+    body: new Uint8Array([1, 2, 3]),
+  });
+}
+
+function videoConfigFrame(): Uint8Array<ArrayBuffer> {
+  return encodeComputerFrame({
+    header: { kind: "video-config", sequence: 1, capturedAt: 0, codec: "h264", width: 100, height: 100 },
+    body: new Uint8Array([9, 9]),
+  });
+}
+
+function videoFrame(options: { sequence: number; keyframe: boolean; body: number[] }): Uint8Array<ArrayBuffer> {
+  return encodeComputerFrame({
+    header: {
+      kind: "video-frame",
+      sequence: options.sequence,
+      capturedAt: 0,
+      codec: "h264",
+      width: 100,
+      height: 100,
+      keyframe: options.keyframe,
+      ptsMicros: 0,
+    },
+    body: new Uint8Array(options.body),
+  });
+}
 
 function fakeSocket(): ComputerLiveSocket & { sent: (string | Uint8Array<ArrayBuffer>)[] } {
   const sent: (string | Uint8Array<ArrayBuffer>)[] = [];
@@ -85,7 +124,7 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
     const socket = fakeSocket();
     hub.attach("host-1", socket, { clientId: "client-1", profile: "full" });
 
-    const frame = new Uint8Array([1, 2, 3]) as Uint8Array<ArrayBuffer>;
+    const frame = imageFrame();
     hub.handleDaemonFrame("host-1", frame);
     expect(socket.sent).toContain(frame);
 
@@ -101,7 +140,7 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
     const firstSocket = fakeSocket();
     hub.attach("host-1", firstSocket, { clientId: "client-1", profile: "full" });
 
-    const frame = new Uint8Array([1, 2, 3]) as Uint8Array<ArrayBuffer>;
+    const frame = imageFrame();
     hub.handleDaemonFrame("host-1", frame);
     expect(firstSocket.sent.filter((entry) => entry === frame)).toHaveLength(1);
 
@@ -135,6 +174,43 @@ describe("ComputerLiveHub subscriber lifecycle", () => {
     const secondSocket = fakeSocket();
     hub.attach("host-1", secondSocket, { clientId: "client-2", profile: "full" });
     expect(sendDemand).toHaveBeenLastCalledWith("host-1", "full", { resync: true });
+  });
+
+  it("replays the cached video config and last keyframe to a late video viewer, not a stale interframe", () => {
+    const { deps } = buildDeps();
+    const hub = new ComputerLiveHub(deps);
+    const firstSocket = fakeSocket();
+    hub.attach("host-1", firstSocket, { clientId: "client-1", profile: "full" });
+
+    const config = videoConfigFrame();
+    const keyframe = videoFrame({ sequence: 1, keyframe: true, body: [1] });
+    const interframe = videoFrame({ sequence: 2, keyframe: false, body: [2] });
+    hub.handleDaemonFrame("host-1", config);
+    hub.handleDaemonFrame("host-1", keyframe);
+    hub.handleDaemonFrame("host-1", interframe);
+
+    const lateSocket = fakeSocket();
+    hub.attach("host-1", lateSocket, { clientId: "client-2", profile: "full" });
+
+    const binaryFrames = lateSocket.sent.filter((entry): entry is Uint8Array<ArrayBuffer> => entry instanceof Uint8Array);
+    expect(binaryFrames).toEqual([config, keyframe]);
+  });
+
+  it("never forwards an undecodable video interframe to a thumbnail viewer", () => {
+    let clock = 0;
+    const { deps } = buildDeps({ now: () => (clock += 2_000) });
+    const hub = new ComputerLiveHub(deps);
+    const socket = fakeSocket();
+    hub.attach("host-1", socket, { clientId: "client-1", profile: "thumbnail" });
+
+    const keyframe = videoFrame({ sequence: 1, keyframe: true, body: [1] });
+    const interframe = videoFrame({ sequence: 2, keyframe: false, body: [2] });
+    hub.handleDaemonFrame("host-1", keyframe);
+    hub.handleDaemonFrame("host-1", interframe);
+
+    const binaryFrames = socket.sent.filter((entry): entry is Uint8Array<ArrayBuffer> => entry instanceof Uint8Array);
+    expect(binaryFrames).toEqual([keyframe]);
+    expect(binaryFrames).not.toContain(interframe);
   });
 });
 
