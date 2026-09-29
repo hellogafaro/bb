@@ -4,6 +4,7 @@ import {
   BB_WEBAUTHN_REQUEST_CHANNEL,
   hasPublicKeyOption,
   installWebauthnHook,
+  isConditionalMediation,
   type WebauthnHookCredentialsContainer,
 } from "../src/webauthn-hook.js";
 
@@ -17,7 +18,13 @@ function setup() {
   const globalTarget: Record<string, unknown> = {};
   const postMessage = vi.fn();
   installWebauthnHook({ credentials, globalTarget, postMessage });
-  return { credentials, globalTarget, postMessage, originalGet, originalCreate };
+  return {
+    credentials,
+    globalTarget,
+    postMessage,
+    originalGet,
+    originalCreate,
+  };
 }
 
 describe("hasPublicKeyOption", () => {
@@ -34,7 +41,51 @@ describe("hasPublicKeyOption", () => {
   });
 });
 
+describe("isConditionalMediation", () => {
+  it('detects mediation: "conditional"', () => {
+    expect(isConditionalMediation({ mediation: "conditional" })).toBe(true);
+  });
+
+  it("rejects other mediation values and missing, undefined, or non-object options", () => {
+    expect(isConditionalMediation({ mediation: "required" })).toBe(false);
+    expect(isConditionalMediation({ mediation: "optional" })).toBe(false);
+    expect(isConditionalMediation({})).toBe(false);
+    expect(isConditionalMediation({ mediation: undefined })).toBe(false);
+    expect(isConditionalMediation(undefined)).toBe(false);
+    expect(isConditionalMediation(null)).toBe(false);
+  });
+});
+
 describe("installWebauthnHook", () => {
+  it("passes a conditional-mediation publicKey get() straight through without ever prompting or rejecting, for passkey autofill on page load", async () => {
+    const { credentials, postMessage, originalGet } = setup();
+    await expect(
+      credentials.get?.({
+        publicKey: { rpId: "example.com" },
+        mediation: "conditional",
+      }),
+    ).resolves.toBe("plain-credential");
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(originalGet).toHaveBeenCalledWith({
+      publicKey: { rpId: "example.com" },
+      mediation: "conditional",
+    });
+  });
+
+  it("still intercepts an explicit (non-conditional) publicKey get() even when other mediation values are set", async () => {
+    const { credentials, postMessage, originalGet } = setup();
+    void credentials.get?.({
+      publicKey: { rpId: "example.com" },
+      mediation: "required",
+    });
+    await Promise.resolve();
+    expect(originalGet).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledWith(BB_WEBAUTHN_REQUEST_CHANNEL, {
+      requestId: 1,
+      mode: "get",
+    });
+  });
+
   it("passes calls without a publicKey option straight through, preserving feature detection", async () => {
     const { credentials, postMessage, originalGet } = setup();
     await expect(credentials.get?.({ password: true })).resolves.toBe(
@@ -104,14 +155,22 @@ describe("installWebauthnHook", () => {
     void credentials.get?.({ publicKey: {} });
     void credentials.create?.({ publicKey: {} });
     await Promise.resolve();
-    expect(postMessage).toHaveBeenNthCalledWith(1, BB_WEBAUTHN_REQUEST_CHANNEL, {
-      requestId: 1,
-      mode: "get",
-    });
-    expect(postMessage).toHaveBeenNthCalledWith(2, BB_WEBAUTHN_REQUEST_CHANNEL, {
-      requestId: 2,
-      mode: "create",
-    });
+    expect(postMessage).toHaveBeenNthCalledWith(
+      1,
+      BB_WEBAUTHN_REQUEST_CHANNEL,
+      {
+        requestId: 1,
+        mode: "get",
+      },
+    );
+    expect(postMessage).toHaveBeenNthCalledWith(
+      2,
+      BB_WEBAUTHN_REQUEST_CHANNEL,
+      {
+        requestId: 2,
+        mode: "create",
+      },
+    );
   });
 
   it("does nothing when the container has no get/create methods", () => {

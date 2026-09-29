@@ -96,10 +96,8 @@ export function createDesktopWebauthnViewManager({
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
-        transparent: true,
       },
     });
-    view.setBackgroundColor("#00000000");
     void view.webContents.loadURL(createWebauthnPromptViewUrl());
     const entry: WebauthnViewEntry = { hostWindow, tabId, view };
     entriesByKey.set(entryKey(hostWindow, tabId), entry);
@@ -148,14 +146,20 @@ export function createDesktopWebauthnViewManager({
       hostWindow.contentView.addChildView(entry.view);
       entry.view.setBounds(promptViewBounds(tabBounds));
       entry.view.setVisible(true);
-      entry.view.webContents.send(BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL, state);
+      entry.view.webContents.send(
+        BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL,
+        state,
+      );
     },
     setState({ hostWindow, tabId, state }) {
       const entry = entriesByKey.get(entryKey(hostWindow, tabId));
       if (entry === undefined || entry.view.webContents.isDestroyed()) {
         return;
       }
-      entry.view.webContents.send(BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL, state);
+      entry.view.webContents.send(
+        BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL,
+        state,
+      );
     },
     layout({ hostWindow, tabId, tabBounds }) {
       const entry = entriesByKey.get(entryKey(hostWindow, tabId));

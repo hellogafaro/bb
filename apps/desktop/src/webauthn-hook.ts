@@ -28,6 +28,15 @@ export function hasPublicKeyOption(options: unknown): boolean {
   );
 }
 
+export function isConditionalMediation(options: unknown): boolean {
+  return (
+    typeof options === "object" &&
+    options !== null &&
+    "mediation" in options &&
+    (options as { mediation?: unknown }).mediation === "conditional"
+  );
+}
+
 function webauthnCancelledError(): unknown {
   try {
     return new DOMException(
@@ -66,7 +75,7 @@ export function installWebauthnHook({
       return undefined;
     }
     return function hooked(options?: unknown): Promise<unknown> {
-      if (!hasPublicKeyOption(options)) {
+      if (!hasPublicKeyOption(options) || isConditionalMediation(options)) {
         return original(options);
       }
       const requestId = nextRequestId++;
@@ -98,6 +107,7 @@ export function buildWebauthnMainWorldHookSource(): string {
     const BB_WEBAUTHN_REQUEST_CHANNEL = ${JSON.stringify(BB_WEBAUTHN_REQUEST_CHANNEL)};
     const BB_WEBAUTHN_REJECT_GLOBAL_KEY = ${JSON.stringify(BB_WEBAUTHN_REJECT_GLOBAL_KEY)};
     ${hasPublicKeyOption.toString()}
+    ${isConditionalMediation.toString()}
     ${webauthnCancelledError.toString()}
     ${installWebauthnHook.toString()}
     if (navigator.credentials) {

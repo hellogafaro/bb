@@ -1767,9 +1767,7 @@ async function selectBuiltinServer(): Promise<void> {
   await applyServerTarget();
 }
 
-async function loadServerMovedView(
-  move: DesktopServerMove,
-): Promise<void> {
+async function loadServerMovedView(move: DesktopServerMove): Promise<void> {
   await loadActionView({
     actions: [
       { id: "open-moved-server", label: `Open ${move.toHostName}` },
@@ -3062,7 +3060,8 @@ async function runDesktopApp(): Promise<void> {
           reason === null
             ? "No importable browser was found on this machine."
             : DESKTOP_BROWSER_IMPORT_FAILURE_COPY[reason],
-        retryable: reason !== null && isRetryableDesktopBrowserImportReason(reason),
+        retryable:
+          reason !== null && isRetryableDesktopBrowserImportReason(reason),
       },
     });
   }
@@ -3122,7 +3121,10 @@ async function runDesktopApp(): Promise<void> {
       return;
     }
     const outcome = await browserImportService.importCookies(
-      { sourceId: pick.source.id, sourceProfileDirectory: pick.profile.directory },
+      {
+        sourceId: pick.source.id,
+        sourceProfileDirectory: pick.profile.directory,
+      },
       manager.profileSession(context.profile),
     );
     if (!outcome.ok) {

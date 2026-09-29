@@ -706,7 +706,9 @@ export function createDesktopBrowserViewManager(
 
     if (pagePreloadPath !== null) {
       webContents.on("dom-ready", () => {
-        webContents.executeJavaScript(webauthnMainWorldHookSource).catch(() => {});
+        webContents
+          .executeJavaScript(webauthnMainWorldHookSource)
+          .catch(() => {});
       });
       webContents.ipc.on(
         BB_DESKTOP_BROWSER_GUEST_MESSAGE_CHANNEL,

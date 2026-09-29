@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -12,6 +11,8 @@ import {
   type DesktopBrowserWebauthnRequestArgs,
 } from "../../src/desktop-browser-view.js";
 import { createDesktopWebauthnViewManager } from "../../src/desktop-webauthn-view.js";
+import { BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL } from "../../src/webauthn-prompt-ipc.js";
+import { WEBAUTHN_PROMPT_VIEW_HEIGHT } from "../../src/webauthn-prompt-view.js";
 
 const keepAlive = setInterval(() => {}, 1000);
 app.once("quit", () => clearInterval(keepAlive));
@@ -45,7 +46,9 @@ async function main() {
     response.end(`<!doctype html><title>Passkey fixture</title>
       <style>body{font:20px sans-serif;padding:80px 24px}</style>
       <button id="passkey">Sign in with a passkey</button>
+      <input autocomplete="username webauthn" />
       <p id="status">idle</p>
+      <p id="conditional-status">idle</p>
       <script>
         document.querySelector('#passkey').addEventListener('click', () => {
           document.querySelector('#status').textContent = 'pending';
@@ -53,6 +56,13 @@ async function main() {
             .then(() => { document.querySelector('#status').textContent = 'resolved'; })
             .catch((error) => { document.querySelector('#status').textContent = 'rejected:' + error.name; });
         });
+        document.querySelector('#conditional-status').textContent = 'pending';
+        navigator.credentials.get({
+          publicKey: { challenge: new Uint8Array(1), rpId: location.hostname },
+          mediation: 'conditional',
+        })
+          .then(() => { document.querySelector('#conditional-status').textContent = 'resolved'; })
+          .catch((error) => { document.querySelector('#conditional-status').textContent = 'rejected:' + error.name; });
       </script>`);
   });
   await new Promise<void>((resolve) =>
@@ -139,6 +149,29 @@ async function main() {
   const tabView = findViewByUrlPrefix(window, url);
   assert(tabView !== undefined, "Missing attached browser tab view");
 
+  await new Promise<void>((resolve) => setTimeout(resolve, 300));
+  const conditionalStatus = await tabView.webContents.executeJavaScript(
+    "document.querySelector('#conditional-status').textContent",
+  );
+  assert.notEqual(
+    conditionalStatus,
+    "rejected:NotAllowedError",
+    "a conditional-mediation get() on page load must call through to the real implementation, never our Cancel rejection",
+  );
+  assert.equal(
+    capturedRequest,
+    null,
+    "a conditional-mediation get() on page load must never trigger onWebauthnRequest",
+  );
+  assert.equal(
+    findViewByUrlPrefix(window, "data:text/html;charset=utf-8"),
+    undefined,
+    "a conditional-mediation get() on page load must never open the passkey banner",
+  );
+  passed(
+    "a page's conditional-mediation get() on load (passkey autofill, e.g. GitHub/Google/Notion) calls through with no banner and no rejection",
+  );
+
   await tabView.webContents.executeJavaScript(
     "document.querySelector('#passkey').click(); undefined",
   );
@@ -148,7 +181,10 @@ async function main() {
     capturedRequest !== null,
     "navigator.credentials.get did not trigger onWebauthnRequest",
   );
-  assert.equal((capturedRequest as DesktopBrowserWebauthnRequestArgs).mode, "get");
+  assert.equal(
+    (capturedRequest as DesktopBrowserWebauthnRequestArgs).mode,
+    "get",
+  );
   const statusWhilePending = await tabView.webContents.executeJavaScript(
     "document.querySelector('#status').textContent",
   );
@@ -157,33 +193,50 @@ async function main() {
     "clicking the passkey button never hangs: the page promise stays pending and a webauthn-request reaches the host instead of Electron's missing WebAuthn UI",
   );
 
-  const promptView = findViewByUrlPrefix(window, "data:text/html;charset=utf-8");
+  const promptView = findViewByUrlPrefix(
+    window,
+    "data:text/html;charset=utf-8",
+  );
   assert(promptView !== undefined, "Prompt banner was not opened");
   const promptMessage = await promptView.webContents.executeJavaScript(
     "document.querySelector('#bb-webauthn-message').textContent",
   );
   assert(promptMessage.includes("wants a passkey"));
-  passed("the in-tab prompt banner renders with the site's host and a Continue/Cancel choice");
+  passed(
+    "the in-tab prompt banner renders with the site's host and a Continue/Cancel choice",
+  );
 
-  await new Promise<void>((resolve) => setTimeout(resolve, 2000));
-  const screenshotPath = join(config.artifacts, "webauthn-prompt.png");
-  try {
-    execFileSync("ffmpeg", [
-      "-y",
-      "-f",
-      "x11grab",
-      "-video_size",
-      "1280x800",
-      "-i",
-      `${process.env.DISPLAY}+0,0`,
-      "-frames:v",
-      "1",
-      screenshotPath,
-    ]);
-  } catch {
-    const screenshot = await window.webContents.capturePage();
-    await writeFile(screenshotPath, screenshot.toPNG());
-  }
+  await new Promise<void>((resolve) => setTimeout(resolve, 500));
+  const tabScreenshot = await tabView.webContents.capturePage();
+  assert(!tabScreenshot.isEmpty(), "Tab screenshot must not be empty");
+  await writeFile(
+    join(config.artifacts, "webauthn-tab.png"),
+    tabScreenshot.toPNG(),
+  );
+
+  const bannerWindow = new BrowserWindow({
+    width: 860,
+    height: WEBAUTHN_PROMPT_VIEW_HEIGHT + 40,
+    show: true,
+    webPreferences: { preload: config.webauthnPromptPreloadPath },
+  });
+  await bannerWindow.loadURL(promptView.webContents.getURL());
+  bannerWindow.webContents.send(BB_DESKTOP_WEBAUTHN_PROMPT_STATE_CHANNEL, {
+    stage: "ask",
+    host: new URL(url).host,
+    browserLabel: "your browser",
+  });
+  await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  const bannerScreenshot = await bannerWindow.webContents.capturePage();
+  assert(!bannerScreenshot.isEmpty(), "Banner screenshot must not be empty");
+  await writeFile(
+    join(config.artifacts, "webauthn-banner.png"),
+    bannerScreenshot.toPNG(),
+  );
+  bannerWindow.destroy();
+  passed(
+    "captured the tab and the passkey banner via webContents.capturePage()",
+  );
 
   await promptView.webContents.executeJavaScript(
     "document.querySelector('#bb-webauthn-cancel').click(); undefined",

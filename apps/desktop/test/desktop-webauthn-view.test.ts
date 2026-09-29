@@ -92,7 +92,12 @@ class FakeHostWindow implements WebauthnViewHostWindow {
   readonly webContents = { id: 7 };
 }
 
-const TAB_BOUNDS: WebauthnViewBounds = { x: 10, y: 20, width: 900, height: 600 };
+const TAB_BOUNDS: WebauthnViewBounds = {
+  x: 10,
+  y: 20,
+  width: 900,
+  height: 600,
+};
 
 describe("createDesktopWebauthnViewManager", () => {
   beforeEach(() => {
