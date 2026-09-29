@@ -549,3 +549,155 @@ describe("server live preview", () => {
     }
   });
 });
+
+describe("server fill-login", () => {
+  async function openLocal(h: Awaited<ReturnType<typeof setup>>) {
+    return rpcContract.open.output.parse(
+      await h.harness.behavior.callRpc("open", {
+        threadId: "thread-test",
+        selection: { backend: "local", hostId: "local-host" },
+      }),
+    );
+  }
+
+  it("fills a login form from the masked response and returns only field names", async () => {
+    const h = await setup();
+    try {
+      const local = await openLocal(h);
+      let seenScript = "";
+      h.worker.mockImplementation(async (call) => {
+        const { method, input } = call as unknown as {
+          method: string;
+          input: unknown;
+        };
+        if (method === "run") {
+          seenScript = (input as { script: string }).script;
+          return { text: "", images: [], exitCode: 0 };
+        }
+        return method === "prepare"
+          ? { status: "ready", version: "1.0.0-test", source: "release" }
+          : null;
+      });
+      const call = h.harness.behavior.callRpc("fillLogin", {
+        threadId: "thread-test",
+        sessionId: local.id,
+        page: "main",
+        usernameSelector: "#user",
+        passwordSelector: "#pass",
+        submitSelector: "#go",
+        label: "Test login",
+      });
+      let interactionId = "";
+      let description: unknown;
+      await vi.waitFor(() => {
+        const pending = h.harness.pendingInteractions;
+        expect(pending).toHaveLength(1);
+        interactionId = pending[0]!.id;
+        description = pending[0]!.describeSubmission?.({
+          values: { username: "alice", password: "sentinel-secret" },
+        });
+      });
+      h.harness.behavior.submitInteraction(interactionId, {
+        values: { username: "alice", password: "sentinel-secret" },
+      });
+      const filled = await call;
+      expect(filled).toEqual({
+        filled: true,
+        fields: ["username", "password"],
+      });
+      expect(seenScript).toContain("#user");
+      expect(seenScript).toContain("#pass");
+      expect(seenScript).toContain("#go");
+      expect(seenScript).toContain("alice");
+      expect(seenScript).toContain("sentinel-secret");
+      expect(JSON.stringify(description)).not.toContain("alice");
+      expect(JSON.stringify(description)).not.toContain("sentinel-secret");
+      expect(JSON.stringify(filled)).not.toContain("alice");
+      expect(JSON.stringify(filled)).not.toContain("sentinel-secret");
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+
+  it("throws a clean error when the login form is cancelled", async () => {
+    const h = await setup();
+    try {
+      const local = await openLocal(h);
+      const call = h.harness.behavior.callRpc("fillLogin", {
+        threadId: "thread-test",
+        sessionId: local.id,
+        page: "main",
+        usernameSelector: "#user",
+        passwordSelector: "#pass",
+      });
+      await vi.waitFor(() =>
+        expect(h.harness.pendingInteractions).toHaveLength(1),
+      );
+      h.harness.behavior.cancelInteraction(h.harness.pendingInteractions[0]!.id);
+      await expect(call).rejects.toThrow(/cancelled/);
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+
+  it("never relays the underlying run() output, even when the fake host echoes the script", async () => {
+    const h = await setup();
+    try {
+      const local = await openLocal(h);
+      h.worker.mockImplementation(async (call) => {
+        const { method, input } = call as unknown as {
+          method: string;
+          input: unknown;
+        };
+        return method === "run"
+          ? {
+              text: (input as { script: string }).script,
+              images: [],
+              exitCode: 0,
+            }
+          : method === "prepare"
+            ? { status: "ready", version: "1.0.0-test", source: "release" }
+            : null;
+      });
+      const result = h.harness.behavior.runCli(
+        [
+          "fill-login",
+          local.id,
+          "--username-selector",
+          "#user",
+          "--password-selector",
+          "#pass",
+          "--otp-selector",
+          "#otp",
+          "--label",
+          "Test login",
+        ],
+        { threadId: "thread-test" },
+      );
+      await vi.waitFor(() =>
+        expect(h.harness.pendingInteractions).toHaveLength(1),
+      );
+      h.harness.behavior.submitInteraction(
+        h.harness.pendingInteractions[0]!.id,
+        {
+          values: {
+            username: "alice",
+            password: "sentinel-secret",
+            otp: "007-sentinel-otp",
+          },
+        },
+      );
+      const cliResult = await result;
+      expect(cliResult.exitCode).toBe(0);
+      expect(cliResult.stdout).not.toContain("sentinel-secret");
+      expect(cliResult.stdout).not.toContain("007-sentinel-otp");
+      expect(cliResult.stdout).not.toContain("#user");
+      expect(JSON.parse(cliResult.stdout)).toEqual({
+        filled: true,
+        fields: ["username", "password", "otp"],
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});

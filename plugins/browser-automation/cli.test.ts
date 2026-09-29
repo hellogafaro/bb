@@ -249,6 +249,7 @@ describe("CLI boundaries", () => {
       "pages",
       "screenshot",
       "preview",
+      "fill-login",
       "stop",
       "close",
     ]);

@@ -17,6 +17,7 @@ export type BrowserCliMethod =
   | "pages"
   | "screenshot"
   | "preview"
+  | "fillLogin"
   | "stop"
   | "close";
 
@@ -30,6 +31,11 @@ export interface BrowserCliInput {
   afterSequence?: number;
   goal?: string;
   maxSteps?: number;
+  usernameSelector?: string;
+  passwordSelector?: string;
+  otpSelector?: string;
+  submitSelector?: string;
+  label?: string;
 }
 
 export interface BrowserCliRequest {
@@ -379,6 +385,71 @@ export function createBrowserAutomationCli(deps: {
                 threadId: resolveThreadId(input.options.thread, ctx),
                 sessionId: input.positionals["session-id"],
                 afterSequence: input.options.after,
+              },
+            },
+            ctx,
+          ),
+      }),
+      "fill-login": cliCommand({
+        summary:
+          "Ask the user for a login in a masked form and fill it into the page over CDP; the agent never sees the values",
+        positionals: [SESSION_POSITIONAL],
+        options: {
+          page: {
+            type: "string",
+            placeholder: "name",
+            default: "main",
+            description: "Named page to fill",
+          },
+          "username-selector": {
+            type: "string",
+            required: true,
+            placeholder: "css-selector",
+            description: "CSS selector for the username/email field",
+          },
+          "password-selector": {
+            type: "string",
+            required: true,
+            placeholder: "css-selector",
+            description: "CSS selector for the password field",
+          },
+          "otp-selector": {
+            type: "string",
+            placeholder: "css-selector",
+            description: "CSS selector for an optional 2FA/OTP code field",
+          },
+          "submit-selector": {
+            type: "string",
+            placeholder: "css-selector",
+            description: "CSS selector for the submit button, clicked after filling",
+          },
+          label: {
+            type: "string",
+            placeholder: "text",
+            description: "Label shown on the credential form, e.g. \"GitHub login\"",
+          },
+          thread: THREAD_OPTION,
+          json: JSON_OPTION,
+        },
+        run: (input, ctx) =>
+          deps.execute(
+            {
+              method: "fillLogin",
+              input: {
+                threadId: resolveThreadId(input.options.thread, ctx),
+                sessionId: input.positionals["session-id"],
+                page: input.options.page,
+                usernameSelector: input.options["username-selector"],
+                passwordSelector: input.options["password-selector"],
+                ...(input.options["otp-selector"] === undefined
+                  ? {}
+                  : { otpSelector: input.options["otp-selector"] }),
+                ...(input.options["submit-selector"] === undefined
+                  ? {}
+                  : { submitSelector: input.options["submit-selector"] }),
+                ...(input.options.label === undefined
+                  ? {}
+                  : { label: input.options.label }),
               },
             },
             ctx,

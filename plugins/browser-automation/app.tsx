@@ -12,6 +12,7 @@ import {
   activityTextClass,
   type ActivityRowState,
 } from "@bb/shared-ui/activity-row-styles";
+import { Button } from "@bb/shared-ui/button";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +21,21 @@ import {
   DialogTitle,
 } from "@bb/shared-ui/dialog";
 import { Icon } from "@bb/shared-ui/icon";
+import { Input } from "@bb/shared-ui/input";
+import { Label } from "@bb/shared-ui/label";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import {
   definePluginApp,
   useRpc,
   type PluginMessageDirectiveProps,
+  type PluginPendingInteractionProps,
 } from "@get-bb/plugin-sdk/app";
+import {
+  LOGIN_FILL_RENDERER_ID,
+  loginFillPayloadSchema,
+  loginFillResponseSchema,
+} from "@bb/plugin-interaction-contracts";
 import type { PreviewFrame, PreviewSize, rpcContract } from "./contracts.js";
 import {
   closeLightbox,
@@ -445,6 +454,175 @@ function BrowserPreviewLightbox() {
   );
 }
 
+function MaskedField({
+  id,
+  label,
+  masked,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  masked: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label
+        htmlFor={id}
+        className="font-mono text-xs font-semibold text-foreground"
+        translate="no"
+      >
+        {label}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={masked && !revealed ? "password" : "text"}
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className={cn("bg-card", masked && "pr-11")}
+        />
+        {masked ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="absolute right-1 top-1/2 size-7 -translate-y-1/2 text-muted-foreground"
+            aria-label={`${revealed ? "Hide" : "Show"} ${label}`}
+            aria-pressed={revealed}
+            onClick={() => setRevealed((current) => !current)}
+            disabled={disabled}
+          >
+            <Icon
+              name={revealed ? "EyeOff" : "Eye"}
+              className="size-4"
+              aria-hidden="true"
+            />
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function LoginFillInteraction({
+  interaction,
+  submit,
+  cancel,
+}: PluginPendingInteractionProps) {
+  const parsed = loginFillPayloadSchema.safeParse(interaction.payload);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  if (!parsed.success) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          This login request is invalid.
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => void cancel().catch(() => undefined)}
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+  const payload = parsed.data;
+  const submitValues = async () => {
+    const validated = loginFillResponseSchema.safeParse({ values });
+    if (!validated.success) {
+      setFormError("Every field must be a non-empty single-line value.");
+      return;
+    }
+    setFormError(null);
+    setBusy(true);
+    try {
+      try {
+        await submit({ values });
+        setValues({});
+      } catch {}
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submitValues();
+      }}
+    >
+      {payload.label ? (
+        <p className="text-pretty text-sm leading-relaxed text-foreground">
+          {payload.label}
+        </p>
+      ) : null}
+      <div className="space-y-3.5">
+        {payload.fields.map((field) => (
+          <MaskedField
+            key={field.name}
+            id={`login-fill-${interaction.id}-${field.name}`}
+            label={field.name}
+            masked={field.kind === "password"}
+            value={values[field.name] ?? ""}
+            onChange={(value) =>
+              setValues((current) => ({ ...current, [field.name]: value }))
+            }
+            disabled={busy}
+          />
+        ))}
+      </div>
+      {formError ? (
+        <p
+          className="rounded-md border border-surface-destructive-border bg-surface-destructive px-2 py-1 text-xs text-destructive-text"
+          aria-live="polite"
+        >
+          {formError}
+        </p>
+      ) : null}
+      <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={busy}
+          onClick={() => void cancel().catch(() => undefined)}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={busy}
+        >
+          {busy ? (
+            <Icon name="Spinner" className="size-3 animate-spin" aria-hidden="true" />
+          ) : null}
+          Fill form
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default definePluginApp((app) => {
   app.slots.messageDirective({
     id: PREVIEW_DIRECTIVE_ID,
@@ -453,5 +631,9 @@ export default definePluginApp((app) => {
   app.slots.experimental_appOverlay({
     id: "browser-preview-lightbox",
     component: BrowserPreviewLightbox,
+  });
+  app.slots.pendingInteraction({
+    id: LOGIN_FILL_RENDERER_ID,
+    component: LoginFillInteraction,
   });
 });

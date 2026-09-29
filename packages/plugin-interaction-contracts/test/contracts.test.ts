@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   interactionPayloadSchema,
   interactionResponseSchema,
+  loginFillPayloadSchema,
+  loginFillResponseSchema,
   MAX_OPTIONS,
   secretRequestPayloadSchema,
   secretRequestResponseSchema,
@@ -94,6 +96,45 @@ describe("secret-request contracts", () => {
     expect(
       secretRequestResponseSchema.safeParse({ values: { API_KEY: "" } })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe("login-fill-request contracts", () => {
+  it("accepts a labelled multi-field payload and rejects an unknown field kind", () => {
+    expect(
+      loginFillPayloadSchema.safeParse({
+        label: "GitHub login",
+        fields: [
+          { name: "username", kind: "text" },
+          { name: "password", kind: "password" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      loginFillPayloadSchema.safeParse({
+        label: null,
+        fields: [{ name: "username", kind: "email" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      loginFillPayloadSchema.safeParse({ label: null, fields: [] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects multi-line or empty submitted values", () => {
+    expect(
+      loginFillResponseSchema.safeParse({
+        values: { username: "alice", password: "s3cret" },
+      }).success,
+    ).toBe(true);
+    expect(
+      loginFillResponseSchema.safeParse({
+        values: { password: "a\nb" },
+      }).success,
+    ).toBe(false);
+    expect(
+      loginFillResponseSchema.safeParse({ values: { password: "" } }).success,
     ).toBe(false);
   });
 });

@@ -100,6 +100,18 @@ export const doOutputSchema = z
   })
   .strict();
 export type DoOutput = z.infer<typeof doOutputSchema>;
+export const fillLoginSchema = ownedSchema.extend({
+  page: z.string().min(1).max(120).default("main"),
+  usernameSelector: z.string().min(1).max(2000),
+  passwordSelector: z.string().min(1).max(2000),
+  otpSelector: z.string().min(1).max(2000).optional(),
+  submitSelector: z.string().min(1).max(2000).optional(),
+  label: z.string().min(1).max(160).optional(),
+});
+export const fillOutputSchema = z
+  .object({ filled: z.boolean(), fields: z.array(z.string()).max(8) })
+  .strict();
+export type FillOutput = z.infer<typeof fillOutputSchema>;
 export const rpcContract = defineRpcContract({
   open: { input: openSchema, output: sessionSchema },
   list: {
@@ -111,6 +123,7 @@ export const rpcContract = defineRpcContract({
   pages: { input: ownedSchema, output: outputSchema },
   screenshot: { input: screenshotSchema, output: outputSchema },
   preview: { input: previewSchema, output: previewOutputSchema },
+  fillLogin: { input: fillLoginSchema, output: fillOutputSchema },
   stop: { input: ownedSchema, output: sessionSchema },
   close: { input: ownedSchema, output: sessionSchema },
 });

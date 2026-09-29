@@ -7,10 +7,15 @@ import type {
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import {
+  LOGIN_FILL_RENDERER_ID,
+  loginFillResponseSchema,
+} from "@bb/plugin-interaction-contracts";
+import {
   hostContract,
   rpcContract,
   sessionSchema,
   type DoOutput,
+  type FillOutput,
   type PreviewOutput,
   type RunOutput,
   type Session,
@@ -431,6 +436,64 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
     );
     return { session, frame };
   }
+  async function fillLogin(
+    input: z.output<typeof rpcContract.fillLogin.input>,
+    signal: AbortSignal,
+  ): Promise<FillOutput> {
+    const record = await owned(input.threadId, input.sessionId);
+    if (
+      record.session.state !== "ready" ||
+      Date.now() >= record.session.expiresAt
+    )
+      throw new Error("Session stopped or expired; open a new session");
+    const fields: { name: string; kind: "text" | "password"; selector: string }[] = [
+      { name: "username", kind: "text", selector: input.usernameSelector },
+      { name: "password", kind: "password", selector: input.passwordSelector },
+      ...(input.otpSelector === undefined
+        ? []
+        : [{ name: "otp", kind: "password" as const, selector: input.otpSelector }]),
+    ];
+    const names = fields.map((field) => field.name);
+    const result = await bb.ui.requestInput(
+      {
+        threadId: input.threadId,
+        rendererId: LOGIN_FILL_RENDERER_ID,
+        title: input.label ?? "Enter login credentials",
+        payload: {
+          label: input.label ?? null,
+          fields: fields.map((field) => ({ name: field.name, kind: field.kind })),
+        },
+        describeSubmission: () => ({
+          title: `Filled ${names.join(", ")}`,
+        }),
+      },
+      { signal },
+    );
+    if (result.outcome === "cancelled") {
+      throw new Error(`Login form cancelled (${result.reason}).`);
+    }
+    const response = loginFillResponseSchema.parse(result.value);
+    const statements = fields.map(
+      (field) =>
+        `await p.fill(${JSON.stringify(field.selector)}, ${JSON.stringify(response.values[field.name] ?? "")});`,
+    );
+    if (input.submitSelector !== undefined) {
+      statements.push(`await p.click(${JSON.stringify(input.submitSelector)});`);
+    }
+    const script = [
+      `const p = await browser.getPage(${JSON.stringify(input.page)});`,
+      ...statements,
+      `JSON.stringify({ filled: true, fields: ${JSON.stringify(names)} });`,
+    ].join(" ");
+    const output = await run(
+      { threadId: input.threadId, sessionId: input.sessionId, script, timeoutMs: 30_000 },
+      signal,
+    );
+    if (output.exitCode !== 0) {
+      throw new Error("Filling the login form failed; check the selectors.");
+    }
+    return { filled: true, fields: names };
+  }
   function handlers(
     signal: AbortSignal,
   ): PluginRpcHandlers<typeof rpcContract> {
@@ -468,6 +531,7 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
           signal,
         ),
       preview: (input) => preview(input, signal),
+      fillLogin: (input) => fillLogin(input, signal),
       stop: async (input) =>
         finish(await owned(input.threadId, input.sessionId), "stopped"),
       close: async (input) =>
@@ -496,6 +560,8 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         return h.screenshot(rpcContract.screenshot.input.parse(input));
       case "preview":
         return h.preview(rpcContract.preview.input.parse(input));
+      case "fillLogin":
+        return h.fillLogin(rpcContract.fillLogin.input.parse(input));
       case "stop":
         return h.stop(rpcContract.stop.input.parse(input));
       case "close":
@@ -566,6 +632,10 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       );
       const output = rpcContract.run.output.safeParse(result);
       const previewed = rpcContract.preview.output.safeParse(result);
+      const filled =
+        request.method === "fillLogin"
+          ? rpcContract.fillLogin.output.safeParse(result)
+          : null;
       const opened =
         request.method === "open"
           ? rpcContract.open.output.safeParse(result)
@@ -596,7 +666,9 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
                   bytes: Buffer.byteLength(previewed.data.frame.data, "base64"),
                 },
               }
-            : result;
+            : filled?.success
+              ? filled.data
+              : result;
       return {
         exitCode: output.success ? output.data.exitCode : 0,
         stdout: JSON.stringify(printable),

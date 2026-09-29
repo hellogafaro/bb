@@ -114,9 +114,22 @@ bb browser-automation do <session-id> "search this site and report the top resul
 bb browser-automation pages <session-id> --json
 bb browser-automation screenshot <session-id> --page main --json
 bb browser-automation preview <session-id> [--after <sequence>] --json
+bb browser-automation fill-login <session-id> --page main --username-selector <sel> --password-selector <sel> [--otp-selector <sel>] [--submit-selector <sel>] [--label "GitHub login"] --json
 bb browser-automation stop <session-id> --json
 bb browser-automation close <session-id> --json
 ```
+
+`fill-login` asks the user for credentials through a masked form
+(`bb.ui.requestInput`, the same pattern as the Secrets plugin) and fills the
+submitted values into the named page's fields over CDP using plain CSS
+selectors: a username, a password, and an optional one-time code field for a
+combined login+2FA form. The values never reach the agent, the transcript, the
+tool result, or logs: the command returns only `{filled: true, fields:
+[...names]}`. Core additionally redacts any `sensitiveFields` a plugin's
+`requestInput` call declares from the pending interaction's persisted row and
+its timeline description, in case a plugin's own `describeSubmission`
+carelessly echoes a value; this plugin declares its submitted field names as
+sensitive, and the Secrets plugin does the same for the values it collects.
 
 Outside a thread, supply `--thread <thread-id>`. Calls from an existing thread
 cannot override its ownership. `--script-file` requires `--script-host <host-id>` naming the source host
@@ -164,7 +177,7 @@ session records or CLI session results.
 
 The CLI uses the same validated operation handlers as RPC. The
 RPC contract in `contracts.ts` exposes `open`, `list`, `run`, `do`, `pages`,
-`screenshot`, `preview`, `stop`, and `close`.
+`screenshot`, `preview`, `fillLogin`, `stop`, and `close`.
 RPC inputs include `threadId`; session operations also include `sessionId`.
 `open.selection` is `{backend:"local",hostId}` or
 `{backend:"desktop",hostId,instanceId,tabId?}`. A tab ID is an explicit handoff.

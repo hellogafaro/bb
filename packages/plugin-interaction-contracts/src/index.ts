@@ -18,3 +18,11 @@ export {
   type SecretRequestPayload,
   type SecretRequestResponse,
 } from "./secret-request.js";
+export {
+  LOGIN_FILL_RENDERER_ID,
+  loginFillFieldNameSchema,
+  loginFillPayloadSchema,
+  loginFillResponseSchema,
+  type LoginFillPayload,
+  type LoginFillResponse,
+} from "./login-fill-request.js";

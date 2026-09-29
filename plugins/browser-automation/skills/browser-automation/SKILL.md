@@ -65,6 +65,25 @@ request a screenshot when visual verification matters. Use
 `await p.shot({type:"jpeg",maxEdge:960,quality:70}); undefined` inside scripts to
 return a bounded JPEG file.
 
+When a site needs credentials, use `fill-login` instead of asking the user for
+a password in chat. It opens a masked form; the user types the values there
+and they go straight into the page fields over CDP. The values never reach
+you: `fill-login` returns only `{"filled":true,"fields":[...names]}`, never
+the values themselves. Never ask the user to paste a password into the
+conversation, and never try to read a filled field back (no
+`page.$eval`/`page.evaluate` on the filled selector, no screenshot that would
+reveal it, no logging it) — that would defeat the point.
+
+```sh
+bb browser-automation fill-login <session-id> --page main --username-selector "#email" --password-selector "#password" --submit-selector "button[type=submit]" --label "GitHub login" --json
+bb browser-automation fill-login <session-id> --page main --username-selector "#email" --password-selector "#password" --otp-selector "#otp" --submit-selector "button[type=submit]" --label "GitHub login with 2FA" --json
+```
+
+Selectors are plain CSS selectors on the named page (not snapshot refs); find
+them with a snapshot first if you are not sure of the form's structure.
+Accepts `--page` (default `main`), an optional `--submit-selector` clicked
+after filling, and an optional `--otp-selector` for a combined login+2FA form.
+
 `run` and `screenshot` return JSON with `hostId` and `images`, where each image
 has `path`, `mimeType`, `width`, and `height`. The path is in the browser session's
 temporary directory on that host. Use your image-reading tool on the path when

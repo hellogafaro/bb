@@ -3247,6 +3247,9 @@ importers:
 
   plugins/browser-automation:
     dependencies:
+      '@bb/plugin-interaction-contracts':
+        specifier: workspace:*
+        version: link:../../packages/plugin-interaction-contracts
       '@bb/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
