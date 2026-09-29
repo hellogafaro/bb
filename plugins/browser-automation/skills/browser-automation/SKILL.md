@@ -33,7 +33,24 @@ bb browser-automation open --backend local --headless --machine <host-id> --json
 bb browser-automation open --backend desktop --machine <host-id> --desktop <instance-id> --json
 ```
 
-Run scripts:
+For a multi-step task described in words ("search this site for X and report the price"), prefer `do`: it
+runs a fast Jev decision loop that observes the page, picks the next click/fill/select/press_key/scroll/goto
+step, and repeats until the goal is done, blocked, or the step limit is reached. It needs an OpenRouter API
+key configured on the server; it fails fast with a clear error otherwise.
+
+```sh
+bb browser-automation do <session-id> "search for wireless mice and report the top result's price" --json
+bb browser-automation do <session-id> "log the page title after navigating to https://example.com" --max-steps 6 --json
+```
+
+`do` returns `{state, answer, steps, image}`: `state` is `done`, `blocked`, or `max_steps`; `answer` is the
+model's final answer to the goal; `steps` lists each action taken (`{index, action, target, outcome}`);
+`image` is a screenshot of the final state, in the same `{path, mimeType, width, height}` shape as `run`.
+Read the image the same way as a `run`/`screenshot` capture. `do` always drives the named page `"main"`,
+navigating it as needed; use `run` on a different named page if you need to keep `main` untouched.
+
+For a precise, scripted check where you already know the exact steps or need a specific extracted value,
+use `run` instead:
 
 ```sh
 bb browser-automation run <session-id> --script 'const p = await browser.getPage("main"); await p.goto("https://example.com"); await p.snapshot()' --json

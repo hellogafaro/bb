@@ -13,6 +13,7 @@ export type BrowserCliMethod =
   | "open"
   | "list"
   | "run"
+  | "do"
   | "pages"
   | "screenshot"
   | "preview"
@@ -27,6 +28,8 @@ export interface BrowserCliInput {
   timeoutMs?: number;
   page?: string;
   afterSequence?: number;
+  goal?: string;
+  maxSteps?: number;
 }
 
 export interface BrowserCliRequest {
@@ -247,6 +250,64 @@ export function createBrowserAutomationCli(deps: {
               },
               ...(scriptFile === undefined ? {} : { scriptFile }),
               ...(scriptHost === undefined ? {} : { scriptHost }),
+            },
+            ctx,
+          );
+        },
+      }),
+      do: cliCommand({
+        summary:
+          "Run a natural-language, goal-driven task with a fast Jev decision loop; prefer `run` for a precise scripted check",
+        description:
+          "Drives the session's \"main\" page toward the goal in short ref-based steps (click/fill/select/press_key/scroll/goto),\ndeciding each step with an OpenRouter Jev model. Returns a final answer, the steps taken, and a screenshot.",
+        positionals: [
+          SESSION_POSITIONAL,
+          {
+            name: "goal",
+            description: "Natural-language task to accomplish on this session's page",
+            required: true,
+          },
+        ],
+        constraints: [{ kind: "at-most-one", options: ["timeout", "timeout-ms"] }],
+        options: {
+          "max-steps": {
+            type: "integer",
+            min: 1,
+            max: 40,
+            default: 20,
+            description: "Maximum number of Jev decision steps",
+          },
+          "timeout-ms": {
+            type: "integer",
+            min: 5_000,
+            max: 300_000,
+            default: 120_000,
+            description: "Overall time budget in milliseconds",
+          },
+          timeout: {
+            type: "duration",
+            defaultUnit: "s",
+            bareUnits: ["s", "ms"],
+            min: 5_000,
+            max: 300_000,
+            description:
+              "Overall time budget as a duration (90s, 2m); a bare number is seconds (5-300) or milliseconds (5000-300000)",
+          },
+          thread: THREAD_OPTION,
+          json: JSON_OPTION,
+        },
+        run(input, ctx) {
+          const threadId = resolveThreadId(input.options.thread, ctx);
+          return deps.execute(
+            {
+              method: "do",
+              input: {
+                threadId,
+                sessionId: input.positionals["session-id"],
+                goal: input.positionals["goal"],
+                maxSteps: input.options["max-steps"],
+                timeoutMs: input.options.timeout ?? input.options["timeout-ms"],
+              },
             },
             ctx,
           );

@@ -10,6 +10,7 @@ import {
   hostContract,
   rpcContract,
   sessionSchema,
+  type DoOutput,
   type PreviewOutput,
   type RunOutput,
   type Session,
@@ -21,6 +22,7 @@ import {
   type BrowserCliRequest,
 } from "./cli.js";
 import { previewDirective } from "./preview-directive.js";
+import { createOpenRouterBrowserJevProvider, runJevGoal } from "./jev.js";
 
 const desktopSchema = z
   .object({
@@ -362,6 +364,50 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       }
     }
   }
+  async function doGoal(
+    input: z.output<typeof rpcContract.do.input>,
+    signal: AbortSignal,
+  ): Promise<DoOutput> {
+    const record = await owned(input.threadId, input.sessionId);
+    if (
+      record.session.state !== "ready" ||
+      Date.now() >= record.session.expiresAt
+    )
+      throw new Error("Session stopped or expired; open a new session");
+    const provider = createOpenRouterBrowserJevProvider();
+    if (provider === null)
+      throw new Error(
+        "OpenRouter API key is not configured for goal-driven browser automation; use `run` with an explicit script instead",
+      );
+    const overall = AbortSignal.any([signal, AbortSignal.timeout(input.timeoutMs)]);
+    const result = await runJevGoal({
+      goal: input.goal,
+      maxSteps: input.maxSteps,
+      stepTimeoutMs: 20_000,
+      signal: overall,
+      provider,
+      runScript: (script, timeoutMs, stepSignal) =>
+        run(
+          { threadId: input.threadId, sessionId: input.sessionId, script, timeoutMs },
+          stepSignal,
+        ),
+    });
+    let image: RunOutput["images"][number] | null = null;
+    try {
+      const shot = await run(
+        {
+          threadId: input.threadId,
+          sessionId: input.sessionId,
+          script:
+            'const page = await browser.getPage("main"); await page.shot({ type: "jpeg", maxEdge: 960, quality: 70 }); undefined',
+          timeoutMs: 15_000,
+        },
+        signal,
+      );
+      image = shot.images[0] ?? null;
+    } catch {}
+    return { state: result.state, answer: result.answer, steps: result.steps, image };
+  }
   async function preview(
     input: z.output<typeof rpcContract.preview.input>,
     signal: AbortSignal,
@@ -406,6 +452,7 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         return records;
       },
       run: (input) => run(input, signal),
+      do: (input) => doGoal(input, signal),
       pages: (input) =>
         run(
           { ...input, script: "await browser.listPages()", timeoutMs: 30_000 },
@@ -441,6 +488,8 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
         return h.list(rpcContract.list.input.parse(input));
       case "run":
         return h.run(rpcContract.run.input.parse(input));
+      case "do":
+        return h.do(rpcContract.do.input.parse(input));
       case "pages":
         return h.pages(rpcContract.pages.input.parse(input));
       case "screenshot":

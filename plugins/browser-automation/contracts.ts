@@ -77,6 +77,29 @@ export const previewOutputSchema = z
   .object({ session: sessionSchema, frame: previewFrameSchema.nullable() })
   .strict();
 export type PreviewOutput = z.infer<typeof previewOutputSchema>;
+export const doSchema = ownedSchema.extend({
+  goal: z.string().min(1).max(4_000),
+  maxSteps: z.number().int().min(1).max(40).default(20),
+  timeoutMs: z.number().int().min(5_000).max(300_000).default(120_000),
+});
+export const doStepSchema = z
+  .object({
+    index: z.number().int().nonnegative(),
+    action: z.string().max(40),
+    target: z.string().max(200).nullable(),
+    outcome: z.string().max(400),
+  })
+  .strict();
+export type DoStep = z.infer<typeof doStepSchema>;
+export const doOutputSchema = z
+  .object({
+    state: z.enum(["done", "blocked", "max_steps"]),
+    answer: z.string().max(4_000),
+    steps: z.array(doStepSchema).max(40),
+    image: imageSchema.nullable(),
+  })
+  .strict();
+export type DoOutput = z.infer<typeof doOutputSchema>;
 export const rpcContract = defineRpcContract({
   open: { input: openSchema, output: sessionSchema },
   list: {
@@ -84,6 +107,7 @@ export const rpcContract = defineRpcContract({
     output: z.array(sessionSchema).max(64),
   },
   run: { input: runSchema, output: outputSchema },
+  do: { input: doSchema, output: doOutputSchema },
   pages: { input: ownedSchema, output: outputSchema },
   screenshot: { input: screenshotSchema, output: outputSchema },
   preview: { input: previewSchema, output: previewOutputSchema },

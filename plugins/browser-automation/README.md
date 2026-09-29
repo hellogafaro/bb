@@ -110,6 +110,7 @@ bb browser-automation open --backend desktop --machine <desktop-host-id> --deskt
 bb browser-automation list --json
 bb browser-automation run <session-id> --script 'const p = await browser.getPage("main"); await p.goto("https://example.com"); await p.snapshot()' --json
 bb browser-automation run <session-id> --script-file ./check.js --script-host <invoking-host-id> --timeout-ms 30000 --json
+bb browser-automation do <session-id> "search this site and report the top result" --max-steps 20 --timeout-ms 120000 --json
 bb browser-automation pages <session-id> --json
 bb browser-automation screenshot <session-id> --page main --json
 bb browser-automation preview <session-id> [--after <sequence>] --json
@@ -162,12 +163,33 @@ credentials are removed from structured script text and never included in
 session records or CLI session results.
 
 The CLI uses the same validated operation handlers as RPC. The
-RPC contract in `contracts.ts` exposes `open`, `list`, `run`, `pages`,
+RPC contract in `contracts.ts` exposes `open`, `list`, `run`, `do`, `pages`,
 `screenshot`, `preview`, `stop`, and `close`.
 RPC inputs include `threadId`; session operations also include `sessionId`.
 `open.selection` is `{backend:"local",hostId}` or
 `{backend:"desktop",hostId,instanceId,tabId?}`. A tab ID is an explicit handoff.
 Agents discover the commands through the skill and CLI help.
+
+## Goal-driven automation (`do`)
+
+`bb browser-automation do <session-id> "<natural-language task>"` drives the session's `"main"` page toward
+a goal with a fast Jev decision loop, instead of a hand-written script. Each step runs one DevBrowser script
+that both performs the previous step's action (click, double_click, fill, select, press_key, scroll, or
+goto by ref) and takes a fresh interactive ARIA snapshot for the next decision, so acting and observing cost
+one script run per step rather than two. An OpenRouter call (`jev.ts`, `OpenRouterBrowserJevProvider`)
+picks the next action from that snapshot with a single structured-output request: the action, its ref or
+value, whether to press Enter after typing, whether the goal will be complete after this action, and a
+running best-effort answer, so most goals finish without a verification round trip. The API key and model
+come from the `COMPUTER_OPENROUTER_API_KEY` (falling back to `OPENROUTER_API_KEY`) and
+`COMPUTER_OPENROUTER_DECISION_MODEL` environment variables read by the plugin's server process, the same
+ones Computer's Jev loop uses; `do` fails fast with a clear error when neither key is set. The loop stops
+at `--max-steps` (default 20, max 40) or `--timeout-ms` (default 120000, max 300000), whichever comes
+first, and every step script runs through the same `run` handler as scripted `run` calls, so it shares
+session run serialization, per-run error handling, and cancellation with the rest of the plugin. The result
+is `{state, answer, steps, image}`: `state` is `done`, `blocked`, or `max_steps`; `steps` is one entry per
+action taken; `image` is a final JPEG screenshot in the session's capture directory, read the same way as
+`run`/`screenshot` output. Prefer `run` when the exact steps or an exact extracted value are already known;
+`run`'s scripts and serialization are unchanged by this feature.
 
 The host supervises Chrome and the DevBrowser daemon as separate children. Each
 child owns a process group. Closing the worker pipe also stops those groups, so

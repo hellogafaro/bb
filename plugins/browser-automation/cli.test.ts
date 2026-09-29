@@ -245,6 +245,7 @@ describe("CLI boundaries", () => {
       "open",
       "list",
       "run",
+      "do",
       "pages",
       "screenshot",
       "preview",
