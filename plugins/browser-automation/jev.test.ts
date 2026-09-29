@@ -3,6 +3,7 @@ import { doOutputSchema } from "./contracts.js";
 import {
   buildStepScript,
   createOpenRouterBrowserJevProvider,
+  OpenRouterBrowserJevProvider,
   parseJevDecision,
   resolveJevApiKey,
   runJevGoal,
@@ -62,8 +63,15 @@ describe("buildStepScript", () => {
     expect(script).not.toContain("page.click");
     expect(script).toContain("page.snapshot(");
     expect(script).toContain(
-      "actOk, actError, url: page.url(), title, snapshot",
+      "actOk, actError, url: page.url(), title, snapshot, text",
     );
+  });
+
+  it("extracts visible page text with a bounded page.evaluate call", () => {
+    const script = buildStepScript(null);
+    expect(script).toContain("await page.evaluate(");
+    expect(script).toContain("document.body.innerText");
+    expect(script).toContain(", 3000)");
   });
 
   it("embeds a click action by ref and always re-observes afterward", () => {
@@ -154,7 +162,7 @@ function decision(partial: Partial<JevDecision>): JevDecision {
   };
 }
 
-function observationResult(snapshot: string) {
+function observationResult(snapshot: string, pageText = "") {
   return {
     text: JSON.stringify({
       actOk: true,
@@ -162,6 +170,7 @@ function observationResult(snapshot: string) {
       url: "https://example.com",
       title: "Example",
       snapshot,
+      text: pageText,
     }),
   };
 }
@@ -277,10 +286,35 @@ describe("runJevGoal", () => {
           url: "https://example.com",
           title: "Example",
           snapshot: "generic [ref=e1]",
+          text: "",
         }),
       }),
     });
     expect(result.state).toBe("done");
+  });
+
+  it("passes the extracted visible page text through to the decision request", async () => {
+    const seen: string[] = [];
+    const provider: JevProvider = {
+      decide: async (request) => {
+        seen.push(request.observation.text);
+        return decision({ action: "done", answer: "$19.99" });
+      },
+    };
+    const result = await runJevGoal({
+      goal: "report the book's price",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () =>
+        observationResult(
+          'heading "A Light in the Attic" [ref=e3]',
+          "Price £51.77 In stock",
+        ),
+    });
+    expect(result.state).toBe("done");
+    expect(seen).toEqual(["Price £51.77 In stock"]);
   });
 
   it("clamps a long answer and a long action error into doOutputSchema's step limits", async () => {
@@ -307,6 +341,7 @@ describe("runJevGoal", () => {
           url: "https://example.com",
           title: "Example",
           snapshot: "generic [ref=e1]",
+          text: "",
         }),
       }),
     });
@@ -392,5 +427,68 @@ describe("runJevGoal", () => {
       }),
     ).rejects.toThrow("The operation was aborted");
     expect(decideCalls).toBe(1);
+  });
+});
+
+describe("OpenRouterBrowserJevProvider", () => {
+  it("requests latency-sorted routing and sends the visible page text", async () => {
+    let requestBody: unknown;
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  action: "done",
+                  ref: "",
+                  value: "",
+                  url: "",
+                  key: "",
+                  submit: false,
+                  goal_complete_after: false,
+                  answer: "£51.77",
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new OpenRouterBrowserJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "report the price",
+        observation: {
+          url: "https://example.com",
+          title: "Book",
+          snapshot: "generic [ref=e1]",
+          text: "Price £51.77",
+        },
+        recentOutcomes: [],
+      },
+      new AbortController().signal,
+    );
+    expect(result.answer).toBe("£51.77");
+    if (typeof requestBody !== "object" || requestBody === null) {
+      throw new Error("expected fetchImpl to receive a request body");
+    }
+    const body = requestBody as Record<string, unknown>;
+    expect(body.provider).toEqual({ sort: "latency" });
+    const messages = (
+      body as { messages: Array<{ role: string; content: string }> }
+    ).messages;
+    const userContent =
+      messages.find((message) => message.role === "user")?.content ?? "";
+    expect(userContent).toContain("Price £51.77");
+    expect(JSON.parse(userContent).visible_text).toBe("Price £51.77");
   });
 });

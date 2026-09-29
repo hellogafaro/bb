@@ -32,6 +32,7 @@ export interface JevObservation {
   readonly url: string;
   readonly title: string;
   readonly snapshot: string;
+  readonly text: string;
 }
 
 export interface JevDecisionRequest {
@@ -98,7 +99,7 @@ const OPENROUTER_CHAT_COMPLETIONS_URL =
 const JEV_ROUTER_MODEL = "typesafe/jev-router";
 
 const SYSTEM_PROMPT =
-  "You are Jev, the fast decision step of a browser automation loop. You receive a goal, the current page's URL and title, an ARIA accessibility snapshot with element refs like [ref=e6], and recent action outcomes. Pick exactly one next action. Use ref for click/double_click/fill/select/scroll actions, choosing a ref that literally appears in the snapshot. Use value for fill/select text. Use url only for goto. Use key only for press_key. Set submit true only when pressing Enter right after fill should submit the field (a search box or single-field form). Set goal_complete_after true only when this action is expected to fully satisfy the goal. Always fill answer with your best current answer to the goal given what you know so far; it is used verbatim if this is the final step. Keep answer short: one sentence, no more than 200 characters.";
+  "You are Jev, the fast decision step of a browser automation loop. You receive a goal, the current page's URL and title, an ARIA accessibility snapshot with element refs like [ref=e6], the page's visible text near the viewport, and recent action outcomes. The accessibility snapshot can omit plain, non-interactive text such as prices or labels; visible_text is the fallback for reading that content. When the goal's answer is already present in visible_text or the snapshot, choose done and put that exact answer in answer instead of scrolling, clicking, or otherwise acting further. Otherwise pick exactly one next action. Use ref for click/double_click/fill/select/scroll actions, choosing a ref that literally appears in the snapshot. Use value for fill/select text. Use url only for goto. Use key only for press_key. Set submit true only when pressing Enter right after fill should submit the field (a search box or single-field form). Set goal_complete_after true only when this action is expected to fully satisfy the goal. Always fill answer with your best current answer to the goal given what you know so far; it is used verbatim if this is the final step. Keep answer short: one sentence, no more than 200 characters.";
 
 export interface OpenRouterBrowserJevOptions {
   readonly apiKey: string;
@@ -133,6 +134,7 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
       goal: request.goal,
       page: { url: request.observation.url, title: request.observation.title },
       snapshot: request.observation.snapshot,
+      visible_text: request.observation.text,
       recent_outcomes: request.recentOutcomes,
     };
     const schema = {
@@ -178,6 +180,7 @@ export class OpenRouterBrowserJevProvider implements JevProvider {
         },
         max_tokens: 1_000,
         reasoning: { effort: "low" },
+        provider: { sort: "latency" },
       }),
       signal: AbortSignal.any([timeout, signal]),
     });
@@ -265,6 +268,39 @@ function submitCode(decision: JevDecision): string {
   return 'if (actOk) { try { await page.keyboard.press("Enter"); } catch (e) { actOk = false; actError = String((e && e.message) || e); } }';
 }
 
+const MAX_VISIBLE_TEXT_CHARS = 3_000;
+
+const VISIBLE_TEXT_EXTRACTOR = `(maxChars) => {
+  function collapse(value) { return value.replace(/\\s+/g, " ").trim(); }
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  const top = -vh;
+  const bottom = vh * 2;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const value = node.nodeValue;
+      if (!value || !value.trim()) return NodeFilter.FILTER_REJECT;
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+      const style = window.getComputedStyle(parent);
+      if (style.display === "none" || style.visibility === "hidden") return NodeFilter.FILTER_REJECT;
+      const rect = parent.getBoundingClientRect();
+      if (rect.bottom < top || rect.top > bottom) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const parts = [];
+  let length = 0;
+  let node;
+  while ((node = walker.nextNode())) {
+    parts.push(node.nodeValue);
+    length += node.nodeValue.length;
+    if (length > maxChars) break;
+  }
+  let combined = collapse(parts.join(" "));
+  if (!combined) combined = collapse(document.body.innerText || "");
+  return combined.slice(0, maxChars);
+}`;
+
 export function buildStepScript(decision: JevDecision | null): string {
   const action =
     decision === null
@@ -280,7 +316,9 @@ export function buildStepScript(decision: JevDecision | null): string {
     'try { snapshot = await page.snapshot({ interactive: true, maxChars: 12000 }); } catch (e) { snapshot = "snapshot unavailable: " + String((e && e.message) || e); }',
     'let title = "";',
     "try { title = await page.title(); } catch {}",
-    "({ actOk, actError, url: page.url(), title, snapshot });",
+    'let text = "";',
+    `try { text = await page.evaluate(${VISIBLE_TEXT_EXTRACTOR}, ${MAX_VISIBLE_TEXT_CHARS}); } catch (e) { text = ""; }`,
+    "({ actOk, actError, url: page.url(), title, snapshot, text });",
   ]
     .filter((line) => line.length > 0)
     .join("\n");
@@ -292,6 +330,7 @@ interface StepResult {
   readonly url: string;
   readonly title: string;
   readonly snapshot: string;
+  readonly text: string;
 }
 
 function parseStepResult(text: string): StepResult {
@@ -313,6 +352,7 @@ function parseStepResult(text: string): StepResult {
     url: record.url,
     title: typeof record.title === "string" ? record.title : "",
     snapshot: record.snapshot,
+    text: typeof record.text === "string" ? record.text : "",
   };
 }
 
@@ -416,6 +456,7 @@ export async function runJevGoal(args: RunJevGoalArgs): Promise<JevGoalResult> {
           url: stepResult.url,
           title: stepResult.title,
           snapshot: stepResult.snapshot,
+          text: stepResult.text,
         },
         recentOutcomes: steps
           .slice(-5)
