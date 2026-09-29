@@ -45,11 +45,13 @@ bb browser-automation do <session-id> "search for wireless mice and report the t
 bb browser-automation do <session-id> "log the page title after navigating to https://example.com" --max-steps 6 --json
 ```
 
-`do` returns `{state, answer, steps, image}`: `state` is `done`, `blocked`, or `max_steps`; `answer` is the
-model's final answer to the goal; `steps` lists each action taken (`{index, action, target, outcome}`);
-`image` is a screenshot of the final state, in the same `{path, mimeType, width, height}` shape as `run`.
-Read the image the same way as a `run`/`screenshot` capture. `do` always drives the named page `"main"`,
-navigating it as needed; use `run` on a different named page if you need to keep `main` untouched.
+`do` returns `{state, answer, url, title, steps, image, costUsd, model}`: `state` is `done`, `blocked`, or
+`max_steps`; `answer` is a verbatim segment of the goal's evidence (page title, visible text, or an
+element-state phrase like "checkbox 1 checked") — phrase it into prose yourself; `url`/`title` are the
+page's final state; `steps` lists each action taken (`{index, action, target, outcome}`); `image` is a
+screenshot of the final state, in the same `{path, mimeType, width, height}` shape as `run`. Read the image
+the same way as a `run`/`screenshot` capture. `do` always drives the named page `"main"`, navigating it as
+needed; use `run` on a different named page if you need to keep `main` untouched.
 
 For a precise, scripted check where you already know the exact steps or need a specific extracted value,
 use `run` instead:

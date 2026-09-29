@@ -420,6 +420,7 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       stepTimeoutMs: 20_000,
       signal: overall,
       provider,
+      runId: randomUUID(),
       runScript: (script, timeoutMs, stepSignal) =>
         run(
           {
@@ -448,8 +449,12 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
     return {
       state: result.state,
       answer: result.answer,
+      url: result.url,
+      title: result.title,
       steps: result.steps,
       image,
+      costUsd: result.costUsd,
+      model: result.model,
     };
   }
   async function preview(

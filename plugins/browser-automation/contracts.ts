@@ -108,8 +108,12 @@ export const doOutputSchema = z
   .object({
     state: z.enum(["done", "blocked", "max_steps"]),
     answer: z.string().max(4_000),
+    url: z.string().max(2_000),
+    title: z.string().max(500),
     steps: z.array(doStepSchema).max(40),
     image: imageSchema.nullable(),
+    costUsd: z.number().nonnegative(),
+    model: z.string().max(200),
   })
   .strict();
 export type DoOutput = z.infer<typeof doOutputSchema>;

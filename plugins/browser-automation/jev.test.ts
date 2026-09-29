@@ -3,15 +3,16 @@ import { doOutputSchema } from "./contracts.js";
 import {
   buildStepScript,
   createOpenRouterBrowserJevProvider,
-  OpenRouterTextGenerator,
+  extractTextCandidates,
+  extractUrlCandidates,
   parseSnapshotTargets,
   resolveJevApiKey,
   RetryableJevDecisionError,
   runJevGoal,
+  splitTextSegments,
   TypeSafeDecisionsJevProvider,
   type JevDecision,
   type JevProvider,
-  type TextGenerator,
 } from "./jev.js";
 
 const BOOKS_SNAPSHOT = `
@@ -31,11 +32,36 @@ describe("parseSnapshotTargets", () => {
         role: "heading",
         name: "Books to Scrape",
         attrs: "[level=1]",
+        selectedOption: null,
       },
-      { ref: "e2", role: "link", name: "A Light in the Attic", attrs: "" },
-      { ref: "e3", role: "textbox", name: "Search", attrs: "" },
-      { ref: "e4", role: "button", name: "Go", attrs: "" },
-      { ref: "e5", role: "combobox", name: "Sort by:", attrs: "" },
+      {
+        ref: "e2",
+        role: "link",
+        name: "A Light in the Attic",
+        attrs: "",
+        selectedOption: null,
+      },
+      {
+        ref: "e3",
+        role: "textbox",
+        name: "Search",
+        attrs: "",
+        selectedOption: null,
+      },
+      {
+        ref: "e4",
+        role: "button",
+        name: "Go",
+        attrs: "",
+        selectedOption: null,
+      },
+      {
+        ref: "e5",
+        role: "combobox",
+        name: "Sort by:",
+        attrs: "",
+        selectedOption: null,
+      },
     ]);
   });
 
@@ -65,13 +91,128 @@ describe("parseSnapshotTargets", () => {
 `;
     const targets = parseSnapshotTargets(snapshot);
     expect(targets).toEqual([
-      { ref: "e9", role: "heading", name: "Checkboxes", attrs: "[level=3]" },
-      { ref: "e11", role: "checkbox", name: "", attrs: "" },
-      { ref: "e12", role: "checkbox", name: "", attrs: "[checked]" },
-      { ref: "e10", role: "combobox", name: "", attrs: "" },
+      {
+        ref: "e9",
+        role: "heading",
+        name: "Checkboxes",
+        attrs: "[level=3]",
+        selectedOption: null,
+      },
+      {
+        ref: "e11",
+        role: "checkbox",
+        name: "",
+        attrs: "",
+        selectedOption: null,
+      },
+      {
+        ref: "e12",
+        role: "checkbox",
+        name: "",
+        attrs: "[checked]",
+        selectedOption: null,
+      },
+      {
+        ref: "e10",
+        role: "combobox",
+        name: "",
+        attrs: "",
+        selectedOption: null,
+      },
     ]);
   });
+
+  it("reads a native select's current value from its nested [selected] option, not its own line", () => {
+    const snapshot = `
+- combobox [ref=e10]:
+  - option "Please select an option" [disabled]
+  - option "Option 1"
+  - option "Option 2" [selected]
+- link "Elemental Selenium" [ref=e15]
+`;
+    const targets = parseSnapshotTargets(snapshot);
+    expect(targets.find((t) => t.ref === "e10")?.selectedOption).toBe(
+      "Option 2",
+    );
+    expect(targets.find((t) => t.ref === "e15")?.selectedOption).toBeNull();
+  });
 });
+
+describe("extractTextCandidates", () => {
+  it("extracts quoted strings from the goal", () => {
+    expect(
+      extractTextCandidates(
+        "log in with username 'tomsmith' and password 'SuperSecretPassword!'",
+      ),
+    ).toEqual(["tomsmith", "SuperSecretPassword!"]);
+  });
+
+  it("extracts text after type/enter/search for/fill keywords when unquoted", () => {
+    expect(extractTextCandidates("search for wireless mice")).toContain(
+      "wireless mice",
+    );
+  });
+
+  it("de-duplicates and caps candidates", () => {
+    const goal = Array.from({ length: 15 }, (_, i) => `'value${i}'`).join(
+      " and ",
+    );
+    expect(extractTextCandidates(goal).length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("extractUrlCandidates", () => {
+  it("extracts URLs literally present in the goal and the page text, de-duplicated", () => {
+    expect(
+      extractUrlCandidates(
+        "Go to https://example.com and report the title.",
+        "",
+      ),
+    ).toEqual(["https://example.com"]);
+    expect(
+      extractUrlCandidates(
+        "Go to https://example.com.",
+        "See also https://example.com and https://other.com",
+      ),
+    ).toEqual(["https://example.com", "https://other.com"]);
+  });
+
+  it("returns no candidates when neither the goal nor the page names a URL", () => {
+    expect(
+      extractUrlCandidates("click the first result", "no links here"),
+    ).toEqual([]);
+  });
+});
+
+describe("splitTextSegments", () => {
+  it("splits on sentence boundaries and newlines, de-duplicating and capping", () => {
+    const segments = splitTextSegments(
+      "Price £51.77. In stock.\nFree returns.",
+    );
+    expect(segments).toEqual(["Price £51.77.", "In stock.", "Free returns."]);
+  });
+
+  it("caps at maxSegments", () => {
+    const text = Array.from({ length: 10 }, (_, i) => `Sentence ${i}.`).join(
+      " ",
+    );
+    expect(splitTextSegments(text, 3)).toHaveLength(3);
+  });
+});
+
+function decision(partial: Partial<JevDecision>): JevDecision {
+  return {
+    action: "scroll_down",
+    ref: null,
+    value: null,
+    url: null,
+    answer: "",
+    submit: false,
+    goalCompleteAfter: false,
+    costUsd: 0,
+    ...partial,
+  };
+}
 
 describe("buildStepScript", () => {
   it("only observes when there is no pending decision, with no fixed waitForLoad", () => {
@@ -92,104 +233,96 @@ describe("buildStepScript", () => {
   });
 
   it("embeds a click action by ref and settles 50ms before the next observation", () => {
-    const decision: JevDecision = {
-      action: "click",
-      ref: "e6",
-      value: null,
-      url: null,
-      answer: "",
-    };
-    const script = buildStepScript(decision);
+    const script = buildStepScript(decision({ action: "click", ref: "e6" }));
     expect(script).toContain('await page.click("ref/e6")');
     expect(script).toContain("setTimeout(resolve, 50)");
   });
 
   it("fails the action instead of interpolating a missing ref", () => {
-    const decision: JevDecision = {
-      action: "fill",
-      ref: null,
-      value: "hello",
-      url: null,
-      answer: "",
-    };
-    const script = buildStepScript(decision);
+    const script = buildStepScript(
+      decision({ action: "fill", ref: null, value: "hello" }),
+    );
     expect(script).not.toContain("page.fill");
     expect(script).toContain('actError = "missing ref"');
   });
 
   it("settles 200ms after a fill", () => {
-    const decision: JevDecision = {
-      action: "fill",
-      ref: "e3",
-      value: "hello",
-      url: null,
-      answer: "",
-    };
-    const script = buildStepScript(decision);
+    const script = buildStepScript(
+      decision({ action: "fill", ref: "e3", value: "hello" }),
+    );
     expect(script).toContain('await page.fill("ref/e3", "hello")');
     expect(script).toContain("setTimeout(resolve, 200)");
   });
 
   it("scrolls the page without a ref", () => {
-    expect(
-      buildStepScript({
-        action: "scroll_down",
-        ref: null,
-        value: null,
-        url: null,
-        answer: "",
-      }),
-    ).toContain("window.scrollBy(0, window.innerHeight * 0.85)");
-    expect(
-      buildStepScript({
-        action: "scroll_up",
-        ref: null,
-        value: null,
-        url: null,
-        answer: "",
-      }),
-    ).toContain("window.scrollBy(0, -window.innerHeight * 0.85)");
+    expect(buildStepScript(decision({ action: "scroll_down" }))).toContain(
+      "window.scrollBy(0, window.innerHeight * 0.85)",
+    );
+    expect(buildStepScript(decision({ action: "scroll_up" }))).toContain(
+      "window.scrollBy(0, -window.innerHeight * 0.85)",
+    );
   });
 
   it("presses Enter without a ref", () => {
-    const script = buildStepScript({
-      action: "press_enter",
-      ref: null,
-      value: null,
-      url: null,
-      answer: "",
-    });
-    expect(script).toContain('await page.keyboard.press("Enter")');
+    expect(buildStepScript(decision({ action: "press_enter" }))).toContain(
+      'await page.keyboard.press("Enter")',
+    );
   });
 
   it("navigates by URL", () => {
-    const script = buildStepScript({
-      action: "goto",
-      ref: null,
-      value: null,
-      url: "https://example.com",
-      answer: "",
-    });
-    expect(script).toContain('await page.goto("https://example.com"');
+    expect(
+      buildStepScript(decision({ action: "goto", url: "https://example.com" })),
+    ).toContain('await page.goto("https://example.com"');
+  });
+
+  it("selects an option by its visible text instead of page.select's value attribute", () => {
+    const script = buildStepScript(
+      decision({ action: "select", ref: "e10", value: "Option 2" }),
+    );
+    expect(script).not.toContain("page.select(");
+    expect(script).toContain("page.$eval(");
+    expect(script).toContain('"Option 2"');
+    expect(script).toContain("candidate.textContent.trim() === label");
+    expect(script).toContain('el.dispatchEvent(new Event("change"');
+  });
+
+  it("appends a submit keypress only after a fill, not other actions", () => {
+    const fillScript = buildStepScript(
+      decision({ action: "fill", ref: "e3", value: "hi", submit: true }),
+    );
+    expect(fillScript).toContain('await page.keyboard.press("Enter")');
+    const clickScript = buildStepScript(
+      decision({ action: "click", ref: "e2", submit: true }),
+    );
+    expect(clickScript.match(/keyboard\.press\("Enter"\)/g) ?? []).toHaveLength(
+      0,
+    );
   });
 });
 
 describe("resolveJevApiKey / createOpenRouterBrowserJevProvider", () => {
-  it("prefers COMPUTER_OPENROUTER_API_KEY over OPENROUTER_API_KEY", () => {
-    expect(
-      resolveJevApiKey({
-        COMPUTER_OPENROUTER_API_KEY: "computer-key",
-        OPENROUTER_API_KEY: "generic-key",
-      }),
-    ).toBe("computer-key");
+  it("reads only the shared OPENROUTER_API_KEY", () => {
     expect(resolveJevApiKey({ OPENROUTER_API_KEY: "generic-key" })).toBe(
       "generic-key",
     );
+    expect(resolveJevApiKey({})).toBeNull();
   });
 
-  it("returns null and no provider when neither key is set", () => {
+  it("returns null and no provider when no key is set", () => {
     expect(resolveJevApiKey({})).toBeNull();
     expect(createOpenRouterBrowserJevProvider({})).toBeNull();
+  });
+
+  it("builds a provider when a key is present, always pinned to typesafe/jev-1.13 with no env override", () => {
+    expect(
+      createOpenRouterBrowserJevProvider({ OPENROUTER_API_KEY: "k" })?.model,
+    ).toBe("typesafe/jev-1.13");
+    expect(
+      createOpenRouterBrowserJevProvider({
+        OPENROUTER_API_KEY: "k",
+        COMPUTER_OPENROUTER_DECISION_MODEL: "typesafe/jev-2",
+      })?.model,
+    ).toBe("typesafe/jev-1.13");
   });
 
   it("builds a provider when a key is present", () => {
@@ -199,23 +332,25 @@ describe("resolveJevApiKey / createOpenRouterBrowserJevProvider", () => {
   });
 });
 
+function decisionsFetch(body: unknown): typeof fetch {
+  return (async () =>
+    new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
+}
+
+function nouls(
+  overrides: Record<string, number> = {},
+): Record<string, unknown> {
+  return {
+    submit: { type: "noul", noul: overrides.submit ?? 0 },
+    goal_complete_after: {
+      type: "noul",
+      noul: overrides.goal_complete_after ?? 0,
+    },
+  };
+}
+
 describe("TypeSafeDecisionsJevProvider", () => {
-  function fakeTextGenerator(
-    value: string | ((input: { instructions: string }) => string),
-  ): TextGenerator {
-    return {
-      async generate(input) {
-        return typeof value === "function" ? value(input) : value;
-      },
-    };
-  }
-
-  function decisionsFetch(body: unknown): typeof fetch {
-    return (async () =>
-      new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
-  }
-
-  it("offers click/fill/select targets and sends the goal, url, title, and visible text", async () => {
+  it("sends session_id, the goal/url/title/visible_text, and the shared elements table with every request", async () => {
     let requestBody: unknown;
     const fetchImpl = (async (
       _url: string | URL | Request,
@@ -227,7 +362,9 @@ describe("TypeSafeDecisionsJevProvider", () => {
           answers: {
             operation: { choice: "click" },
             click_target: { choice: "e2" },
+            ...nouls(),
           },
+          usage: { cost: 0.00002 },
         }),
         { status: 200 },
       );
@@ -235,9 +372,8 @@ describe("TypeSafeDecisionsJevProvider", () => {
     const provider = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
       fetchImpl,
-      textGenerator: fakeTextGenerator(""),
     });
-    const decision = await provider.decide(
+    const decision1 = await provider.decide(
       {
         goal: "open the first book",
         observation: {
@@ -247,24 +383,30 @@ describe("TypeSafeDecisionsJevProvider", () => {
           text: "Price £51.77",
         },
         recentOutcomes: [],
+        runId: "run-1",
       },
       new AbortController().signal,
     );
-    expect(decision).toEqual({
+    expect(decision1).toEqual({
       action: "click",
       ref: "e2",
       value: null,
       url: null,
       answer: "",
+      submit: false,
+      goalCompleteAfter: false,
+      costUsd: 0.00002,
     });
     if (typeof requestBody !== "object" || requestBody === null)
       throw new Error("expected a request body");
     const body = requestBody as {
       model: string;
+      session_id: string;
       state: Record<string, unknown>;
       questions: Record<string, unknown>;
     };
     expect(body.model).toBe("typesafe/jev-1.13");
+    expect(body.session_id).toBe("run-1");
     expect(body.state).toMatchObject({
       goal: "open the first book",
       page: { url: "https://books.toscrape.com", title: "Books" },
@@ -276,33 +418,161 @@ describe("TypeSafeDecisionsJevProvider", () => {
         "click_target",
         "fill_target",
         "select_target",
+        "submit",
+        "goal_complete_after",
+        "answer_evidence",
       ]),
     );
     const clickTarget = body.questions.click_target as {
       criteria: Record<string, string>;
     };
     expect(clickTarget.criteria.e2).toContain("A Light in the Attic");
-    expect(clickTarget.criteria.none).toBeDefined();
+    const elements = body.state.elements as Record<string, unknown>;
+    expect(elements.e2).toEqual({
+      role: "link",
+      name: "A Light in the Attic",
+      value: null,
+      checked: false,
+      selected: false,
+      disabled: false,
+    });
   });
 
-  it("resolves a fill value from the text generator using the target's label", async () => {
-    const seenInstructions: string[] = [];
+  it("does not offer goto when the goal and page have no literal URL", async () => {
+    let requestBody: unknown;
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          answers: { operation: { choice: "scroll_down" }, ...nouls() },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
     const provider = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
-      fetchImpl: decisionsFetch({
-        answers: {
-          operation: { choice: "fill" },
-          fill_target: { choice: "e3" },
-        },
-      }),
-      textGenerator: fakeTextGenerator((input) => {
-        seenInstructions.push(input.instructions);
-        return "Ada Lovelace";
-      }),
+      fetchImpl,
     });
-    const decision = await provider.decide(
+    await provider.decide(
       {
-        goal: "search for Ada Lovelace",
+        goal: "scroll and look around",
+        observation: { url: "u", title: "t", snapshot: "", text: "" },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    const body = requestBody as { questions: Record<string, unknown> };
+    expect(
+      Object.keys(
+        (body.questions.operation as { criteria: Record<string, string> })
+          .criteria,
+      ),
+    ).not.toContain("goto");
+    expect(body.questions.goto_url).toBeUndefined();
+  });
+
+  it("puts checked/selected/value state in the shared elements table, seen by every question", async () => {
+    const snapshot = `
+- heading "Checkboxes" [level=3] [ref=e9]
+- checkbox [ref=e11]
+- checkbox [checked] [ref=e12]
+`;
+    let requestBody: unknown;
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          answers: {
+            operation: { choice: "click" },
+            click_target: { choice: "e11" },
+            ...nouls(),
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    await provider.decide(
+      {
+        goal: "make sure both checkboxes are checked",
+        observation: {
+          url: "https://example.com/checkboxes",
+          title: "Checkboxes",
+          snapshot,
+          text: "checkbox 1 checkbox 2",
+        },
+        recentOutcomes: ["click e11 : ok"],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    const body = requestBody as {
+      state: { elements: Record<string, unknown> };
+    };
+    expect(body.state.elements).toEqual({
+      e9: {
+        role: "heading",
+        name: "Checkboxes",
+        value: null,
+        checked: false,
+        selected: false,
+        disabled: false,
+      },
+      e11: {
+        role: "checkbox",
+        name: "",
+        value: null,
+        checked: false,
+        selected: false,
+        disabled: false,
+      },
+      e12: {
+        role: "checkbox",
+        name: "",
+        value: null,
+        checked: true,
+        selected: false,
+        disabled: false,
+      },
+    });
+  });
+
+  it("resolves fill text locally from a goal-quoted candidate, without any text-generation call", async () => {
+    let requestBody: unknown;
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          answers: {
+            operation: { choice: "fill" },
+            fill_target: { choice: "e3" },
+            fill_text: { choice: "t0" },
+            ...nouls(),
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "search for 'Ada Lovelace'",
         observation: {
           url: "https://en.wikipedia.org",
           title: "Wikipedia",
@@ -310,107 +580,343 @@ describe("TypeSafeDecisionsJevProvider", () => {
           text: "",
         },
         recentOutcomes: [],
+        runId: "r",
       },
       new AbortController().signal,
     );
-    expect(decision).toEqual({
+    expect(result).toMatchObject({
       action: "fill",
       ref: "e3",
       value: "Ada Lovelace",
-      url: null,
-      answer: "",
     });
-    expect(seenInstructions[0]).toMatch(/type into this field/i);
+    const body = requestBody as {
+      questions: { fill_text: { criteria: Record<string, string> } };
+    };
+    expect(body.questions.fill_text.criteria.t0).toBe("Ada Lovelace");
   });
 
-  it("resolves a goto URL and a done answer from the text generator", async () => {
-    const gotoProvider = new TypeSafeDecisionsJevProvider({
-      apiKey: "k",
-      fetchImpl: decisionsFetch({ answers: { operation: { choice: "goto" } } }),
-      textGenerator: fakeTextGenerator("https://example.com"),
-    });
-    const gotoDecision = await gotoProvider.decide(
-      {
-        goal: "go to example.com",
-        observation: { url: "about:blank", title: "", snapshot: "", text: "" },
-        recentOutcomes: [],
+  it("resolves a goto URL locally from a literal in the goal, without any text-generation call", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "goto" },
+        goto_url: { choice: "u0" },
+        ...nouls(),
       },
-      new AbortController().signal,
-    );
-    expect(gotoDecision).toEqual({
-      action: "goto",
-      ref: null,
-      value: null,
-      url: "https://example.com",
-      answer: "",
     });
-
-    const doneProvider = new TypeSafeDecisionsJevProvider({
-      apiKey: "k",
-      fetchImpl: decisionsFetch({ answers: { operation: { choice: "done" } } }),
-      textGenerator: fakeTextGenerator("Example Domain"),
-    });
-    const doneDecision = await doneProvider.decide(
-      {
-        goal: "report the heading",
-        observation: {
-          url: "https://example.com",
-          title: "Example Domain",
-          snapshot: "",
-          text: "Example Domain",
-        },
-        recentOutcomes: [],
-      },
-      new AbortController().signal,
-    );
-    expect(doneDecision).toEqual({
-      action: "done",
-      ref: null,
-      value: null,
-      url: null,
-      answer: "Example Domain",
-    });
-  });
-
-  it("answers blocked without calling the text generator", async () => {
-    let generateCalls = 0;
     const provider = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
-      fetchImpl: decisionsFetch({
-        answers: { operation: { choice: "blocked" } },
-      }),
-      textGenerator: {
-        async generate() {
-          generateCalls += 1;
-          return "";
-        },
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "go to https://example.com and report the heading",
+        observation: { url: "about:blank", title: "", snapshot: "", text: "" },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(result).toMatchObject({
+      action: "goto",
+      url: "https://example.com",
+    });
+  });
+
+  it("blocks instead of guessing when fill has no offered text candidate", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "fill" },
+        fill_target: { choice: "e3" },
+        fill_text: { choice: "none" },
+        ...nouls(),
       },
     });
-    const decision = await provider.decide(
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
       {
-        goal: "log in",
+        goal: "fill the search box with something relevant",
         observation: {
-          url: "https://example.com",
-          title: "",
-          snapshot: "",
+          url: "u",
+          title: "t",
+          snapshot: BOOKS_SNAPSHOT,
           text: "",
         },
         recentOutcomes: [],
+        runId: "r",
       },
       new AbortController().signal,
     );
-    expect(decision.action).toBe("blocked");
-    expect(decision.answer.length).toBeGreaterThan(0);
-    expect(generateCalls).toBe(0);
+    expect(result.action).toBe("blocked");
+    expect(result.answer).toMatch(/no literal text/i);
+  });
+
+  it("resolves the done answer from a locally-segmented visible-text candidate, without any text-generation call", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "done" },
+        answer_evidence: { choice: "s1" },
+        ...nouls(),
+      },
+    });
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "report the book's price",
+        observation: {
+          url: "u",
+          title: "Book",
+          snapshot: "",
+          text: "Price £51.77. In stock.",
+        },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(result).toMatchObject({ action: "done", answer: "Price £51.77." });
+  });
+
+  it("offers the page title and checked/selected element state as answer_evidence, not just visible text", async () => {
+    const snapshot = `
+- heading "Checkboxes" [level=3] [ref=e9]
+- checkbox [checked] [ref=e11]
+- checkbox [checked] [ref=e12]
+`;
+    let requestBody: unknown;
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          answers: {
+            operation: { choice: "done" },
+            answer_evidence: { choice: "s0" },
+            ...nouls(),
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    await provider.decide(
+      {
+        goal: "make sure both checkboxes are checked and report their state",
+        observation: {
+          url: "u",
+          title: "Checkboxes",
+          snapshot,
+          text: "checkbox 1 checkbox 2",
+        },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    const body = requestBody as {
+      questions: { answer_evidence: { criteria: Record<string, string> } };
+    };
+    const criteriaValues = Object.values(
+      body.questions.answer_evidence.criteria,
+    );
+    expect(criteriaValues).toContain("Checkboxes");
+    expect(criteriaValues).toContain("checkbox 1 checked");
+    expect(criteriaValues).toContain("checkbox 2 checked");
+    expect(criteriaValues).toContain("checkbox 1 checked, checkbox 2 checked");
+  });
+
+  it("falls back to the raw visible text when no segment answers the goal", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "done" },
+        answer_evidence: { choice: "none" },
+        ...nouls(),
+      },
+    });
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "report something",
+        observation: {
+          url: "u",
+          title: "t",
+          snapshot: "",
+          text: "fallback text",
+        },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(result.answer).toBe("fallback text");
+  });
+
+  it("reads submit and goal_complete_after from noul probabilities against their thresholds", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "fill" },
+        fill_target: { choice: "e3" },
+        fill_text: { choice: "t0" },
+        submit: { type: "noul", noul: 0.9 },
+        goal_complete_after: { type: "noul", noul: 0.9 },
+      },
+    });
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "search for 'cats'",
+        observation: {
+          url: "u",
+          title: "t",
+          snapshot: BOOKS_SNAPSHOT,
+          text: "",
+        },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(result.submit).toBe(true);
+    expect(result.goalCompleteAfter).toBe(true);
+  });
+
+  it("does not treat a middling goal_complete_after probability as complete", async () => {
+    const fetchImpl = decisionsFetch({
+      answers: {
+        operation: { choice: "click" },
+        click_target: { choice: "e2" },
+        ...nouls({ goal_complete_after: 0.5 }),
+      },
+    });
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "open the book",
+        observation: {
+          url: "u",
+          title: "t",
+          snapshot: BOOKS_SNAPSHOT,
+          text: "",
+        },
+        recentOutcomes: [],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(result.goalCompleteAfter).toBe(false);
+  });
+
+  it("re-asks once with the outcome recorded when the target head answers none, and succeeds", async () => {
+    let call = 0;
+    const seenRecentOutcomes: string[][] = [];
+    const fetchImpl = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      call += 1;
+      const body = JSON.parse(String(init?.body)) as {
+        state: { recent_outcomes: string[] };
+      };
+      seenRecentOutcomes.push(body.state.recent_outcomes);
+      const choice = call === 1 ? "none" : "e12";
+      return new Response(
+        JSON.stringify({
+          answers: {
+            operation: { choice: "click" },
+            click_target: { choice },
+            ...nouls(),
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    const result = await provider.decide(
+      {
+        goal: "make sure both checkboxes are checked",
+        observation: {
+          url: "u",
+          title: "t",
+          snapshot: "- checkbox [ref=e11]\n- checkbox [checked] [ref=e12]",
+          text: "",
+        },
+        recentOutcomes: ["click e11 : ok"],
+        runId: "r",
+      },
+      new AbortController().signal,
+    );
+    expect(call).toBe(2);
+    expect(result).toMatchObject({ action: "click", ref: "e12" });
+    expect(seenRecentOutcomes[0]).toEqual(["click e11 : ok"]);
+    expect(seenRecentOutcomes[1]).toHaveLength(2);
+    expect(seenRecentOutcomes[1]?.[1]).toContain('target answered "none"');
+  });
+
+  it("throws a retryable error when the target head answers none twice in a row", async () => {
+    let call = 0;
+    const fetchImpl = (async () => {
+      call += 1;
+      return new Response(
+        JSON.stringify({
+          answers: {
+            operation: { choice: "click" },
+            click_target: { choice: "none" },
+            ...nouls(),
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const provider = new TypeSafeDecisionsJevProvider({
+      apiKey: "k",
+      fetchImpl,
+    });
+    await expect(
+      provider.decide(
+        {
+          goal: "click something",
+          observation: {
+            url: "u",
+            title: "t",
+            snapshot: "- checkbox [ref=e11]",
+            text: "",
+          },
+          recentOutcomes: [],
+          runId: "r",
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toBeInstanceOf(RetryableJevDecisionError);
+    expect(call).toBe(2);
   });
 
   it("throws a retryable error on malformed JSON, missing answers, or an invalid choice", async () => {
-    const textGenerator = fakeTextGenerator("");
     const malformed = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
       fetchImpl: (async () =>
         new Response("not json", { status: 200 })) as typeof fetch,
-      textGenerator,
     });
     await expect(
       malformed.decide(
@@ -418,6 +924,7 @@ describe("TypeSafeDecisionsJevProvider", () => {
           goal: "g",
           observation: { url: "u", title: "t", snapshot: "", text: "" },
           recentOutcomes: [],
+          runId: "r",
         },
         new AbortController().signal,
       ),
@@ -426,7 +933,6 @@ describe("TypeSafeDecisionsJevProvider", () => {
     const missingAnswers = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
       fetchImpl: decisionsFetch({}),
-      textGenerator,
     });
     await expect(
       missingAnswers.decide(
@@ -434,6 +940,7 @@ describe("TypeSafeDecisionsJevProvider", () => {
           goal: "g",
           observation: { url: "u", title: "t", snapshot: "", text: "" },
           recentOutcomes: [],
+          runId: "r",
         },
         new AbortController().signal,
       ),
@@ -442,9 +949,8 @@ describe("TypeSafeDecisionsJevProvider", () => {
     const invalidChoice = new TypeSafeDecisionsJevProvider({
       apiKey: "k",
       fetchImpl: decisionsFetch({
-        answers: { operation: { choice: "fly_to_the_moon" } },
+        answers: { operation: { choice: "fly_to_the_moon" }, ...nouls() },
       }),
-      textGenerator,
     });
     await expect(
       invalidChoice.decide(
@@ -452,6 +958,7 @@ describe("TypeSafeDecisionsJevProvider", () => {
           goal: "g",
           observation: { url: "u", title: "t", snapshot: "", text: "" },
           recentOutcomes: [],
+          runId: "r",
         },
         new AbortController().signal,
       ),
@@ -463,13 +970,13 @@ describe("TypeSafeDecisionsJevProvider", () => {
       apiKey: "k",
       fetchImpl: (async () =>
         new Response("server error", { status: 500 })) as typeof fetch,
-      textGenerator: fakeTextGenerator(""),
     });
     const promise = provider.decide(
       {
         goal: "g",
         observation: { url: "u", title: "t", snapshot: "", text: "" },
         recentOutcomes: [],
+        runId: "r",
       },
       new AbortController().signal,
     );
@@ -478,78 +985,7 @@ describe("TypeSafeDecisionsJevProvider", () => {
     );
     await expect(promise).rejects.not.toBeInstanceOf(RetryableJevDecisionError);
   });
-
-  it("wraps a text-generator failure as retryable", async () => {
-    const provider = new TypeSafeDecisionsJevProvider({
-      apiKey: "k",
-      fetchImpl: decisionsFetch({ answers: { operation: { choice: "done" } } }),
-      textGenerator: {
-        async generate() {
-          throw new Error("network blip");
-        },
-      },
-    });
-    await expect(
-      provider.decide(
-        {
-          goal: "g",
-          observation: { url: "u", title: "t", snapshot: "", text: "" },
-          recentOutcomes: [],
-        },
-        new AbortController().signal,
-      ),
-    ).rejects.toBeInstanceOf(RetryableJevDecisionError);
-  });
 });
-
-describe("OpenRouterTextGenerator", () => {
-  it("disables reasoning, requests strict JSON, and caches identical inputs", async () => {
-    let calls = 0;
-    let requestBody: Record<string, unknown> | undefined;
-    const fetchImpl = (async (
-      _url: string | URL | Request,
-      init?: RequestInit,
-    ) => {
-      calls += 1;
-      requestBody = JSON.parse(String(init?.body));
-      return new Response(
-        JSON.stringify({
-          choices: [
-            { message: { content: JSON.stringify({ text: "Ada Lovelace" }) } },
-          ],
-        }),
-        { status: 200 },
-      );
-    }) as typeof fetch;
-    const generator = new OpenRouterTextGenerator({ apiKey: "k", fetchImpl });
-    const input = {
-      goal: "search",
-      instructions: "type this",
-      context: "Search box",
-    };
-    const first = await generator.generate(input, new AbortController().signal);
-    const second = await generator.generate(
-      input,
-      new AbortController().signal,
-    );
-    expect(first).toBe("Ada Lovelace");
-    expect(second).toBe("Ada Lovelace");
-    expect(calls).toBe(1);
-    expect(requestBody?.model).toBe("inception/mercury-2.5");
-    expect(requestBody?.reasoning).toEqual({ enabled: false });
-  });
-});
-
-function decision(partial: Partial<JevDecision>): JevDecision {
-  return {
-    action: "scroll_down",
-    ref: null,
-    value: null,
-    url: null,
-    answer: "",
-    ...partial,
-  };
-}
 
 function observationResult(snapshot: string, pageText = "") {
   return {
@@ -565,14 +1001,19 @@ function observationResult(snapshot: string, pageText = "") {
 }
 
 describe("runJevGoal", () => {
-  it("drives click steps to a done decision and reports the final answer", async () => {
+  it("drives click steps to a done decision and reports the final answer, url, and title", async () => {
     const decisions: JevDecision[] = [
-      decision({ action: "click", ref: "e6" }),
-      decision({ action: "done", answer: "Found the result" }),
+      decision({ action: "click", ref: "e6", costUsd: 0.00001 }),
+      decision({
+        action: "done",
+        answer: "Found the result",
+        costUsd: 0.00002,
+      }),
     ];
     let decideCalls = 0;
     const provider: JevProvider = {
       decide: async () => decisions[decideCalls++],
+      model: "typesafe/jev-1.13",
     };
     const scripts: string[] = [];
     const result = await runJevGoal({
@@ -588,9 +1029,41 @@ describe("runJevGoal", () => {
     });
     expect(result.state).toBe("done");
     expect(result.answer).toBe("Found the result");
+    expect(result.url).toBe("https://example.com");
+    expect(result.title).toBe("Example");
+    expect(result.costUsd).toBeCloseTo(0.00003);
+    expect(result.model).toBe("typesafe/jev-1.13");
     expect(scripts).toHaveLength(2);
     expect(scripts[1]).toContain('await page.click("ref/e6")');
     expect(result.steps.map((step) => step.action)).toEqual(["click", "done"]);
+  });
+
+  it("finishes speculatively on goal_complete_after without a further decide() call", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        return decision({
+          action: "click",
+          ref: "e6",
+          goalCompleteAfter: true,
+          costUsd: 0.00001,
+        });
+      },
+    };
+    const result = await runJevGoal({
+      goal: "click submit",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () =>
+        observationResult('button "Submit" [ref=e6]', "Thanks for submitting!"),
+    });
+    expect(decideCalls).toBe(1);
+    expect(result.state).toBe("done");
+    expect(result.answer).toBe("Thanks for submitting!");
+    expect(result.costUsd).toBeCloseTo(0.00001);
   });
 
   it("stops immediately on a blocked decision without acting", async () => {
@@ -653,30 +1126,6 @@ describe("runJevGoal", () => {
     expect(result.state).toBe("done");
   });
 
-  it("passes the extracted visible page text through to the decision request", async () => {
-    const seen: string[] = [];
-    const provider: JevProvider = {
-      decide: async (request) => {
-        seen.push(request.observation.text);
-        return decision({ action: "done", answer: "$19.99" });
-      },
-    };
-    const result = await runJevGoal({
-      goal: "report the book's price",
-      maxSteps: 5,
-      stepTimeoutMs: 1_000,
-      signal: new AbortController().signal,
-      provider,
-      runScript: async () =>
-        observationResult(
-          'heading "A Light in the Attic" [ref=e3]',
-          "Price £51.77 In stock",
-        ),
-    });
-    expect(result.state).toBe("done");
-    expect(seen).toEqual(["Price £51.77 In stock"]);
-  });
-
   it("clamps a long answer and a long action error into doOutputSchema's step limits", async () => {
     const longAnswer = "a".repeat(1_000);
     const longError = "b".repeat(1_000);
@@ -707,7 +1156,6 @@ describe("runJevGoal", () => {
     });
     expect(result.state).toBe("done");
     expect(result.answer).toBe(longAnswer);
-    expect(result.answer.length).toBe(1_000);
     for (const step of result.steps) {
       expect(step.outcome.length).toBeLessThanOrEqual(400);
       expect(step.target === null || step.target.length <= 200).toBe(true);
@@ -716,8 +1164,12 @@ describe("runJevGoal", () => {
       doOutputSchema.parse({
         state: result.state,
         answer: result.answer,
+        url: result.url,
+        title: result.title,
         steps: result.steps,
         image: null,
+        costUsd: result.costUsd,
+        model: result.model,
       }),
     ).toMatchObject({ state: "done" });
   });
@@ -768,29 +1220,6 @@ describe("runJevGoal", () => {
     expect(decideCalls).toBe(1);
   });
 
-  it("degrades to blocked instead of crashing the run when a retryable error fails twice in a row", async () => {
-    let decideCalls = 0;
-    const provider: JevProvider = {
-      decide: async () => {
-        decideCalls += 1;
-        throw new RetryableJevDecisionError(
-          "OpenRouter Decisions API returned an invalid click target",
-        );
-      },
-    };
-    const result = await runJevGoal({
-      goal: "click something that keeps failing validation",
-      maxSteps: 5,
-      stepTimeoutMs: 1_000,
-      signal: new AbortController().signal,
-      provider,
-      runScript: async () => observationResult("generic [ref=e1]"),
-    });
-    expect(decideCalls).toBe(2);
-    expect(result.state).toBe("blocked");
-    expect(result.answer).toContain("invalid click target");
-  });
-
   it("does not retry once the run signal is already aborted", async () => {
     let decideCalls = 0;
     const controller = new AbortController();
@@ -814,5 +1243,28 @@ describe("runJevGoal", () => {
       }),
     ).rejects.toBeInstanceOf(RetryableJevDecisionError);
     expect(decideCalls).toBe(1);
+  });
+
+  it("degrades to blocked instead of crashing the run when a retryable error fails twice in a row", async () => {
+    let decideCalls = 0;
+    const provider: JevProvider = {
+      decide: async () => {
+        decideCalls += 1;
+        throw new RetryableJevDecisionError(
+          "OpenRouter Decisions API returned an invalid click target",
+        );
+      },
+    };
+    const result = await runJevGoal({
+      goal: "click something that keeps failing validation",
+      maxSteps: 5,
+      stepTimeoutMs: 1_000,
+      signal: new AbortController().signal,
+      provider,
+      runScript: async () => observationResult("generic [ref=e1]"),
+    });
+    expect(decideCalls).toBe(2);
+    expect(result.state).toBe("blocked");
+    expect(result.answer).toContain("invalid click target");
   });
 });

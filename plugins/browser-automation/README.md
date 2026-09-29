@@ -224,28 +224,43 @@ Agents discover the commands through the skill and CLI help.
 a goal with a fast Jev decision loop, instead of a hand-written script. Each step runs one DevBrowser script
 that both performs the previous step's action (click, fill, select, press_enter, scroll_down, scroll_up, or
 goto by ref) and takes a fresh interactive ARIA snapshot plus the page's visible text for the next decision,
-so acting and observing cost one script run per step rather than two. Decisions go through OpenRouter's
-Decisions API (`jev.ts`, `TypeSafeDecisionsJevProvider`), which runs TypeSafe's Jev model directly
-(`typesafe/jev-1.13`) rather than routing through a chat model: one request asks a speculative operation
-choice (click, fill, select, press_enter, scroll_down, scroll_up, goto, done, or blocked) plus a
-`click_target`/`fill_target`/`select_target` choice for each compatible operation, built from the snapshot's
-refs as `id -> "role: name (value)"`, capped around 240; only the target matching the chosen operation is
-executed. The Decisions API returns choices, not free text, so a fill value, a goto URL, or the final answer
-on `done` is filled in separately by a small, fast text model (`inception/mercury-2.5`, reasoning disabled,
-strict `{"text"}` JSON output) fed the goal and the visible page text — mirroring Computer's
-`JevDecisionProvider` + `OpenRouterTextGenerator` split. After each action the loop settles briefly (about
-50ms, 200ms after a fill) and waits for the page to finish loading only when the URL actually changed,
-instead of an unconditional fixed wait. A malformed or invalid Decisions API answer, or a timed-out decision
-call (about 10s), is retried once. The API key comes from `COMPUTER_OPENROUTER_API_KEY` (falling back to
-`OPENROUTER_API_KEY`); the decision model is overridable via `COMPUTER_OPENROUTER_DECISION_MODEL`, the same
-environment variables Computer's Jev loop reads; `do` fails fast with a clear error when no key is set. The
-loop stops at `--max-steps` (default 20, max 40) or `--timeout-ms` (default 120000, max 300000), whichever
-comes first, and every step script runs through the same `run` handler as scripted `run` calls, so it shares
-session run serialization, per-run error handling, and cancellation with the rest of the plugin. The result
-is `{state, answer, steps, image}`: `state` is `done`, `blocked`, or `max_steps`; `steps` is one entry per
-action taken; `image` is a final JPEG screenshot in the session's capture directory, read the same way as
-`run`/`screenshot` output. Prefer `run` when the exact steps or an exact extracted value are already known;
-`run`'s scripts and serialization are unchanged by this feature.
+so acting and observing cost one script run per step rather than two. The plugin's only OpenRouter call is
+`POST https://openrouter.ai/api/alpha/decisions` (`jev.ts`, `TypeSafeDecisionsJevProvider`), which runs
+TypeSafe's Jev model directly, pinned to the plugin constant `typesafe/jev-1.13` with no chat model, no other
+OpenRouter endpoint, and no environment override. One request per step asks the operation choice (click,
+fill, select, press_enter, scroll_down, scroll_up, goto, done, or blocked), a `click_target`/`fill_target`/
+`select_target` choice for each compatible operation, built from the snapshot's refs as
+`id -> "role: name (value)"` and capped around 240, plus two "noul" (probability) heads: `submit` (press
+Enter right after a fill) and `goal_complete_after` (speculative completion — when its probability clears
+0.7, the loop executes that action, re-observes, and finishes without another decision call). The Decisions
+API returns choices only, never free text, so fill values and goto URLs are resolved locally from candidates
+extracted from the goal (quoted strings, text after type/enter/search for/fill, the text after a colon, and
+literal `https://` URLs) and offered as `fill_text`/`goto_url` choice heads; when the chosen candidate is
+"none" the step ends `blocked` with a clear reason instead of guessing. The final answer on `done` is
+resolved the same way: an `answer_evidence` head offers the page title, the visible text split into short
+sentence/line segments, and short phrases synthesized from element state (`"checkbox 1 checked"`,
+`"combobox 1: Option 2"`, since checked/selected/value state never appears in visible text), and the chosen
+segment is returned verbatim — the calling agent phrases the final prose. The shared `elements` state table
+(role/name/value/checked/selected/disabled per ref, the same data behind those synthesized segments) is
+visible to every question, including the operation choice, so an already-satisfied checkbox or a `<select>`
+that already holds the right option is legible to the model instead of only to the target head. `select`
+executes by matching the option's visible text against `<option>.textContent`, since Puppeteer's
+`page.select()` matches the HTML `value` attribute, not the label text Jev is given. When a target head
+answers "none" for an operation that needs a target, the step is re-asked once with that outcome recorded in
+recent_outcomes before treating it as invalid. After each action the loop settles briefly (about 50ms, 200ms
+after a fill) and waits for the page to finish loading only when the URL actually changed, instead of an
+unconditional fixed wait. A malformed/invalid Decisions API answer or a timed-out decision call (about 10s)
+is retried once; if the retry also fails, the step degrades to `blocked` instead of throwing and losing the
+whole run. The API key is the shared `OPENROUTER_API_KEY`; `do` fails fast with a clear error when it is
+unset. The loop stops at `--max-steps` (default 20, max 40) or `--timeout-ms` (default 120000, max 300000),
+whichever comes first, and every step script runs through the same `run` handler as scripted `run` calls, so
+it shares session run serialization, per-run error handling, and cancellation with the rest of the plugin.
+The result is `{state, answer, url, title, steps, image, costUsd, model}`: `state` is `done`, `blocked`, or
+`max_steps`; `url`/`title` are the page's final state; `steps` is one entry per action taken; `image` is a
+final JPEG screenshot in the session's capture directory, read the same way as `run`/`screenshot` output;
+`costUsd` sums each decision call's reported `usage.cost`; `model` is the Jev model used. Prefer `run` when
+the exact steps or an exact extracted value are already known; `run`'s scripts and serialization are
+unchanged by this feature.
 
 The host supervises Chrome and the DevBrowser daemon as separate children. Each
 child owns a process group. Closing the worker pipe also stops those groups, so
