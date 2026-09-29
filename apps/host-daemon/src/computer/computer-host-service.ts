@@ -17,7 +17,15 @@ import type {
   ComputerOperation,
 } from "@bb/host-daemon-contract";
 import type { HostDaemonLogger } from "../logger.js";
-import { content, CuaError, cuaEnv, type CuaTransport } from "./computer-transport.js";
+import {
+  content,
+  CuaError,
+  cuaEnv,
+  extractDesktopImage,
+  extractMcpImage,
+  RenewingCuaTransport,
+  type CuaTransport,
+} from "./computer-transport.js";
 import { appBundlePathForBinary, COMPUTER_APP_BUNDLE_ID } from "./computer-driver-bundle.js";
 import {
   MACOS_PRIVACY_PANES,
@@ -30,7 +38,13 @@ import {
 import { ensureProvisionedDriver } from "./computer-driver-provisioning.js";
 import { PersistentCuaTransport } from "./computer-driver-session.js";
 import { DriverCaptureFrameSource, desktopCapture, LiveStream, type ComputerFrameSource } from "./computer-live.js";
-import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
+import {
+  buildCapabilityManifest,
+  MANIFEST_EXPIRES_AFTER_MS,
+  MANIFEST_IDLE_TIMEOUT_MS,
+  PathGrantSet,
+  WindowGrantSet,
+} from "./computer-manifest.js";
 import { findWindow, TargetTable } from "./computer-target-table.js";
 
 export type SpawnFn = typeof nodeSpawn;
@@ -85,6 +99,31 @@ function permissionProbe(
   };
 }
 
+export interface ManifestRenewalOptions {
+  readonly expiresAfterMs?: number;
+  readonly idleTimeoutMs?: number;
+  readonly marginMs?: number;
+  readonly now?: () => number;
+}
+
+interface ResolvedManifestRenewalOptions {
+  readonly expiresAfterMs: number;
+  readonly idleTimeoutMs: number;
+  readonly marginMs: number;
+  readonly now: () => number;
+}
+
+const DEFAULT_RENEWAL_MARGIN_MS = 5 * 60 * 1000;
+
+function resolveManifestRenewal(options: ManifestRenewalOptions | undefined): ResolvedManifestRenewalOptions {
+  return {
+    expiresAfterMs: options?.expiresAfterMs ?? MANIFEST_EXPIRES_AFTER_MS,
+    idleTimeoutMs: options?.idleTimeoutMs ?? MANIFEST_IDLE_TIMEOUT_MS,
+    marginMs: options?.marginMs ?? DEFAULT_RENEWAL_MARGIN_MS,
+    now: options?.now ?? Date.now,
+  };
+}
+
 class DriverController {
   #spawnProcess: SpawnFn;
   #logger: Pick<HostDaemonLogger, "debug" | "warn">;
@@ -96,17 +135,23 @@ class DriverController {
   #resolutionCache = new Map<string, Promise<BinaryResolution>>();
   #restartRequired = true;
   #stoppedListeners = new Set<() => void>();
+  #renewal: ResolvedManifestRenewalOptions;
+  #manifestWrittenAt: number | null = null;
+  #lastCallAt: number | null = null;
+  #renewalInFlight: Promise<void> | null = null;
 
   constructor(
     spawnProcess: SpawnFn,
     logger: Pick<HostDaemonLogger, "debug" | "warn">,
     fetchImpl?: typeof fetch,
     platform: NodeJS.Platform = process.platform,
+    manifestRenewal?: ManifestRenewalOptions,
   ) {
     this.#spawnProcess = spawnProcess;
     this.#logger = logger;
     this.#fetchImpl = fetchImpl;
     this.#platform = platform;
+    this.#renewal = resolveManifestRenewal(manifestRenewal);
   }
 
   get windowGrants(): WindowGrantSet {
@@ -202,6 +247,40 @@ class DriverController {
       windows: this.#windowGrants.list(),
     });
     await writeFile(this.#manifestPath(dataDir), JSON.stringify(manifest, null, 2));
+    this.#manifestWrittenAt = this.#renewal.now();
+    this.#lastCallAt = this.#manifestWrittenAt;
+  }
+
+  async ensureManifestFresh(dataDir: string): Promise<void> {
+    if (this.#manifestWrittenAt === null) return;
+    const now = this.#renewal.now();
+    const age = now - this.#manifestWrittenAt;
+    const idleSince = this.#lastCallAt ?? this.#manifestWrittenAt;
+    const idle = now - idleSince;
+    const ageLimit = this.#renewal.expiresAfterMs - this.#renewal.marginMs;
+    const idleLimit = this.#renewal.idleTimeoutMs - this.#renewal.marginMs;
+    if (age >= ageLimit || idle >= idleLimit) {
+      await this.renewManifestAfterLapse(dataDir);
+    }
+  }
+
+  async renewManifestAfterLapse(dataDir: string): Promise<void> {
+    if (this.#renewalInFlight !== null) return this.#renewalInFlight;
+    const renewing = (async () => {
+      await this.#writeManifestFile(dataDir);
+      await this.#stopDaemon(dataDir);
+      await this.#spawnDaemon(dataDir);
+    })();
+    this.#renewalInFlight = renewing;
+    try {
+      await renewing;
+    } finally {
+      if (this.#renewalInFlight === renewing) this.#renewalInFlight = null;
+    }
+  }
+
+  noteDriverCallSucceeded(): void {
+    this.#lastCallAt = this.#renewal.now();
   }
 
   async #spawnDaemon(dataDir: string): Promise<void> {
@@ -390,13 +469,6 @@ class DriverController {
           permissionProbe("accessibility", "Accessibility", permissions.accessibility),
           permissionProbe("screen-recording", "Screen recording", permissions.screenRecording),
         );
-      } else {
-        probes.push({
-          id: "capture",
-          label: "Screen capture",
-          status: health.code === 0 ? "ok" : "unavailable",
-          message: health.code === 0 ? "Working" : "Failed; check that a display is available",
-        });
       }
       probes.push({
         id: "windows",
@@ -444,6 +516,7 @@ export interface ComputerHostServiceOptions {
     readonly sendStatus: (state: ComputerLiveState, message: string | null) => void;
   };
   platform?: NodeJS.Platform;
+  manifestRenewal?: ManifestRenewalOptions;
 }
 
 const HUMAN_INPUT_SESSION = "bb-human";
@@ -472,8 +545,14 @@ export class ComputerHostService {
       options.logger,
       options.driverFetchImpl,
       options.platform,
+      options.manifestRenewal,
     );
-    this.#liveTransport =
+    const renewalHooks = {
+      ensureFresh: () => this.#driver.ensureManifestFresh(this.#dataDir),
+      renewAfterLapse: () => this.#driver.renewManifestAfterLapse(this.#dataDir),
+      noteSuccess: () => this.#driver.noteDriverCallSucceeded(),
+    };
+    const rawLiveTransport =
       options.liveTransportFactory?.() ??
       new PersistentCuaTransport({
         launch: async () => {
@@ -485,8 +564,11 @@ export class ComputerHostService {
           };
         },
       });
-    this.#driver.onStopped(() => this.#liveTransport.close());
-    this.#transport = options.transportFactory?.() ?? this.#liveTransport;
+    this.#liveTransport = new RenewingCuaTransport(rawLiveTransport, renewalHooks);
+    this.#driver.onStopped(() => rawLiveTransport.close());
+    this.#transport = options.transportFactory
+      ? new RenewingCuaTransport(options.transportFactory(), renewalHooks)
+      : this.#liveTransport;
     this.#live = new LiveStream({
       source: options.liveFrameSourceFactory?.(this.#liveTransport) ?? new DriverCaptureFrameSource({ transport: this.#liveTransport }),
       prepare: () => this.#driver.ensureDaemon(this.#dataDir),
@@ -620,11 +702,57 @@ export class ComputerHostService {
   async doctor(): Promise<ComputerDoctorReport> {
     await this.#driver.ensureDaemon(this.#dataDir).catch(() => {});
     void this.warmUp();
-    const report = await this.#driver.doctorReport(this.#dataDir);
+    let report = await this.#driver.doctorReport(this.#dataDir);
     const screen = report.probes.find((probe) => probe.id === "screen-recording");
-    if (screen === undefined || screen.status === "ok") return report;
-    await this.#driver.restartDaemon(this.#dataDir).catch(() => {});
-    return this.#driver.doctorReport(this.#dataDir);
+    if (screen !== undefined && screen.status !== "ok") {
+      await this.#driver.restartDaemon(this.#dataDir).catch(() => {});
+      report = await this.#driver.doctorReport(this.#dataDir);
+    }
+    return this.#withCaptureProbe(report);
+  }
+
+  async #withCaptureProbe(report: ComputerDoctorReport): Promise<ComputerDoctorReport> {
+    const running = report.probes.some((probe) => probe.id === "service" && probe.status === "ok");
+    if (!running) return report;
+    const captureProbe = await this.#captureProbe();
+    const windowsIndex = report.probes.findIndex((probe) => probe.id === "windows");
+    const probes =
+      windowsIndex === -1
+        ? [...report.probes, captureProbe]
+        : [...report.probes.slice(0, windowsIndex), captureProbe, ...report.probes.slice(windowsIndex)];
+    const state = probes.every((probe) => probe.status === "ok")
+      ? "ready"
+      : probes.some((probe) => probe.status === "unavailable")
+        ? "unavailable"
+        : "setup-required";
+    return { ...report, probes, state };
+  }
+
+  async #captureProbe(): Promise<ComputerDoctorProbe> {
+    try {
+      const result = await this.#transport.call(
+        "get_desktop_state",
+        { max_image_dimension: 64 },
+        AbortSignal.timeout(15_000),
+      );
+      const image = extractDesktopImage(result);
+      if (image === null) {
+        return {
+          id: "capture",
+          label: "Screen capture",
+          status: "unavailable",
+          message: "The driver returned a capture without a decodable image",
+        };
+      }
+      return { id: "capture", label: "Screen capture", status: "ok", message: "Working" };
+    } catch (error) {
+      return {
+        id: "capture",
+        label: "Screen capture",
+        status: "unavailable",
+        message: error instanceof Error ? error.message.slice(0, 200) : "Failed to capture the screen",
+      };
+    }
   }
 
   async requestPermissions(input: { permission?: "accessibility" | "screen-recording" }): Promise<ComputerDoctorReport> {
@@ -657,12 +785,15 @@ export class ComputerHostService {
     await this.#driver.ensureDaemon(this.#dataDir);
     if (input.kind === "desktop") {
       const result = await this.#transport.call("get_desktop_state", {}, signal);
-      const data = content(result);
+      const image = extractDesktopImage(result);
+      if (image === null) {
+        throw new CuaError("The driver returned a desktop capture without an image", "provider-unavailable", true);
+      }
       return {
-        mimeType: (data.screenshot_mime_type as "image/jpeg" | "image/png" | undefined) ?? "image/png",
-        dataBase64: String(data.screenshot_png_b64 ?? ""),
-        width: Number(data.screenshot_width ?? 0),
-        height: Number(data.screenshot_height ?? 0),
+        mimeType: image.mimeType,
+        dataBase64: image.base64,
+        width: image.width,
+        height: image.height,
       };
     }
     const window = await findWindow(this.#transport, signal, input.appId);
@@ -681,9 +812,10 @@ export class ComputerHostService {
       signal,
     );
     const zoomData = content(zoom);
+    const zoomImage = extractMcpImage(zoom);
     return {
-      mimeType: "image/jpeg" as const,
-      dataBase64: String(zoomData.image_b64 ?? zoomData.data ?? ""),
+      mimeType: zoomImage?.mimeType ?? "image/jpeg",
+      dataBase64: zoomImage?.base64 ?? String(zoomData.image_b64 ?? zoomData.data ?? ""),
       width: Number(zoomData.width ?? bounds.width ?? 0),
       height: Number(zoomData.height ?? bounds.height ?? 0),
     };

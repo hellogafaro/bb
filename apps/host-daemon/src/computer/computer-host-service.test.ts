@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CuaToolResult, CuaTransport } from "./computer-transport.js";
+import { CuaError, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
 import { ComputerHostService, mapFramePoint, type SpawnFn } from "./computer-host-service.js";
 
 const testLogger = { debug: () => {}, warn: () => {} };
@@ -542,6 +542,313 @@ describe("ComputerHostService act with targetless window operations", () => {
     });
 
     await expect(service.warmUp()).resolves.toBeUndefined();
+    service.dispose();
+  });
+});
+
+function statefulLoggingSpawn(log: string[]): SpawnFn {
+  let daemonStarted = false;
+  return ((command: string, args: readonly string[]): unknown => {
+    const child = new EventEmitter() as EventEmitter & {
+      stdin: { end(): void };
+      stdout?: { setEncoding(): void; on(event: string, callback: (chunk: string) => void): void };
+      exitCode: number | null;
+      unref(): void;
+      kill(): boolean;
+    };
+    child.stdin = { end() {} };
+    child.exitCode = null;
+    child.unref = () => {};
+    child.kill = () => true;
+    const probe = args[0];
+    if (probe === "serve") {
+      log.push("serve");
+      daemonStarted = true;
+      return child;
+    }
+    if (probe === "stop") {
+      log.push("stop");
+      daemonStarted = false;
+    }
+    const exitCode = probe === "status" ? (daemonStarted ? 0 : 1) : 0;
+    const output = probe === "--version" ? "cua-driver 0.0.0-test\n" : probe === "call" ? '{"windows":[]}\n' : "";
+    child.stdout = {
+      setEncoding() {},
+      on(_event: string, callback: (chunk: string) => void) {
+        queueMicrotask(() => {
+          if (output.length > 0) callback(output);
+          queueMicrotask(() => child.emit("close", exitCode));
+        });
+      },
+    };
+    return child;
+  }) as SpawnFn;
+}
+
+describe("ComputerHostService manifest renewal", () => {
+  let dataDir: string;
+  let fakeHome: string;
+  let previousOverride: string | undefined;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "computer-host-home-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    previousHome = process.env.HOME;
+    const driverPath = join(dataDir, "runtime", "cua-driver");
+    await mkdir(join(dataDir, "runtime"), { recursive: true });
+    await writeFile(driverPath, "#!/bin/sh\necho fixture\n");
+    await chmod(driverPath, 0o755);
+    process.env.CUA_DRIVER_PATH = driverPath;
+    process.env.HOME = fakeHome;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(fakeHome, { recursive: true, force: true });
+  });
+
+  it("proactively renews and restarts once the driver has been idle past the configured margin", async () => {
+    const log: string[] = [];
+    class RecordingLiveTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        log.push(tool);
+        return { structuredContent: { text: "clip" } };
+      }
+      close(): void {}
+    }
+    let now = 1_000;
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      liveTransportFactory: () => new RecordingLiveTransport(),
+      spawnProcess: statefulLoggingSpawn(log),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+      manifestRenewal: { idleTimeoutMs: 1_000, marginMs: 400, now: () => now },
+    });
+
+    await service.warmUp();
+    expect(log.filter((entry) => entry === "serve")).toHaveLength(1);
+
+    log.length = 0;
+    await service.clipboardRead();
+    expect(log).toEqual(["clipboard_read"]);
+
+    now += 700;
+    log.length = 0;
+    await service.clipboardRead();
+    expect(log).toEqual(["stop", "serve", "clipboard_read"]);
+
+    const manifestPath = join(dataDir, "capability-manifest.json");
+    expect(await readFile(manifestPath, "utf8")).toContain("idle_timeout");
+
+    service.dispose();
+  });
+
+  it("renews the manifest and retries once when a driver call reports the idle timeout has lapsed", async () => {
+    const log: string[] = [];
+    let calls = 0;
+    class LapsingLiveTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        log.push(tool);
+        calls += 1;
+        if (calls === 1) {
+          throw new CuaError(
+            "Policy loading error: capability manifest idle timeout exceeded",
+            "provider-unavailable",
+          );
+        }
+        return { structuredContent: { text: "clip" } };
+      }
+      close(): void {}
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      liveTransportFactory: () => new LapsingLiveTransport(),
+      spawnProcess: statefulLoggingSpawn(log),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    const result = await service.clipboardRead();
+    expect(result.text).toBe("clip");
+    expect(calls).toBe(2);
+    expect(log).toEqual(["clipboard_read", "stop", "serve", "clipboard_read"]);
+
+    service.dispose();
+  });
+});
+
+describe("ComputerHostService desktop capture", () => {
+  let dataDir: string;
+  let fakeHome: string;
+  let previousOverride: string | undefined;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "computer-host-home-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    previousHome = process.env.HOME;
+    const driverPath = join(dataDir, "runtime", "cua-driver");
+    await mkdir(join(dataDir, "runtime"), { recursive: true });
+    await writeFile(driverPath, "#!/bin/sh\necho fixture\n");
+    await chmod(driverPath, 0o755);
+    process.env.CUA_DRIVER_PATH = driverPath;
+    process.env.HOME = fakeHome;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(fakeHome, { recursive: true, force: true });
+  });
+
+  it("decodes a desktop screenshot delivered as an MCP image content item over the persistent session", async () => {
+    class McpImageTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool !== "get_desktop_state") throw new Error(`unexpected tool ${tool}`);
+        return {
+          structuredContent: { screenshot_width: 1280, screenshot_height: 800 },
+          content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+        };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new McpImageTransport(),
+      spawnProcess: statefulLoggingSpawn([]),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    const image = await service.capture({ kind: "desktop" });
+    expect(image.dataBase64).toBe("aGVsbG8=");
+    expect(image.mimeType).toBe("image/png");
+    expect(image.width).toBe(1280);
+    expect(image.height).toBe(800);
+
+    service.dispose();
+  });
+
+  it("throws instead of returning an empty image when the driver's capture has no decodable image", async () => {
+    class EmptyImageTransport implements CuaTransport {
+      async call(): Promise<CuaToolResult> {
+        return { structuredContent: { screenshot_width: 0, screenshot_height: 0, screenshot_png_b64: "" } };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new EmptyImageTransport(),
+      spawnProcess: statefulLoggingSpawn([]),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    await expect(service.capture({ kind: "desktop" })).rejects.toThrow(/without an image/);
+
+    service.dispose();
+  });
+});
+
+describe("ComputerHostService doctor capture probe", () => {
+  let dataDir: string;
+  let fakeHome: string;
+  let previousOverride: string | undefined;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), "computer-host-data-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "computer-host-home-"));
+    previousOverride = process.env.CUA_DRIVER_PATH;
+    previousHome = process.env.HOME;
+    const driverPath = join(dataDir, "runtime", "cua-driver");
+    await mkdir(join(dataDir, "runtime"), { recursive: true });
+    await writeFile(driverPath, "#!/bin/sh\necho fixture\n");
+    await chmod(driverPath, 0o755);
+    process.env.CUA_DRIVER_PATH = driverPath;
+    process.env.HOME = fakeHome;
+  });
+
+  afterEach(async () => {
+    if (previousOverride === undefined) delete process.env.CUA_DRIVER_PATH;
+    else process.env.CUA_DRIVER_PATH = previousOverride;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(fakeHome, { recursive: true, force: true });
+  });
+
+  it("fails the Screen capture probe when health_report succeeds but a real capture comes back empty", async () => {
+    class HealthyButBlankTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "get_desktop_state") {
+          return { structuredContent: { screenshot_width: 0, screenshot_height: 0, screenshot_png_b64: "" } };
+        }
+        return { structuredContent: {} };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new HealthyButBlankTransport(),
+      spawnProcess: statefulLoggingSpawn([]),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    const report = await service.doctor();
+    const capture = report.probes.find((probe) => probe.id === "capture");
+    expect(capture?.status).not.toBe("ok");
+    expect(report.state).not.toBe("ready");
+
+    service.dispose();
+  });
+
+  it("passes the Screen capture probe when a real capture returns a decodable image", async () => {
+    class WorkingCaptureTransport implements CuaTransport {
+      async call(tool: string): Promise<CuaToolResult> {
+        if (tool === "get_desktop_state") {
+          return {
+            structuredContent: { screenshot_width: 64, screenshot_height: 40 },
+            content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+          };
+        }
+        if (tool === "list_windows") return { structuredContent: { windows: [] } };
+        return { structuredContent: {} };
+      }
+    }
+    const service = new ComputerHostService({
+      dataDir,
+      logger: testLogger,
+      live: noLive,
+      transportFactory: () => new WorkingCaptureTransport(),
+      spawnProcess: statefulLoggingSpawn([]),
+      driverFetchImpl: networkDisabledFetch,
+      platform: "linux",
+    });
+
+    const report = await service.doctor();
+    const capture = report.probes.find((probe) => probe.id === "capture");
+    expect(capture?.status).toBe("ok");
+
     service.dispose();
   });
 });

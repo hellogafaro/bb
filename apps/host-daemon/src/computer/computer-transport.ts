@@ -172,8 +172,88 @@ export class ProcessCuaTransport implements CuaTransport {
   }
 }
 
+const LAPSED_MANIFEST_PATTERN = /capability manifest[\s\S]{0,80}(idle timeout exceeded|expired|lapsed)/iu;
+
+export function isLapsedManifestError(error: unknown): boolean {
+  return error instanceof Error && LAPSED_MANIFEST_PATTERN.test(error.message);
+}
+
+export interface ManifestRenewalHooks {
+  ensureFresh(): Promise<void>;
+  renewAfterLapse(): Promise<void>;
+  noteSuccess(): void;
+}
+
+export class RenewingCuaTransport implements CuaTransport {
+  readonly #inner: CuaTransport;
+  readonly #hooks: ManifestRenewalHooks;
+
+  constructor(inner: CuaTransport, hooks: ManifestRenewalHooks) {
+    this.#inner = inner;
+    this.#hooks = hooks;
+  }
+
+  async call(tool: string, input: Record<string, unknown>, signal: AbortSignal): Promise<CuaToolResult> {
+    await this.#hooks.ensureFresh();
+    try {
+      const result = await this.#inner.call(tool, input, signal);
+      this.#hooks.noteSuccess();
+      return result;
+    } catch (error) {
+      if (!isLapsedManifestError(error)) throw error;
+      await this.#hooks.renewAfterLapse();
+      const result = await this.#inner.call(tool, input, signal);
+      this.#hooks.noteSuccess();
+      return result;
+    }
+  }
+
+  close(): void {
+    const closable = this.#inner as { close?: () => void };
+    closable.close?.();
+  }
+}
+
 export function content(result: CuaToolResult): Record<string, unknown> {
   return result.structuredContent ?? {};
+}
+
+export interface McpImage {
+  readonly base64: string;
+  readonly mimeType: "image/png" | "image/jpeg";
+}
+
+export function extractMcpImage(result: CuaToolResult): McpImage | null {
+  const image = result.content?.find((part) => part.type === "image" && typeof part.data === "string");
+  if (image?.data === undefined) return null;
+  return { base64: image.data, mimeType: image.mimeType === "image/jpeg" ? "image/jpeg" : "image/png" };
+}
+
+export interface DesktopImage {
+  readonly base64: string;
+  readonly mimeType: "image/png" | "image/jpeg";
+  readonly width: number;
+  readonly height: number;
+  readonly originalWidth: number;
+  readonly originalHeight: number;
+}
+
+export function extractDesktopImage(result: CuaToolResult): DesktopImage | null {
+  const data = content(result);
+  const mcpImage = extractMcpImage(result);
+  const base64 = mcpImage?.base64 ?? (typeof data.screenshot_png_b64 === "string" ? data.screenshot_png_b64 : "");
+  const width = Number(data.screenshot_width ?? 0);
+  const height = Number(data.screenshot_height ?? 0);
+  if (base64.length === 0 || !(width > 0) || !(height > 0)) return null;
+  const mimeType = mcpImage?.mimeType ?? (data.screenshot_mime_type === "image/jpeg" ? "image/jpeg" : "image/png");
+  return {
+    base64,
+    mimeType,
+    width,
+    height,
+    originalWidth: Number(data.screenshot_original_width ?? width),
+    originalHeight: Number(data.screenshot_original_height ?? height),
+  };
 }
 
 export function cuaEnv(base: Readonly<Record<string, string | undefined>>): Record<string, string> {

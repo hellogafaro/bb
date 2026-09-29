@@ -37,12 +37,15 @@ export interface CapabilityManifestOptions {
   readonly windows: readonly WindowGrant[];
 }
 
+export const MANIFEST_EXPIRES_AFTER_MS = 24 * 60 * 60 * 1000;
+export const MANIFEST_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+
 export function buildCapabilityManifest(options: CapabilityManifestOptions): Record<string, unknown> {
   return {
     version: 1,
     mode: "bounded",
-    expires_after: "24h",
-    idle_timeout: "1h",
+    expires_after: `${MANIFEST_EXPIRES_AFTER_MS / 3_600_000}h`,
+    idle_timeout: `${MANIFEST_IDLE_TIMEOUT_MS / 3_600_000}h`,
     resources: {
       desktop: {
         display: true,

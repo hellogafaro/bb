@@ -4,7 +4,7 @@ import type {
   ComputerLiveProfile,
   ComputerLiveState,
 } from "@bb/host-daemon-contract";
-import { content, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
+import { extractDesktopImage, type CuaToolResult, type CuaTransport } from "./computer-transport.js";
 
 export interface CapturedFrame {
   readonly bytes: Uint8Array;
@@ -37,22 +37,17 @@ export const LIVE_PROFILES: Readonly<Record<ComputerLiveProfile, LiveProfileSett
 export const LIVE_CAPTURE_SESSION = "bb-live";
 
 export function desktopCapture(result: CuaToolResult, capturedAt: number): CapturedFrame {
-  const data = content(result);
-  const image = result.content?.find((part) => part.type === "image" && typeof part.data === "string");
-  const base64 = image?.data ?? (typeof data.screenshot_png_b64 === "string" ? data.screenshot_png_b64 : "");
-  const width = Number(data.screenshot_width ?? 0);
-  const height = Number(data.screenshot_height ?? 0);
-  if (base64.length === 0 || !(width > 0) || !(height > 0)) {
+  const image = extractDesktopImage(result);
+  if (image === null) {
     throw new Error("The driver returned a desktop capture without an image");
   }
-  const mimeType = (image?.mimeType ?? data.screenshot_mime_type) === "image/jpeg" ? "image/jpeg" : "image/png";
   return {
-    bytes: Buffer.from(base64, "base64"),
-    mimeType,
-    width,
-    height,
-    originalWidth: Number(data.screenshot_original_width ?? width),
-    originalHeight: Number(data.screenshot_original_height ?? height),
+    bytes: Buffer.from(image.base64, "base64"),
+    mimeType: image.mimeType,
+    width: image.width,
+    height: image.height,
+    originalWidth: image.originalWidth,
+    originalHeight: image.originalHeight,
     capturedAt,
   };
 }

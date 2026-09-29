@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildCapabilityManifest, PathGrantSet, WindowGrantSet } from "./computer-manifest.js";
+import {
+  buildCapabilityManifest,
+  MANIFEST_EXPIRES_AFTER_MS,
+  MANIFEST_IDLE_TIMEOUT_MS,
+  PathGrantSet,
+  WindowGrantSet,
+} from "./computer-manifest.js";
 
 describe("buildCapabilityManifest", () => {
   it("never allows kill_app or launch_app", () => {
@@ -36,6 +42,12 @@ describe("buildCapabilityManifest", () => {
     expect(manifest.mode).toBe("bounded");
     expect(manifest.expires_after).toBeTruthy();
     expect(manifest.idle_timeout).toBeTruthy();
+  });
+
+  it("writes expiry/idle strings that match the exported ms constants used for proactive renewal", () => {
+    const manifest = buildCapabilityManifest({ writablePaths: [], windows: [] });
+    expect(manifest.expires_after).toBe(`${MANIFEST_EXPIRES_AFTER_MS / 3_600_000}h`);
+    expect(manifest.idle_timeout).toBe(`${MANIFEST_IDLE_TIMEOUT_MS / 3_600_000}h`);
   });
 });
 
